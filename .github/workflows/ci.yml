@@ -1,0 +1,29 @@
+# CI for dev and pull requests: checks that every binary file is stored in Git LFS. It needs no Unity license and no
+# LFS bandwidth. Player builds run in release.yml on main (a Unity compile check here would cost a full asset import).
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lfs:
+    name: Binary files in LFS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - run: |
+          git lfs fsck --pointers
+          binary="$(git ls-files --eol | awk -F'\t' '$1 ~ /^i\/-text/ { print $2 }')"
+          if [ -n "$binary" ]; then
+            echo "::error::Binary files outside Git LFS, add their type to .gitattributes:"
+            echo "$binary"
+            exit 1
+          fi

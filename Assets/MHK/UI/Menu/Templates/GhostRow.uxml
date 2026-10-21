@@ -1,0 +1,36 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- One time-trial ghost (ghost picker and Records page). Code sets the texts, the driver portrait and kart icon (.missing: placeholder for content that is not loaded), the kind icon in the top right corner (.best star, .last, .saved, .imported, its name as tooltip), .selected (picked in the ghost picker: check mark) and shows ghost-version for a ghost of another version (.other). The ghost picker toggles with ghost-main. The Records page hides the check (.ghost-list-records on the list) and shows ghost-actions (Watch, Export, Delete). Samples add sample-selected / sample-other / sample-last / sample-imported on their Instance. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="ghost-row">
+        <ui:Button name="ghost-main" class="ghost-main">
+            <ui:VisualElement name="ghost-check" class="ghost-check">
+                <ui:VisualElement class="icon i-check" />
+            </ui:VisualElement>
+            <ui:Label name="ghost-time" text="03:23.76" class="ghost-time" />
+            <ui:VisualElement class="ghost-info">
+                <ui:Label name="ghost-player" text="Player" class="ghost-player" />
+                <ui:Label name="ghost-date" text="10/16/2026" class="ghost-date" />
+            </ui:VisualElement>
+            <ui:VisualElement class="driver-icons ghost-driver">
+                <mhk:ContentImage name="driver-portrait" tooltip="Moorhuhn" class="driver-icon driver-portrait" image="/Assets/MHK/UI/Samples/character_moorhuhn.png" />
+                <mhk:ContentImage name="driver-kart" tooltip="Red Kart" class="driver-icon driver-kart" image="/Assets/MHK/UI/Samples/mhk2.kart_icon.png" />
+            </ui:VisualElement>
+            <ui:Label name="ghost-class" text="150cc" class="ghost-class" />
+            <ui:VisualElement class="ghost-badges">
+                <ui:VisualElement name="ghost-version" tooltip="Other version. It can be raced but never counts as a record." class="icon i-warning ghost-badge ghost-version" />
+                <ui:VisualElement name="ghost-kind" tooltip="Your best" class="icon ghost-badge ghost-kind best" />
+            </ui:VisualElement>
+        </ui:Button>
+        <ui:VisualElement name="ghost-actions" class="row ghost-actions">
+            <ui:Button name="ghost-watch" tooltip="Watch" class="mhk-button small secondary icon-only">
+                <ui:VisualElement class="icon i-visibility" />
+            </ui:Button>
+            <ui:Button name="ghost-export" tooltip="Export" class="mhk-button small secondary icon-only">
+                <ui:VisualElement class="icon i-upload" />
+            </ui:Button>
+            <ui:Button name="ghost-delete" tooltip="Delete" class="mhk-button small secondary icon-only">
+                <ui:VisualElement class="icon i-delete" />
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

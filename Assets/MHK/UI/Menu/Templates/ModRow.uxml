@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One pack row. Code sets mod-logo, the texts and the toggle state (class on or off). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="mod-row">
+        <ui:VisualElement name="mod-logo" class="mod-logo" />
+        <ui:VisualElement class="mod-info">
+            <ui:Label name="mod-title" text="Moorhuhn Kart" class="mod-title" />
+            <ui:Label name="mod-text" text="The base content pack required by the game." class="mod-text" />
+        </ui:VisualElement>
+        <ui:Button name="mod-toggle" text="Enabled" class="mhk-button small mod-toggle on" />
+    </ui:VisualElement>
+</ui:UXML>

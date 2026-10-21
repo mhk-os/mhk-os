@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6019131538876585636
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 54095935118469411}
+  - component: {fileID: 8439565646670661580}
+  m_Layer: 10
+  m_Name: ItemBoxLook
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &54095935118469411
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6019131538876585636}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8439565646670661580
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6019131538876585636}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09953ee605f804c02841e664f2a2986f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Powerups.ItemBoxLook
+  style: 0
+  variants:
+  - style: 2
+    games:
+    - mhk2
+    model: {fileID: 1705531286402971890, guid: f607f1dbe0ebc41e1bbb3c69af20784a, type: 3}
+    spinSpeed: 90
+    trackHeight: 0.67
+    scale: 1
+  - style: 1
+    games:
+    - mhke
+    model: {fileID: 8215453993524380140, guid: a783c59365a46425c9e520dd5055cf8e, type: 3}
+    spinSpeed: 0
+    trackHeight: -0.4
+    scale: 1.5
+  - style: 3
+    games:
+    - mhk3
+    model: {fileID: 2516769330987656673, guid: 8c2f870479c4b45d2a43315b13d516d9, type: 3}
+    spinSpeed: 90
+    trackHeight: 0.4
+    scale: 0.75
+  - style: 4
+    games:
+    - mhkt
+    model: {fileID: 4139770906007281763, guid: 5e8e60157e8de43ff8027c01d5f3ec87, type: 3}
+    spinSpeed: 90
+    trackHeight: 0.63
+    scale: 0.75
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  heightAboveGround: -1

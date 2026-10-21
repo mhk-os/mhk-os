@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- One records row. Code sets the texts, .alt (every second row), .missing (no loaded mod has the track: the mod icon shows, the tooltip says so) and per time .accent (record) or .empty (none) with the portrait and kart icon of the driver that set it (hidden without a record). Samples add sample-alt / sample-selected / sample-missing / sample-empty on their Instance. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="rec-row">
+        <ui:VisualElement name="rec-missing" class="icon i-extension rec-missing-icon" />
+        <ui:Label name="rec-track" text="Scribble Blocks" class="rec-track" />
+        <ui:Label name="rec-game" text="Moorhuhn Kart Extra" class="rec-game" />
+        <ui:VisualElement name="rec-lap-cell" class="rec-cell">
+            <ui:VisualElement class="driver-icons rec-driver">
+                <mhk:ContentImage name="driver-portrait" tooltip="Moorhuhn" class="driver-icon driver-portrait" image="/Assets/MHK/UI/Samples/character_moorhuhn.png" />
+                <mhk:ContentImage name="driver-kart" tooltip="Red Kart" class="driver-icon driver-kart" image="/Assets/MHK/UI/Samples/mhk2.kart_icon.png" />
+            </ui:VisualElement>
+            <ui:Label name="rec-lap" text="00:30.10" class="rec-time accent" />
+        </ui:VisualElement>
+        <ui:VisualElement name="rec-race-cell" class="rec-cell">
+            <ui:VisualElement class="driver-icons rec-driver">
+                <mhk:ContentImage name="driver-portrait" tooltip="Moorhuhn" class="driver-icon driver-portrait" image="/Assets/MHK/UI/Samples/character_moorhuhn.png" />
+                <mhk:ContentImage name="driver-kart" tooltip="Red Kart" class="driver-icon driver-kart" image="/Assets/MHK/UI/Samples/mhk2.kart_icon.png" />
+            </ui:VisualElement>
+            <ui:Label name="rec-race" text="01:53.46" class="rec-time accent" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

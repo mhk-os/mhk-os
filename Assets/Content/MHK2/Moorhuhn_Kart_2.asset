@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5dbe57176b5e94ec1b5194f65ca6a278, type: 3}
+  m_Name: Moorhuhn_Kart_2
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.ContentPack
+  packId: mhk2
+  title: Moorhuhn Kart 2
+  author: Phenomedia / Sproing (original), MHK:OSE port
+  version: 
+  description: Tracks, characters and powerups of Moorhuhn Kart 2 (2004). Reference game for physics and look.
+  loadOrder: 20
+  includes: []
+  logo: {fileID: 2800000, guid: 711160d62093d4416a1684525b91c5f0, type: 3}
+  menuMusic: {fileID: 8300000, guid: f890ad95717904fd782d6f315549b052, type: 3}
+  uiClick: {fileID: 8300000, guid: 81d25b38b0c684824a04c863e22a403e, type: 3}
+  sharedPowerups: []
+  preferredDefaults: 1
+  engineLoop: {fileID: 8300000, guid: d04e3ea685ca64f038dc61e10bbaba0d, type: 3}
+  skidLoop: {fileID: 8300000, guid: b8256904414ef4bb58bcd67cd1520f1e, type: 3}
+  crashSound: {fileID: 8300000, guid: 9909aae1af16a42ada51a7b62f7cead2, type: 3}
+  landSound: {fileID: 8300000, guid: 4c5b5ba9a9fe44068a45e1b204aefbc0, type: 3}
+  countdownSound: {fileID: 8300000, guid: d2fbbd2f51f5f4941b097a1c37031675, type: 3}
+  goSound: {fileID: 8300000, guid: b5ea89f343f2c46c49a282617cf00fa4, type: 3}
+  itemPickupSound: {fileID: 8300000, guid: cf49d574c2c4b4a8ebe64cb1c08876b7, type: 3}
+  scratchSound: {fileID: 8300000, guid: fa7a0e38f9542469784f287c3470fdff, type: 3}
+  offroadLoop: {fileID: 8300000, guid: 8220d56f9ae9c46e7bafdade139de05d, type: 3}
+  content:
+  - {fileID: 11400000, guid: 798794d06df694bad95bf31caf392113, type: 2}
+  - {fileID: 11400000, guid: 549fa82b5d9c04df4aa6bf4293ab4b39, type: 2}
+  - {fileID: 11400000, guid: 83a40b4d371674771b3a8c74decd53fa, type: 2}
+  - {fileID: 11400000, guid: c556a588b483e4a0e81171c3489b1e5c, type: 2}
+  - {fileID: 11400000, guid: 7e0f7fd5e6f8740dd85475ffdf9bf3b9, type: 2}
+  - {fileID: 11400000, guid: 4d594191a559c4e3a85f7bad41e88f15, type: 2}
+  - {fileID: 11400000, guid: ecebb1ecc612543cba21e566fceba617, type: 2}
+  - {fileID: 11400000, guid: 6669bf1bc699b4b0ca5f6cdaa60b2066, type: 2}
+  - {fileID: 11400000, guid: 7d01ed5369fbf412580cb4e17dcb7c10, type: 2}
+  - {fileID: 11400000, guid: 6ab4b9a74e6654f4aa8d02233d8906cb, type: 2}
+  - {fileID: 11400000, guid: 6ffec51acf4a34809ab94c8c8d1526b8, type: 2}
+  - {fileID: 11400000, guid: 589ec66d47584491abd8ffa01f7f5b58, type: 2}
+  - {fileID: 11400000, guid: 5d8057aa0c8474ac0b9341c415ebc45c, type: 2}
+  - {fileID: 11400000, guid: be3f9462d772d4e39beaafd845fb2af1, type: 2}
+  - {fileID: 11400000, guid: 26c753ab88ccd438fb9a75eb10c09e94, type: 2}
+  - {fileID: 11400000, guid: 2f89c29dd7fe94781ab2e29397780b1e, type: 2}
+  - {fileID: 11400000, guid: c66bc5a7fda0a4689b6ad8a92dd0e09b, type: 2}
+  - {fileID: 11400000, guid: a8101754419804b90b08eadbaa7b7223, type: 2}
+  - {fileID: 11400000, guid: 98d8ef8a1d6b242b7add41949b174fb5, type: 2}
+  - {fileID: 11400000, guid: d0abf587c3d464c1fa3980f7c8335692, type: 2}
+  - {fileID: 11400000, guid: 3953fa1cfda38415089ff39ff92931bd, type: 2}
+  - {fileID: 11400000, guid: 73b06784f59f54701bc198565acca6d9, type: 2}
+  - {fileID: 11400000, guid: 4b615fe64d0bf45a48258236aeed356e, type: 2}
+  - {fileID: 11400000, guid: f383a3ce9eeb646c280d9ee7da6ae685, type: 2}
+  - {fileID: 11400000, guid: 23fcae25d0bd5454a81218344df626e7, type: 2}
+  - {fileID: 11400000, guid: 622204ad78a54412695b14c250ea069f, type: 2}
+  - {fileID: 11400000, guid: 7bbae467ecb1e4910951dff39f8d22c1, type: 2}
+  - {fileID: 11400000, guid: 885ce13763bae4c7b99f9c012162271b, type: 2}
+  - {fileID: 11400000, guid: 27c0ad43d0f724960a437cb0d66ff0bf, type: 2}
+  - {fileID: 11400000, guid: 1d4cefbc5bd9c47f4a8c661cc76e3d88, type: 2}
+  - {fileID: 11400000, guid: 4d3d086b5d21b4f5f9694de0c6168e06, type: 2}
+  - {fileID: 11400000, guid: b8d2c02dbf0394b24aa8697612573164, type: 2}
+  - {fileID: 11400000, guid: 9ca771b5722fa490ba6006a0df87a025, type: 2}
+  - {fileID: 11400000, guid: cf197378e40f54dcd94b97c1a81fd6be, type: 2}
+  - {fileID: 11400000, guid: 144238260d34640f4ab926fe500c0143, type: 2}
+  - {fileID: 11400000, guid: d2c967fc7ccd142d192e0da06e2e44ea, type: 2}
+  - {fileID: 11400000, guid: e806793ef6dff459f9d364c63a3f6919, type: 2}
+  - {fileID: 11400000, guid: b2696ec1fc7b342818298d66b7c86646, type: 2}
+  - {fileID: 11400000, guid: f5caef5b4201d449e88a9979f6e282b7, type: 2}
+  sdkVersion: 
+  unityVersion: 
+  buildTarget: 

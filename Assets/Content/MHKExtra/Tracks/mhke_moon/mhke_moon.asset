@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhke_moon
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhke.moon
+  displayName: Luna
+  sourceGame: mhke
+  icon: {fileID: 2800000, guid: 1d82de652620b4620a5ca6acf3109d5b, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: 6c794f7d70a8549398af9ffaefc35771, type: 3}
+    path: Assets/Content/MHKExtra/Tracks/mhke_moon/mhke_moon.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: c8f4ded3ba9bd459c8fb9e5d3bfde600, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: 9a5e131025268438a956973cc7181a0d, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings: []
+  physics:
+    overrideSlopeGravity: 0
+    slopeGravityFactor: 1
+    gravityIntoGround: 0
+  itemPacks: []

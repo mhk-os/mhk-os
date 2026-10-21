@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2131961209308556702
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3912172524614309761}
+  - component: {fileID: 5903368122623684345}
+  m_Layer: 0
+  m_Name: Snow
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3912172524614309761
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2131961209308556702}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5903368122623684345
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2131961209308556702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f97c934023cc1464a9c7ccd14e99294b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Effects.WeatherEffect
+  targetCamera: {fileID: 0}
+  material: {fileID: 2100000, guid: 9207514f75176465d9ff861cd9b32fec, type: 2}
+  count: 4000
+  area: {x: 36, y: 14, z: 36}
+  center: {x: 0, y: 3, z: 10}
+  edgeFade: 0.35
+  nearFade: 1
+  fallSpeed: 1.1
+  speedVariation: 0.35
+  wind: {x: 0.5, y: 0, z: 0.2}
+  swayAmplitude: 0.35
+  swayFrequency: 0.4
+  color: {r: 1, g: 1, b: 1, a: 0.9}
+  size: {x: 0.11, y: 0.11}
+  sizeVariation: 0.4
+  cameraMotionStretch: 0
+  cover: []
+  coverTexel: 1
+  coverMaxResolution: 1024
+  coverBias: 0.1
+  coverFade: 0.5
+  coverIncludesCutout: 0
+  coverIncludesTransparent: 1
+  qualityScale:
+  - 0.6
+  - 1
+  - 1

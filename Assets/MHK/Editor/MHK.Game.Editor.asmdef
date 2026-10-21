@@ -1,0 +1,19 @@
+{
+    "name": "MHK.Game.Editor",
+    "rootNamespace": "MHK.Editor",
+    "references": [
+        "MHK.Runtime",
+        "MHK.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

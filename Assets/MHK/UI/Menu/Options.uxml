@@ -1,0 +1,46 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Options. Code sets the slider values and the camera / touch-controls / graphics / controls row values (samples: the default settings) and hides the controls row on mobile. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Options" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="settings-panel" class="panel settings-panel">
+                    <ui:Slider name="master-volume" label="Master volume" low-value="0" high-value="1" value="1" class="anim from-left" style="transition-delay: 120ms;" />
+                    <ui:Slider name="music-volume" label="Music volume" low-value="0" high-value="1" value="0.7" class="anim from-left" style="transition-delay: 165ms;" />
+                    <ui:Slider name="effects-volume" label="Effects volume" low-value="0" high-value="1" value="1" class="anim from-left" style="transition-delay: 210ms;" />
+                    <ui:Slider name="minimap-size" label="Minimap size" low-value="0" high-value="2" value="1" class="anim from-left" style="transition-delay: 255ms;" />
+                    <ui:Instance template="SettingRow" name="camera" class="setting-row anim from-left" style="transition-delay: 300ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Camera" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Close" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="touch-controls" class="setting-row anim from-left" style="transition-delay: 345ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Touch controls" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Auto" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="graphics" class="setting-row setting-link anim from-left" style="transition-delay: 390ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Graphics" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Low" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="controls" class="setting-row setting-link anim from-left desktop-only" style="transition-delay: 435ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Keyboard keys" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Default" />
+                    </ui:Instance>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

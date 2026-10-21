@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c78bb2195e2b48ddb85963d5dbeff59, type: 3}
+  m_Name: mhk2.turtle
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.CharacterDefinition
+  id: mhk2.turtle
+  displayName: Turtle
+  sourceGame: 
+  icon: {fileID: 0}
+  hidden: 0
+  driverPrefab: {fileID: 0}
+  modelScale: 1
+  portrait: {fileID: 0}
+  defaultKart: {fileID: 0}
+  specialPowerup: {fileID: 0}
+  animations: []
+  voices: []

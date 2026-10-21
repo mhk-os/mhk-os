@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c577fa5f529d743bfaeca46e56187d2f, type: 3}
+  m_Name: mine
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.PowerupDefinition
+  id: mhk3.mine
+  displayName: Mine
+  sourceGame: mhk3
+  icon: {fileID: 2800000, guid: 6bce1b631db39434fa51d934724b9310, type: 3}
+  hidden: 0
+  usePrefab: {fileID: 4128853422606625898, guid: aaa4cda21ada94b29b198356146940ba, type: 3}
+  heldPrefab: {fileID: 0}
+  heldMount: 0
+  charges: 1
+  useCooldown: 0
+  excludeFromItemBoxes: 0
+  weightByPosition:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0.1
+      inSlope: 0
+      outSlope: -0.05
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0.05
+      inSlope: -0.05
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  aiUsage: 1
+  useSound: {fileID: 8300000, guid: 1706713a3a9e4086a0246f626f5ac760, type: 3}
+  family: mine

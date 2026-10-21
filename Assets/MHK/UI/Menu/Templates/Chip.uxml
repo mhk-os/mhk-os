@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Game filter chip. Code sets the text and .selected. The name lets screen samples override the text. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Button name="chip" text="Moorhuhn Kart 2" class="chip" />
+</ui:UXML>

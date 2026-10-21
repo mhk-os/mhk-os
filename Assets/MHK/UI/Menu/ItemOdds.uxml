@@ -1,0 +1,55 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Powerups (single race and battle item odds). Code fills odds-total and odds-list (a heading per game or mod, then a row per powerup). Preview class on page: preview-off (every odd at 0 %). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="ItemOddsGroup" src="/Assets/MHK/UI/Menu/Templates/ItemOddsGroup.uxml" />
+    <ui:Template name="ItemOddsRow" src="/Assets/MHK/UI/Menu/Templates/ItemOddsRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Powerups" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="odds-panel" class="panel list-panel odds-panel">
+                    <ui:VisualElement class="odds-head">
+                        <ui:Label name="odds-total" tooltip="Each % is the average over all places. The leader gets more traps and shields, the back more attacks and boosts." text="Total 100 %  |  Moorhuhn Kart items 75 %  |  other games 25 %" class="odds-total" />
+                        <ui:Label name="odds-off" text="All at 0 %, the race has no powerups" class="odds-total odds-off" />
+                    </ui:VisualElement>
+                    <ui:ScrollView name="odds-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                        <ui:VisualElement name="odds-list">
+                            <ui:Instance template="ItemOddsGroup" />
+                            <ui:Instance template="ItemOddsRow" />
+                            <ui:Instance template="ItemOddsRow" class="sample-alt">
+                                <ui:AttributeOverrides element-name="odds-name" text="Turbo Can" />
+                            </ui:Instance>
+                            <ui:Instance template="ItemOddsRow" class="sample-shared">
+                                <ui:AttributeOverrides element-name="odds-name" text="Shield" />
+                            </ui:Instance>
+                            <ui:Instance template="ItemOddsRow" class="sample-alt sample-zero">
+                                <ui:AttributeOverrides element-name="odds-name" text="Black Hole" />
+                                <ui:AttributeOverrides element-name="odds-value" text="0 %" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                    </ui:ScrollView>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="all-off" class="mhk-button small secondary">
+                    <ui:Label text="All 0 %" class="button-label" />
+                </ui:Button>
+                <ui:Button name="reset" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-restart_alt" />
+                    <ui:Label text="Defaults" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
