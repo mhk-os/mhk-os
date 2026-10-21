@@ -3,8 +3,8 @@
 # Every build runs in a GameCI Unity docker image on ubuntu: desktop players use Mono, Android IL2CPP ARM64 (Player
 # Settings). Unity 6.6 has no desktop Linux Arm64 player, so there is no linux-arm64 build. Builds upload straight into
 # a draft release (no artifact storage), the macOS apps get an ad hoc signature on a Mac, the last job publishes.
-# Identity: the commit only (-mhkCommit, no version number). Build number: the run number of this workflow (release
-# title "Build <n> | <sha7>", Android versionCode and macOS build number).
+# Identity: the commit only (-mhkCommit, no version number). Build number: the number of commits on main, so it grows
+# with every commit or merge (release title "Build <n> | <sha7>", Android versionCode and macOS build number).
 name: Release
 
 on:
@@ -29,16 +29,21 @@ jobs:
       lfs-key: ${{ steps.lfs.outputs.key }}
       sha7: ${{ steps.meta.outputs.sha7 }}
       tag: ${{ steps.meta.outputs.tag }}
+      number: ${{ steps.meta.outputs.number }}
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           lfs: false
 
       - id: meta
         run: |
           sha7="${GITHUB_SHA::7}"
-          echo "sha7=$sha7" >> "$GITHUB_OUTPUT"
-          echo "tag=build-$sha7" >> "$GITHUB_OUTPUT"
+          {
+            echo "sha7=$sha7"
+            echo "tag=build-$sha7"
+            echo "number=$(git rev-list --count HEAD)"
+          } >> "$GITHUB_OUTPUT"
 
       # LFS objects are downloaded once per set of binaries (key: the object list of this commit) and shared by all
       # builds through the cache. A miss starts from the newest older set, so only changed files use LFS bandwidth.
@@ -75,6 +80,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.meta.outputs.tag }}
           SHA7: ${{ steps.meta.outputs.sha7 }}
+          NUMBER: ${{ steps.meta.outputs.number }}
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then exit 0; fi
           notes="$RUNNER_TEMP/notes.txt"
@@ -83,7 +89,7 @@ jobs:
             echo
             git log -1 --format=%B
           } > "$notes"
-          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Build $GITHUB_RUN_NUMBER | $SHA7" --notes-file "$notes"
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Build $NUMBER | $SHA7" --notes-file "$notes"
 
   build:
     name: Build ${{ matrix.target }}
@@ -141,7 +147,7 @@ jobs:
         with:
           targetPlatform: ${{ matrix.platform }}
           buildMethod: MHK.Editor.Build.CiBuild.Build
-          customParameters: -mhkTarget ${{ matrix.target }} -mhkOut build/${{ matrix.target }} -mhkCommit ${{ github.sha }} -mhkBuildCode ${{ github.run_number }}
+          customParameters: -mhkTarget ${{ matrix.target }} -mhkOut build/${{ matrix.target }} -mhkCommit ${{ github.sha }} -mhkBuildCode ${{ needs.prepare.outputs.number }}
           versioning: None
           allowDirtyBuild: true
 

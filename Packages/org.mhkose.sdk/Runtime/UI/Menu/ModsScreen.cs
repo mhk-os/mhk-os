@@ -7,7 +7,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Content packs (Mods.uxml): one row per top-level pack found by the <see cref="ModLoader"/>, disabled ones
-    /// included, each with an Enabled / Disabled toggle. Apply reloads mods and content and restarts the menu.
+    /// included, each with an Enabled / Disabled toggle. Apply reloads mods and content and restarts the menu, Open Mod
+    /// Folder shows the user mods folder (desktop).
     /// </summary>
     public class ModsScreen : MenuScreen
     {
@@ -42,6 +43,7 @@ namespace MHK.UI
             SetVisible("mod-empty", packs.Count == 0);
             UiAnim.Stagger(list, rowStep, rowFirst, "from-left");
             OnClick("apply", Apply);
+            OnClick("open-mods", () => GhostUi.Reveal(ModLoader.UserFolder));
         }
 
         void FillPackRow(VisualElement row, ContentPack pack)

@@ -32,6 +32,10 @@
                 </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right">
+                <ui:Button name="open-mods" class="mhk-button small secondary desktop-only">
+                    <ui:VisualElement class="icon i-folder_open" />
+                    <ui:Label text="Open Mod Folder" class="button-label" />
+                </ui:Button>
                 <ui:Button name="apply" class="mhk-button go">
                     <ui:VisualElement class="icon i-check" />
                     <ui:Label text="Apply" class="button-label" />

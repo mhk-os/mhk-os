@@ -10,6 +10,8 @@ namespace MHK.Powerups
     {
         const float LoopEndMargin = 0.0001f;
 
+        [Tooltip("Must be a legacy clip: players and mod bundles keep no sampleable curves of a non-legacy clip, " +
+                 "so the model would stay in its bind pose.")]
         [SerializeField] AnimationClip clip;
         [Tooltip("Clip time shown when enabled (held pose).")]
         [SerializeField] float idleTime;
