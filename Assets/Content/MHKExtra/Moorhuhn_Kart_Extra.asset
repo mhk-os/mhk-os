@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5dbe57176b5e94ec1b5194f65ca6a278, type: 3}
+  m_Name: Moorhuhn_Kart_Extra
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.ContentPack
+  packId: mhke
+  title: Moorhuhn Kart Extra
+  author: Phenomedia / Sproing (original), MHK:OSE port
+  version: 1.0.0
+  description: Tracks and powerups of Moorhuhn Kart (2002) and Moorhuhn Kart Extra (2003).
+  loadOrder: 10
+  includes: []
+  logo: {fileID: 0}
+  menuMusic: {fileID: 0}
+  uiClick: {fileID: 8300000, guid: 0c7623f08daea483997c9db12f28f387, type: 3}
+  sharedPowerups: []
+  preferredDefaults: 0
+  engineLoop: {fileID: 8300000, guid: ca420209b4c3b49fb84973ebfb200ebc, type: 3}
+  skidLoop: {fileID: 8300000, guid: 065d53c30a9ad4c84a360166a89463c8, type: 3}
+  crashSound: {fileID: 8300000, guid: ebe3f2a6a93f74ea0851a8c1c756b86a, type: 3}
+  landSound: {fileID: 0}
+  countdownSound: {fileID: 0}
+  goSound: {fileID: 0}
+  itemPickupSound: {fileID: 8300000, guid: f854b421156c24a33b1f9cf3c1922f04, type: 3}
+  scratchSound: {fileID: 8300000, guid: fba07976861af4def8462d371839191a, type: 3}
+  offroadLoop: {fileID: 0}
+  content:
+  - {fileID: 11400000, guid: ff14255a337f74a21ba21c1e72444dac, type: 2}
+  - {fileID: 11400000, guid: 206a051031cf04d02bc18a8434b83e17, type: 2}
+  - {fileID: 11400000, guid: 37f5bf4b1baf64c7486d542926d94186, type: 2}
+  - {fileID: 11400000, guid: 61c8b947f0c9d4817aa5886cb2be187e, type: 2}
+  - {fileID: 11400000, guid: 89780e3b2437a4009af1fd7cbc1aae7b, type: 2}
+  - {fileID: 11400000, guid: fa5030d8c6e094f9dba9d1e145f5338e, type: 2}
+  - {fileID: 11400000, guid: 161f874682fb14c81862501fc3502b6d, type: 2}
+  - {fileID: 11400000, guid: 5cbb5c8d802b3495cb47b143196c872c, type: 2}
+  - {fileID: 11400000, guid: 05ad03559845a4b6790b38b9b2d69947, type: 2}
+  - {fileID: 11400000, guid: eef13be400e204ebea39f071bf62159e, type: 2}
+  - {fileID: 11400000, guid: 21ab41488bab149d68cf463458158335, type: 2}
+  - {fileID: 11400000, guid: d5c36526994af45758a67bb74bb29642, type: 2}
+  - {fileID: 11400000, guid: d599cec41edeb4f1888cbc85307659c5, type: 2}
+  - {fileID: 11400000, guid: a82980ed8d7fb4149a1766d6ba83b545, type: 2}
+  - {fileID: 11400000, guid: db929c175b1fa4982855627c4ba2f94b, type: 2}
+  - {fileID: 11400000, guid: b06a2388b76d54c11891e1a4bf0565d4, type: 2}
+  - {fileID: 11400000, guid: af15ce1078df44e87b1f3fcf3085b3bc, type: 2}
+  - {fileID: 11400000, guid: 424ba8e4849574bb0bbd7a0d5a862117, type: 2}
+  - {fileID: 11400000, guid: a51334c139bd14c3e9df7d1d4dc48bed, type: 2}
+  - {fileID: 11400000, guid: 71a250cb098f54b639b8544c5d545f15, type: 2}
+  - {fileID: 11400000, guid: 6dc40c0a02cb040dea18e3adae28d668, type: 2}
+  - {fileID: 11400000, guid: db98a1ee966ed4c4080e942203efbf45, type: 2}
+  - {fileID: 11400000, guid: 30c27795cb9644f1b879af8f517457e6, type: 2}
+  - {fileID: 11400000, guid: 3a803653c7d38401fb34b56324e10814, type: 2}
+  - {fileID: 11400000, guid: 5e3e7974ae8c64da9b5eb8582de7837a, type: 2}
+  - {fileID: 11400000, guid: 5dd01ac4299264cc8a1e5d780368b3e1, type: 2}
+  - {fileID: 11400000, guid: f58a249b7757145cb94ff32478f68680, type: 2}
+  - {fileID: 11400000, guid: 3138e1cd289674f08bb88f8a3203222b, type: 2}
+  - {fileID: 11400000, guid: ad44981ff97404a7989968b228511769, type: 2}

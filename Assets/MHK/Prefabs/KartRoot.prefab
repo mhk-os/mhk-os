@@ -1,0 +1,214 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3922444753320765893
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6314386305986545473}
+  - component: {fileID: 3088681778604670569}
+  - component: {fileID: 5993100440030826867}
+  - component: {fileID: 3226142686622203113}
+  - component: {fileID: 3736084637664493551}
+  - component: {fileID: 7958253511371013172}
+  - component: {fileID: 1372556026948956070}
+  - component: {fileID: 5882314705424195475}
+  - component: {fileID: 8665987756087715138}
+  - component: {fileID: 4408919408222979954}
+  m_Layer: 8
+  m_Name: KartRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6314386305986545473
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &3088681778604670569
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!65 &5993100440030826867
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 1, z: 1}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &3226142686622203113
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf5b4a1961c774631b181e256a2a5d21, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Karts.KartPhysics
+  profile: {fileID: 11400000, guid: 5d501916702ec4fa98f816f91e6e3f6b, type: 2}
+  groundMask:
+    serializedVersion: 2
+    m_Bits: 4294963931
+  chassisMaterial: {fileID: 13400000, guid: bd83f69373f3e481b96ff577d7e54673, type: 2}
+  solverIterations: 8
+  contactMargin: 0.05
+  lateralForceHeight: 1
+  wallMaxNormalY: 0.6
+  ghostExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 1280
+  runOverExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 256
+  ghostExitTimeout: 3
+--- !u!114 &3736084637664493551
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b281fbccabe149e89737d28d5ac8382, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Karts.KartEffects
+--- !u!114 &7958253511371013172
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40e1ef6f7af9b481dbab1974bf9e011d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Powerups.PowerupInventory
+--- !u!114 &1372556026948956070
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd2f5b34f291d40648c2cb69e39c6ce7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Race.RacerProgress
+--- !u!114 &5882314705424195475
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9d198a3c127c443ecaac621f71bb2f56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Karts.Kart
+--- !u!114 &8665987756087715138
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cd03c850adce487387fa6affebe86e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Karts.KartAudio
+  defaultEngineLoop: {fileID: 0}
+  skidLoop: {fileID: 0}
+  offroadLoop: {fileID: 0}
+  crashSound: {fileID: 0}
+  scratchSound: {fileID: 0}
+  landSound: {fileID: 0}
+  engineVolume: 0.5
+  skidVolume: 0.5
+  surfaceVolume: 1
+  surfaceFullSpeed: 30
+--- !u!114 &4408919408222979954
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3922444753320765893}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ce20c5ec41724598b2035366a78dedf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Karts.KartWheelFx
+  dustMaterial: {fileID: 2100000, guid: b1a9f8dbcf5544d858e78d0872bcfbb7, type: 2}
+  skidMaterial: {fileID: 2100000, guid: 90e6a7fcc7631428fb6c3899a3e81315, type: 2}
+  markWidth: 0.15
+  segmentLength: 0.3
+  markLift: 0.02
+  markOpacity: 2
+  dustAngle: 35
+  dustLift: 0.25
+  dustEjectSpeed: 1.5
+  dustSize: {x: 0.35, y: 0.75}
+  dustLifetime: {x: 0.6, y: 1.1}
+  maxDustParticles: 80
+  dustCullDistance: 90
+  dustOpacity: 0.5

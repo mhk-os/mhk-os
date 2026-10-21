@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhk3_wild_west
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhk3.wild_west
+  displayName: Wild West
+  sourceGame: mhk3
+  icon: {fileID: 2800000, guid: 760a27aa68c6f4ba1bbbe8c04b2ea189, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: b5d74b5fe5dcb4ec3b80fc81451a9e33, type: 3}
+    path: Assets/Content/MHK3/Tracks/mhk3_wild_west/mhk3_wild_west.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: 9fa4a2ab0166f490ebffe7b7ca7af0f9, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: 760a27aa68c6f4ba1bbbe8c04b2ea189, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings: []
+  physics:
+    overrideSlopeGravity: 1
+    slopeGravityFactor: 0
+    gravityIntoGround: 1
+  itemPacks: []

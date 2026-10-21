@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5dbe57176b5e94ec1b5194f65ca6a278, type: 3}
+  m_Name: Game
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.ContentPack
+  packId: game
+  title: 'Moorhuhn Kart: Open Source'
+  author: MHK:OSE
+  version: 1.0.0
+  description: The game's own definitions (shared kart reactions). Built into the game, always on, not listed in the Mods screen.
+  loadOrder: -100
+  includes: []
+  logo: {fileID: 0}
+  menuMusic: {fileID: 0}
+  uiClick: {fileID: 0}
+  sharedPowerups: []
+  preferredDefaults: 0
+  engineLoop: {fileID: 0}
+  skidLoop: {fileID: 0}
+  crashSound: {fileID: 0}
+  landSound: {fileID: 0}
+  countdownSound: {fileID: 0}
+  goSound: {fileID: 0}
+  itemPickupSound: {fileID: 0}
+  scratchSound: {fileID: 0}
+  offroadLoop: {fileID: 0}
+  content:
+  - {fileID: 11400000, guid: 7553c8db7c3b54b02af265829c3c9f3b, type: 2}
+  - {fileID: 11400000, guid: 31ad0b374bb554248a9147ffbaf9813f, type: 2}
+  - {fileID: 11400000, guid: c70bb9cfcbf5f43aaba65f494f27895f, type: 2}
+  - {fileID: 11400000, guid: 4c9890f747cbc4505a05dcae0136cd56, type: 2}
+  - {fileID: 11400000, guid: d5145a038e9154fdcb1d2e38a0215ea8, type: 2}
+  - {fileID: 11400000, guid: e22d2894e091c4b26b1ded75ff6ef1ff, type: 2}
+  - {fileID: 11400000, guid: 1aa2377ba80624b5790ad3d9dc15929a, type: 2}
+  - {fileID: 11400000, guid: 5621b7f845f3c4bc7a9c83d3d0604107, type: 2}
+  - {fileID: 11400000, guid: 825c27127b7ed4f4cb7b710933a118ef, type: 2}

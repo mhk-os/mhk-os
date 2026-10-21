@@ -1,0 +1,25 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- One result row (sample: 4th, not the player). Code sets the texts, the driver's portrait and kart icon (.missing: placeholder for content that is not loaded), .me, the badge tier, shows + spins burst for the winner (hidden by MHKHud.uss otherwise) and shows points in championships. Samples in Results.uxml add sample-gold / sample-silver / sample-bronze / sample-me on their Instance. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="row hud-results-row">
+        <ui:VisualElement name="pos" class="hud-res-pos">
+            <ui:VisualElement name="burst" class="sunburst hud-res-burst" usage-hints="DynamicTransform" />
+            <ui:VisualElement name="badge" class="badge hud-res-badge">
+                <ui:Label name="badge-label" text="4" class="badge-label" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="row hud-res-racer">
+            <ui:VisualElement class="driver-icons hud-res-driver">
+                <mhk:ContentImage name="driver-portrait" class="driver-icon driver-portrait" image="/Assets/MHK/UI/Samples/character_moorhuhn.png" />
+                <mhk:ContentImage name="driver-kart" class="driver-icon driver-kart" image="/Assets/MHK/UI/Samples/mhk2.kart_icon.png" />
+            </ui:VisualElement>
+            <ui:Label name="name" text="Moorhuhn" class="hud-res-cell hud-res-name" />
+        </ui:VisualElement>
+        <ui:Label name="time" text="02:31.48" class="hud-res-cell hud-res-time" />
+        <ui:Label name="best" text="00:49.87" class="hud-res-cell hud-res-time hud-res-best" />
+        <ui:VisualElement name="points" class="row hud-res-points">
+            <ui:Label name="gain" text="+10" class="hud-res-gain" />
+            <ui:Label name="total" text="(25)" class="hud-res-total" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

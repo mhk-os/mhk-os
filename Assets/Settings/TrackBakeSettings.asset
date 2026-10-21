@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e602f5a659ac6478690ff30d333317c2, type: 3}
+  m_Name: TrackBakeSettings
+  m_EditorClassIdentifier: MHK.Editor::MHK.Editor.Lighting.TrackBakeSettings
+  shadowStrength: 0.5
+  bakedShadowAngle: 1.5
+  lightmapSize: 1024
+  lightmapBudget: 6
+  packingEfficiency: 0.7
+  texelDensityRange: {x: 0.5, y: 4}
+  farDistance: 60
+  farScale: 0.35
+  padding: 2
+  islandMarginTexels: 1.5
+  unwrapHardAngle: 88
+  compression: 2
+  colorLightmapMaxSize: 32
+  directSamples: 64
+  indirectSamples: 8
+  bakedIndirectSamples: 512
+  bakedIndirectBounces: 2
+  bakedIndirectDenoise: 1
+  bakedIndirectFilterRadius: 1
+  probeSpacing: 8
+  probeLateral: 0.35
+  probeHeights:
+  - 0.1
+  - 2.5
+  probeMergeDistance: 1
+  foliageProbeMaxSize: 30

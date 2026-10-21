@@ -1,0 +1,143 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Results (single race). Code fills title (track), info (mode, cup race or engine class), rows (one per racer with the driver's portrait and kart icon), the columns / champion plate / buttons of the mode.
+         Time trials (and replays) show the lap table instead of the racer rows: tt-laps (one LapRow per lap and a total row, the delta column against the ghost raced), the New record plate and the note, and the Watch replay / Export buttons.
+         Preview classes on results: preview-championship (Points column, +N cells, champion plate, Next race instead of Race again), preview-battle (Status column instead of Best lap), preview-time-trial (lap table, New record!, Watch replay and Export). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="ResultRow" src="/Assets/MHK/UI/Race/Templates/ResultRow.uxml" />
+    <ui:Template name="LapRow" src="/Assets/MHK/UI/Race/Templates/LapRow.uxml" />
+    <ui:VisualElement name="results" class="screen hud-results">
+        <ui:VisualElement class="vignette" />
+        <ui:VisualElement name="column" class="hud-results-column">
+            <ui:VisualElement name="header" class="header anim pop">
+                <ui:Label name="title" text="Island" class="page-title" />
+            </ui:VisualElement>
+            <ui:VisualElement name="panel" class="panel hud-results-panel anim pop" style="transition-delay: 80ms;">
+                <ui:Label name="info" text="Race 2 of 4 | Moorhuhn Cup" class="hud-results-info" />
+                <ui:VisualElement name="head" class="row hud-results-head">
+                    <ui:Label text="Pos" class="hud-res-head hud-res-pos" />
+                    <ui:Label text="Racer" class="hud-res-head hud-res-racer" />
+                    <ui:Label text="Time" class="hud-res-head hud-res-time" />
+                    <ui:Label name="head-best" text="Best lap" class="hud-res-head hud-res-time" />
+                    <ui:Label name="head-status" text="Status" class="hud-res-head hud-res-time" />
+                    <ui:Label name="head-points" text="Points" class="hud-res-head hud-res-points" />
+                </ui:VisualElement>
+                <ui:VisualElement name="rows">
+                    <ui:Instance template="ResultRow" class="sample-gold">
+                        <ui:AttributeOverrides element-name="badge-label" text="1" />
+                        <ui:AttributeOverrides element-name="name" text="Lesshuhn" />
+                        <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_lesshuhn.png" />
+                        <ui:AttributeOverrides element-name="time" text="01:22.40" />
+                        <ui:AttributeOverrides element-name="best" text="" />
+                        <ui:AttributeOverrides element-name="gain" text="+10" />
+                        <ui:AttributeOverrides element-name="total" text="(18)" />
+                    </ui:Instance>
+                    <ui:Instance template="ResultRow" class="sample-silver sample-me">
+                        <ui:AttributeOverrides element-name="badge-label" text="2" />
+                        <ui:AttributeOverrides element-name="name" text="Hank" />
+                        <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_hank.png" />
+                        <ui:AttributeOverrides element-name="time" text="01:24.10" />
+                        <ui:AttributeOverrides element-name="best" text="" />
+                        <ui:AttributeOverrides element-name="gain" text="+8" />
+                        <ui:AttributeOverrides element-name="total" text="(18)" />
+                    </ui:Instance>
+                    <ui:Instance template="ResultRow" class="sample-bronze">
+                        <ui:AttributeOverrides element-name="badge-label" text="3" />
+                        <ui:AttributeOverrides element-name="name" text="Moorfrosch" />
+                        <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_moorfrosch.png" />
+                        <ui:AttributeOverrides element-name="time" text="01:25.80" />
+                        <ui:AttributeOverrides element-name="best" text="" />
+                        <ui:AttributeOverrides element-name="gain" text="+6" />
+                        <ui:AttributeOverrides element-name="total" text="(12)" />
+                    </ui:Instance>
+                    <ui:Instance template="ResultRow">
+                        <ui:AttributeOverrides element-name="badge-label" text="4" />
+                        <ui:AttributeOverrides element-name="name" text="Moorhuhn" />
+                        <ui:AttributeOverrides element-name="time" text="01:27.50" />
+                        <ui:AttributeOverrides element-name="best" text="" />
+                        <ui:AttributeOverrides element-name="gain" text="+4" />
+                        <ui:AttributeOverrides element-name="total" text="(8)" />
+                    </ui:Instance>
+                    <ui:Instance template="ResultRow">
+                        <ui:AttributeOverrides element-name="badge-label" text="5" />
+                        <ui:AttributeOverrides element-name="name" text="Pumpkin" />
+                        <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_pumpkin.png" />
+                        <ui:AttributeOverrides element-name="time" text="01:29.20" />
+                        <ui:AttributeOverrides element-name="best" text="" />
+                        <ui:AttributeOverrides element-name="gain" text="+2" />
+                        <ui:AttributeOverrides element-name="total" text="(4)" />
+                    </ui:Instance>
+                    <ui:Instance template="ResultRow">
+                        <ui:AttributeOverrides element-name="badge-label" text="6" />
+                        <ui:AttributeOverrides element-name="name" text="Snowman" />
+                        <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_snowman.png" />
+                        <ui:AttributeOverrides element-name="time" text="01:30.90" />
+                        <ui:AttributeOverrides element-name="best" text="" />
+                        <ui:AttributeOverrides element-name="gain" text="+1" />
+                        <ui:AttributeOverrides element-name="total" text="(2)" />
+                    </ui:Instance>
+                </ui:VisualElement>
+                <ui:VisualElement name="champion" class="row hud-res-champion anim pop" style="transition-delay: 710ms;">
+                    <ui:VisualElement class="icon i-emoji_events hud-res-trophy" />
+                    <ui:Label name="champion-label" text="Champion: Hank with 18 points!" class="hud-res-champion-label" />
+                </ui:VisualElement>
+                <ui:VisualElement name="tt" class="hud-tt">
+                    <ui:VisualElement name="tt-record" class="row hud-tt-record anim pop" style="transition-delay: 520ms;">
+                        <ui:VisualElement class="icon i-emoji_events hud-res-trophy" />
+                        <ui:Label name="tt-record-label" text="New record!  -1.24" class="hud-res-champion-label" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="row hud-lapres-head">
+                        <ui:Label text="Lap" class="hud-res-head hud-lapres-name" />
+                        <ui:Label text="Time" class="hud-res-head hud-lapres-time" />
+                        <ui:Label name="tt-head-delta" text="vs Your best" class="hud-res-head hud-lapres-delta" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="tt-laps">
+                        <ui:Instance template="LapRow">
+                            <ui:AttributeOverrides element-name="lap-name" text="Lap 1" />
+                            <ui:AttributeOverrides element-name="lap-time" text="01:10.03" />
+                            <ui:AttributeOverrides element-name="lap-delta" text="-0.95" />
+                        </ui:Instance>
+                        <ui:Instance template="LapRow" class="sample-best">
+                            <ui:AttributeOverrides element-name="lap-name" text="Lap 2" />
+                            <ui:AttributeOverrides element-name="lap-time" text="01:06.94" />
+                            <ui:AttributeOverrides element-name="lap-delta" text="-0.31" />
+                        </ui:Instance>
+                        <ui:Instance template="LapRow">
+                            <ui:AttributeOverrides element-name="lap-name" text="Lap 3" />
+                            <ui:AttributeOverrides element-name="lap-time" text="01:07.21" />
+                            <ui:AttributeOverrides element-name="lap-delta" text="+0.02" />
+                        </ui:Instance>
+                        <ui:Instance template="LapRow" class="sample-total">
+                            <ui:AttributeOverrides element-name="lap-name" text="Total" />
+                            <ui:AttributeOverrides element-name="lap-time" text="03:23.76" />
+                            <ui:AttributeOverrides element-name="lap-delta" text="-1.24" />
+                        </ui:Instance>
+                    </ui:VisualElement>
+                    <ui:Label name="tt-note" text="Saved as your best on Island (100cc)." class="hud-tt-note" />
+                </ui:VisualElement>
+                <ui:VisualElement class="checker-strip hud-results-checker" />
+            </ui:VisualElement>
+            <ui:VisualElement name="buttons" class="row hud-results-buttons anim" style="transition-delay: 790ms;">
+                <ui:Button name="race-again" class="mhk-button secondary">
+                    <ui:VisualElement class="icon i-restart_alt" />
+                    <ui:Label name="race-again-label" text="Race again" class="button-label" />
+                </ui:Button>
+                <ui:Button name="watch-replay" class="mhk-button secondary">
+                    <ui:VisualElement class="icon i-visibility" />
+                    <ui:Label text="Watch replay" class="button-label" />
+                </ui:Button>
+                <ui:Button name="export" class="mhk-button secondary">
+                    <ui:VisualElement class="icon i-upload" />
+                    <ui:Label text="Export" class="button-label" />
+                </ui:Button>
+                <ui:Button name="next-race" class="mhk-button go">
+                    <ui:VisualElement class="icon i-arrow_forward" />
+                    <ui:Label text="Next race" class="button-label" />
+                </ui:Button>
+                <ui:Button name="menu" class="mhk-button">
+                    <ui:VisualElement class="icon i-home" />
+                    <ui:Label text="Menu" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

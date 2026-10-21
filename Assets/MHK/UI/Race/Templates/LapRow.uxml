@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One time-trial lap row of the results (sample: lap 2, 0.12 s ahead of the ghost). Code sets the texts, .best (best lap), .total (the finish row) and on lap-delta .good (ahead) / .bad (behind). Samples in Results.uxml add sample-best / sample-total on their Instance. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="row hud-lapres-row">
+        <ui:Label name="lap-name" text="Lap 2" class="hud-res-cell hud-lapres-name" />
+        <ui:Label name="lap-time" text="01:07.42" class="hud-res-cell hud-lapres-time" />
+        <ui:Label name="lap-delta" text="-0.12" class="hud-res-cell hud-lapres-delta good" />
+    </ui:VisualElement>
+</ui:UXML>

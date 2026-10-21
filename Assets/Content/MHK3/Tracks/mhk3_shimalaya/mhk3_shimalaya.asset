@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhk3_shimalaya
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhk3.shimalaya
+  displayName: Shlimalaya
+  sourceGame: mhk3
+  icon: {fileID: 2800000, guid: b6d326c0572bb4133ba9b69e68036e18, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: 6830286b24e88442a9e4d124f606c4ff, type: 3}
+    path: Assets/Content/MHK3/Tracks/mhk3_shimalaya/mhk3_shimalaya.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: 3578b7e0bbd704a518355467024a89e2, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: b6d326c0572bb4133ba9b69e68036e18, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings: []
+  physics:
+    overrideSlopeGravity: 1
+    slopeGravityFactor: 0
+    gravityIntoGround: 1
+  itemPacks: []

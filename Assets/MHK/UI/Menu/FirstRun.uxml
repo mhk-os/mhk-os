@@ -1,0 +1,44 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- First start. Code marks the current preset card .selected (sample: Low, the default) and sets the frame-rate value. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Graphics" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="preset-row" class="preset-row">
+                    <ui:Button name="preset-low" tooltip="For older devices. Runs coolest and saves battery." class="card preset-card anim pop selected" style="transition-delay: 150ms;">
+                        <ui:VisualElement class="icon i-bolt" />
+                        <ui:Label text="Low" class="preset-title" />
+                    </ui:Button>
+                    <ui:Button name="preset-medium" tooltip="Balanced. A sharper picture, soft shadows and anti-aliasing." class="card preset-card anim pop" style="transition-delay: 230ms;">
+                        <ui:VisualElement class="icon i-tune" />
+                        <ui:Label text="Medium" class="preset-title" />
+                    </ui:Button>
+                    <ui:Button name="preset-high" tooltip="For recent devices. Full resolution, the best shadows and ambient occlusion." class="card preset-card anim pop" style="transition-delay: 310ms;">
+                        <ui:VisualElement class="icon i-star" />
+                        <ui:Label text="High" class="preset-title" />
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:VisualElement name="settings-panel" class="panel settings-panel anim" style="margin-top: 18px; transition-delay: 400ms;">
+                    <ui:Instance template="SettingRow" name="frame-rate" class="setting-row setting-dropdown">
+                        <ui:AttributeOverrides element-name="setting-label" text="Frame rate" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="30 fps" />
+                    </ui:Instance>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left" />
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="continue" class="mhk-button go">
+                    <ui:VisualElement class="icon i-check" />
+                    <ui:Label text="Continue" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

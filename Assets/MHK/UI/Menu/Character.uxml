@@ -1,0 +1,110 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Driver choice. Code fills tabs, card-grid (one card per character, no tags: class no-tags) and the info panel (hovered or focused card) at the bottom centre of the side. showcase-area frames the 3D turntable above the panel. empty replaces the body when no driver is loaded (preview class on page: preview-empty). Samples: the first open, Hank selected and focused. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="PortraitCard" src="/Assets/MHK/UI/Menu/Templates/PortraitCard.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Choose your driver" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main anim from-left">
+                <ui:VisualElement name="tabs" class="tabs">
+                    <ui:Instance template="Chip" class="sample-selected">
+                        <ui:AttributeOverrides element-name="chip" text="All" />
+                    </ui:Instance>
+                    <ui:Instance template="Chip">
+                        <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart 2" />
+                    </ui:Instance>
+                    <ui:Instance template="Chip">
+                        <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart 3" />
+                    </ui:Instance>
+                </ui:VisualElement>
+                <ui:ScrollView name="card-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                    <ui:VisualElement name="card-grid" class="card-grid no-tags">
+                        <ui:Instance template="PortraitCard" class="sample-selected">
+                            <ui:AttributeOverrides element-name="card-title" text="Hank" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_hank.png" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Lesshuhn" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_lesshuhn.png" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Moorfrosch" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_moorfrosch.png" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Moorhuhn" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Pumpkin" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_pumpkin.png" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Snowman" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_snowman.png" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Turtle" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_turtle.png" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Monkey" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3.affe_portrait.png" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Alien" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3.alien_portrait.png" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Death" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3.tod_portrait.png" />
+                        </ui:Instance>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:VisualElement>
+            <ui:VisualElement name="side" class="page-side select-side" picking-mode="Ignore">
+                <ui:VisualElement name="showcase-area" class="select-stage" picking-mode="Ignore" />
+                <ui:VisualElement name="info-panel" class="panel info-plate driver-plate select-info driver-info anim">
+                    <ui:VisualElement class="plate-head">
+                        <ui:Label name="info-name" text="Hank" class="info-name" />
+                        <ui:Label name="info-game" text="Moorhuhn Kart 2" class="info-game" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="plate-divider" />
+                    <ui:VisualElement class="plate-facts">
+                        <ui:VisualElement name="info-special" class="fact">
+                            <ui:VisualElement name="info-special-thumb" class="fact-thumb">
+                                <ui:VisualElement name="info-special-symbol" class="icon i-bolt" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="fact-text">
+                                <ui:Label text="Special" class="fact-caption" />
+                                <ui:Label name="info-special-text" text="Random item" class="fact-value" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="info-kart" class="fact">
+                            <ui:VisualElement name="info-kart-thumb" class="fact-thumb" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2.kart_icon.png&quot;);" />
+                            <ui:VisualElement class="fact-text">
+                                <ui:Label text="Default kart" class="fact-caption" />
+                                <ui:Label name="info-kart-text" text="Red Kart" class="fact-value" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="empty" class="select-empty">
+                <ui:Label text="No drivers available (is the base mod enabled?)" class="panel select-empty-text" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

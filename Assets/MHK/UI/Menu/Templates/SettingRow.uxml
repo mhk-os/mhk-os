@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One setting row: label and value button. Pages use it as <ui:Instance template="SettingRow" name="row-name" class="setting-row ..."> with AttributeOverrides for setting-label and setting-value-label. Bound by MenuScreen.BindChoice (SettingChoice) or MenuScreen.BindLink. Looks by row class: none = cycle (setting-prev steps back, the rest of the button steps on), setting-dropdown = value and a down arrow (opens ChoiceList), setting-link = value and a right arrow (opens another screen). Pages set the class their row has in game, so UI Builder shows the same look. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Label name="setting-label" text="Setting" class="setting-label" />
+    <ui:Button class="mhk-button small setting-value">
+        <ui:VisualElement name="setting-prev" class="setting-arrow setting-prev">
+            <ui:VisualElement class="icon i-chevron_left" />
+        </ui:VisualElement>
+        <ui:Label name="setting-value-label" text="Value" class="button-label" />
+        <ui:VisualElement name="setting-next" class="setting-arrow setting-next">
+            <ui:VisualElement class="icon i-chevron_right" />
+        </ui:VisualElement>
+    </ui:Button>
+</ui:UXML>

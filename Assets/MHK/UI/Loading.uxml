@@ -1,0 +1,70 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Loading screen (LoadingScreen, a child of the GameRoot, shown by SceneFlow while scenes load). Sample: before a single race on Island, 62 % loaded.
+         Code fills the backdrop and the framed preview (the track picture), track, game (game | variant), the two chips (icon + text per mode), the progress bar
+         (bar-fill width, percent), tip and the logo (generic variant), and scrolls the stripes (strip) in the bar. Code sets square-art on page for square
+         pictures (cropped past an MHK2-style black border, only mod tracks with square art get it because the bundled previews are 16:9) and menu-variant for the generic variant.
+         Preview class on page: preview-menu (generic variant while the menu loads: the flat menu gray and the logo instead of the race parts). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement name="page" class="loading-page">
+        <ui:VisualElement name="backdrop" class="loading-backdrop anim" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2_island_preview.png&quot;);" />
+        <ui:VisualElement class="loading-menu-backdrop" />
+        <ui:VisualElement class="loading-tint" />
+        <ui:VisualElement class="vignette" />
+        <ui:VisualElement class="loading-shade" />
+        <ui:VisualElement name="column" class="loading-layout">
+            <ui:VisualElement name="logo-wrap" class="loading-logo-wrap">
+                <ui:VisualElement class="sunburst loading-logo-burst" />
+                <ui:VisualElement name="logo" class="loading-logo bob" usage-hints="DynamicTransform" style="background-image: url(&quot;/Assets/MHK/Branding/GameLogo.png&quot;);" />
+            </ui:VisualElement>
+            <ui:VisualElement name="race" class="row loading-race">
+                <ui:VisualElement name="card" class="loading-card-wrap anim from-left">
+                    <ui:VisualElement class="loading-card-shadow" />
+                    <ui:VisualElement class="loading-card">
+                        <ui:VisualElement name="preview" class="loading-preview" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2_island_preview.png&quot;);" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="loading-details anim from-right" style="transition-delay: 80ms;">
+                    <ui:VisualElement class="ribbon loading-ribbon">
+                        <ui:Label name="title" text="Get ready!" class="ribbon-label loading-ribbon-label" />
+                    </ui:VisualElement>
+                    <ui:Label name="track" text="Island" class="loading-track" />
+                    <ui:Label name="game" text="Moorhuhn Kart 2" class="loading-game" />
+                    <ui:VisualElement name="info" class="loading-info">
+                        <ui:VisualElement name="chip-mode" class="row loading-chip">
+                            <ui:VisualElement class="loading-chip-badge">
+                                <ui:VisualElement name="chip-mode-icon" class="icon i-flag loading-chip-icon" />
+                            </ui:VisualElement>
+                            <ui:Label name="chip-mode-label" text="3 laps" class="loading-chip-label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="chip-session" class="row loading-chip">
+                            <ui:VisualElement class="loading-chip-badge">
+                                <ui:VisualElement name="chip-session-icon" class="icon i-sports_motorsports loading-chip-icon" />
+                            </ui:VisualElement>
+                            <ui:Label name="chip-session-label" text="6 racers" class="loading-chip-label" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement>
+                <ui:VisualElement class="row loading-tip anim" style="transition-delay: 160ms;">
+                    <ui:VisualElement class="row loading-tip-tag">
+                        <ui:VisualElement class="icon i-star loading-tip-icon" />
+                        <ui:Label text="Tip" class="loading-tip-tag-label" />
+                    </ui:VisualElement>
+                    <ui:Label name="tip" text="Fake item boxes look almost like the real thing. Watch closely." class="loading-tip-label" />
+                </ui:VisualElement>
+                <ui:VisualElement class="row loading-progress">
+                    <ui:VisualElement name="bar" class="loading-bar">
+                        <ui:VisualElement name="bar-fill" class="loading-bar-fill" style="width: 62%;">
+                            <ui:VisualElement name="strip" class="loading-bar-stripes" usage-hints="DynamicTransform" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="loading-flag">
+                        <ui:VisualElement class="icon i-sports_score loading-flag-icon" />
+                    </ui:VisualElement>
+                    <ui:Label name="percent" text="62%" class="loading-percent" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

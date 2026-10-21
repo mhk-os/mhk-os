@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Heading of one game or mod on the Powerups screen. Code sets the pack title and the sum of its powerups' odds. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="odds-group">
+        <ui:Label name="odds-group-name" text="Moorhuhn Kart 2" class="odds-group-name" />
+        <ui:Label name="odds-group-total" text="37.6 %" class="odds-group-total" />
+    </ui:VisualElement>
+</ui:UXML>

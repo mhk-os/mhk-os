@@ -1,0 +1,105 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Records. Code fills rec-list with one row per loaded track and per track of a mod that is not loaded but has a record (.missing), and for the focused track (.selected) the side panel: its name, its stored time-trial ghosts (one GhostRow each, all engine classes, with Watch / Export / Delete) and the status line (shown after an import, export or delete). Play starts a time trial on the focused track (disabled with a tooltip when no mod has it). Ghosts in the import folder are taken in when the page opens and when the game gets the focus back, Reload does it at once. Preview class on page: preview-empty (the track has no ghosts: the empty line instead of the list). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="RecordRow" src="/Assets/MHK/UI/Menu/Templates/RecordRow.uxml" />
+    <ui:Template name="GhostRow" src="/Assets/MHK/UI/Menu/Templates/GhostRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Records" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement class="records-browser">
+                    <ui:VisualElement name="records-panel" class="panel list-panel records-panel">
+                        <ui:VisualElement class="rec-head">
+                            <ui:Label text="Track" class="rec-track" />
+                            <ui:Label text="Game" class="rec-game" />
+                            <ui:Label text="Best lap" class="rec-cell rec-head-time" />
+                            <ui:Label text="Best race" class="rec-cell rec-head-time" />
+                        </ui:VisualElement>
+                        <ui:ScrollView name="rec-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                            <ui:VisualElement name="rec-list">
+                                <ui:Instance template="RecordRow" class="sample-selected" />
+                                <ui:Instance template="RecordRow" class="sample-alt">
+                                    <ui:AttributeOverrides element-name="rec-track" text="Kart Track" />
+                                    <ui:AttributeOverrides element-name="rec-lap" text="01:01.78" />
+                                    <ui:AttributeOverrides element-name="rec-race" text="03:11.31" />
+                                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_hank.png" />
+                                </ui:Instance>
+                                <ui:Instance template="RecordRow">
+                                    <ui:AttributeOverrides element-name="rec-track" text="Luna" />
+                                    <ui:AttributeOverrides element-name="rec-lap" text="01:15.97" />
+                                    <ui:AttributeOverrides element-name="rec-race" text="03:58.56" />
+                                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_snowman.png" />
+                                </ui:Instance>
+                                <ui:Instance template="RecordRow" class="sample-alt sample-empty">
+                                    <ui:AttributeOverrides element-name="rec-track" text="Dockland" />
+                                    <ui:AttributeOverrides element-name="rec-lap" text="--:--.--" />
+                                    <ui:AttributeOverrides element-name="rec-race" text="--:--.--" />
+                                </ui:Instance>
+                                <ui:Instance template="RecordRow" class="sample-empty">
+                                    <ui:AttributeOverrides element-name="rec-track" text="Booo!" />
+                                    <ui:AttributeOverrides element-name="rec-lap" text="--:--.--" />
+                                    <ui:AttributeOverrides element-name="rec-race" text="--:--.--" />
+                                </ui:Instance>
+                                <ui:Instance template="RecordRow" class="sample-alt">
+                                    <ui:AttributeOverrides element-name="rec-track" text="Island" />
+                                    <ui:AttributeOverrides element-name="rec-game" text="Moorhuhn Kart 2" />
+                                    <ui:AttributeOverrides element-name="rec-lap" text="01:44.24" />
+                                    <ui:AttributeOverrides element-name="rec-race" text="05:48.19" />
+                                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_pumpkin.png" />
+                                </ui:Instance>
+                                <ui:Instance template="RecordRow" class="sample-missing">
+                                    <ui:AttributeOverrides element-name="rec-track" text="Warehouse" />
+                                    <ui:AttributeOverrides element-name="rec-game" text="TINcan" />
+                                    <ui:AttributeOverrides element-name="rec-lap" text="00:54.45" />
+                                    <ui:AttributeOverrides element-name="rec-race" text="02:58.70" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="ghosts-side" class="panel records-ghosts">
+                        <ui:TextField name="player-name" label="Your name" value="Player" max-length="24" class="records-name" />
+                        <ui:Label name="ghosts-title" text="Scribble Blocks" class="records-ghosts-title" />
+                        <ui:ScrollView name="ghost-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="ghost-scroll">
+                            <ui:VisualElement name="ghost-list" class="ghost-list ghost-list-records">
+                                <ui:Instance template="GhostRow">
+                                    <ui:AttributeOverrides element-name="ghost-time" text="03:21.40" />
+                                </ui:Instance>
+                                <ui:Instance template="GhostRow" class="sample-last">
+                                    <ui:AttributeOverrides element-name="ghost-time" text="03:23.76" />
+                                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_hank.png" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:Label name="ghost-empty" text="No ghosts for this track yet." class="ghost-empty" />
+                        <ui:Label name="ghost-status" text="Ghosts imported: 2" class="records-status" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="open-import" class="mhk-button small secondary desktop-only">
+                    <ui:VisualElement class="icon i-folder_open" />
+                    <ui:Label text="Import folder" class="button-label" />
+                </ui:Button>
+                <ui:Button name="reload" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-replay" />
+                    <ui:Label text="Reload" class="button-label" />
+                </ui:Button>
+                <ui:Button name="play" class="mhk-button go">
+                    <ui:VisualElement class="icon i-play_arrow" />
+                    <ui:Label text="Play" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhke_outdoor
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhke.outdoor
+  displayName: Outdoor
+  sourceGame: mhke
+  icon: {fileID: 2800000, guid: 1d1bddda3013547729b2e95b1404bb8d, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: c93aa3d0a353841f4afa38c6b41556b4, type: 3}
+    path: Assets/Content/MHKExtra/Tracks/mhke_outdoor/mhke_outdoor.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: 32957e7dce3aa477e8f022066e29112c, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: 4963dd998bb3645d5870b5930e7f076d, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings: []
+  physics:
+    overrideSlopeGravity: 0
+    slopeGravityFactor: 1
+    gravityIntoGround: 0
+  itemPacks: []

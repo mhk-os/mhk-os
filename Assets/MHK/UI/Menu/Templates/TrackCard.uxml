@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- Track / cup card: the picture fills the card, title and tag sit on a dark fade at its bottom. Code sets card-image, card-title, card-tag and card-badge (won cups, hidden by MHKMenu.uss until then). The image here is a sample that instances override (AttributeOverrides element-name="card-image" image=...). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Button class="card track-card">
+        <mhk:ContentImage name="card-image" class="card-image" picking-mode="Ignore" image="/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png" />
+        <ui:VisualElement class="card-caption" picking-mode="Ignore">
+            <ui:Label name="card-title" text="Scribble Blocks" class="card-label" picking-mode="Ignore" />
+            <ui:Label name="card-tag" text="Moorhuhn Kart Extra" class="card-tag" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement name="card-badge" class="card-badge" picking-mode="Ignore">
+            <ui:VisualElement class="icon i-emoji_events" picking-mode="Ignore" />
+        </ui:VisualElement>
+    </ui:Button>
+</ui:UXML>
