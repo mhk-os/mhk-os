@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc0d01db3fa7d4b658cc3d3cc1b486c8, type: 3}
+  m_Name: cup_classic
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.CupDefinition
+  id: mhke.cup_classic
+  displayName: Classic Cup
+  sourceGame: mhke
+  icon: {fileID: 0}
+  hidden: 0
+  tracks:
+  - {fileID: 11400000, guid: fa5030d8c6e094f9dba9d1e145f5338e, type: 2}
+  - {fileID: 11400000, guid: 161f874682fb14c81862501fc3502b6d, type: 2}
+  - {fileID: 11400000, guid: 5cbb5c8d802b3495cb47b143196c872c, type: 2}
+  - {fileID: 11400000, guid: 05ad03559845a4b6790b38b9b2d69947, type: 2}
+  - {fileID: 11400000, guid: eef13be400e204ebea39f071bf62159e, type: 2}
+  lapsOverride: 3
+  order: 11

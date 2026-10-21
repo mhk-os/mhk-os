@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e071ba0498a4581aca51e4f6f6e17a, type: 3}
+  m_Name: buff_ghost_ride
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.StatusEffectDefinition
+  id: mhko.buff.ghost_ride
+  displayName: Ghost ride
+  sourceGame: mhko
+  icon: {fileID: 0}
+  hidden: 0
+  duration: 5
+  durationFromAnimation: 0
+  refreshOnReapply: 1
+  exclusiveBuff: 0
+  accelerationMultiplier: 2.5
+  maxSpeedMultiplier: 1.15
+  modifiersMinSpeed: 0
+  steeringMultiplier: 1
+  gripMultiplier: 1
+  forwardImpulse: 0
+  velocityRetain: 1
+  velocityDamping: 0
+  lockControls: 0
+  forceThrottle: 0
+  blockThrottle: 0
+  blocksItemUse: 0
+  invertSteering: 0
+  freezeKart: 0
+  spinTurns: 0
+  upwardImpulse: 0
+  respawnOnEnd: 0
+  respawnBackDistance: 15
+  gravityMultiplier: 1
+  landingEffect: {fileID: 0}
+  endOnLanding: 0
+  blocksHostileEffects: 0
+  hostile: 0
+  dropsHeldItem: 0
+  cancelsBuffs: 0
+  survivesHits: 0
+  ghost: 1
+  runOver: 0
+  damage: -1
+  heal: 0
+  damageDealtMultiplier: 1
+  damageTakenMultiplier: 1
+  scaleMultiplier: 1
+  verticalScale: 1
+  auraEffect: {fileID: 0}
+  auraRadius: 2
+  attachedVfxPrefab: {fileID: 1030417229079676798, guid: 9f8a99c98d31f4324a4d2bcd519d766f, type: 3}
+  attachToVisual: 1
+  attachMount: 3
+  opacity: 0.5
+  useCharacterAnimation: 0
+  characterAnimation: 19
+  applySound: {fileID: 0}
+  expiringSound: {fileID: 0}
+  expiringSoundLead: 3
+  endSound: {fileID: 8300000, guid: 8ecb1fbe4751642468bff18a4a13e4fa, type: 3}
+  screenOverlay: {r: 1, g: 1, b: 1, a: 0}
+  burnVisual: 0
+  endVfxPrefab: {fileID: 2988461512066078730, guid: 202313619671c43cd80cd348a6d49bfe, type: 3}
+  cameraFovBoost: 8

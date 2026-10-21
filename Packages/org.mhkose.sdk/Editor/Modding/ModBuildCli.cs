@@ -1,0 +1,74 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using MHK.Modding;
+using UnityEditor;
+using UnityEngine;
+
+namespace MHK.Editor.Modding
+{
+    /// <summary>
+    /// Command-line mod build for CI: <c>-executeMethod MHK.Editor.Modding.ModBuildCli.Build -mhkPacks &lt;pack asset
+    /// paths&gt; -mhkOut &lt;folder&gt;</c> (with <c>-batchmode -quit -buildTarget</c>). Builds for the active build target
+    /// into &lt;folder&gt;/&lt;target&gt; and exits with a non-zero code on failure.
+    /// </summary>
+    public static class ModBuildCli
+    {
+        public const string PacksOption = "-mhkPacks";
+        public const string OutOption = "-mhkOut";
+        const string DefaultOut = "Builds/Mods";
+        const int FailureExitCode = 1;
+
+        /// <summary>The <c>-executeMethod</c> entry: reads the options, builds and exits (batch mode only, else it only logs the result).</summary>
+        public static void Build()
+        {
+            var ok = false;
+            try
+            {
+                var args = Environment.GetCommandLineArgs();
+                ok = Run(OptionValues(args, PacksOption), OptionValues(args, OutOption).FirstOrDefault() ?? DefaultOut) != null;
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+            if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : FailureExitCode);
+        }
+
+        /// <summary>
+        /// Builds the packs at <paramref name="packPaths"/> (asset paths, entries may hold several joined by ',' or ';') for
+        /// the active build target into <paramref name="outRoot"/>/&lt;target&gt;. Returns the output folder, null on failure.
+        /// </summary>
+        public static string Run(IEnumerable<string> packPaths, string outRoot)
+        {
+            var paths = packPaths.SelectMany(p => p.Split(',', ';')).Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
+            if (paths.Count == 0)
+            {
+                Debug.LogError($"[Mods] {PacksOption}: no pack asset paths given.");
+                return null;
+            }
+            var packs = new List<ContentPack>();
+            foreach (var path in paths)
+            {
+                var pack = AssetDatabase.LoadAssetAtPath<ContentPack>(path);
+                if (pack == null)
+                {
+                    Debug.LogError($"[Mods] {PacksOption}: '{path}' is not a ContentPack asset.");
+                    return null;
+                }
+                packs.Add(pack);
+            }
+            var target = EditorUserBuildSettings.activeBuildTarget;
+            return ModBundleBuilder.Build(packs, target, Path.Combine(outRoot, target.ToString()));
+        }
+
+        // The arguments after an option up to the next option (one starting with '-').
+        static IEnumerable<string> OptionValues(string[] args, string option)
+        {
+            var i = Array.IndexOf(args, option);
+            if (i < 0) yield break;
+            for (i++; i < args.Length && !args[i].StartsWith("-", StringComparison.Ordinal); i++) yield return args[i];
+        }
+    }
+}

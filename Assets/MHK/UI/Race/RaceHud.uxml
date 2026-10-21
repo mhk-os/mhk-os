@@ -1,0 +1,91 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- Race HUD (racing, single race). Code fills the item slot and the race position (top left), lap/time/best/health, speedometer (bottom left), minimap (bottom right, drawn from the track, no plate) and the messages.
+         The item slot is the empty MHK3 slot with the held powerup's icon (a sprite without background) drawn over it.
+         Preview classes on hud: preview-messages (countdown, Final lap!, Wrong way!, flash), preview-battle (health bar, swords icon), preview-best-lap, preview-item (held item), preview-time-trial (no item slot or position, split time against the ghost, a ghost name tag), preview-replay (replay plate instead of the item slot). Touch layout (both above the touch buttons): touch-layout="true" on minimap / speedometer. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement name="hud" class="hud">
+        <ui:VisualElement name="overlay" class="hud-overlay bleed" />
+        <ui:VisualElement name="ghost-tags" class="hud-ghost-tags bleed">
+            <ui:VisualElement class="hud-ghost-anchor" style="translate: 1010px 560px;">
+                <ui:Label text="Your best" class="hud-ghost-tag" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="top-left" class="row hud-topleft hud-widget hud-from-left">
+            <ui:VisualElement name="item-slot" class="hud-item-anchor">
+                <ui:VisualElement class="hud-item-wrap">
+                    <ui:VisualElement name="item-burst" class="sunburst hud-item-burst" usage-hints="DynamicTransform" />
+                    <ui:VisualElement name="item-frame" class="hud-item-frame" usage-hints="DynamicTransform">
+                        <ui:VisualElement name="item-icon" class="hud-item-icon" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="item-charges" class="hud-item-charges">
+                        <ui:Label name="item-charges-label" text="x3" class="hud-item-charges-label" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Label name="item-name" text="Homing Missile" class="hud-item-name" />
+            </ui:VisualElement>
+            <ui:VisualElement name="position" class="row hud-position">
+                <ui:Label name="position-number" text="6" class="hud-pos-num" />
+                <ui:VisualElement class="hud-pos-side">
+                    <ui:Label name="position-suffix" text="th" class="hud-pos-suffix" />
+                    <ui:Label name="position-total" text="/6" class="hud-pos-total" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="replay-plate" class="panel row hud-replay hud-widget hud-from-left">
+            <ui:VisualElement class="icon i-visibility hud-replay-icon" />
+            <ui:VisualElement>
+                <ui:Label name="replay-caption" text="Replay" class="hud-replay-caption" />
+                <ui:Label name="replay-name" text="Hank | 100cc | 01:21.90" class="hud-replay-name" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="lap-panel" class="hud-lapbox hud-widget hud-from-right">
+            <ui:VisualElement class="row hud-lap-row">
+                <ui:VisualElement name="lap-icon" class="icon i-flag hud-lap-icon" />
+                <ui:Label name="lap-caption" text="Lap" class="hud-lap-caption" />
+                <ui:Label name="lap-value" text="1/3" class="hud-lap-value" />
+            </ui:VisualElement>
+            <ui:VisualElement class="hud-lap-divider" />
+            <ui:VisualElement class="row hud-time-row">
+                <ui:VisualElement class="icon i-timer hud-time-icon" />
+                <ui:Label name="time-main" text="00:04" class="hud-time-main" />
+                <ui:Label name="time-frac" text=".30" class="hud-time-frac" />
+            </ui:VisualElement>
+            <ui:VisualElement name="best-row" class="row hud-best-row">
+                <ui:VisualElement class="icon i-star hud-best-icon" />
+                <ui:Label text="Best" class="hud-best-caption" />
+                <ui:Label name="best-time" text="01:21.90" class="hud-best-time" />
+            </ui:VisualElement>
+            <ui:VisualElement name="split-row" class="row hud-split-row">
+                <ui:VisualElement class="icon i-visibility hud-split-icon" />
+                <ui:Label name="split-caption" text="Lap 2" class="hud-split-caption" />
+                <ui:Label name="split-time" text="-0.42" class="hud-split-time ahead" />
+            </ui:VisualElement>
+            <ui:VisualElement name="health" class="hud-health">
+                <ui:VisualElement name="health-fill" class="hud-health-fill" style="width: 70%;" />
+                <ui:Label name="health-text" text="70" class="hud-health-text" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <mhk:Minimap name="minimap" class="hud-widget hud-from-right" />
+        <mhk:HudSpeedometer name="speedometer" speed="60" max-kmh="140" class="hud-widget hud-from-bottom" />
+        <ui:VisualElement name="countdown" class="hud-countdown">
+            <ui:VisualElement name="countdown-burst" class="sunburst hud-countdown-burst" usage-hints="DynamicTransform" />
+            <ui:Label name="countdown-number" text="3" class="hud-countdown-num n3" usage-hints="DynamicTransform" />
+        </ui:VisualElement>
+        <ui:VisualElement class="hud-banner-anchor">
+            <ui:VisualElement name="banner" class="ribbon hud-banner">
+                <ui:Label text="Final lap!" class="ribbon-label hud-banner-label" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="warn" class="hud-warn-anchor">
+            <ui:VisualElement name="warn-plate" class="row hud-warn" usage-hints="DynamicTransform">
+                <ui:VisualElement class="icon i-warning hud-warn-icon" />
+                <ui:Label text="Wrong way!" class="hud-warn-label" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="flash" class="hud-flash-anchor">
+            <ui:VisualElement name="flash-plate" class="hud-flash good">
+                <ui:Label name="flash-label" text="Finished 1st!" class="hud-flash-label" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

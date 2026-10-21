@@ -1,0 +1,136 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01f2e5787b5da4d39bfbef5d3403a432, type: 3}
+  m_Name: mhk3_kart7
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.KartDefinition
+  id: mhk3.kart7
+  displayName: Orange Kart
+  sourceGame: mhk3
+  icon: {fileID: 2800000, guid: 61fb64c297fe94e1e89dc4af6baf7799, type: 3}
+  hidden: 0
+  kartPrefab: {fileID: 5393590555774363886, guid: f553453e1a30c43e49a2b2a0b4bedde6, type: 3}
+  physics: {fileID: 11400000, guid: b64054fc030a94ebeaef6ad984b4484f, type: 2}
+  modelScale: 1
+  animations:
+  - role: 0
+    clip: {fileID: -2952381644415448448, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 1
+    clip: {fileID: 4998318356036992713, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 2
+    clip: {fileID: 4998318356036992713, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 3
+    clip: {fileID: -890981802481753311, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 5
+    clip: {fileID: 3407396202623149974, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 6
+    clip: {fileID: 3407396202623149974, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 4
+    clip: {fileID: 7673660900875994699, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 7
+    clip: {fileID: -6075812548588383421, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 8
+    clip: {fileID: -6075812548588383421, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 25
+    clip: {fileID: 2747449982095718493, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 22
+    clip: {fileID: -6035787772227938938, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 23
+    clip: {fileID: -4307010060980265773, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 24
+    clip: {fileID: -2276165052314697596, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 21
+    clip: {fileID: 7816664895237573080, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 20
+    clip: {fileID: -1897357385470826561, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 17
+    clip: {fileID: -566425656138338465, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 18
+    clip: {fileID: -339340154031330677, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 9
+    clip: {fileID: -6075812548588383421, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 10
+    clip: {fileID: -6075812548588383421, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 11
+    clip: {fileID: -886344854249435445, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 12
+    clip: {fileID: -886344854249435445, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 27
+    clip: {fileID: 4998318356036992713, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 13
+    clip: {fileID: 4041950832608192083, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 14
+    clip: {fileID: 2705034735592306861, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 15
+    clip: {fileID: 482719075971606461, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 16
+    clip: {fileID: -8868119469496889151, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  - role: 19
+    clip: {fileID: 7499488078218861833, guid: ad87a4165736a4c13aa633437af438fb, type: 2}
+    playback: 0
+    speed: 0
+  speedRating: 0.72
+  accelerationRating: 0.75
+  handlingRating: 0.95
+  engineLoop: {fileID: 0}
+  enginePitchRange: {x: 0.6, y: 1.6}

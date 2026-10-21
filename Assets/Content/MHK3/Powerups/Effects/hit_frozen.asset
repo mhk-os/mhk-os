@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e071ba0498a4581aca51e4f6f6e17a, type: 3}
+  m_Name: hit_frozen
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.StatusEffectDefinition
+  id: mhk3.hit.frozen
+  displayName: Frozen
+  sourceGame: mhk3
+  icon: {fileID: 0}
+  hidden: 0
+  reaction: {fileID: 11400000, guid: d5145a038e9154fdcb1d2e38a0215ea8, type: 2}
+  overrides: []
+  duration: 3
+  durationFromAnimation: 0
+  refreshOnReapply: 1
+  exclusiveBuff: 0
+  accelerationMultiplier: 1
+  maxSpeedMultiplier: 1
+  modifiersMinSpeed: 0
+  steeringMultiplier: 1
+  gripMultiplier: 1
+  forwardImpulse: 0
+  velocityRetain: 1
+  velocityDamping: 0
+  lockControls: 0
+  forceThrottle: 0
+  blockThrottle: 0
+  blocksItemUse: 0
+  invertSteering: 0
+  freezeKart: 1
+  spinTurns: 0
+  upwardImpulse: 0
+  respawnOnEnd: 0
+  respawnBackDistance: 15
+  gravityMultiplier: 1
+  landingEffect: {fileID: 0}
+  endOnLanding: 0
+  blocksHostileEffects: 0
+  hostile: 1
+  dropsHeldItem: 0
+  cancelsBuffs: 0
+  survivesHits: 0
+  ghost: 0
+  runOver: 0
+  hideKart: 0
+  hideDelay: 0
+  damage: -1
+  heal: 0
+  damageDealtMultiplier: 1
+  damageTakenMultiplier: 1
+  scaleMultiplier: 1
+  verticalScale: 1
+  auraEffect: {fileID: 0}
+  auraRadius: 2
+  attachedVfxPrefab: {fileID: 3685848393176281517, guid: 4209a9cf14f9e4a02a2c4c44c85e5ae9, type: 3}
+  attachToVisual: 0
+  attachMount: 3
+  opacity: 1
+  useCharacterAnimation: 0
+  characterAnimation: 19
+  applySound: {fileID: 0}
+  expiringSound: {fileID: 0}
+  expiringSoundLead: 3
+  endSound: {fileID: 0}
+  screenOverlay: {r: 1, g: 1, b: 1, a: 0}
+  burnVisual: 0
+  endVfxPrefab: {fileID: 0}
+  cameraFovBoost: 0

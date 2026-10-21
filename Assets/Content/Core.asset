@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5dbe57176b5e94ec1b5194f65ca6a278, type: 3}
+  m_Name: Core
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.ContentPack
+  packId: core
+  title: Moorhuhn Kart
+  author: Phenomedia / Sproing (original games), MHK:OSE port
+  version: 1.0.0
+  description: The base content pack required by the game.
+  loadOrder: 0
+  includes:
+  - {fileID: 11400000, guid: 8692e0bc641c44a538c376be5f7dbba0, type: 2}
+  - {fileID: 11400000, guid: af1f9af2000a942e89112ba5df920acd, type: 2}
+  - {fileID: 11400000, guid: e1cfef9cfb5d34166b0cfe6923842881, type: 2}
+  - {fileID: 11400000, guid: 35e661a3153934fa0b163b3bc2be52c1, type: 2}
+  - {fileID: 11400000, guid: 28bc91dec75452aa81e58467a6a09c59, type: 2}
+  logo: {fileID: 2800000, guid: 18168e4fb99849c4876b3c0f419c7c63, type: 3}
+  menuMusic: {fileID: 0}
+  uiClick: {fileID: 0}
+  sharedPowerups: []
+  preferredDefaults: 0
+  engineLoop: {fileID: 0}
+  skidLoop: {fileID: 0}
+  crashSound: {fileID: 0}
+  landSound: {fileID: 0}
+  countdownSound: {fileID: 0}
+  goSound: {fileID: 0}
+  itemPickupSound: {fileID: 0}
+  scratchSound: {fileID: 0}
+  offroadLoop: {fileID: 0}
+  content: []
+  sdkVersion: 
+  unityVersion: 
+  buildTarget: 

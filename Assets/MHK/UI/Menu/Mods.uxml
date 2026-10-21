@@ -1,0 +1,42 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Mods. Code fills mod-list with one row per pack. The sample row shows an enabled pack, sample-off on a row's TemplateContainer previews a disabled one. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="ModRow" src="/Assets/MHK/UI/Menu/Templates/ModRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Mods" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="mods-panel" class="panel list-panel">
+                    <ui:ScrollView name="mod-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                        <ui:VisualElement name="mod-list">
+                            <ui:Instance template="ModRow" />
+                            <ui:Instance template="ModRow" class="sample-off">
+                                <ui:AttributeOverrides element-name="mod-title" text="TINcan Race  v1.0.0" />
+                                <ui:AttributeOverrides element-name="mod-text" text="Adds content from TINcan Race." />
+                                <ui:AttributeOverrides element-name="mod-toggle" text="Disabled" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                    </ui:ScrollView>
+                    <ui:Label name="mod-empty" text="No mods found." class="mods-empty" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="apply" class="mhk-button go">
+                    <ui:VisualElement class="icon i-check" />
+                    <ui:Label text="Apply" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

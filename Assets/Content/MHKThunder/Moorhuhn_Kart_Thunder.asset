@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5dbe57176b5e94ec1b5194f65ca6a278, type: 3}
+  m_Name: Moorhuhn_Kart_Thunder
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.ContentPack
+  packId: mhkt
+  title: Moorhuhn Kart Thunder
+  author: Phenomedia / Sproing (original), MHK:OSE port
+  version: 1.0.0
+  description: 'Tracks, arenas, powerups and pickups of Moorhuhn Kart: Thunder (2008).'
+  loadOrder: 40
+  includes: []
+  logo: {fileID: 0}
+  menuMusic: {fileID: 0}
+  uiClick: {fileID: 0}
+  sharedPowerups: []
+  preferredDefaults: 0
+  engineLoop: {fileID: 8300000, guid: 164df0a679ebb4de4a6cf7aea700fc4d, type: 3}
+  skidLoop: {fileID: 8300000, guid: e2472fe1a65244a99becd27bd302c396, type: 3}
+  crashSound: {fileID: 8300000, guid: e4557903f540f45f29c242bf0672dc22, type: 3}
+  landSound: {fileID: 0}
+  countdownSound: {fileID: 8300000, guid: 5601787cb24da4f7ea3d3ba764824b20, type: 3}
+  goSound: {fileID: 8300000, guid: 4fd95ecf641df4df8a9f0c6f60cf7890, type: 3}
+  itemPickupSound: {fileID: 0}
+  scratchSound: {fileID: 8300000, guid: e4557903f540f45f29c242bf0672dc22, type: 3}
+  offroadLoop: {fileID: 0}
+  content:
+  - {fileID: 11400000, guid: e099983fbfc28489b96504b0b7628934, type: 2}
+  - {fileID: 11400000, guid: ba274443a314449a2af12973548d4ca5, type: 2}
+  - {fileID: 11400000, guid: 98de8d8210b96441f98043c269578ca0, type: 2}
+  - {fileID: 11400000, guid: 08ec7b5c1de89417a9298df8c941d5e5, type: 2}
+  - {fileID: 11400000, guid: fff52193a59014dbdb516e2dd175f17b, type: 2}
+  - {fileID: 11400000, guid: 0a23def588064408ba863e0609336cb0, type: 2}
+  - {fileID: 11400000, guid: 6f2332adb6cda4809b579789974542b9, type: 2}
+  - {fileID: 11400000, guid: dd1f370beffd14e26bba906fcbcdd6b2, type: 2}
+  - {fileID: 11400000, guid: a96abe330fac84289b225c0150115666, type: 2}
+  - {fileID: 11400000, guid: 0d5f34feaa3b546b5b433a1bbbd46ff4, type: 2}
+  - {fileID: 11400000, guid: 16eafa10d32104dee9a10cba70ea8196, type: 2}
+  - {fileID: 11400000, guid: 3acd99e221849466389d45f1213ee207, type: 2}
+  - {fileID: 11400000, guid: ab80b1cc5f5a14b719252c6321ec4357, type: 2}
+  - {fileID: 11400000, guid: 29e4626e8000e47069980487021127c2, type: 2}
+  - {fileID: 11400000, guid: d532b022cb1a94a43acb3aebb0cd34bb, type: 2}
+  - {fileID: 11400000, guid: 8f2a1036dc7eb4fdd955c0c3c6ae643a, type: 2}
+  - {fileID: 11400000, guid: 7c59ab104867e4823863d19efb8d86a2, type: 2}
+  - {fileID: 11400000, guid: 9a5200688f42d4d6a8aa42407aab074c, type: 2}
+  - {fileID: 11400000, guid: 0a40a4f141d2042cfba83827316d48b2, type: 2}
+  - {fileID: 11400000, guid: f9e3ddc4454584382b4021d8cf663b12, type: 2}
+  - {fileID: 11400000, guid: fd3a370c573ac494897bfdb0275fbc71, type: 2}
+  - {fileID: 11400000, guid: 8864b74ad05ad4b228a6b5db3ab9868e, type: 2}
+  - {fileID: 11400000, guid: a7f4f1393a05e4845957c6516da69147, type: 2}
+  - {fileID: 11400000, guid: 9d9dd52363b0b495e8ca2347a6d869eb, type: 2}
+  - {fileID: 11400000, guid: f431cb950df65c478aa406c9c444a1c9, type: 2}
+  - {fileID: 11400000, guid: 3206df32f578591faabfacb1738075e3, type: 2}
+  - {fileID: 11400000, guid: 67ee450d9f4a59eb866a46b43254a027, type: 2}
+  - {fileID: 11400000, guid: f892edbcd3c25ae9b894a5108eda4b60, type: 2}
+  - {fileID: 11400000, guid: b3de05ad54b80470094636cf80bb7909, type: 2}
+  - {fileID: 11400000, guid: 87027992d844547069c7c0fe817c1fc4, type: 2}
+  - {fileID: 11400000, guid: 9e4da9519558e443d96542bdd6ed0aaa, type: 2}
+  - {fileID: 11400000, guid: 3e91fd0add78a4fd39a31503e9f495b0, type: 2}
+  - {fileID: 11400000, guid: 4442c94adc5084ea9a7f49fdd4044858, type: 2}
+  - {fileID: 11400000, guid: b53c85f6e90f04a71a565e26f93fc794, type: 2}

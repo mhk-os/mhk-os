@@ -1,0 +1,66 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Graphics options. Code sets every row value and the tooltips of the preset and Auto values (samples: the default Low preset at 30 fps on a 1080p display) and hides vsync, screen-resolution and display-mode (mobile) / ambient-occlusion (not available). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Graphics" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="settings-panel" class="panel settings-panel">
+                    <ui:Instance template="SettingRow" name="preset" class="setting-row setting-dropdown anim from-left" style="transition-delay: 120ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Preset" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Low" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="frame-rate" class="setting-row setting-dropdown anim from-left" style="transition-delay: 155ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Frame rate" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="30 fps" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="vsync" class="setting-row anim from-left desktop-only" style="transition-delay: 190ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="VSync" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Off" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="screen-resolution" class="setting-row setting-dropdown anim from-left desktop-only" style="transition-delay: 225ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Resolution" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Auto (1920 x 1080)" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="display-mode" class="setting-row anim from-left desktop-only" style="transition-delay: 260ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Display mode" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Fullscreen" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="render-resolution" class="setting-row setting-dropdown anim from-left" style="transition-delay: 295ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Render resolution" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Auto (1080p)" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="shadows" class="setting-row setting-dropdown anim from-left" style="transition-delay: 330ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Shadows" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Low" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="textures" class="setting-row anim from-left" style="transition-delay: 365ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Textures" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Medium" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="anti-aliasing" class="setting-row setting-dropdown anim from-left" style="transition-delay: 400ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Anti-aliasing" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Off" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="ambient-occlusion" class="setting-row anim from-left" style="transition-delay: 435ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Ambient occlusion" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Off" />
+                    </ui:Instance>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

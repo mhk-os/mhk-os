@@ -1,0 +1,124 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Championship choice. Code fills tabs, card-grid (one card per cup, badge on won cups) and the info panel (hovered or focused cup, cup-tracks list, Won! line). Card and info pictures cross-fade through the cup's track previews (ImageCycle adds an image-fade layer). empty replaces the body when no cup is loaded. Preview classes on page: preview-won (badges + Won! line), preview-empty. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="TrackCard" src="/Assets/MHK/UI/Menu/Templates/TrackCard.uxml" />
+    <ui:Template name="CupTrackItem" src="/Assets/MHK/UI/Menu/Templates/CupTrackItem.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Choose a championship" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement class="browser">
+                    <ui:VisualElement class="browser-list">
+                        <ui:VisualElement name="tabs" class="tabs">
+                            <ui:Instance template="Chip" class="sample-selected">
+                                <ui:AttributeOverrides element-name="chip" text="All" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart Extra" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart 2" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart 3" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart Thunder" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                        <ui:ScrollView name="card-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                            <ui:VisualElement name="card-grid" class="card-grid">
+                                <ui:Instance template="TrackCard">
+                                    <ui:AttributeOverrides element-name="card-title" text="Extra Cup" />
+                                    <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart Extra | 5 races" />
+                                </ui:Instance>
+                                <ui:Instance template="TrackCard">
+                                    <ui:AttributeOverrides element-name="card-title" text="Classic Cup" />
+                                    <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhke_outdoor_preview.png" />
+                                    <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart Extra | 5 races" />
+                                </ui:Instance>
+                                <ui:Instance template="TrackCard">
+                                    <ui:AttributeOverrides element-name="card-title" text="Championship 1" />
+                                    <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk2_moorhuhn_x_preview.png" />
+                                    <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart 2 | 4 races" />
+                                </ui:Instance>
+                                <ui:Instance template="TrackCard">
+                                    <ui:AttributeOverrides element-name="card-title" text="Championship 2" />
+                                    <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk2_factory_preview.png" />
+                                    <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart 2 | 4 races" />
+                                </ui:Instance>
+                                <ui:Instance template="TrackCard">
+                                    <ui:AttributeOverrides element-name="card-title" text="Championship 1" />
+                                    <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3_stone_age_preview.png" />
+                                    <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart 3 | 4 races" />
+                                </ui:Instance>
+                                <ui:Instance template="TrackCard">
+                                    <ui:AttributeOverrides element-name="card-title" text="Championship 2" />
+                                    <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3_pirate_island_preview.png" />
+                                    <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart 3 | 4 races" />
+                                </ui:Instance>
+                                <ui:Instance template="TrackCard">
+                                    <ui:AttributeOverrides element-name="card-title" text="World Tour 1" />
+                                    <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhkt_dubai_preview.png" />
+                                    <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart Thunder | 4 races" />
+                                </ui:Instance>
+                                <ui:Instance template="TrackCard">
+                                    <ui:AttributeOverrides element-name="card-title" text="World Tour 2" />
+                                    <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhkt_macao_preview.png" />
+                                    <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart Thunder | 5 races" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="info-panel" class="panel browser-preview">
+                        <ui:VisualElement name="info-image" class="browser-image" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png&quot;);" />
+                        <ui:Label name="info-name" text="Extra Cup" class="browser-name" />
+                        <ui:Label name="info-game" text="Moorhuhn Kart Extra | 5 races" class="info-game" />
+                        <ui:VisualElement name="cup-tracks" class="fact-list">
+                            <ui:Instance template="CupTrackItem">
+                                <ui:AttributeOverrides element-name="number" text="1" />
+                                <ui:AttributeOverrides element-name="track-name" text="Scribble Blocks" />
+                            </ui:Instance>
+                            <ui:Instance template="CupTrackItem">
+                                <ui:AttributeOverrides element-name="number" text="2" />
+                                <ui:AttributeOverrides element-name="track-name" text="Kart Track" />
+                            </ui:Instance>
+                            <ui:Instance template="CupTrackItem">
+                                <ui:AttributeOverrides element-name="number" text="3" />
+                                <ui:AttributeOverrides element-name="track-name" text="Luna" />
+                            </ui:Instance>
+                            <ui:Instance template="CupTrackItem">
+                                <ui:AttributeOverrides element-name="number" text="4" />
+                                <ui:AttributeOverrides element-name="track-name" text="Dockland" />
+                            </ui:Instance>
+                            <ui:Instance template="CupTrackItem">
+                                <ui:AttributeOverrides element-name="number" text="5" />
+                                <ui:AttributeOverrides element-name="track-name" text="Booo!" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="info-won" class="info-line">
+                            <ui:VisualElement class="icon i-emoji_events" />
+                            <ui:Label text="Won!" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="empty" class="select-empty">
+                <ui:Label text="No championships available (is the base mod enabled?)" class="panel select-empty-text" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c577fa5f529d743bfaeca46e56187d2f, type: 3}
+  m_Name: wings
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.PowerupDefinition
+  id: mhkt.wings
+  displayName: Wings
+  sourceGame: mhkt
+  icon: {fileID: 2800000, guid: 0b0c02356fc06403190872e47a59efe9, type: 3}
+  hidden: 0
+  usePrefab: {fileID: 8738245234796970000, guid: f0e1ce53a86a944d3be2f0b9785c4795, type: 3}
+  heldPrefab: {fileID: 0}
+  heldMount: 0
+  charges: 1
+  useCooldown: 0
+  excludeFromItemBoxes: 1
+  weightByPosition:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  aiUsage: 2
+  useSound: {fileID: 8300000, guid: 9abb80c80f128454b8565d0c13f593de, type: 3}
+  family: boost

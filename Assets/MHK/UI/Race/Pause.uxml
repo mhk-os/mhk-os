@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Pause menu (shown state: code removes .shown from panel and adds it back to scale it in). Code sets the minimap slider and its value text. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement name="pause" class="screen hud-pause">
+        <ui:VisualElement class="vignette" />
+        <ui:VisualElement name="panel" class="hud-pause-column shown">
+            <ui:Label name="title" text="Paused" class="page-title hud-pause-title" />
+            <ui:VisualElement class="panel hud-pause-panel">
+                <ui:Button name="continue" class="mhk-button go">
+                    <ui:VisualElement class="icon i-play_arrow" />
+                    <ui:Label text="Continue" class="button-label" />
+                </ui:Button>
+                <ui:Button name="restart" class="mhk-button">
+                    <ui:VisualElement class="icon i-restart_alt" />
+                    <ui:Label text="Restart" class="button-label" />
+                </ui:Button>
+                <ui:Button name="quit" class="mhk-button secondary">
+                    <ui:VisualElement class="icon i-home" />
+                    <ui:Label text="Quit to menu" class="button-label" />
+                </ui:Button>
+                <ui:VisualElement class="row hud-pause-setting">
+                    <ui:VisualElement class="icon i-landscape hud-pause-setting-icon" />
+                    <ui:Slider name="minimap-size" label="Minimap size" low-value="0" high-value="2" value="1" class="hud-pause-slider" />
+                    <ui:Label name="minimap-value" text="100%" class="hud-pause-value" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

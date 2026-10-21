@@ -1,0 +1,198 @@
+# Release: every push to main builds the game for all release targets and publishes the GitHub release build-<sha7>.
+# Secrets: UNITY_LICENSE (contents of a Unity Personal .ulf file), UNITY_EMAIL, UNITY_PASSWORD, UNITY_SERIAL (Pro only).
+# Every build runs in a GameCI Unity docker image on ubuntu: desktop players use Mono, Android IL2CPP ARM64 (Player
+# Settings). Unity 6.6 has no desktop Linux Arm64 player, so there is no linux-arm64 build. Builds upload straight into
+# a draft release (no artifact storage), the macOS apps get an ad hoc signature on a Mac, the last job publishes.
+# Version: Packages/org.mhkose.sdk/package.json. Build label: the commit (-mhkCommit), store build code: the run number.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: LFS cache and draft release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      lfs-key: ${{ steps.lfs.outputs.key }}
+      sha7: ${{ steps.meta.outputs.sha7 }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - id: meta
+        run: |
+          sha7="${GITHUB_SHA::7}"
+          echo "sha7=$sha7" >> "$GITHUB_OUTPUT"
+          echo "tag=build-$sha7" >> "$GITHUB_OUTPUT"
+
+      # LFS objects are downloaded once per set of binaries (key: the object list of this commit) and shared by all
+      # builds through the cache. A miss starts from the newest older set, so only changed files use LFS bandwidth.
+      - id: lfs
+        run: echo "key=lfs-$(git lfs ls-files --long | cut -d' ' -f1 | sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - id: lfs-exact
+        uses: actions/cache/restore@v6
+        with:
+          path: .git/lfs/objects
+          key: ${{ steps.lfs.outputs.key }}
+          lookup-only: true
+
+      - if: steps.lfs-exact.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: .git/lfs/objects
+          key: ${{ steps.lfs.outputs.key }}
+          restore-keys: lfs-
+
+      - if: steps.lfs-exact.outputs.cache-hit != 'true'
+        run: |
+          git lfs fetch
+          git lfs prune || echo "::warning::git lfs prune failed, the LFS cache keeps older objects"
+
+      - if: steps.lfs-exact.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: .git/lfs/objects
+          key: ${{ steps.lfs.outputs.key }}
+
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          SHA7: ${{ steps.meta.outputs.sha7 }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then exit 0; fi
+          version="$(jq -r .version Packages/org.mhkose.sdk/package.json)"
+          notes="$RUNNER_TEMP/notes.txt"
+          {
+            echo "Moorhuhn Kart: Open Source $version, commit $GITHUB_SHA"
+            echo
+            git log -1 --format=%B
+          } > "$notes"
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "$version build $SHA7" --notes-file "$notes"
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: android, platform: Android }
+          - { target: macos-arm64, platform: StandaloneOSX }
+          - { target: macos-x64, platform: StandaloneOSX }
+          - { target: linux-x64, platform: StandaloneLinux64 }
+          - { target: windows-x64, platform: StandaloneWindows64 }
+          - { target: windows-arm64, platform: StandaloneWindows64 }
+    steps:
+      - uses: jlumbroso/free-disk-space@v2.0.0
+        with:
+          large-packages: false
+
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - uses: actions/cache/restore@v6
+        with:
+          path: .git/lfs/objects
+          key: ${{ needs.prepare.outputs.lfs-key }}
+          fail-on-cache-miss: true
+
+      - run: git lfs checkout
+
+      # Imported assets, one cache per Unity build target (the two macOS and the two Windows builds share one). The
+      # repository cache holds 10 GB: set the repository variable LIBRARY_CACHE to false if these evict the LFS cache.
+      - if: vars.LIBRARY_CACHE != 'false'
+        uses: actions/cache@v6
+        with:
+          path: Library
+          key: Library-${{ matrix.platform }}-${{ hashFiles('ProjectSettings/ProjectVersion.txt', 'Packages/packages-lock.json') }}
+          restore-keys: Library-${{ matrix.platform }}-
+
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          targetPlatform: ${{ matrix.platform }}
+          buildMethod: MHK.Editor.Build.CiBuild.Build
+          customParameters: -mhkTarget ${{ matrix.target }} -mhkOut build/${{ matrix.target }} -mhkCommit ${{ github.sha }} -mhkBuildCode ${{ github.run_number }}
+          versioning: None
+          allowDirtyBuild: true
+
+      - name: Package
+        env:
+          TARGET: ${{ matrix.target }}
+          ASSET: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" "build/$TARGET"
+          cd "build/$TARGET"
+          case "$TARGET" in
+            android) mv MoorhuhnKart.apk "$RUNNER_TEMP/$ASSET.apk" ;;
+            macos-*) find MoorhuhnKart.app/Contents/MacOS -type f -exec chmod +x {} + ;;
+            linux-*) chmod +x MoorhuhnKart.x86_64 ;;
+          esac
+          if [ "$TARGET" != android ]; then zip -r -y -q "$RUNNER_TEMP/$ASSET.zip" . -x '*_DoNotShip/*'; fi
+
+      - name: Upload to the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release upload "$TAG" "$RUNNER_TEMP"/MHK-* --clobber
+
+  sign-macos:
+    name: Sign macOS apps
+    needs: [prepare, build]
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      # Bundles built on Linux carry no valid bundle signature, Apple Silicon Macs call such apps damaged.
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          SHA7: ${{ needs.prepare.outputs.sha7 }}
+        run: |
+          for target in macos-arm64 macos-x64; do
+            asset="MHK-$target-$SHA7.zip"
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$RUNNER_TEMP/$target"
+            app="$RUNNER_TEMP/$target/app"
+            ditto -x -k "$RUNNER_TEMP/$target/$asset" "$app"
+            codesign --force --deep --sign - "$app/MoorhuhnKart.app"
+            codesign --verify --deep --strict "$app/MoorhuhnKart.app"
+            ditto -c -k --keepParent "$app/MoorhuhnKart.app" "$RUNNER_TEMP/$asset"
+          done
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$RUNNER_TEMP"/MHK-macos-*.zip --clobber
+
+  publish:
+    name: Publish release
+    needs: [prepare, sign-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest

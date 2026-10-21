@@ -1,0 +1,97 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Kart choice. Code fills tabs (game filter), card-grid (one card per kart, picture = kart icon) and the info panel (hovered or focused card, stat bar widths) at the bottom centre of the side. showcase-area frames the 3D turntable (selected driver in that kart) above the panel. empty replaces the body when no kart is loaded (preview class on page: preview-empty). Samples: the Red Kart (Moorhuhn Kart 2) selected and focused. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="PortraitCard" src="/Assets/MHK/UI/Menu/Templates/PortraitCard.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Choose your kart" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main anim from-left">
+                <ui:VisualElement name="tabs" class="tabs">
+                    <ui:Instance template="Chip" class="sample-selected">
+                        <ui:AttributeOverrides element-name="chip" text="All" />
+                    </ui:Instance>
+                    <ui:Instance template="Chip">
+                        <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart Extra" />
+                    </ui:Instance>
+                    <ui:Instance template="Chip">
+                        <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart 2" />
+                    </ui:Instance>
+                    <ui:Instance template="Chip">
+                        <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart 3" />
+                    </ui:Instance>
+                    <ui:Instance template="Chip">
+                        <ui:AttributeOverrides element-name="chip" text="Moorhuhn Kart Thunder" />
+                    </ui:Instance>
+                </ui:VisualElement>
+                <ui:ScrollView name="card-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                    <ui:VisualElement name="card-grid" class="card-grid kart-grid">
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Yellow Kart" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhke.kart_icon.png" />
+                            <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart Extra" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard" class="sample-selected">
+                            <ui:AttributeOverrides element-name="card-title" text="Red Kart" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk2.kart_icon.png" />
+                            <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart 2" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Green Kart" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3.kart_icon.png" />
+                            <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart 3" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Blue Kart" />
+                            <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhkt.kart_icon.png" />
+                            <ui:AttributeOverrides element-name="card-tag" text="Moorhuhn Kart Thunder" />
+                        </ui:Instance>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:VisualElement>
+            <ui:VisualElement name="side" class="page-side select-side" picking-mode="Ignore">
+                <ui:VisualElement name="showcase-area" class="select-stage" picking-mode="Ignore" />
+                <ui:VisualElement name="info-panel" class="panel info-plate driver-plate select-info kart-info anim">
+                    <ui:VisualElement class="plate-head">
+                        <ui:Label name="info-name" text="Red Kart" class="info-name" />
+                        <ui:Label name="info-game" text="Moorhuhn Kart 2" class="info-game" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="plate-divider" />
+                    <ui:VisualElement class="stat-row">
+                        <ui:Label text="Top speed" class="stat-label" />
+                        <ui:VisualElement class="stat-bar-bg">
+                            <ui:VisualElement name="stat-speed" class="stat-bar" style="width: 79%;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat-row">
+                        <ui:Label text="Acceleration" class="stat-label" />
+                        <ui:VisualElement class="stat-bar-bg">
+                            <ui:VisualElement name="stat-acceleration" class="stat-bar" style="width: 76%;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="stat-row">
+                        <ui:Label text="Handling" class="stat-label" />
+                        <ui:VisualElement class="stat-bar-bg">
+                            <ui:VisualElement name="stat-handling" class="stat-bar" style="width: 78%;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="empty" class="select-empty">
+                <ui:Label text="No karts available (is the base mod enabled?)" class="panel select-empty-text" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

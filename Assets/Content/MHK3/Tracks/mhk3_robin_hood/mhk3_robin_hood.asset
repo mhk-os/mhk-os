@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhk3_robin_hood
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhk3.robin_hood
+  displayName: Robin Hood
+  sourceGame: mhk3
+  icon: {fileID: 2800000, guid: e2911e530a8644935b655e5f666274f0, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: e416fe43ae84143a0a60fade8934d008, type: 3}
+    path: Assets/Content/MHK3/Tracks/mhk3_robin_hood/mhk3_robin_hood.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: 3a1450fc4faad436d82588cb572128b6, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: e2911e530a8644935b655e5f666274f0, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings: []
+  physics:
+    overrideSlopeGravity: 1
+    slopeGravityFactor: 0
+    gravityIntoGround: 1
+  itemPacks: []

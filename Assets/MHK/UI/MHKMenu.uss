@@ -1,0 +1,383 @@
+/* Main menu layouts (imported by MHKTheme.uss). A live race (or a flat gray) runs behind every page, so all text sits
+ * on glass plates or the footer bar, and pages keep the right side free for the showcased driver unless they are wide.
+ * Elements that code shows only in some states are hidden here (code sets their display inline). The preview-*
+ * classes, never added by code, show those states when added to a page root in UI Builder. */
+
+.menu-page {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+    padding: 0 48px;
+}
+/* The body takes exactly the height left between header and footer (basis 0), so tall content (records table)
+ * scrolls inside it instead of squeezing the header. */
+.menu-page > .header, .page-footer { flex-shrink: 0; }
+.page-body { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-height: 0; flex-direction: row; margin-bottom: 24px; }
+.page-main { width: 57%; align-items: stretch; justify-content: flex-start; }
+.page-main.wide { width: 100%; }
+.page-main.center { align-items: center; justify-content: center; }
+.page-side { flex-grow: 1; align-items: flex-end; justify-content: flex-end; padding: 0 0 12px 24px; }
+.page-main.anim { transition-delay: 60ms; }
+.page-side.anim { transition-delay: 140ms; }
+.page-footer.anim { transition-delay: 30ms; }
+
+/* One footer height on every page (title included). Its buttons are touch sized whatever size class they have. */
+.page-footer {
+    height: 114px;
+    margin: 0 -48px;
+    padding: 0 40px;
+    flex-direction: row;
+    align-items: center;
+    background-color: var(--mhk-footer-fill);
+    -unity-background-image-tint-color: var(--mhk-footer-show);
+    border-top-width: 1px; border-color: var(--mhk-glass-rim-top);
+}
+.glass-lite .page-footer { background-color: var(--mhk-footer-lite-fill); }
+.page-footer .checker-strip { position: absolute; left: 0; right: 0; top: -12px; }
+.footer-left, .footer-right { flex-grow: 1; flex-basis: 0; flex-direction: row; align-items: center; }
+.footer-right { justify-content: flex-end; }
+.page-footer .mhk-button, .page-footer .mhk-button.small { font-size: 27px; min-height: 78px; padding: 4px 34px 9px 34px; margin: 0 6px; }
+.page-footer .mhk-button.big { font-size: 31px; min-height: 86px; padding: 6px 42px 10px 42px; }
+.page-footer .mhk-button .icon, .page-footer .mhk-button.small .icon { width: 32px; height: 32px; margin-right: 12px; }
+
+.title-page {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 0; flex-direction: column;
+    background-image: url("Textures/mui_side_shade.png");
+    background-size: 100% 100%;
+}
+.title-body { flex-grow: 1; flex-direction: row; padding: 12px 48px 0 64px; }
+.title-left { width: 44%; min-width: 600px; align-items: center; justify-content: center; }
+.logo { width: 620px; height: 305px; background-size: contain; }
+.logo-text { font-size: 96px; }
+#logo-wrap { margin-top: -24px; margin-bottom: 25px; }
+.panel.title-buttons { width: 540px; padding: 16px 20px 14px 20px; border-radius: 20px; }
+.title-buttons > .mhk-button { justify-content: flex-start; padding-left: 34px; margin: 5px 0; }
+.title-buttons > .mhk-button .icon { margin-right: 18px; }
+.title-buttons > .mhk-button.big { margin-bottom: 10px; }
+.title-small {
+    flex-direction: row; justify-content: space-between;
+    margin-top: 10px; padding-top: 12px;
+    border-top-width: 1px; border-color: var(--mhk-divider);
+}
+.title-small > .mhk-button { flex-grow: 1; margin: 2px 3px; }
+.title-small > .mhk-button.icon-only { flex-grow: 0; }
+.title-page > .page-footer { margin: 0; }
+.title-page #version { font-size: 20px; color: var(--mhk-gray-600); }
+
+.info-plate { width: 440px; }
+.info-name {
+    -unity-font-definition: var(--font-display);
+    font-size: 40px;
+    color: var(--mhk-gray-900);
+    white-space: normal;
+}
+.info-game {
+    align-self: flex-start;
+    -unity-font-definition: var(--font-bold);
+    font-size: 15px;
+    color: var(--mhk-gray-600);
+    background-color: var(--mhk-gray-100);
+    border-radius: 8px;
+    padding: 2px 10px 3px 10px;
+    margin: 2px 0 10px 0;
+}
+.info-line { flex-direction: row; align-items: center; margin: 3px 0; }
+.info-line .icon { width: 24px; height: 24px; margin-right: 10px; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.info-line Label { font-size: 19px; white-space: normal; flex-shrink: 1; color: var(--mhk-gray-800); }
+
+/* Selection pages (driver, kart): the side is the showcase. Its info panel sits at the bottom centre with a fixed
+ * height and one-line texts, so the area above it (showcase-area, where MenuStage stands the turntable) never moves
+ * while cards are hovered. Facts are a thumbnail tile (content icon, or a symbol when there is none), a small caption
+ * and the value. */
+.page-side.select-side { align-items: center; justify-content: flex-end; padding: 0 0 6px 24px; }
+.select-stage { flex-grow: 1; align-self: stretch; }
+.info-plate.select-info { max-width: 100%; flex-shrink: 0; }
+.select-info.driver-info { height: 170px; }
+.select-info.kart-info { height: 214px; }
+.select-info .info-name, .select-info .fact-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.select-empty { flex-grow: 1; align-items: center; justify-content: center; display: none; }
+.preview-empty .select-empty { display: flex; }
+.preview-empty .page-main, .preview-empty .page-side { display: none; }
+.select-empty-text { font-size: 24px; color: var(--mhk-gray-800); padding: 14px 28px; }
+.info-plate.driver-plate { width: 560px; padding: 14px 22px 20px 22px; }
+.plate-head { flex-direction: row; align-items: center; justify-content: space-between; }
+.driver-plate .info-name { flex-shrink: 1; font-size: 44px; }
+.driver-plate .info-game { flex-shrink: 0; align-self: center; margin: 0 0 0 12px; }
+.plate-divider { height: 1px; margin: 8px 0 10px 0; background-color: var(--mhk-divider); }
+.plate-facts { flex-direction: row; margin: 0 -7px; }
+.fact { flex-direction: row; align-items: center; flex-grow: 1; flex-basis: 0; min-width: 0; margin: 0 7px; }
+.fact-thumb {
+    width: 56px; height: 56px; flex-shrink: 0;
+    margin-right: 12px;
+    border-radius: 12px;
+    background-color: var(--mhk-gray-100);
+    background-size: contain;
+    align-items: center; justify-content: center;
+}
+.fact-thumb .icon { width: 30px; height: 30px; -unity-background-image-tint-color: var(--mhk-gray-600); }
+.fact-text { flex-shrink: 1; min-width: 0; }
+.fact-caption { font-size: 15px; color: var(--mhk-gray-500); padding: 0; margin: 0; }
+.fact-value { -unity-font-definition: var(--font-bold); font-size: 21px; color: var(--mhk-gray-900); white-space: normal; padding: 0; margin: 0; }
+.driver-plate .stat-row { margin: 4px 0; }
+.driver-plate .stat-bar-bg { flex-grow: 1; width: auto; }
+
+/* Compound selectors: this file is imported before the theme's .card / .mhk-button rules, which would win a tie.
+ * The picture sits in a square well (light gray behind kart icons). The name and tag below it never shrink: a name
+ * that wraps to two lines (kart names) makes the well smaller instead of pushing the tag out of the card. Track and
+ * cup cards show the picture on top and the caption on the white card below it. */
+.card.portrait-card { width: 206px; height: 258px; justify-content: flex-start; }
+.card-well {
+    width: 174px; height: auto; flex-basis: 174px; max-height: 174px; min-height: 96px;
+    flex-grow: 0; flex-shrink: 1;
+    border-radius: 8px;
+    background-image: url("Textures/mui_well.png");
+    background-size: 100% 100%;
+    margin-bottom: 4px;
+    overflow: hidden;
+}
+.portrait-card .card-image { flex-grow: 1; margin: 0; border-radius: 8px; background-size: contain; background-color: transparent; }
+.portrait-card .card-label { flex-grow: 1; flex-shrink: 0; font-size: 20px; }
+.portrait-card .card-tag { flex-shrink: 0; font-size: 13px; margin-top: -2px; }
+.no-tags .card-tag { display: none; }
+.no-tags .card-label { font-size: 22px; }
+.kart-grid .card.portrait-card { width: 240px; height: 300px; }
+.kart-grid .card-well { width: 208px; flex-basis: 208px; max-height: 208px; }
+.kart-grid .portrait-card .card-label { font-size: 21px; }
+.kart-grid .portrait-card .card-tag { font-size: 14px; }
+
+.browser { flex-direction: row; flex-grow: 1; }
+.browser-list { width: 61%; }
+.card.track-card { width: 222px; height: 196px; padding: 14px 14px 12px 14px; justify-content: flex-start; }
+.track-card .card-image { flex-grow: 1; width: 100%; margin: 0; border-radius: 8px; }
+.card-caption { flex-shrink: 0; width: 100%; padding: 4px 2px 0 2px; }
+.track-card .card-label { font-size: 19px; }
+.track-card .card-tag { font-size: 13px; margin-top: -2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel.browser-preview { flex-grow: 1; align-self: flex-start; margin-left: 18px; padding: 16px 18px 22px 18px; }
+.browser-image {
+    height: 300px;
+    border-radius: 10px;
+    background-size: cover;
+    background-color: var(--mhk-gray-100);
+    border-width: 1px; border-color: var(--mhk-divider);
+    margin-bottom: 12px;
+}
+.browser-name {
+    -unity-font-definition: var(--font-display);
+    font-size: 44px;
+    color: var(--mhk-gray-900);
+    white-space: normal;
+    margin-left: 2px;
+}
+.browser-preview .info-game { margin: 0 0 10px 2px; }
+.fact-list { border-top-width: 1px; border-color: var(--mhk-divider); }
+.fact-row { flex-direction: row; align-items: center; padding: 8px 4px; border-bottom-width: 1px; border-color: var(--mhk-divider); }
+.fact-row .icon { width: 26px; height: 26px; margin-right: 12px; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.fact-row .fact-caption { width: 120px; flex-shrink: 0; font-size: 18px; }
+.fact-row .fact-value { flex-grow: 1; flex-shrink: 1; font-size: 21px; }
+.browser-preview .info-line { padding: 6px 4px; margin: 0; border-bottom-width: 1px; border-color: var(--mhk-divider); }
+.browser-preview .info-line .icon { width: 26px; height: 26px; margin-right: 12px; }
+.browser-preview .info-line Label { font-size: 20px; }
+.info-plate > .browser-image { height: 200px; }
+.cup-track-item { flex-direction: row; align-items: center; margin: 0; padding: 5px 4px; border-bottom-width: 1px; border-color: var(--mhk-divider); }
+.cup-track-item .badge { width: 32px; height: 32px; margin-right: 12px; }
+.cup-track-item .badge-label { font-size: 16px; }
+.cup-track-item Label { font-size: 20px; }
+.image-fade {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    background-size: cover;
+    opacity: 0;
+    transition-property: opacity; transition-duration: 0.7s; transition-timing-function: ease-in-out;
+}
+.image-fade.shown { opacity: 1; }
+.card-image > .image-fade { border-radius: 8px; }
+.browser-image > .image-fade { border-radius: 9px; }
+.track-card > .card-badge { display: none; }
+#info-won { display: none; }
+.preview-won .track-card > .card-badge { display: flex; }
+.preview-won #info-won { display: flex; }
+#info-arena { display: none; }
+.preview-arena #info-arena { display: flex; }
+.preview-arena #info-laps { display: none; }
+
+.preset-row { flex-direction: row; justify-content: center; }
+.card.preset-card { width: 260px; height: 220px; justify-content: center; padding: 28px; }
+.preset-card .icon { width: 56px; height: 56px; margin-bottom: 10px; -unity-background-image-tint-color: var(--mhk-gray-700); }
+.preset-title {
+    -unity-font-definition: var(--font-display);
+    font-size: 32px;
+    color: var(--mhk-gray-900);
+    -unity-text-align: middle-center;
+}
+
+.settings-panel { min-width: 640px; }
+.race-driver { margin-top: 10px; }
+.race-driver-thumb { width: 88px; height: 88px; margin-right: 12px; border-radius: 14px; background-color: var(--mhk-row); background-size: contain; }
+.mhk-button.setting-value, .mhk-button.ctl-key { background-image: url("Textures/button_soft.png"); color: var(--mhk-gray-900); }
+.setting-row .mhk-button.setting-value { min-width: 220px; padding-left: 0; padding-right: 0; }
+.mhk-button.setting-value:hover, .mhk-button.setting-value:focus, .mhk-button.ctl-key:hover, .mhk-button.ctl-key:focus { background-image: url("Textures/button_focus.png"); color: var(--mhk-white); }
+.setting-value .button-label { flex-grow: 1; -unity-text-align: middle-center; }
+/* Cycle arrows: each is the tap target of its edge (SettingChoice steps back for clicks up to the end of setting-prev).
+ * Dropdown and link rows hide the back arrow, a dropdown turns the other one down. */
+.setting-arrow { align-self: stretch; width: 44px; flex-shrink: 0; align-items: center; justify-content: center; }
+.mhk-button.setting-value .setting-arrow .icon { margin: 0; width: 24px; height: 24px; -unity-background-image-tint-color: var(--mhk-gray-500); transition-property: scale, rotate; transition-duration: 0.1s; }
+.mhk-button.setting-value:hover .setting-arrow .icon, .mhk-button.setting-value:focus .setting-arrow .icon { -unity-background-image-tint-color: var(--mhk-white); }
+.mhk-button.setting-value .setting-arrow:hover .icon { scale: 1.3 1.3; }
+.setting-row.setting-dropdown .setting-prev, .setting-row.setting-link .setting-prev { display: none; }
+.setting-row.setting-dropdown .mhk-button.setting-value, .setting-row.setting-link .mhk-button.setting-value { padding-left: 44px; }
+.setting-row.setting-dropdown .mhk-button.setting-value .setting-next .icon { rotate: 90deg; }
+.settings-panel .unity-slider { margin: 8px 6px 8px 12px; min-height: 40px; }
+.settings-note { font-size: 15px; color: var(--mhk-gray-500); white-space: normal; margin-top: 8px; -unity-text-align: middle-center; }
+.preview-championship #opponents, .preview-championship #laps, .preview-championship #powerups { display: none; }
+
+.list-panel { width: 100%; max-width: 1180px; flex-shrink: 1; }
+.rec-head, .rec-row, .ctl-head, .ctl-row { flex-direction: row; align-items: center; padding: 5px 12px; border-radius: 8px; }
+.ctl-head, .ctl-row { padding: 1px 12px; }
+.rec-head, .ctl-head { margin-bottom: 4px; border-radius: 0; border-bottom-width: 1px; border-color: var(--mhk-divider); }
+.rec-head Label, .ctl-head Label { -unity-font-definition: var(--font-bold); font-size: 16px; color: var(--mhk-gray-500); letter-spacing: 1px; }
+.rec-row:hover, .ghost-main:hover, .ctl-row:hover { background-color: var(--mhk-row-hover); }
+.rec-row.alt, TemplateContainer.sample-alt > .rec-row, .ctl-row.alt, TemplateContainer.sample-alt > .ctl-row { background-color: var(--mhk-row); }
+.rec-track { width: 40%; font-size: 20px; color: var(--mhk-gray-900); }
+.rec-game { width: 24%; font-size: 16px; color: var(--mhk-gray-500); }
+.rec-time { flex-grow: 1; font-size: 20px; color: var(--mhk-gray-900); -unity-text-align: middle-right; }
+.rec-time.empty, TemplateContainer.sample-empty .rec-time { color: var(--mhk-gray-400); }
+.rec-cell { width: 204px; flex-shrink: 0; flex-direction: row; align-items: center; }
+.rec-head .rec-head-time { -unity-text-align: middle-right; }
+.rec-driver { margin-right: 8px; }
+TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
+.icon.rec-missing-icon { width: 22px; height: 22px; margin-right: 8px; -unity-background-image-tint-color: var(--mhk-gray-500); display: none; }
+.rec-row.missing .rec-missing-icon, TemplateContainer.sample-missing > .rec-row .rec-missing-icon { display: flex; }
+.rec-row.missing .rec-track, TemplateContainer.sample-missing > .rec-row .rec-track { color: var(--mhk-gray-600); }
+.records-browser { flex-direction: row; flex-grow: 1; flex-shrink: 1; min-height: 0; align-items: flex-start; }
+.records-browser > .records-panel { width: 56%; max-width: none; align-self: stretch; }
+.rec-row:focus, .rec-row.selected, TemplateContainer.sample-selected > .rec-row { background-color: var(--mhk-accent-soft); }
+.rec-row:focus { border-width: 2px; border-color: var(--mhk-accent); }
+.panel.records-ghosts { flex-grow: 1; flex-shrink: 1; flex-basis: 0; margin-left: 18px; max-height: 100%; }
+.records-ghosts-title {
+    -unity-font-definition: var(--font-display);
+    font-size: 26px;
+    color: var(--mhk-gray-900);
+    margin: 10px 0 4px 0;
+}
+.records-status { display: none; font-size: 15px; color: var(--mhk-gray-600); white-space: normal; margin-top: 8px; -unity-text-align: middle-center; }
+.records-browser .rec-track { width: auto; flex-grow: 1; flex-shrink: 1; flex-basis: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.records-browser .rec-game { width: 210px; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ghost-info Label { -unity-text-align: middle-left; }
+
+.driver-icons { flex-direction: row; align-items: center; flex-shrink: 0; }
+.driver-icon { width: 44px; height: 44px; margin-left: 4px; border-radius: 8px; background-size: contain; flex-shrink: 0; }
+.driver-portrait { background-color: var(--mhk-row); }
+.driver-icon.missing {
+    background-image: url("Icons/extension.png");
+    background-size: 60% 60%;
+    background-color: var(--mhk-gray-100);
+    -unity-background-image-tint-color: var(--mhk-gray-400);
+}
+.rec-driver .driver-icon { width: 34px; height: 34px; }
+
+.ghosts-panel { max-width: 1100px; flex-grow: 1; }
+.ghost-toolbar { align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.ghost-toolbar-label { -unity-font-definition: var(--font-display); font-size: 24px; color: var(--mhk-gray-900); min-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tabs.ghost-classes { margin-bottom: 0; }
+.ghost-count { min-width: 220px; font-size: 18px; color: var(--mhk-gray-500); -unity-text-align: middle-right; }
+.ghost-scroll, .list-scroll { flex-grow: 1; flex-shrink: 1; }
+.records-ghosts .ghost-scroll { flex-grow: 0; }
+.ghost-row { flex-direction: row; align-items: center; margin: 3px 0; border-radius: 10px; background-color: var(--mhk-row); }
+.ghost-main {
+    flex-grow: 1; flex-shrink: 1;
+    flex-direction: row; align-items: center;
+    margin: 0; padding: 8px 40px 8px 12px;
+    border-width: 2px; border-color: transparent; border-radius: 10px;
+    background-color: transparent; background-image: none;
+}
+.ghost-main:focus { border-color: var(--mhk-accent); background-color: var(--mhk-accent-soft); }
+.ghost-check {
+    width: 32px; height: 32px; margin-right: 12px;
+    border-radius: 16px; border-width: 2px; border-color: var(--mhk-gray-300);
+    background-color: var(--mhk-white);
+    align-items: center; justify-content: center;
+}
+.ghost-check .icon { width: 22px; height: 22px; -unity-background-image-tint-color: var(--mhk-gray-900); opacity: 0; }
+.ghost-row.selected .ghost-check, TemplateContainer.sample-selected > .ghost-row .ghost-check { background-color: var(--mhk-accent); border-color: var(--mhk-accent-deep); }
+.ghost-row.selected .ghost-check .icon, TemplateContainer.sample-selected > .ghost-row .ghost-check .icon { opacity: 1; }
+.ghost-time {
+    width: 150px;
+    -unity-font-definition: var(--font-display);
+    font-size: 28px;
+    color: var(--mhk-gray-900);
+}
+.ghost-info { flex-grow: 1; flex-shrink: 1; }
+.ghost-player { -unity-font-definition: var(--font-bold); font-size: 21px; color: var(--mhk-gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ghost-date { font-size: 15px; color: var(--mhk-gray-500); }
+.ghost-driver { margin: 0 14px 0 10px; }
+.ghost-class {
+    min-width: 92px;
+    -unity-font-definition: var(--font-display);
+    font-size: 28px;
+    color: var(--mhk-gray-900);
+    -unity-text-align: middle-right;
+}
+.ghost-badges { position: absolute; top: 5px; right: 8px; flex-direction: row; }
+.icon.ghost-badge { width: 22px; height: 22px; margin-left: 2px; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.ghost-kind.best { background-image: url("Icons/star.png"); -unity-background-image-tint-color: var(--mhk-accent-deep); }
+.ghost-kind.last, TemplateContainer.sample-last > .ghost-row .ghost-kind { background-image: url("Icons/replay.png"); -unity-background-image-tint-color: var(--mhk-gray-500); }
+.ghost-kind.saved { background-image: url("Icons/emoji_events.png"); -unity-background-image-tint-color: var(--mhk-gray-500); }
+.ghost-kind.imported, TemplateContainer.sample-imported > .ghost-row .ghost-kind { background-image: url("Icons/download.png"); -unity-background-image-tint-color: var(--mhk-gray-500); }
+.icon.ghost-version { display: none; -unity-background-image-tint-color: var(--mhk-bad-ink); }
+.ghost-row.other .ghost-version, TemplateContainer.sample-other > .ghost-row .ghost-version { display: flex; }
+.ghost-actions { flex-shrink: 0; margin-left: 4px; display: none; }
+.ghost-list-records .ghost-actions { display: flex; }
+.ghost-list-records .ghost-check { display: none; }
+.ghost-list-records .ghost-main { padding-right: 34px; }
+.ghost-list-records .ghost-time { width: 88px; font-size: 21px; }
+.ghost-list-records .ghost-info { min-width: 120px; }
+.ghost-list-records .ghost-player { font-size: 18px; }
+.ghost-list-records .ghost-date { font-size: 13px; }
+.ghost-list-records .ghost-driver { margin: 0 8px 0 6px; }
+.ghost-list-records .driver-icon { width: 34px; height: 34px; }
+.ghost-list-records .ghost-class { min-width: 56px; font-size: 20px; }
+.ghost-actions .mhk-button.armed { background-image: url("Textures/button_accent.png"); color: var(--mhk-gray-900); }
+.ghost-empty { margin: 18px 0; display: none; font-size: 18px; color: var(--mhk-gray-500); -unity-text-align: middle-center; }
+.ghosts-panel .ghost-empty { flex-grow: 1; }
+.preview-empty .ghost-empty { display: flex; }
+.preview-empty .ghost-scroll { display: none; }
+
+.mod-row { flex-direction: row; align-items: center; padding: 10px 12px; margin: 4px 0; border-radius: 10px; background-color: var(--mhk-row); }
+.mod-logo { width: 72px; height: 72px; margin-right: 14px; background-size: contain; }
+.mod-info { flex-grow: 1; flex-shrink: 1; }
+.mod-title { -unity-font-definition: var(--font-display); font-size: 24px; color: var(--mhk-gray-900); }
+.mod-text { font-size: 16px; white-space: normal; color: var(--mhk-gray-600); }
+.mhk-button.mod-toggle { min-width: 150px; background-image: url("Textures/button_light.png"); color: var(--mhk-white); -unity-background-image-tint-color: var(--mhk-good-ink); }
+.mhk-button.mod-toggle.off, TemplateContainer.sample-off .mhk-button.mod-toggle { -unity-background-image-tint-color: var(--mhk-bad-ink); }
+.mhk-button.mod-toggle:hover, .mhk-button.mod-toggle:focus { background-image: url("Textures/button_light.png"); color: var(--mhk-white); border-width: 3px; border-color: var(--mhk-accent); border-radius: 14px; }
+.mods-empty { display: none; margin: 18px 0; -unity-text-align: middle-center; color: var(--mhk-gray-500); }
+
+.controls-panel { max-width: 1000px; }
+.ctl-action { flex-grow: 1; flex-shrink: 1; font-size: 21px; color: var(--mhk-gray-900); }
+.ctl-key-head { width: 270px; -unity-text-align: middle-center; }
+.mhk-button.ctl-key { width: 260px; margin: 3px 5px; -unity-text-align: middle-center; }
+.mhk-button.ctl-key.empty, TemplateContainer.sample-empty #ctl-key-1 { color: var(--mhk-gray-400); }
+
+.odds-panel { max-width: 1100px; }
+.odds-head { padding: 0 12px 8px 12px; border-bottom-width: 1px; border-color: var(--mhk-divider); }
+.odds-total { -unity-font-definition: var(--font-bold); font-size: 22px; color: var(--mhk-gray-900); white-space: normal; }
+.odds-total.odds-off { color: var(--mhk-bad-ink); display: none; }
+.preview-off #odds-off { display: flex; }
+.preview-off #odds-total { display: none; }
+.odds-group { flex-direction: row; align-items: flex-end; padding: 14px 12px 4px 12px; border-bottom-width: 1px; border-color: var(--mhk-divider); margin-bottom: 3px; }
+.odds-group-name { flex-grow: 1; -unity-font-definition: var(--font-bold); font-size: 16px; color: var(--mhk-gray-500); letter-spacing: 1px; }
+.odds-group-total { width: 110px; margin-right: 64px; -unity-font-definition: var(--font-bold); font-size: 16px; color: var(--mhk-gray-500); -unity-text-align: middle-center; }
+.odds-row {
+    flex-direction: row; align-items: center;
+    margin: 1px 0; padding: 0 6px 0 10px;
+    border-width: 2px; border-color: transparent; border-radius: 10px;
+}
+.odds-row.alt, TemplateContainer.sample-alt > .odds-row { background-color: var(--mhk-row); }
+.odds-row:hover { background-color: var(--mhk-row-hover); }
+.odds-row:focus { border-color: var(--mhk-accent); background-color: var(--mhk-accent-soft); }
+.odds-icon { width: 44px; height: 44px; flex-shrink: 0; margin-right: 14px; background-size: contain; }
+.odds-name { flex-grow: 1; flex-shrink: 1; font-size: 21px; color: var(--mhk-gray-900); }
+.odds-tag { flex-shrink: 0; -unity-font-definition: var(--font-bold); font-size: 14px; color: var(--mhk-gray-600); background-color: var(--mhk-gray-100); border-radius: 8px; padding: 2px 10px; margin: 0 12px; display: none; }
+TemplateContainer.sample-shared .odds-tag { display: flex; }
+.mhk-button.odds-step { min-width: 64px; min-height: 42px; padding: 2px 12px 6px 12px; margin: 3px 2px; }
+.mhk-button.odds-step .icon { width: 34px; height: 34px; }
+.odds-value { width: 110px; flex-shrink: 0; -unity-font-definition: var(--font-bold); font-size: 22px; color: var(--mhk-gray-900); -unity-text-align: middle-center; }
+.odds-row.zero .odds-name, .odds-row.zero .odds-value, TemplateContainer.sample-zero .odds-name, TemplateContainer.sample-zero .odds-value { color: var(--mhk-gray-400); }
+.odds-row.zero .odds-icon, TemplateContainer.sample-zero .odds-icon { opacity: 0.4; }

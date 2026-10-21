@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One track of the cup preview list. Code sets number and track-name. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="cup-track-item">
+        <ui:VisualElement class="badge">
+            <ui:Label name="number" text="1" class="badge-label" />
+        </ui:VisualElement>
+        <ui:Label name="track-name" text="Scribble Blocks" />
+    </ui:VisualElement>
+</ui:UXML>

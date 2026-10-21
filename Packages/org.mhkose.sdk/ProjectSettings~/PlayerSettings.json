@@ -1,0 +1,54 @@
+{
+  "m_ActiveColorSpace": 1,
+  "activeInputHandler": 1,
+  "bakeCollisionMeshes": true,
+  "gpuSkinning": true,
+  "meshDeformation": 2,
+  "openGLRequireES31": true,
+  "m_BuildTargetGraphicsAPIs": [
+    {
+      "m_BuildTarget": "iOSSupport",
+      "m_APIs": [
+        16
+      ],
+      "m_Automatic": true
+    },
+    {
+      "m_BuildTarget": "AndroidPlayer",
+      "m_APIs": [
+        21,
+        11
+      ],
+      "m_Automatic": false
+    },
+    {
+      "m_BuildTarget": "WindowsStandaloneSupport",
+      "m_APIs": [
+        18,
+        2
+      ],
+      "m_Automatic": false
+    }
+  ],
+  "m_BuildTargetGroupLightmapEncodingQuality": [
+    {
+      "m_BuildTarget": "Android",
+      "m_EncodingQuality": 1
+    }
+  ],
+  "m_BuildTargetGroupHDRCubemapEncodingQuality": [],
+  "m_BuildTargetNormalMapEncoding": [
+    {
+      "m_BuildTarget": "Android",
+      "m_Encoding": 1
+    }
+  ],
+  "m_BuildTargetDefaultTextureCompressionFormat": [
+    {
+      "m_BuildTarget": "Android",
+      "m_Formats": [
+        3
+      ]
+    }
+  ]
+}
