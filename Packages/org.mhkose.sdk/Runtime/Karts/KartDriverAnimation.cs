@@ -1,3 +1,4 @@
+using System;
 using MHK.Modding;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -5,14 +6,15 @@ using Random = UnityEngine.Random;
 namespace MHK.Karts
 {
     /// <summary>
-    /// Driver animation logic after MHK2's car anim update (FUN_0042d6c0): locomotion role from speed and input, steering
-    /// scrub, idle fidgets, glances and shouts. Computer drivers' turn poses follow their shown (smoothed) steering.
+    /// Driver animation logic after MHK2's car anim update (FUN_0042d6c0): locomotion role from speed and input, turn
+    /// pose, idle fidgets, glances and shouts. The turn pose (driver and kart lean) follows a smoothed blend of the shown
+    /// steering and the kart's actual turning (<see cref="TurnPoseSettings"/>), for players and computer drivers alike.
     /// </summary>
     public sealed class KartDriverAnimation
     {
         const CharacterAnimRole NoRole = (CharacterAnimRole)(-1);
         const float TurnPoseOn = 0.12f, TurnPoseOff = 0.06f;
-        const float SteerKeyThreshold = 0.1f;
+        const float TeleportYawRate = 1500f;
         const float DriveMinSpeed = 3f, ReverseMaxSpeed = -5f, AccelerateMaxSpeed = 5f, BrakeMinSpeed = 20f;
         const float PedalThreshold = 0.5f;
         const float LandingCooldownSeconds = 0.5f;
@@ -24,26 +26,53 @@ namespace MHK.Karts
 
         enum TurnSide { Left = -1, None, Right }
 
+        /// <summary>Tunables of the turn pose (GameConfig.kartTurnPose).</summary>
+        [Serializable]
+        public class TurnPoseSettings
+        {
+            [Tooltip("Share of the full turn animation (driver and kart leaning into the bend) shown at full lock or a " +
+                     "full turn. 1 = the original pose, lower = a softer lean.")]
+            [Range(0f, 1f)] public float intensity = 0.7f;
+            [Tooltip("How much the lean follows what the kart does (its turning rate) instead of the steering key. " +
+                     "0 = the steering only (original), 1 = the turning only, so a steering tap that hardly turns the " +
+                     "kart hardly leans it. Reversing always follows the steering.")]
+            [Range(0f, 1f)] public float followTurning = 0.5f;
+            [Tooltip("Turning rate (degrees per second) that counts as a full turn for followTurning.")]
+            [Min(1f)] public float fullTurnRate = 100f;
+            [Tooltip("Seconds to lean into a bend (time to about 63 % of the change).")]
+            [Min(0.01f)] public float leanInSeconds = 0.15f;
+            [Tooltip("Seconds to straighten up again (time to about 63 % of the change). The original snaps back in " +
+                     "0.07 s when the steering key is released.")]
+            [Min(0.01f)] public float leanOutSeconds = 0.3f;
+        }
+
         readonly KartVisual owner;
         readonly IKartView view;
         readonly Kart kart;
         readonly CharacterAnimator driver, kartModel;
         readonly KartAudio audio;
+        readonly TurnPoseSettings poseSettings;
 
         CharacterAnimRole lastWant = CharacterAnimRole.Idle;
         TurnSide turnSide;
-        float shownSteer;
+        float pose, lastYaw;
+        bool yawTracked;
         float idleTimer, glanceTimer = 2f, shoutTimer = 3f;
         float landingCooldown, collisionCooldown;
 
-        /// <summary>Animation logic of <paramref name="owner"/>. <paramref name="kart"/> is null for a replayed ghost.</summary>
-        public KartDriverAnimation(KartVisual owner, IKartView view, Kart kart, CharacterAnimator driver, CharacterAnimator kartModel)
+        /// <summary>
+        /// Animation logic of <paramref name="owner"/> with the turn pose tunables <paramref name="poseSettings"/>.
+        /// <paramref name="kart"/> is null for a replayed ghost.
+        /// </summary>
+        public KartDriverAnimation(KartVisual owner, IKartView view, Kart kart, CharacterAnimator driver, CharacterAnimator kartModel,
+            TurnPoseSettings poseSettings)
         {
             this.owner = owner;
             this.view = view;
             this.kart = kart;
             this.driver = driver;
             this.kartModel = kartModel;
+            this.poseSettings = poseSettings ?? new TurnPoseSettings();
             if (kart != null) audio = kart.GetComponent<KartAudio>();
         }
 
@@ -64,7 +93,7 @@ namespace MHK.Karts
         {
             var lead = Lead;
             if (lead == null) return;
-            shownSteer = steerShown;
+            UpdatePose(dt, steerShown);
             var input = view.CurrentInput;
             TriggerLanding(dt);
             var v = view.ForwardSpeedOriginal;
@@ -133,8 +162,10 @@ namespace MHK.Karts
         void ApplyLocomotion(CharacterAnimRole want, float v, bool restart)
         {
             // MHK2: turn pose time = |steer angle| / max steer angle × length, drive speed 0.2 + 2·min(|v|·0.02, 1).
-            var scrub = want is CharacterAnimRole.TurnLeft or CharacterAnimRole.BackwardTurnLeft ? Mathf.Max(0f, -shownSteer)
-                : want is CharacterAnimRole.TurnRight or CharacterAnimRole.BackwardTurnRight ? Mathf.Max(0f, shownSteer) : 0f;
+            // Remake: the smoothed pose replaces the steer angle, scaled by the turn pose intensity.
+            var lean = poseSettings.intensity;
+            var scrub = want is CharacterAnimRole.TurnLeft or CharacterAnimRole.BackwardTurnLeft ? Mathf.Max(0f, -pose) * lean
+                : want is CharacterAnimRole.TurnRight or CharacterAnimRole.BackwardTurnRight ? Mathf.Max(0f, pose) * lean : 0f;
             var rate = DriveRateMin + DriveRateRange * Mathf.Min(Mathf.Abs(v) * DriveRatePerSpeed, 1f);
             if (driver != null) driver.SetLocomotion(want, scrub, rate, restart);
             if (kartModel != null) kartModel.SetLocomotion(want, scrub, rate, restart);
@@ -142,16 +173,26 @@ namespace MHK.Karts
 
         CharacterAnimRole TurnRole(CharacterAnimRole left, CharacterAnimRole right, CharacterAnimRole straight)
         {
-            if (view.IsHuman)
-            {
-                var key = view.CurrentInput.steer;
-                return key > SteerKeyThreshold ? right : key < -SteerKeyThreshold ? left : straight;
-            }
-            var side = shownSteer > 0f ? TurnSide.Right : TurnSide.Left;
-            var size = Mathf.Abs(shownSteer);
+            var side = pose > 0f ? TurnSide.Right : TurnSide.Left;
+            var size = Mathf.Abs(pose);
             if (turnSide != TurnSide.None && (side != turnSide || size < TurnPoseOff)) turnSide = TurnSide.None;
             if (turnSide == TurnSide.None && size > TurnPoseOn) turnSide = side;
             return turnSide == TurnSide.Right ? right : turnSide == TurnSide.Left ? left : straight;
+        }
+
+        void UpdatePose(float dt, float steer)
+        {
+            var f = view.transform.forward;
+            var yaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+            var rate = yawTracked && dt > 0f ? Mathf.DeltaAngle(lastYaw, yaw) / dt : 0f;
+            lastYaw = yaw;
+            yawTracked = true;
+            if (Mathf.Abs(rate) > TeleportYawRate) rate = 0f;
+            var s = poseSettings;
+            var turning = view.ForwardSpeed < 0f ? steer : Mathf.Clamp(rate / s.fullTurnRate, -1f, 1f);
+            var target = Mathf.Lerp(steer, turning, s.followTurning);
+            var leaningIn = Mathf.Abs(target) > Mathf.Abs(pose) && target * pose >= 0f;
+            pose = Mathf.Lerp(pose, target, 1f - Mathf.Exp(-dt / (leaningIn ? s.leanInSeconds : s.leanOutSeconds)));
         }
 
         void IdleTimer(float dt, ref CharacterAnimRole want, ref bool restart)

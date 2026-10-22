@@ -92,13 +92,9 @@ namespace MHK.Karts
                 s.contacts++;
                 totalLoad += wheels[i].loadNewtons;
                 s.groundNormal += wheels[i].normal;
-                var matLatI = 1f;
-                if (wheels[i].surface != null)
-                {
-                    if (wheels[i].surface.offroad) s.resMax = Mathf.Max(s.resMax, OffroadResistance);
-                    matLatI = wheels[i].surface.lateralFriction;
-                }
-                s.gripShare += Mathf.Min(1f, matLatI * s.fx.grip) * 0.25f;
+                if (wheels[i].surface != null && wheels[i].surface.offroad) s.resMax = Mathf.Max(s.resMax, OffroadResistance);
+                var matLat = wheels[i].surface != null ? wheels[i].surface.lateralFriction : 1f;
+                s.gripShare += Mathf.Min(1f, matLat * s.fx.grip) / WheelCount;
             }
             s.avgLoad = totalLoad / 4f;
         }
@@ -124,14 +120,14 @@ namespace MHK.Karts
             s.force += (s.contacts / 4f) * s.m * (target - g);
         }
 
-        // Extra steering torque (6.4). Remake: limited by grip and fading while the rear tyres slide.
+        // Extra steering torque (6.4), whenever the kart rolls forwards, also while it slides and in the air (MHK2 has no
+        // grip, slide or contact condition, the angular velocity collision damping caps the spin). Remake: on the ground
+        // scaled towards the side grip under the wheels (steeringTorqueGripFollow), so loose ground does not swing the
+        // rear out.
         void ApplySteeringTorque(ref StepFrame s)
         {
-            var p = s.p;
-            if (p.steeringTorqueFollowsGrip) s.steerTorque *= s.gripShare;
-            if (p.steeringTorqueFadeStart < 1f)
-                s.steerTorque *= 1f - Mathf.Clamp01((RearGripUsage - p.steeringTorqueFadeStart) / (1f - p.steeringTorqueFadeStart));
-            s.torqueW += s.up * -s.steerTorque;
+            var grip = s.contacts == 0 ? 1f : Mathf.Lerp(1f, s.gripShare, s.p.steeringTorqueGripFollow);
+            s.torqueW += s.up * (-s.steerTorque * grip);
         }
 
         void ApplyDrag(ref StepFrame s)
@@ -193,7 +189,12 @@ namespace MHK.Karts
         {
             s.v += s.force / s.m * s.h;
             s.w += InverseWorldInertiaTimes(s.torqueW, s.rot) * s.h;
-            if (s.contacts == 0) AlignHeadingInAir(ref s.w, s.v, s.fwd, s.h);
+            if (s.contacts == 0)
+            {
+                var steerShare = s.p.maxSteeringAngle > 0f ? Mathf.Clamp(s.steer / s.p.maxSteeringAngle, -1f, 1f) : 0f;
+                SteerInAir(ref s.v, steerShare, s.h);
+                AlignHeadingInAir(ref s.w, s.v, s.fwd, steerShare, s.h);
+            }
             SolveContacts(ref s.v, ref s.w, s.rot, s.h, s.p);
             Body.linearVelocity = s.v;
             Body.angularVelocity = s.w;
@@ -256,18 +257,28 @@ namespace MHK.Karts
             wasGrounded = IsGrounded;
         }
 
-        // Remake: in the air the yaw rate is steered towards the direction of travel with ω' = 4r·(r·error − ω), a double
-        // pole at −2r, so a kart leaving a crest while turning lands straight without overshoot. Pitch and roll stay.
-        static void AlignHeadingInAir(ref Vector3 w, Vector3 v, Vector3 fwd, float h)
+        // Remake: in the air the steering turns the velocity about the world up axis (airSteerRate at full lock, steer
+        // + = left) while the steering torque turns the nose (MHK2). Only the share of the steering let go steers the yaw
+        // rate towards the direction of travel, with ω' = 4r·(r·error − ω), a double pole at −2r, so a kart that leaves a
+        // crest turning and is not steered lands straight without overshoot. Pitch and roll stay.
+        void SteerInAir(ref Vector3 v, float steerShare, float h)
+        {
+            var rate = AirSteerRate;
+            if (rate <= 0f || ForwardSpeed <= 0f) return;
+            v = Quaternion.AngleAxis(-steerShare * rate * h, Vector3.up) * v;
+        }
+
+        static void AlignHeadingInAir(ref Vector3 w, Vector3 v, Vector3 fwd, float steerShare, float h)
         {
             var rate = AirHeadingAlign;
-            if (rate <= 0f) return;
+            var letGo = 1f - Mathf.Abs(steerShare);
+            if (rate <= 0f || letGo <= 0f) return;
             var travel = Vector3.ProjectOnPlane(v, Vector3.up);
             var nose = Vector3.ProjectOnPlane(fwd, Vector3.up);
             if (travel.sqrMagnitude < AirAlignMinSpeedSq || nose.sqrMagnitude < AirAlignMinNoseSq || Vector3.Dot(travel, nose) <= 0f) return;
             var error = Vector3.SignedAngle(nose, travel, Vector3.up) * Mathf.Deg2Rad;
             var yaw = Vector3.Dot(w, Vector3.up);
-            w += Vector3.up * ((rate * error - yaw) * (1f - Mathf.Exp(-4f * rate * h)));
+            w += Vector3.up * ((rate * error - yaw) * (1f - Mathf.Exp(-4f * rate * h)) * letGo);
         }
     }
 }

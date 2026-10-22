@@ -37,7 +37,7 @@ namespace MHK.Effects
             }
         }
 
-        // Wheel centres in the space of the drawn kart body (turned by spin-outs and the turn look like the wheels).
+        // Wheel centres in the space of the drawn kart body (turned by spin-outs and the body bob like the wheels).
         static List<Vector3> WheelPositions(Kart kart, Transform space)
         {
             var list = new List<Vector3>();

@@ -48,6 +48,7 @@ namespace MHK.Cameras
 
         const float SmoothingFps = 60f;
         const float BoomUnset = -1f;
+        const float TravelMinSpeed = 3f, TravelMaxSpeed = 150f, TravelMaxSlip = 90f;
         static readonly int ViewCount = Enum.GetValues(typeof(CameraMode)).Length;
 
         [Tooltip("Close (default) view: behind and above the kart, the whole kart and the track ahead in view.")]
@@ -58,6 +59,12 @@ namespace MHK.Cameras
         [SerializeField] private ViewPreset pov = new() { offset = new Vector3(0f, 0.1f, 1f), focusPoint = new Vector3(0f, 0.7f, 0f), pitch = 3f, showKart = false, attachedToKart = true, pitchFollow = 1f, speedFov = 4f, speedLines = 0.5f };
         [Tooltip("Per-frame (60 fps) yaw smoothing ('Orientation Smoothing').")]
         [Range(0, 1)] [SerializeField] private float orientationSmoothing = 0.8f;
+        [Tooltip("Share of the kart's slip angle (between its heading and its direction of travel) by which the driving " +
+                 "view turns towards the direction of travel, so a drifting kart shows its side. 0 = MHK2: the view " +
+                 "follows the heading only.")]
+        [Range(0, 1)] [SerializeField] private float travelFollow;
+        [Tooltip("Rate (1/s) of the filter on the slip angle the view follows: lower = calmer, higher = quicker.")]
+        [Min(0.1f)] [SerializeField] private float travelFollowRate = 6f;
         [Tooltip("Wheels on the ground before the kart's pitch is followed. With fewer (jumps, crests, landings) the last " +
                  "pitch is held.")]
         [Range(1, 4)] [SerializeField] private int groundPitchMinWheels = 3;
@@ -111,6 +118,9 @@ namespace MHK.Cameras
         bool initialised;
         float orbitAngle;
         bool kartHidden;
+        Vector3 lastKartPos;
+        float travelSlip;
+        bool travelTracked;
 
         /// <summary>Kart followed: the player's kart, or the ghost watched in a time-trial replay.</summary>
         public IKartView Target
@@ -207,7 +217,8 @@ namespace MHK.Cameras
                 return;
             }
             var targetYaw = KartYaw(kt);
-            UpdateHeading(kt, preset, targetYaw, dt);
+            var travelYaw = TravelYawOffset(kt, targetYaw, dt);
+            UpdateHeading(kt, preset, driving ? targetYaw + travelYaw : targetYaw, dt);
             var attached = preset.attachedToKart && driving;
             var q = attached ? kt.rotation : Quaternion.Euler(-pitch, yaw, 0f);
             var focus = kt.position + (attached ? kt.rotation * preset.focusPoint : preset.focusPoint) + target.QuakeOffset;
@@ -255,6 +266,8 @@ namespace MHK.Cameras
             pitchVelocity = 0f;
             maxDist = BoomUnset;
             holdTimer = 0f;
+            travelSlip = 0f;
+            travelTracked = false;
             initialised = true;
         }
 
@@ -328,6 +341,23 @@ namespace MHK.Cameras
         {
             var f = t.forward;
             return Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg;
+        }
+
+        float TravelYawOffset(Transform kt, float headingYaw, float dt)
+        {
+            var step = Vector3.ProjectOnPlane(kt.position - lastKartPos, Vector3.up);
+            lastKartPos = kt.position;
+            var tracked = travelTracked;
+            travelTracked = true;
+            var goal = 0f;
+            if (tracked && dt > 0f)
+            {
+                var speed = step.magnitude / dt;
+                var slip = Mathf.DeltaAngle(headingYaw, Mathf.Atan2(step.x, step.z) * Mathf.Rad2Deg);
+                if (speed > TravelMinSpeed && speed < TravelMaxSpeed && Mathf.Abs(slip) < TravelMaxSlip) goal = slip;
+            }
+            travelSlip = Mathf.Lerp(travelSlip, goal, Smoothing.Factor(travelFollowRate, dt));
+            return travelFollow * travelSlip;
         }
 
         static float KartPitch(Transform t) => Mathf.Asin(Mathf.Clamp(t.forward.y, -1f, 1f)) * Mathf.Rad2Deg;

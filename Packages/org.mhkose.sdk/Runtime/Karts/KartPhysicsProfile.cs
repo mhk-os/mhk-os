@@ -95,32 +95,39 @@ namespace MHK.Karts
         public float steeringSpeed = 170f;
         [Tooltip("Degrees per second the steering returns to centre when released.")]
         public float steeringRestSpeed = 600f;
+        [Tooltip("Full steering lock (deg). Also the steering command that sets the extra steering torque.")]
         public float maxSteeringAngle = 40f;
         [Tooltip("Throttle ramp speed (1/s).")]
         public float accelerationSpeed = 10f;
         [Tooltip("Brake ramp speed (1/s).")]
         public float brakeSpeed = 100f;
+        [Tooltip("Share (0..1) of the four wheels' average load in each wheel's friction load, the rest is its own load.")]
         public float frictionEqualizer = 0.8f;
+        [Tooltip("Body angular damping (1/s) while the angular velocity stays below angularVelCollisionLimit.")]
         public float angularVelDamping = 2f;
+        [Tooltip("Angular velocity (rad/s) from which angularVelCollisionDamping applies. The steering torque alone cannot " +
+                 "spin the kart much faster than this, which keeps MHK2's slides and spins slow.")]
         public float angularVelCollisionLimit = 2f;
+        [Tooltip("Body angular damping (1/s) at or above angularVelCollisionLimit.")]
         public float angularVelCollisionDamping = 12f;
+        [Tooltip("Yaw torque (N·m) per degree of steering command (not washed out) while the kart rolls forwards. At full " +
+                 "lock it is stronger than the rear grip on loose ground, which swings the rear out.")]
         public float extraSteeringTorque = 3f;
+        [Tooltip("Yaw torque (N·m) per degree of steering change in one physics step.")]
         public float extraSteeringTorqueImpulse;
         public float uprightTorqueFactor = 100f;
 
         [Header("Remake handling (not in karts.txt)")]
-        [Tooltip("Tyre slip angle (deg) at which the lateral friction reaches its limit on gravel-like ground ('lat dir " +
-                 "friction' 0.5). Below it the lateral force grows linearly with the slip. Each surface scales it with its " +
-                 "grip (TrackSurface.SlipAngleScaleFor: hard ground ×0.44 ≈ 3°, sand ×1.3, snow ×1.85). 0 = the original rigid " +
-                 "stick-slip friction (no slip at all until the limit, then free sliding).")]
-        public float lateralSlipAngle = 7f;
-        [Tooltip("Scale the 'extra steering torque' with the wheels' ground contact and the surface's lateral friction: " +
-                 "no yaw torque in the air, less on sand / ice (the original applies it fully everywhere, which spins the " +
-                 "kart on low-grip roads and after bumps).")]
-        public bool steeringTorqueFollowsGrip = true;
-        [Tooltip("Rear lateral grip usage (0..1) above which the extra steering torque fades out, reaching 0 when the rear " +
-                 "tyres slide. Keeps a hard corner a controlled drift instead of a spin. 1 = never fade (original).")]
-        [Range(0f, 1f)] public float steeringTorqueFadeStart = 0.6f;
+        [Tooltip("0 = MHK2: rigid stick-slip side friction (no side slip until the limit μ × load, then free sliding). " +
+                 "Above 0 a softer remake tyre: the slip angle (deg) at which the side force reaches its limit on " +
+                 "gravel-like ground ('lat dir friction' 0.5), growing linearly with the slip below it. Each surface " +
+                 "scales it with its grip (TrackSurface.SlipAngleScaleFor: hard ground ×0.44, sand ×1.3, snow ×1.85).")]
+        [Min(0f)] public float lateralSlipAngle;
+        [Tooltip("How much the extra steering torque follows the side grip under the wheels (the surface's lateral " +
+                 "friction × grip effects, at most 1 per wheel, 0 for a wheel off the ground). 0 = MHK2: the full torque " +
+                 "on any ground, which swings the rear out on sand, grass and snow at a small steering input. 1 = the " +
+                 "torque shrinks with the grip, so loose ground turns as calmly as road, only with less cornering speed.")]
+        [Range(0f, 1f)] public float steeringTorqueGripFollow = 1f;
         [Tooltip("Share of the gravity component along the ground that acts while the wheels touch it (uphill braking, " +
                  "downhill pull, sliding down sideways). 1 = original physics, 0.25 keeps steep ramps drivable. Tracks can " +
                  "override it (TrackDefinition.physics, MHK3: 0). The normal component and airborne gravity are unchanged.")]

@@ -109,6 +109,9 @@ namespace MHK.Karts
         /// <summary>Hostile effects are blocked: shield, ghost or respawn protection.</summary>
         public bool IsProtected => Shielded || Ghost || Time.time < ProtectedUntil;
 
+        /// <summary>Inside the protection after a respawn (<see cref="ProtectedUntil"/>), shield and ghost aside.</summary>
+        public bool RespawnProtected => Time.time < ProtectedUntil;
+
         /// <summary>
         /// Applies an effect. Returns false if a shield / protection blocked it, or if it flattens
         /// (<see cref="StatusEffectDefinition.verticalScale"/> &lt; 1) a kart that is already flattened or waiting to

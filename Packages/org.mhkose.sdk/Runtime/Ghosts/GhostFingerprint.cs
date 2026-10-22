@@ -79,6 +79,7 @@ namespace MHK.Ghosts
             b.Add(cfg.gravity);
             b.Add(cfg.offroadResistance);
             b.Add(cfg.airHeadingAlign);
+            b.Add(cfg.airSteerRate);
             b.Add(cfg.driveTorqueScale);
             b.Add(cfg.countdownSeconds);
             b.Add(cfg.powerStartWindow);

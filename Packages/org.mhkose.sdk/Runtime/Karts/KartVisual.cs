@@ -29,7 +29,6 @@ namespace MHK.Karts
         KartSeeThrough seeThrough;
         KartWheelVisibility wheelVisibility;
         KartDriverAnimation driverAnimation;
-        KartTurnLook turnLook;
         readonly KartBodyBob bodyBob = new();
         Transform body;
         float wheelRoll;
@@ -40,8 +39,8 @@ namespace MHK.Karts
         public KartModel Model => model;
 
         /// <summary>
-        /// Child of this visual holding the kart model, the driver, held items and effect attachments, turned by the
-        /// visual-only turn look. This visual itself has the pose without it, which is where gameplay reads mount points.
+        /// Child of this visual holding the kart model, the driver, held items and effect attachments, moved by the
+        /// visual-only body bob. This visual itself has the pose without it, which is where gameplay reads mount points.
         /// </summary>
         public Transform Body => body;
 
@@ -124,8 +123,7 @@ namespace MHK.Karts
 
             seeThrough = new KartSeeThrough(transform, view, GetComponentsInChildren<Renderer>());
             wheelVisibility = new KartWheelVisibility(model);
-            driverAnimation = new KartDriverAnimation(this, view, kart, animator, kartAnimator);
-            turnLook = new KartTurnLook(GameRoot.Instance.Config.kartTurnLook, view.transform, model, body);
+            driverAnimation = new KartDriverAnimation(this, view, kart, animator, kartAnimator, GameRoot.Instance.Config.kartTurnPose);
             if (model != null)
             {
                 frontRest = KartRigBuilder.Rests(model.frontWheels);
@@ -160,7 +158,6 @@ namespace MHK.Karts
             if (animator != null) animator.Snap();
             if (kartAnimator != null) kartAnimator.Snap();
             dropTime = 0f;
-            turnLook.Reset();
             bodyBob.Reset();
             PoseSnapped?.Invoke();
         }
@@ -247,13 +244,9 @@ namespace MHK.Karts
             var targetScale = Vector3.one * view.ScaleMultiplier;
             targetScale.y *= view.VerticalScale;
             transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Smoothing.Factor(ScaleFollowRate, dt));
-            turnLook.Update(dt, view.SpeedFraction, shownSteer, ChassisAnimating());
             bodyBob.Update(dt, view.BodyBob, view.ForwardSpeed, HitAnimating());
-            body.SetLocalPositionAndRotation(turnLook.PivotOffset + bodyBob.Offset, turnLook.Rotation * bodyBob.Rotation);
+            body.SetLocalPositionAndRotation(bodyBob.Offset, bodyBob.Rotation);
         }
-
-        bool ChassisAnimating() =>
-            view.SpinAngle != 0f || Mathf.Abs(view.VerticalScale - 1f) > FlattenTolerance || MovesChassis(animator) || MovesChassis(kartAnimator);
 
         // The body bob rides over bumps and its own hit's shake, other hits (spins, flattening, shot down) fade it out.
         bool HitAnimating() =>
@@ -263,10 +256,6 @@ namespace MHK.Karts
             a != null && a.ActionActive
                       && a.ActionRole is (CharacterAnimRole.ShotDown or CharacterAnimRole.Drop or CharacterAnimRole.Respawn or CharacterAnimRole.Burning
                           or CharacterAnimRole.Crushed or CharacterAnimRole.PowerFail or CharacterAnimRole.Win or CharacterAnimRole.Lose);
-
-        static bool MovesChassis(CharacterAnimator a) =>
-            a != null && a.ActionActive
-                      && a.ActionRole is not (CharacterAnimRole.LookLeft or CharacterAnimRole.LookRight or CharacterAnimRole.ShoutLeft or CharacterAnimRole.ShoutRight);
 
         // Computer drivers show their wheel smoothed so their steering taps do not flick the wheels and pose. Physics unchanged.
         void UpdateShownSteering(float dt)

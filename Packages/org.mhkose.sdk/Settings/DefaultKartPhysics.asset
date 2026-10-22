@@ -76,7 +76,5 @@ MonoBehaviour:
   extraSteeringTorque: 3
   extraSteeringTorqueImpulse: 0
   uprightTorqueFactor: 100
-  lateralSlipAngle: 7
-  steeringTorqueFollowsGrip: 1
-  steeringTorqueFadeStart: 0.6
+  lateralSlipAngle: 0
   slopeGravityFactor: 0.25

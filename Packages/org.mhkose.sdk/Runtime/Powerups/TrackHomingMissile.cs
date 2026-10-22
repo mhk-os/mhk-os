@@ -10,7 +10,8 @@ namespace MHK.Powerups
     /// <summary>
     /// MHK2 homing missile (activate 0x4578a0, update 0x457b30): flies along the racing line towards the current race
     /// leader, locks on once armed and close, then accelerates and hits. Like the original it only ever hits the locked
-    /// leader and flies through other karts.
+    /// leader and flies through other karts. Remake: while the locked target is respawn-protected the missile waits
+    /// behind it and strikes when the protection ends, so a respawn never dodges it.
     /// </summary>
     public partial class TrackHomingMissile : PowerupBehaviour
     {
@@ -28,6 +29,9 @@ namespace MHK.Powerups
         [SerializeField] float lockDistance = 20f;
         [SerializeField] float cruiseLookAhead = 10f;
         [SerializeField] float cruiseHeight = 2f;
+        [Tooltip("Distance (m) behind a respawn-protected target where the missile waits for the protection to end. Its " +
+                 "lifetime does not run while it waits.")]
+        [SerializeField] float waitDistance = 6f;
         [SerializeField] float lockedHeight = 1.25f;
         [SerializeField] StatusEffectDefinition hitEffect;
         [SerializeField] GameObject impactVfx;
@@ -93,7 +97,10 @@ namespace MHK.Powerups
         void Update()
         {
             var dt = Time.deltaTime;
-            life -= dt;
+            // A target that turned into a ghost is lost: the missile goes for the leader among the tangible karts.
+            if (target != null && target.Effects.Ghost) target = null;
+            var waiting = target != null && target.Effects.RespawnProtected;
+            if (!waiting) life -= dt;
             var track = TrackRuntime.Current;
             if (life < 0f || track == null || track.path == null)
             {
@@ -102,12 +109,11 @@ namespace MHK.Powerups
             }
             var path = track.path;
             var myD = path.Project(transform.position, ref segment, out _);
-            // A target that turned into a ghost is lost: the missile goes for the leader among the tangible karts.
-            if (target != null && target.Effects.Ghost) target = null;
             Vector3 aim;
             if (target == null) aim = CruiseAim(path, myD, dt);
+            else if (waiting) aim = WaitAim();
             else if (TryStrikeLocked(out aim)) return;
-            Fly(aim, dt);
+            Fly(aim, dt, waiting);
         }
 
         Vector3 CruiseAim(TrackPath path, float myD, float dt)
@@ -147,11 +153,20 @@ namespace MHK.Powerups
             return true;
         }
 
-        void Fly(Vector3 aim, float dt)
+        Vector3 WaitAim()
+        {
+            Hunted = target;
+            var t = target.transform;
+            return t.position - t.forward * waitDistance + Vector3.up * cruiseHeight;
+        }
+
+        void Fly(Vector3 aim, float dt, bool stopAtAim)
         {
             var to = aim - transform.position;
             if (to.sqrMagnitude > MinTravelSqr) travel = to.normalized;
-            transform.SetPositionAndRotation(transform.position + travel * (currentSpeed * dt), Quaternion.LookRotation(travel, Vector3.up));
+            var step = currentSpeed * dt;
+            if (stopAtAim) step = Mathf.Min(step, to.magnitude);
+            transform.SetPositionAndRotation(transform.position + travel * step, Quaternion.LookRotation(travel, Vector3.up));
             if (model != null) model.Rotate(0f, 0f, rollSpeed * dt, Space.Self);
         }
 

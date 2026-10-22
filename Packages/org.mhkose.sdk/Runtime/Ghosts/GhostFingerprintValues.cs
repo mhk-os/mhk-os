@@ -290,8 +290,7 @@ namespace MHK.Ghosts
             b.Add(p.extraSteeringTorqueImpulse);
             b.Add(p.uprightTorqueFactor);
             b.Add(p.lateralSlipAngle);
-            b.Add(p.steeringTorqueFollowsGrip);
-            b.Add(p.steeringTorqueFadeStart);
+            b.Add(p.steeringTorqueGripFollow);
             b.Add(p.slopeGravityFactor);
             b.Add(p.boostOverspeedDecay);
         }

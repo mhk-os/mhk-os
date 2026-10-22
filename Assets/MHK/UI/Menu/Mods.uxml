@@ -36,6 +36,10 @@
                     <ui:VisualElement class="icon i-folder_open" />
                     <ui:Label text="Open Mod Folder" class="button-label" />
                 </ui:Button>
+                <ui:Button name="reload" tooltip="Looks for mods added to the mod folder. Also applies the changes above." class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-replay" />
+                    <ui:Label text="Reload" class="button-label" />
+                </ui:Button>
                 <ui:Button name="apply" class="mhk-button go">
                     <ui:VisualElement class="icon i-check" />
                     <ui:Label text="Apply" class="button-label" />

@@ -77,27 +77,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d4a47afd842e545ccb7d662f6ba91551, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MHK.Runtime::MHK.Powerups.StraightProjectile
-  aim: 0
-  speed: 40
-  minSpeedOverOwner: 5
+  soundVolume: 1
+  speed: 80
   lifetime: 30
+  deceleration: 0
   spawnDistance: 1.8
-  launchHeight: 0.6
-  collisionRadius: 0.05
   worldMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  trackTangentSmoothing: 3
   hitEffect: {fileID: 11400000, guid: cf677dbe6c5f74d9483fd9408a06d057, type: 2}
   hitRadius: 1.4
-  piercing: 1
-  ownerImmunity: -1
-  hitVfx: {fileID: 8935302512027725606, guid: 1d9c020f8a08e4221a0c12d34ff49b1b, type: 3}
-  terrainVfx: {fileID: 8935302512027725606, guid: 1d9c020f8a08e4221a0c12d34ff49b1b, type: 3}
-  expireVfx: {fileID: 0}
-  hitVfxHeight: 0.6
-  visual: {fileID: 0}
-  joinDistance: 6
   launchSound: {fileID: 8300000, guid: 5b4356b55527248b795cc6cc37097e59, type: 3}
   flightLoop:
     clip: {fileID: 0}
@@ -107,7 +96,20 @@ MonoBehaviour:
   hitSound: {fileID: 8300000, guid: 0d44a2dfb15d44e8ad6865708d504a49, type: 3}
   terrainSound: {fileID: 8300000, guid: 0d44a2dfb15d44e8ad6865708d504a49, type: 3}
   expireSound: {fileID: 0}
-  soundVolume: 1
+  aim: 0
+  minSpeedOverOwner: 5
+  launchHeight: 0.6
+  collisionRadius: 0.05
+  passThroughWorld: 0
+  trackTangentSmoothing: 3
+  piercing: 1
+  ownerImmunity: -1
+  hitVfx: {fileID: 8935302512027725606, guid: 1d9c020f8a08e4221a0c12d34ff49b1b, type: 3}
+  terrainVfx: {fileID: 8935302512027725606, guid: 1d9c020f8a08e4221a0c12d34ff49b1b, type: 3}
+  expireVfx: {fileID: 0}
+  hitVfxHeight: 0.6
+  visual: {fileID: 0}
+  joinDistance: 6
 --- !u!1 &8909094103416499099
 GameObject:
   m_ObjectHideFlags: 0

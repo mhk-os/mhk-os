@@ -32,6 +32,7 @@ namespace MHK.Karts
 
         static float OffroadResistance => TryConfig(out var c) ? c.offroadResistance : 0.15f;
         static float AirHeadingAlign => TryConfig(out var c) ? c.airHeadingAlign : 0f;
+        static float AirSteerRate => TryConfig(out var c) ? c.airSteerRate : 0f;
         static float DriveTorqueScale => TryConfig(out var c) ? Mathf.Max(0.1f, c.driveTorqueScale) : 1f;
 
         static bool TryConfig(out GameConfig config)

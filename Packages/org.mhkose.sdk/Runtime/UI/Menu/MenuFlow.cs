@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using MHK.Audio;
 using MHK.Core;
 using MHK.Modding;
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 
 namespace MHK.UI
@@ -11,7 +13,7 @@ namespace MHK.UI
     /// (<see cref="Selection"/>), menu music and the 3D showcase.
     /// </summary>
     [DefaultExecutionOrder(-50)]
-    public class MenuFlow : MonoBehaviour
+    public partial class MenuFlow : MonoBehaviour
     {
         [Tooltip("Turntable that shows the selected driver and kart.")]
         public MenuShowcase showcase;
@@ -34,6 +36,12 @@ namespace MHK.UI
 
         public MenuScreen Current { get; private set; }
         public MenuSelection Selection { get; } = new();
+
+        /// <summary>
+        /// Screen type the next menu start opens on top of the title screen (Back returns to the title), cleared once
+        /// used. The Mods screen's Reload sets it to come back after the content reload.
+        /// </summary>
+        [AutoStaticsCleanup] public static Type OpenOnStart { get; set; }
 
         ContentRegistry Content => GameRoot.Instance.Content;
 
@@ -59,6 +67,9 @@ namespace MHK.UI
             Selection.kart = MenuSelection.LoadedDefaultKart(Selection.character);
             ShowcaseSelection();
             Show(settings.graphicsChosen || firstRunScreen == null ? titleScreen : firstRunScreen, false);
+            var reopen = OpenOnStart;
+            OpenOnStart = null;
+            if (reopen != null && settings.graphicsChosen) Show(GetComponentInChildren(reopen, true) as MenuScreen);
         }
 
         /// <summary>The child screen of type <typeparamref name="T"/>.</summary>

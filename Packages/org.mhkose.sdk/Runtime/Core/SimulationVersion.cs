@@ -6,6 +6,6 @@ namespace MHK.Core
     /// </summary>
     public static class SimulationVersion
     {
-        public const int Current = 2;
+        public const int Current = 3;
     }
 }

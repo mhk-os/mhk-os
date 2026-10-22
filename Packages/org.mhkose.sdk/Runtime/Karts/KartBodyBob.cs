@@ -5,7 +5,7 @@ namespace MHK.Karts
 {
     /// <summary>
     /// Visual-only body bob of a kart, live or ghost (<see cref="StatusEffectDefinition.bodyBob"/>): the pose the
-    /// <see cref="KartVisual.Body"/> gets on top of the turn look, faded in and out with the effect.
+    /// <see cref="KartVisual.Body"/> gets, faded in and out with the effect.
     /// </summary>
     public sealed class KartBodyBob
     {

@@ -9,13 +9,13 @@ namespace MHK.Powerups
     {
         /// <summary>
         /// Transform held items and attached effects hang on: the kart's drawn body (follows spin-outs, squashing, quakes
-        /// and the turn look), else the kart.
+        /// and the body bob), else the kart.
         /// </summary>
         public static Transform Parent(Kart k) => k.Visual != null ? k.Visual.Body : k.transform;
 
         /// <summary>
-        /// <see cref="Parent"/> without the visual-only turn look (the kart's visual root), for gameplay that starts from a
-        /// mount (item drops, hammer strikes): the turn look changes per rendered frame and must not move items.
+        /// <see cref="Parent"/> without the visual-only body bob (the kart's visual root), for gameplay that starts from a
+        /// mount (item drops, hammer strikes): the body bob changes per rendered frame and must not move items.
         /// </summary>
         public static Transform Frame(Kart k) => k.Visual != null ? k.Visual.transform : k.transform;
 

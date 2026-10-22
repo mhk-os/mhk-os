@@ -52,9 +52,15 @@ namespace MHK.Core
                  "torque × 2 leaves offroad top speeds at 60 to 70 % of road speed, as MHK2's 0.15 at torque × 1.")]
         public float offroadResistance = 0.3f;
         [Tooltip("Remake: how quickly (1/s) a kart with no wheel on the ground turns its nose towards its direction of " +
-                 "travel, so after a jump or crest it lands straight instead of keeping the spin it took off with and " +
-                 "sliding on landing (worst at high speed, where flights are long). 0 = off (MHK2).")]
+                 "travel when the steering is let go, so after a jump or crest it lands straight instead of keeping the " +
+                 "spin it took off with and sliding on landing (worst at high speed, where flights are long). While the " +
+                 "steering is held the kart turns in the air like in MHK2 (the extra steering torque), at full lock " +
+                 "without this pull. 0 = off (MHK2).")]
         [Min(0f)] public float airHeadingAlign = 2.5f;
+        [Tooltip("Remake: how fast (degrees per second at full lock) the steering turns the direction of travel of a kart " +
+                 "with no wheel on the ground, so it can correct its course a little during a jump. The speed stays the " +
+                 "same. 0 = off (MHK2: the steering only turns the kart's nose in the air, not its course).")]
+        [Min(0f)] public float airSteerRate = 25f;
         [Tooltip("Remake: multiplies every kart's engine drive torque in every engine class, so karts pick up speed and " +
                  "approach their top speed sooner (1 = MHK2, 2 halves the time to 90 % of top speed). Top speeds stay at " +
                  "the classes' topSpeedKmh: the speed scale is solved with it. Engine braking and traction limits are " +
@@ -62,9 +68,10 @@ namespace MHK.Core
         [Min(0.1f)] public float driveTorqueScale = 2f;
 
         [Header("Kart visuals")]
-        [Tooltip("Turn look: in sharp turns at speed the kart body (model, driver, held items) turns into the bend so the " +
-                 "race camera sees its side. Visual only, the physics heading stays.")]
-        public KartTurnLook.Settings kartTurnLook = new();
+        [Tooltip("Turn pose: how the driver and kart lean into a bend (the original turn animations). Smoothed and " +
+                 "partly driven by the kart's actual turning, so it follows what the kart does instead of snapping with " +
+                 "the steering key.")]
+        public KartDriverAnimation.TurnPoseSettings kartTurnPose = new();
 
         [Header("Race (defaults = Moorhuhn Kart 2 rules)")]
         [Tooltip("Countdown length. MHK2: 3.999 s (1 s wait, then the 3-2-1 beeps, GO at 0).")]

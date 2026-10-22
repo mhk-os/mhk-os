@@ -15744,9 +15744,6 @@ MonoBehaviour:
   - position: {x: -79.68, y: 0, z: -182.136}
     width: 20.164
     flags: 0
-  - position: {x: -79.814, y: 0, z: -182.896}
-    width: 20.21
-    flags: 0
   - position: {x: -89.316, y: 0, z: -182.498}
     width: 8.446
     flags: 0
