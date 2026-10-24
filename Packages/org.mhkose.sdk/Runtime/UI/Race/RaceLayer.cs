@@ -4,7 +4,7 @@ using MHK.Race;
 namespace MHK.UI
 {
     /// <summary>
-    /// A layer of the race UI above the HUD (touch controls, pause menu, results): a child GameObject of the
+    /// A layer of the race UI above the HUD (touch controls, replay controls, pause menu, results): a child GameObject of the
     /// <see cref="RaceHud"/>, which hands it the race and opens or closes it on race events.
     /// </summary>
     public abstract class RaceLayer : UiScreen

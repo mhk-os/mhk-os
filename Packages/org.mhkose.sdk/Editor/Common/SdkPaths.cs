@@ -18,8 +18,8 @@ namespace MHK.Editor
         public const string TrackWallMaterial = Root + "/Settings/Physics/TrackWall.physicMaterial";
         /// <summary>Ids, types and GUIDs of the game's and the base content's definitions (written by the game project).</summary>
         public const string CoreIndex = Root + "/CoreIndex/core-content.json";
-        /// <summary>The game's item box with the looks of the original games. Only the game project has it.</summary>
-        public const string GameItemBoxPrefab = "Assets/MHK/Prefabs/ItemBox.prefab";
+        /// <summary>The shared item box: the look comes from the track's pack (ContentPack.itemBoxLook), else its default look.</summary>
+        public const string ItemBoxPrefab = Root + "/Prefabs/ItemBox/ItemBox.prefab";
         /// <summary>Folder (in <see cref="ResolvedRoot"/>, not imported) with the settings a mod project copies from the game.</summary>
         public const string ProjectSettingsKitFolder = "ProjectSettings~";
 

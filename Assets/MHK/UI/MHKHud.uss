@@ -1,5 +1,5 @@
-/* Race HUD, pause, results and touch controls (imported by MHKTheme.uss, layouts in the Assets/MHK/UI/Race UXML files,
- * bound by RaceHud, PauseMenu, RaceResults and TouchControls). Layout reference 1920x1080.
+/* Race HUD, pause, results, replay and touch controls (imported by MHKTheme.uss, layouts in the Assets/MHK/UI/Race UXML
+ * files, bound by RaceHud, PauseMenu, RaceResults, ReplayControls and TouchControls). Layout reference 1920x1080.
  * This file is imported before the theme rules: to override a theme class (.panel, .icon, .ribbon, .badge, ...)
  * use a compound selector (.icon.hud-x) so it wins over the later, equally specific theme rule.
  * HUD text sits on the scene without a plate: white (or a state colour) with a charcoal outline and a soft drop shadow,
@@ -393,6 +393,55 @@
     -unity-text-align: middle-right;
 }
 
+/* Replay controls (Replay.uxml): a dark glass bar at the bottom centre between the speedometer and the minimap. The bar
+ * fades out and drops a little (.replay-hidden) after a few seconds without input. Fill and knob are placed in percent. */
+.replay-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: center; justify-content: flex-end; }
+.panel.replay-bar {
+    width: 1060px; margin-bottom: 22px;
+    padding: 12px 22px 10px 22px;
+    align-items: stretch;
+    background-color: var(--mhk-glass-dark-lite-fill); border-color: var(--mhk-glass-dark-rim);
+    transition-property: opacity, translate;
+    transition-duration: 0.35s, 0.35s;
+    transition-timing-function: ease-out, ease-out;
+}
+.panel.replay-bar.replay-hidden { opacity: 0; translate: 0 40px; }
+.replay-seek-row { align-items: center; }
+.replay-time {
+    width: 92px;
+    -unity-font-definition: var(--font-bold);
+    font-size: 24px;
+    color: var(--mhk-white);
+    -unity-text-align: middle-center;
+    padding: 0; margin: 0;
+}
+.replay-seek { flex-grow: 1; height: 40px; margin: 0 12px; justify-content: center; }
+.replay-seek-track { height: 10px; border-radius: 5px; background-color: rgba(255, 255, 255, 0.22); overflow: hidden; }
+.replay-seek-fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: var(--mhk-accent); }
+.replay-seek-marks { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.replay-seek-mark { position: absolute; top: 9px; width: 4px; height: 22px; margin-left: -2px; border-radius: 2px; background-color: var(--mhk-white-85); }
+.replay-seek-knob {
+    position: absolute; top: 6px;
+    width: 28px; height: 28px; margin-left: -14px;
+    border-radius: 14px; border-width: 3px; border-color: var(--mhk-gray-900);
+    background-color: var(--mhk-white);
+}
+.replay-seek:hover .replay-seek-knob { background-color: var(--mhk-accent); scale: 1.15 1.15; }
+.replay-buttons { justify-content: center; align-items: center; margin-top: 4px; }
+.mhk-button.small.icon-only.replay-button { min-width: 64px; margin: 4px 6px; }
+.tabs.replay-speeds { margin: 0 10px; background-color: rgba(255, 255, 255, 0.1); border-color: transparent; }
+.chip.replay-speed { color: var(--mhk-white-85); min-width: 76px; }
+.chip.replay-speed.selected { color: var(--mhk-gray-900); }
+.mhk-button.replay-slow.pressed { background-image: url("Textures/button_accent.png"); }
+.mhk-button.replay-slow.pressed .icon { -unity-background-image-tint-color: var(--mhk-gray-900); }
+.replay-root.touch .replay-camera { display: none; }
+.replay-root.touch .mhk-button.small.icon-only.replay-button { min-width: 96px; min-height: 64px; margin: 4px 10px; }
+.replay-root.touch .mhk-button.small.icon-only.replay-button .icon { width: 36px; height: 36px; }
+.replay-root.touch .chip.replay-speed { min-width: 96px; min-height: 56px; font-size: 22px; }
+.replay-root.touch .replay-seek { height: 56px; }
+.replay-root.touch .replay-seek-knob { top: 10px; width: 36px; height: 36px; margin-left: -18px; border-radius: 18px; }
+.replay-root.touch .replay-seek-mark { top: 17px; }
+
 .hud-results { background-color: var(--mhk-scrim); }
 .hud-results-column { align-items: center; }
 .panel.hud-results-panel { min-width: 900px; padding: 16px 28px 4px 28px; align-items: stretch; }
@@ -518,17 +567,16 @@ TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
     -unity-text-align: middle-center;
 }
 
-/* Touch layout. The steering buttons end 190px and the right-hand buttons 330px above the bottom edge, so with touch
- * controls (.touch on the speedometer and the minimap) those two move above them (Minimap fits its height between its
- * bottom offset and the lap text). Keep these button positions and offsets in step. The buttons are dark glass discs
- * with a white rim (gas and fire white), pressed ones take the accent. The pause button is thumb-sized. */
+/* Touch controls. The default layout (TouchLayoutSettings) ends the steering buttons 190px and the right-hand buttons
+ * 330px above the bottom edge, so with touch controls (.touch on the speedometer and the minimap) those two move above
+ * them (Minimap fits its height between its bottom offset and the lap text). Keep them in step. Code places and sizes
+ * every control inline. Buttons are dark glass discs with a white rim (throttle and item white), pressed ones take the
+ * accent. Joystick and wheel keep their glass and show the accent on the rim, the knob and the wheel. */
 .hud-speedo.touch { left: 34px; bottom: 204px; width: 190px; height: 190px; }
 .hud-minimap.touch { right: 24px; bottom: 350px; }
 .touch-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .touch-button {
     position: absolute;
-    width: 150px; height: 150px;
-    border-radius: 75px;
     border-width: 3px; border-color: var(--mhk-white-85);
     background-color: rgba(23, 25, 29, 0.5);
     align-items: center; justify-content: center;
@@ -536,20 +584,13 @@ TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
     transition-duration: 0.08s;
     transition-timing-function: ease-out;
 }
-#steer-left { left: 30px; bottom: 40px; }
-#steer-right { left: 200px; bottom: 40px; }
-#gas { right: 30px; bottom: 150px; }
-#brake { right: 30px; bottom: 10px; }
-#fire { right: 200px; bottom: 60px; }
-#look-back { right: 200px; bottom: 220px; }
 .touch-button.accent { background-color: rgba(255, 255, 255, 0.88); border-color: rgba(23, 25, 29, 0.55); }
 .touch-button.pressed { background-color: var(--mhk-accent); border-color: var(--mhk-gray-900); scale: 0.92 0.92; }
-.touch-button.small { width: 110px; height: 110px; border-radius: 55px; }
-.icon.touch-icon { width: 72px; height: 72px; -unity-background-image-tint-color: var(--mhk-white); }
-.touch-button.small .icon.touch-icon { width: 52px; height: 52px; }
+.icon.touch-icon { -unity-background-image-tint-color: var(--mhk-white); }
 .touch-button.accent .icon.touch-icon, .touch-button.pressed .icon.touch-icon { -unity-background-image-tint-color: var(--mhk-gray-900); }
 .icon.touch-icon.up { rotate: -90deg; }
 .icon.touch-icon.down { rotate: 90deg; }
-.mhk-button.touch-pause { position: absolute; top: 22px; right: 336px; }
-.mhk-button.small.icon-only.touch-pause { min-width: 88px; min-height: 72px; padding: 4px 16px 10px 16px; }
-.mhk-button.small.touch-pause .icon { width: 38px; height: 38px; margin: 0; }
+.touch-button.touch-joystick.pressed, .touch-button.touch-wheel.pressed { background-color: rgba(23, 25, 29, 0.5); border-color: var(--mhk-accent); scale: 1 1; }
+.touch-button.touch-wheel.pressed .icon.touch-icon { -unity-background-image-tint-color: var(--mhk-accent); }
+.touch-knob { background-color: rgba(255, 255, 255, 0.88); border-width: 3px; border-color: rgba(23, 25, 29, 0.55); }
+.touch-button.touch-joystick.pressed .touch-knob { background-color: var(--mhk-accent); border-color: var(--mhk-gray-900); }

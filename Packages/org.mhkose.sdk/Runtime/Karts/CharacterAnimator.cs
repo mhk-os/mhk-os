@@ -169,6 +169,17 @@ namespace MHK.Karts
         /// <summary>Real-time length of <paramref name="role"/> as an action (0 when this character has no clip for it).</summary>
         public float ActionDuration(CharacterAnimRole role) => Resolve(role, true, out var b) ? b.Duration : 0f;
 
+        /// <summary>Moves the playing action <paramref name="seconds"/> on at once and ends a running cross-fade (replay seeking).</summary>
+        public void SkipAction(float seconds)
+        {
+            if (!graph.IsValid() || !actionActive || !current.IsValid || !current.action) return;
+            fade = 1f;
+            DropPrevious();
+            UpdateWeights();
+            Advance(ref current, seconds);
+            ApplyTimes();
+        }
+
         /// <summary>
         /// Interrupt order: fidgets (glances, shouts) 0 &lt; reactions (collisions, landing, shake, dizzy, shocked) 1 &lt;
         /// race start 2 &lt; hit / burning / crushed / fall / respawn 3 &lt; finish 4. Equal priorities from 2 up replace
@@ -185,7 +196,7 @@ namespace MHK.Karts
             _ => 1,
         };
 
-        static bool CanInterrupt(CharacterAnimRole next, CharacterAnimRole active)
+        internal static bool CanInterrupt(CharacterAnimRole next, CharacterAnimRole active)
         {
             int n = Priority(next), a = Priority(active);
             return n > a || (n == a && n >= 2);

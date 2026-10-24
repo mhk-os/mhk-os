@@ -5,7 +5,7 @@ using Application = UnityEngine.Device.Application;
 
 namespace MHK.UI
 {
-    /// <summary>Title screen (Title.uxml): logo, the game modes, records / mods / options / quit, the short commit of the build.</summary>
+    /// <summary>Title screen (Title.uxml): logo, the game modes, records / mods / options / music / quit, the short commit of the build.</summary>
     public class TitleScreen : MenuScreen
     {
         protected override void Bind()
@@ -28,6 +28,7 @@ namespace MHK.UI
             OnClick("records", () => Flow.Show<RecordsScreen>());
             OnClick("mods", () => Flow.Show<ModsScreen>());
             OnClick("options", () => Flow.Show<OptionsScreen>());
+            OnClick("music", () => Flow.Show<MusicScreen>());
             var quit = OnClick("quit", Application.Quit, click: false);
             if (Application.platform == RuntimePlatform.WebGLPlayer) quit.SetVisible(false);
         }

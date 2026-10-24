@@ -26,21 +26,30 @@
                         <ui:Label text="Battle" class="button-label"/>
                     </ui:Button>
                     <ui:VisualElement class="title-small anim from-left" style="transition-delay: 440ms;">
-                        <ui:Button name="records" class="mhk-button small secondary">
-                            <ui:VisualElement class="icon i-leaderboard"/>
-                            <ui:Label text="Records" class="button-label"/>
-                        </ui:Button>
-                        <ui:Button name="mods" class="mhk-button small secondary">
-                            <ui:VisualElement class="icon i-extension"/>
-                            <ui:Label text="Mods" class="button-label"/>
-                        </ui:Button>
-                        <ui:Button name="options" class="mhk-button small secondary">
-                            <ui:VisualElement class="icon i-settings"/>
-                            <ui:Label text="Options" class="button-label"/>
-                        </ui:Button>
-                        <ui:Button name="quit" tooltip="Quit" class="mhk-button small secondary icon-only desktop-only">
-                            <ui:VisualElement class="icon i-logout"/>
-                        </ui:Button>
+                        <ui:VisualElement class="title-small-row">
+                            <ui:Button name="records" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-leaderboard"/>
+                                <ui:Label text="Records" class="button-label"/>
+                            </ui:Button>
+                            <ui:Button name="mods" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-extension"/>
+                                <ui:Label text="Mods" class="button-label"/>
+                            </ui:Button>
+                            <ui:Button name="options" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-settings"/>
+                                <ui:Label text="Options" class="button-label"/>
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="title-small-row">
+                            <ui:Button name="music" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-music_note"/>
+                                <ui:Label text="Music" class="button-label"/>
+                            </ui:Button>
+                            <ui:Button name="quit" class="mhk-button small secondary desktop-only">
+                                <ui:VisualElement class="icon i-door_open"/>
+                                <ui:Label text="Quit" class="button-label"/>
+                            </ui:Button>
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>

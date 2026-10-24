@@ -91,7 +91,9 @@ namespace MHK.Core
         void LoadContent()
         {
             Content = new ContentRegistry();
-            ModLoader.LoadAll(Content, Settings.disabledPacks);
+            Assets.GameAssets.BeginContent(Settings);
+            ModLoader.LoadAll(Content, Settings.disabledPacks, Settings.modOrder);
+            Assets.GameAssets.ApplyContent(destroyCancellationToken);
         }
 
         void CreateChildServices()
@@ -124,7 +126,7 @@ namespace MHK.Core
         public void SaveProgress() => JsonStore.Save(SaveFile, Save);
 
         /// <summary>
-        /// Unloads every mod and registers the packs again, without those in <see cref="UserSettings.disabledPacks"/>.
+        /// Unloads every mod and registers the packs again in <see cref="UserSettings.modOrder"/>, without those in <see cref="UserSettings.disabledPacks"/>.
         /// Only while no scene uses content: <see cref="SceneFlow.ReloadContent"/> runs it between menu unload and reload.
         /// </summary>
         internal void ReloadContent()
@@ -132,8 +134,11 @@ namespace MHK.Core
             Content.Clear();
             AI.AIItemProfile.ClearCache();
             Powerups.ItemBoxLook.ReleaseTints();
+            Assets.GameAssets.UnloadContent();
             ModLoader.UnloadExternal();
-            ModLoader.LoadAll(Content, Settings.disabledPacks);
+            Assets.GameAssets.BeginContent(Settings);
+            ModLoader.LoadAll(Content, Settings.disabledPacks, Settings.modOrder);
+            Assets.GameAssets.ApplyContent(destroyCancellationToken);
             if (Save.RememberContent(Content)) SaveProgress();
         }
 

@@ -86,8 +86,9 @@ namespace MHK.Core
                 var timer = new SceneLoadTimer();
                 await UnloadScenesAsync(ct);
                 root.Session = null;
-                Audio.AudioManager.PlayMusic(null);
+                Audio.MusicPlayer.Stop();
                 root.ReloadContent();
+                await Assets.GameAssets.WaitReadyAsync(ct);
                 var loaded = await LoadSceneAsync(MainMenu, 1f, timer, ct);
                 await SettleAsync(timer, ct);
                 Progress = 1f;
@@ -129,6 +130,7 @@ namespace MHK.Core
             {
                 await CoverScreenAsync(screen, session, track, ct);
                 var timer = new SceneLoadTimer();
+                await Assets.GameAssets.WaitReadyAsync(ct);
                 var sceneShare = race ? RaceSceneShare : 1f;
                 var loaded = await LoadSceneAsync(scene, sceneShare, timer, ct);
                 var manager = loaded && race ? RaceManager.Current : null;

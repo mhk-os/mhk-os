@@ -1,0 +1,26 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One song (Music page). song-main plays it (the current song: pause and continue). Code sets the texts, .current on the song that plays (.paused while paused: play icon instead of the note), .alt every second row. The library list (.song-list-library) shows song-add, a playlist (.song-list-playlist) shows the game and song-up, song-down, song-remove. Samples add sample-current / sample-alt on their Instance. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="song-row">
+        <ui:Button name="song-main" class="song-main">
+            <ui:VisualElement name="song-state" class="icon i-play_arrow song-state" picking-mode="Ignore" />
+            <ui:Label name="song-title" text="Mhk2 Egypt Music" class="song-title" picking-mode="Ignore" />
+            <ui:Label name="song-game" text="Moorhuhn Kart 2" class="song-game" picking-mode="Ignore" />
+            <ui:Label name="song-length" text="02:41" class="song-length" picking-mode="Ignore" />
+        </ui:Button>
+        <ui:VisualElement class="row song-actions">
+            <ui:Button name="song-add" tooltip="Add to the playlist" class="mhk-button small secondary icon-only song-add">
+                <ui:VisualElement class="icon i-add" />
+            </ui:Button>
+            <ui:Button name="song-up" tooltip="Move up" class="mhk-button small secondary icon-only song-edit">
+                <ui:VisualElement class="icon i-arrow_upward" />
+            </ui:Button>
+            <ui:Button name="song-down" tooltip="Move down" class="mhk-button small secondary icon-only song-edit">
+                <ui:VisualElement class="icon i-arrow_downward" />
+            </ui:Button>
+            <ui:Button name="song-remove" tooltip="Remove" class="mhk-button small secondary icon-only song-edit">
+                <ui:VisualElement class="icon i-delete" />
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

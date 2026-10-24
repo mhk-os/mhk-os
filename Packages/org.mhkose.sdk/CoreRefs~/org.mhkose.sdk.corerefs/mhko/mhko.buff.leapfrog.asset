@@ -73,5 +73,20 @@ MonoBehaviour:
   endSound: {fileID: 0}
   screenOverlay: {r: 1, g: 1, b: 1, a: 0}
   burnVisual: 0
+  hideWheels: 0
+  bodyBob:
+    height: 0
+    frequency: 6
+    shape:
+      serializedVersion: 2
+      m_Curve: []
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    sway: 0
+    pitch: 0
+    roll: 0
+    fadeIn: 0.1
+    fadeOut: 0.3
   endVfxPrefab: {fileID: 0}
   cameraFovBoost: 0

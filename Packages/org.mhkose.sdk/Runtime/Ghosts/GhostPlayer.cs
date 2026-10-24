@@ -25,6 +25,7 @@ namespace MHK.Ghosts
         float baseOpacity = 1f, fade = 1f, fadeDelay;
         float topSpeed = 1f;
         readonly List<(StatusEffectDefinition def, GameObject vfx)> effects = new();
+        readonly List<StatusEffectDefinition> restoreScratch = new();
 
         public GhostData Data { get; private set; }
         /// <summary>Where the ghost is stored, null for a run that was never saved.</summary>
@@ -180,6 +181,80 @@ namespace MHK.Ghosts
                 effects.RemoveAt(i);
                 return;
             }
+        }
+
+        /// <summary>
+        /// Jumps to race time <paramref name="seconds"/> (replay seeking): pose, effect visuals and the driver's action as
+        /// they were at that time. Events up to it count as played, so none plays twice and none is skipped later.
+        /// </summary>
+        public void Resync(double seconds)
+        {
+            ShownTime = (float)seconds;
+            Data.Sample(seconds, out state);
+            transform.SetPositionAndRotation(state.position, state.rotation);
+            foreach (var e in effects)
+                if (e.vfx != null) Destroy(e.vfx);
+            effects.Clear();
+            if (visual != null) visual.SnapRecordedPose();
+            var events = Data.events;
+            nextEvent = 0;
+            while (nextEvent < events.Count && events[nextEvent].time <= ShownTime) nextEvent++;
+            RestoreEffects();
+            if (visual == null) return;
+            RestoreAction(visual.DriverAnimator);
+            RestoreAction(visual.KartAnimator);
+        }
+
+        void RestoreEffects()
+        {
+            var events = Data.events;
+            restoreScratch.Clear();
+            for (var i = 0; i < nextEvent; i++)
+            {
+                var e = events[i];
+                if (e.kind is not (GhostEventKind.EffectApplied or GhostEventKind.EffectEnded)) continue;
+                var def = GhostEffectLookup.Find(e.effectId);
+                if (def == null) continue;
+                if (e.kind == GhostEventKind.EffectEnded) restoreScratch.Remove(def);
+                else if (!def.refreshOnReapply || !restoreScratch.Contains(def)) restoreScratch.Add(def);
+            }
+            foreach (var def in restoreScratch) ApplyEffect(def);
+            restoreScratch.Clear();
+        }
+
+        // The action still playing at ShownTime on one animator, by its interrupt rules and its clips' lengths.
+        void RestoreAction(CharacterAnimator animator)
+        {
+            if (animator == null) return;
+            var events = Data.events;
+            var found = false;
+            var active = default(GhostEvent);
+            var releasedAt = float.NaN;
+            for (var i = 0; i < nextEvent; i++)
+            {
+                var e = events[i];
+                if (found && ActionOver(animator, active, releasedAt, e.time)) found = false;
+                if (e.kind == GhostEventKind.Snap) found = false;
+                else if (e.kind == GhostEventKind.Release && found && active.role == e.role && float.IsNaN(releasedAt)) releasedAt = e.time;
+                else if (e.kind == GhostEventKind.Action && animator.ActionDuration(e.role) > 0f
+                         && (!found || CharacterAnimator.CanInterrupt(e.role, active.role)))
+                {
+                    found = true;
+                    active = e;
+                    releasedAt = float.NaN;
+                }
+            }
+            if (!found || ActionOver(animator, active, releasedAt, ShownTime)) return;
+            animator.PlayAction(active.role, active.hold && float.IsNaN(releasedAt));
+            animator.SkipAction(ShownTime - active.time);
+        }
+
+        static bool ActionOver(CharacterAnimator animator, in GhostEvent action, float releasedAt, float time)
+        {
+            if (action.hold && float.IsNaN(releasedAt)) return false;
+            var end = action.time + animator.ActionDuration(action.role);
+            if (action.hold) end = Mathf.Max(end, releasedAt);
+            return time >= end;
         }
 
         public KartVisual Visual => visual;

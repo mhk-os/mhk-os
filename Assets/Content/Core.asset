@@ -13,21 +13,22 @@ MonoBehaviour:
   m_Name: Core
   m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.ContentPack
   packId: core
-  title: Moorhuhn Kart
+  title: 'Moorhuhn Kart: Open Source'
   author: Phenomedia / Sproing (original games), MHK:OSE port
   version: 
-  description: The base content pack required by the game.
+  description: 'Base content of the game: item boxes and the remake''s own powerups and music.'
   loadOrder: 0
   includes:
-  - {fileID: 11400000, guid: 8692e0bc641c44a538c376be5f7dbba0, type: 2}
-  - {fileID: 11400000, guid: af1f9af2000a942e89112ba5df920acd, type: 2}
-  - {fileID: 11400000, guid: e1cfef9cfb5d34166b0cfe6923842881, type: 2}
-  - {fileID: 11400000, guid: 35e661a3153934fa0b163b3bc2be52c1, type: 2}
   - {fileID: 11400000, guid: 28bc91dec75452aa81e58467a6a09c59, type: 2}
   logo: {fileID: 2800000, guid: 18168e4fb99849c4876b3c0f419c7c63, type: 3}
   menuMusic: {fileID: 0}
   uiClick: {fileID: 0}
   sharedPowerups: []
+  itemBoxLook:
+    model: {fileID: 0}
+    spinSpeed: 0
+    trackHeight: 0
+    scale: 1
   preferredDefaults: 0
   engineLoop: {fileID: 0}
   skidLoop: {fileID: 0}
@@ -42,3 +43,4 @@ MonoBehaviour:
   sdkVersion: 
   unityVersion: 
   buildTarget: 
+  assetIndex: {fileID: 0}

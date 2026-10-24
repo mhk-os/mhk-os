@@ -46,6 +46,14 @@ namespace MHK.UI
             destination[1] = (char)('0' + value % 10);
         }
 
+        /// <summary>Shows a song position or length as "mm:ss" (whole seconds, rounded down) without allocating.</summary>
+        public static void SetMinutesSeconds(this TextElement label, float seconds)
+        {
+            var whole = Mathf.Max(0, Mathf.FloorToInt(seconds));
+            Span<char> text = stackalloc char[16];
+            label.SetText(text.Slice(0, WriteMinutesSeconds(text, whole / 60, whole % 60)));
+        }
+
         /// <summary>Shows <paramref name="value"/> after <paramref name="prefix"/> ("/6", "x3") without allocating.</summary>
         public static void SetPrefixedNumber(this TextElement label, char prefix, int value)
         {

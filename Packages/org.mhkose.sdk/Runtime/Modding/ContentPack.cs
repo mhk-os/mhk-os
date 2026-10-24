@@ -17,7 +17,8 @@ namespace MHK.Modding
         [Tooltip("Commit of the repository the pack was built from, written by the mod build. Leave it empty in the project.")]
         public string version;
         [TextArea] public string description;
-        [Tooltip("Packs load in ascending order, later packs override content with the same id (logged at load).")]
+        [Tooltip("Default place in the mod load order: a higher value is higher in the Mods screen list and replaces content " +
+                 "with the same id of the mods below (logged at load). The player can reorder mods.")]
         public int loadOrder;
         [Tooltip("Packs bundled inside this one (a mod made of several packs, e.g. 'core' = the packs of the original " +
                  "games). They load, enable and disable together with it and are not listed separately.")]
@@ -25,7 +26,8 @@ namespace MHK.Modding
         [Tooltip("The pack's logo in the mods list (the game's own logo on the title and loading screens is " +
                  "GameConfig.gameLogo).")]
         public Texture2D logo;
-        [Tooltip("Optional menu music offered by this pack (the highest-priority pack with music wins).")]
+        [Tooltip("Optional menu theme of this pack (a file in the pack's Music folder). The default main menu playlist " +
+                 "plays the menu theme of every loaded pack.")]
         public AudioClip menuMusic;
         [Tooltip("Optional UI click sound.")]
         public AudioClip uiClick;
@@ -33,6 +35,9 @@ namespace MHK.Modding
                  "'mhk2.shield'). Used by its championships and by the single race default odds on its tracks. Read from " +
                  "the top-level pack and every pack it includes.")]
         public List<string> sharedPowerups = new();
+        [Tooltip("Item box look on the tracks of this game (tracks whose source game is this pack id). No model = the item " +
+                 "box's own look (the game's default).")]
+        public Powerups.ItemBoxAppearance itemBoxLook = new();
 
         [Header("Default race sounds (used when karts/tracks don't define their own)")]
         [Tooltip("Use this pack's default sounds for content whose own pack has none (the reference game).")]
@@ -61,9 +66,11 @@ namespace MHK.Modding
         public string unityVersion;
         [Tooltip("Platform the bundles were built for, a BuildTarget name such as StandaloneOSX or Android.")]
         public string buildTarget;
+        [Tooltip("Replaceable textures and sounds of the bundle with their paths, set by the mod build on the bundle's root pack. Empty in the project.")]
+        public MHK.Assets.PackAssetIndex assetIndex;
 
         /// <summary>
-        /// Resolves a default asset (sound, menu music, UI click): the <paramref name="owner"/> pack's own one (the track's or
+        /// Resolves a default asset (sound, UI click): the <paramref name="owner"/> pack's own one (the track's or
         /// kart's game), else the one of a pack marked <see cref="preferredDefaults"/>, else the first loaded pack that has one.
         /// </summary>
         public static T Find<T>(IEnumerable<ContentPack> packs, System.Func<ContentPack, T> pick, ContentPack owner = null) where T : Object

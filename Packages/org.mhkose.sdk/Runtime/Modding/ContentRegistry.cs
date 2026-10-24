@@ -5,8 +5,9 @@ using UnityEngine;
 namespace MHK.Modding
 {
     /// <summary>
-    /// Runtime index of all registered content. Lookups by id are O(1), lists preserve registration order
-    /// (pack load order, then order inside the pack). Later registrations override earlier ones with the same id.
+    /// Runtime index of all registered content. Lookups by id are O(1), lists preserve registration order (from the
+    /// bottom of the mod load order up, then order inside the pack). A later registration replaces the definition with
+    /// the same id in place, so lists show the replacement once where the original was.
     /// </summary>
     public class ContentRegistry
     {
@@ -48,7 +49,13 @@ namespace MHK.Modding
                 if (def == null) continue;
                 if (byId.TryGetValue(def.Id, out var existing))
                 {
-                    LogOverride(def.Id, existing.OwnerPack, pack, root);
+                    if (existing.GetType() != def.GetType())
+                    {
+                        Debug.LogWarning($"[Content] '{def.Id}' of '{pack.packId}' is a {def.GetType().Name}, the loaded one a {existing.GetType().Name}: " +
+                                         "a replacement must be the same kind of content, it is ignored.");
+                        continue;
+                    }
+                    LogOverride(def.Id, existing.OwnerPack, RootOf(existing.OwnerPack), pack, root);
                     ordered[ordered.IndexOf(existing)] = def;
                 }
                 else
@@ -60,19 +67,15 @@ namespace MHK.Modding
             }
         }
 
-        // A higher load order overriding an id is a feature. The same id twice in one mod or at the same load order is not.
-        void LogOverride(string id, ContentPack before, ContentPack pack, ContentPack root)
+        // Replacing an id of a mod lower in the load order is a feature. The same id twice in one mod is not.
+        static void LogOverride(string id, ContentPack before, ContentPack beforeRoot, ContentPack pack, ContentPack root)
         {
-            var beforeRoot = RootOf(before);
             var beforeName = before != null ? before.packId : "?";
             if (beforeRoot == root)
                 Debug.LogWarning($"[Content] '{id}' is defined twice in mod '{root.packId}' ('{beforeName}' and '{pack.packId}'): '{pack.packId}' wins.");
-            else if (beforeRoot != null && beforeRoot.loadOrder == root.loadOrder)
-                Debug.LogWarning($"[Content] '{id}' is defined by '{beforeRoot.packId}' and '{root.packId}' at the same load order {root.loadOrder}: " +
-                                 $"'{root.packId}' wins by file order. Give the overriding mod a higher loadOrder.");
             else
-                Debug.Log($"[Content] Override: '{root.packId}' (load order {root.loadOrder}) replaces '{id}' of '{beforeName}'" +
-                          (beforeRoot != null ? $" (mod '{beforeRoot.packId}', load order {beforeRoot.loadOrder})." : "."));
+                Debug.Log($"[Content] Override: mod '{root.packId}' replaces '{id}' of '{beforeName}'" +
+                          (beforeRoot != null ? $" (mod '{beforeRoot.packId}', lower in the load order)." : "."));
         }
 
         public void Clear()

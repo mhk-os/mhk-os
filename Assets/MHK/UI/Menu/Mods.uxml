@@ -1,6 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Mods. Code fills mod-list with one row per pack. The sample row shows an enabled pack, sample-off on a row's TemplateContainer previews a disabled one. -->
+    <!-- Mods and asset packs. Code fills the section chips (sections: Mods, Asset Packs) and mod-list with one row per mod or asset pack of the chosen section, in load order (top wins). The sample rows show an enabled entry, sample-off on a row's TemplateContainer previews a disabled one. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="ModRow" src="/Assets/MHK/UI/Menu/Templates/ModRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
@@ -9,6 +10,14 @@
         <ui:VisualElement class="page-body">
             <ui:VisualElement name="main" class="page-main wide center anim from-left">
                 <ui:VisualElement name="mods-panel" class="panel list-panel">
+                    <ui:VisualElement name="sections" class="tabs mods-sections">
+                        <ui:Instance template="Chip" class="sample-selected">
+                            <ui:AttributeOverrides element-name="chip" text="Mods" />
+                        </ui:Instance>
+                        <ui:Instance template="Chip">
+                            <ui:AttributeOverrides element-name="chip" text="Asset Packs" />
+                        </ui:Instance>
+                    </ui:VisualElement>
                     <ui:ScrollView name="mod-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
                         <ui:VisualElement name="mod-list">
                             <ui:Instance template="ModRow" />
@@ -34,7 +43,7 @@
             <ui:VisualElement class="footer-right">
                 <ui:Button name="open-mods" class="mhk-button small secondary desktop-only">
                     <ui:VisualElement class="icon i-folder_open" />
-                    <ui:Label text="Open Mod Folder" class="button-label" />
+                    <ui:Label name="open-mods-label" text="Open Mod Folder" class="button-label" />
                 </ui:Button>
                 <ui:Button name="reload" tooltip="Looks for mods added to the mod folder. Also applies the changes above." class="mhk-button small secondary">
                     <ui:VisualElement class="icon i-replay" />

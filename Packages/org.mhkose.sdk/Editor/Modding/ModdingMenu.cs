@@ -12,6 +12,8 @@ namespace MHK.Editor.Modding
         const string MenuRoot = "MHK/Modding/";
         const string BuildSelectedPath = MenuRoot + "Build Selected Packs as Mods";
         const string BuildAllPath = MenuRoot + "Build Selected Packs as Mods for All Platforms";
+        const string LoosePath = MenuRoot + "Loose Textures and Sounds in Desktop Builds";
+        const string LoosePrefKey = "MHK.Modding.LooseBuilds";
 
         /// <summary>Platforms of <i>Build Selected Packs as Mods for All Platforms</i> (those whose build support is installed).</summary>
         static readonly BuildTarget[] AllTargets =
@@ -51,9 +53,19 @@ namespace MHK.Editor.Modding
                 EditorUtility.DisplayDialog("Build mods", "Select one or more ContentPack assets in the Project window.", "OK");
                 return false;
             }
-            var outDir = ModBundleBuilder.Build(packs, target);
+            var outDir = ModBundleBuilder.Build(packs, target, loose: EditorPrefs.GetBool(LoosePrefKey, false));
             if (outDir != null && reveal) EditorUtility.RevealInFinder(outDir);
             return outDir != null;
+        }
+
+        [MenuItem(LoosePath, priority = 22)]
+        static void ToggleLoose() => EditorPrefs.SetBool(LoosePrefKey, !EditorPrefs.GetBool(LoosePrefKey, false));
+
+        [MenuItem(LoosePath, true)]
+        static bool ToggleLooseValidate()
+        {
+            Menu.SetChecked(LoosePath, EditorPrefs.GetBool(LoosePrefKey, false));
+            return true;
         }
 
         [MenuItem(MenuRoot + "Open Mods Folder", priority = 30)]

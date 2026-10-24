@@ -19,9 +19,7 @@ namespace MHK.UI
         public MenuShowcase showcase;
         [SerializeField, Tooltip("Menu stage that spins the showcase. Selection pages frame the turntable through it.")]
         MenuStage stage;
-        [SerializeField, Tooltip("Empty: the highest-priority content pack's menu music.")]
-        AudioClip menuMusic;
-        [SerializeField, Tooltip("Menu music volume (0-1).")]
+        [SerializeField, Tooltip("Volume (0-1) of the main menu playlist and of the Music screen's player.")]
         [Range(0f, 1f)] float menuMusicVolume = 0.6f;
         [SerializeField, Tooltip("Empty: the highest-priority content pack's UI click.")]
         AudioClip clickSound;
@@ -36,6 +34,7 @@ namespace MHK.UI
 
         public MenuScreen Current { get; private set; }
         public MenuSelection Selection { get; } = new();
+        public float MenuMusicVolume => menuMusicVolume;
 
         /// <summary>
         /// Screen type the next menu start opens on top of the title screen (Back returns to the title), cleared once
@@ -53,10 +52,8 @@ namespace MHK.UI
 
         void Start()
         {
-            var packs = Content.Packs;
-            if (menuMusic == null) menuMusic = ContentPack.Find(packs, p => p.menuMusic);
-            if (clickSound == null) clickSound = ContentPack.Find(packs, p => p.uiClick);
-            if (menuMusic != null) AudioManager.PlayMusic(menuMusic, menuMusicVolume);
+            if (clickSound == null) clickSound = ContentPack.Find(Content.Packs, p => p.uiClick);
+            MusicPlayer.PlayMenu(menuMusicVolume);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = ambientLight;
 

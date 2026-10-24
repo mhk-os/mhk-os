@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.IO;
 using MHK.Core;
 using MHK.Editor.Modding;
@@ -11,13 +10,23 @@ namespace MHK.Editor.Build
 {
     /// <summary>
     /// Player builds ship the base content as mods: builds the shipped packs (<see cref="ContentPackAssets.ShippedPacks"/>)
-    /// into <c>.mhkmod</c> bundles for the build target and adds them to the build's StreamingAssets/Mods, where
-    /// <see cref="ModLoader"/> finds them next to the user's mods. Their pack and SDK commit is the game's (<see cref="BuildStamp.Commit"/>).
+    /// for the build target and adds the mods of <see cref="ExtraMods"/>. Desktop: into &lt;install&gt;/Mods/&lt;id&gt;/ next to
+    /// the executable or .app (loose with <see cref="Loose"/>). Android: packed into StreamingAssets/Mods. Their pack
+    /// and SDK commit is the game's (<see cref="BuildStamp.Commit"/>).
     /// </summary>
     sealed class ShippedModsBuild : BuildPlayerProcessor
     {
-        // Unity refuses AssetBundle output inside Library, so the incremental cache lives in the ignored Builds folder.
+        /// <summary>Command-line option with a folder of built mods (&lt;id&gt;/ folders as ModBuildCli writes them) that ship too.</summary>
+        public const string ExtraModsOption = "-mhkExtraMods";
+
+        // Unity refuses AssetBundle output inside Library, so the Android stage lives in the ignored Builds folder.
         const string CacheRoot = "Builds/Cache/ShippedMods";
+
+        /// <summary>Desktop builds ship loose textures and sounds (set by <see cref="CiBuild"/>, editor builds are packed).</summary>
+        public static bool Loose { get; set; }
+
+        /// <summary>Folder of extra built mods for the build target (<see cref="ExtraModsOption"/> by default), null for none.</summary>
+        public static string ExtraMods { get; set; }
 
         public override int callbackOrder => 10;
 
@@ -26,51 +35,61 @@ namespace MHK.Editor.Build
             var options = context.BuildPlayerOptions;
             if ((options.options & BuildOptions.BuildScriptsOnly) != 0) return;
             var packs = ContentPackAssets.ShippedPacks();
-            if (packs.Count == 0)
-            {
-                Debug.LogWarning($"[Build] No shipped mods under {ContentPackAssets.ShippedFolder}: the build has no base content.");
-                return;
-            }
-            var started = EditorApplication.timeSinceStartup;
-            var cache = Path.Combine(CacheRoot, options.target.ToString());
-            var files = BundleFiles(packs);
+            if (packs.Count == 0) Debug.LogWarning($"[Build] No shipped mods under {ContentPackAssets.ShippedFolder}: the build has no base content.");
+            var desktop = ModBundleBuilder.IsDesktop(options.target);
+            var mods = desktop ? ModsFolder(options.locationPathName) : Path.Combine(CacheRoot, options.target.ToString());
+            if (!desktop && Directory.Exists(mods)) Directory.Delete(mods, true);
             var commit = BuildStamp.Commit();
-            if (ModBundleBuilder.Build(packs, options.target, cache, commit, commit) == null)
+            if (packs.Count > 0 && ModBundleBuilder.Build(packs, options.target, mods, commit, commit, Loose && desktop) == null)
                 throw new BuildFailedException("Building the shipped mods failed (see the errors above).");
-            var stage = Stage(cache, files);
+            var extra = ExtraMods ?? CommandLine.Value(ExtraModsOption);
+            if (!string.IsNullOrEmpty(extra)) CopyExtraMods(extra, mods, desktop);
+            if (desktop) return;
+            var stage = Flatten(mods);
             context.AddAdditionalPathToStreamingAssets(stage, DataPaths.ModsFolder);
-            Debug.Log($"[Build] Shipped mods ({packs.Count}) built in {EditorApplication.timeSinceStartup - started:0} s, " +
-                      $"added to StreamingAssets/{DataPaths.ModsFolder} from {Path.GetFullPath(stage)}: {string.Join(", ", files)}.");
+            Debug.Log($"[Build] Shipped mods added to StreamingAssets/{DataPaths.ModsFolder}: {string.Join(", ", Directory.GetFiles(stage))}.");
         }
 
-        // Read before the bundle build: it unloads the pack objects, the stale ones then list no content.
-        static List<string> BundleFiles(List<ContentPack> packs)
+        /// <summary>The shipped mods folder of a desktop player at <paramref name="locationPathName"/>: Mods next to the executable or the .app.</summary>
+        public static string ModsFolder(string locationPathName) =>
+            Path.Combine(Path.GetDirectoryName(Path.GetFullPath(locationPathName)), DataPaths.ModsFolder);
+
+        // Desktop keeps each mod's folder (bundles and Assets/), Android gets only the bundles.
+        static void CopyExtraMods(string from, string mods, bool desktop)
         {
-            var files = new List<string>();
-            foreach (var p in packs)
+            if (!Directory.Exists(from)) throw new BuildFailedException($"{ExtraModsOption}: folder '{from}' does not exist.");
+            foreach (var source in Directory.GetDirectories(from))
             {
-                var id = p.packId.ToLowerInvariant();
-                files.Add(id + ModLoader.ModFileExtension);
-                if (ModPackValidator.Scenes(p).Length > 0) files.Add(id + ModLoader.SceneBundleSuffix);
+                var target = Path.Combine(mods, Path.GetFileName(source));
+                if (Directory.Exists(target)) Directory.Delete(target, true);
+                if (desktop) CopyFolder(source, target);
+                else foreach (var file in Directory.GetFiles(source, "*" + ModLoader.ModFileExtension)) CopyFile(file, Path.Combine(target, Path.GetFileName(file)));
+                Debug.Log($"[Build] Extra shipped mod '{Path.GetFileName(source)}' from {Path.GetFullPath(source)}.");
             }
-            return files;
         }
 
-        // The bundle cache also holds manifests and bundles of packs no longer shipped: only the mods themselves ship.
-        static string Stage(string cache, List<string> files)
+        static void CopyFolder(string from, string to)
         {
-            var stage = cache + "_ship";
+            foreach (var file in Directory.GetFiles(from, "*", SearchOption.AllDirectories))
+                CopyFile(file, Path.Combine(to, Path.GetRelativePath(from, file)));
+        }
+
+        static void CopyFile(string from, string to)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(to));
+            File.Copy(from, to, true);
+        }
+
+        // ModLoader lists StreamingAssets/Mods of an APK flat: the bundles of every mod folder go into one stage folder.
+        static string Flatten(string mods)
+        {
+            var stage = mods + "_ship";
             if (Directory.Exists(stage)) Directory.Delete(stage, true);
             Directory.CreateDirectory(stage);
-            foreach (var file in files) Copy(cache, stage, file);
+            Directory.CreateDirectory(mods);
+            foreach (var file in Directory.GetFiles(mods, "*" + ModLoader.ModFileExtension, SearchOption.AllDirectories))
+                File.Copy(file, Path.Combine(stage, Path.GetFileName(file)), true);
             return stage;
-        }
-
-        static void Copy(string from, string to, string file)
-        {
-            var source = Path.Combine(from, file);
-            if (!File.Exists(source)) throw new BuildFailedException($"Shipped mod bundle '{source}' is missing after the bundle build.");
-            File.Copy(source, Path.Combine(to, file));
         }
     }
 }

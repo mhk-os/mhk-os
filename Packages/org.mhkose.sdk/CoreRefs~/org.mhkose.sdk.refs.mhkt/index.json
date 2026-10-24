@@ -1,0 +1,283 @@
+{
+    "packs": [
+        {
+            "packId": "mhkt",
+            "root": "mhkt",
+            "builtin": false
+        }
+    ],
+    "definitions": [
+        {
+            "id": "mhkt.barcelona",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "e099983fbfc28489b96504b0b7628934",
+            "fileId": 11400000,
+            "displayName": "Barcelona"
+        },
+        {
+            "id": "mhkt.london",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "ba274443a314449a2af12973548d4ca5",
+            "fileId": 11400000,
+            "displayName": "London"
+        },
+        {
+            "id": "mhkt.paris",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "98de8d8210b96441f98043c269578ca0",
+            "fileId": 11400000,
+            "displayName": "Paris"
+        },
+        {
+            "id": "mhkt.berlin",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "08ec7b5c1de89417a9298df8c941d5e5",
+            "fileId": 11400000,
+            "displayName": "Berlin"
+        },
+        {
+            "id": "mhkt.dubai",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "fff52193a59014dbdb516e2dd175f17b",
+            "fileId": 11400000,
+            "displayName": "Dubai"
+        },
+        {
+            "id": "mhkt.macao",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "0a23def588064408ba863e0609336cb0",
+            "fileId": 11400000,
+            "displayName": "Macao"
+        },
+        {
+            "id": "mhkt.mexico_city",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "6f2332adb6cda4809b579789974542b9",
+            "fileId": 11400000,
+            "displayName": "Mexico City"
+        },
+        {
+            "id": "mhkt.miami",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "dd1f370beffd14e26bba906fcbcdd6b2",
+            "fileId": 11400000,
+            "displayName": "Miami"
+        },
+        {
+            "id": "mhkt.beijing",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "a96abe330fac84289b225c0150115666",
+            "fileId": 11400000,
+            "displayName": "Beijing"
+        },
+        {
+            "id": "mhkt.st_petersburg",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "0d5f34feaa3b546b5b433a1bbbd46ff4",
+            "fileId": 11400000,
+            "displayName": "St. Petersburg"
+        },
+        {
+            "id": "mhkt.sydney",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "16eafa10d32104dee9a10cba70ea8196",
+            "fileId": 11400000,
+            "displayName": "Sydney"
+        },
+        {
+            "id": "mhkt.las_vegas",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhkt",
+            "guid": "3acd99e221849466389d45f1213ee207",
+            "fileId": 11400000,
+            "displayName": "Las Vegas"
+        },
+        {
+            "id": "mhkt.hit.snowball",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "ab80b1cc5f5a14b719252c6321ec4357",
+            "fileId": 11400000,
+            "displayName": "Snowed in"
+        },
+        {
+            "id": "mhkt.hit.banana",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "29e4626e8000e47069980487021127c2",
+            "fileId": 11400000,
+            "displayName": "Slipped on a banana"
+        },
+        {
+            "id": "mhkt.hit.panzer",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "d532b022cb1a94a43acb3aebb0cd34bb",
+            "fileId": 11400000,
+            "displayName": "Rammed by the tank"
+        },
+        {
+            "id": "mhkt.buff.panzer",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "8f2a1036dc7eb4fdd955c0c3c6ae643a",
+            "fileId": 11400000,
+            "displayName": "Tank"
+        },
+        {
+            "id": "mhkt.snowball",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhkt",
+            "guid": "7c59ab104867e4823863d19efb8d86a2",
+            "fileId": 11400000,
+            "displayName": "Snowball"
+        },
+        {
+            "id": "mhkt.banana_rain",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhkt",
+            "guid": "9a5200688f42d4d6a8aa42407aab074c",
+            "fileId": 11400000,
+            "displayName": "Banana Rain"
+        },
+        {
+            "id": "mhkt.panzer",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhkt",
+            "guid": "0a40a4f141d2042cfba83827316d48b2",
+            "fileId": 11400000,
+            "displayName": "Tank"
+        },
+        {
+            "id": "mhkt.cup_world1",
+            "type": "MHK.Modding.CupDefinition",
+            "pack": "mhkt",
+            "guid": "f9e3ddc4454584382b4021d8cf663b12",
+            "fileId": 11400000,
+            "displayName": "World Tour 1"
+        },
+        {
+            "id": "mhkt.cup_world2",
+            "type": "MHK.Modding.CupDefinition",
+            "pack": "mhkt",
+            "guid": "fd3a370c573ac494897bfdb0275fbc71",
+            "fileId": 11400000,
+            "displayName": "World Tour 2"
+        },
+        {
+            "id": "mhkt.pickup.health",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "8864b74ad05ad4b228a6b5db3ab9868e",
+            "fileId": 11400000,
+            "displayName": "Health"
+        },
+        {
+            "id": "mhkt.pickup.quad_damage",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "a7f4f1393a05e4845957c6516da69147",
+            "fileId": 11400000,
+            "displayName": "Quad damage"
+        },
+        {
+            "id": "mhkt.pickup.hammer",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "9d9dd52363b0b495e8ca2347a6d869eb",
+            "fileId": 11400000,
+            "displayName": "Hammer"
+        },
+        {
+            "id": "mhkt.wings",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhkt",
+            "guid": "f431cb950df65c478aa406c9c444a1c9",
+            "fileId": 11400000,
+            "displayName": "Wings"
+        },
+        {
+            "id": "mhkt.buff.wings",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "3206df32f578591faabfacb1738075e3",
+            "fileId": 11400000,
+            "displayName": "Wings"
+        },
+        {
+            "id": "mhkt.electroshock",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhkt",
+            "guid": "67ee450d9f4a59eb866a46b43254a027",
+            "fileId": 11400000,
+            "displayName": "Electroshocker"
+        },
+        {
+            "id": "mhkt.hit.electroshock",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "f892edbcd3c25ae9b894a5108eda4b60",
+            "fileId": 11400000,
+            "displayName": "Electrocuted"
+        },
+        {
+            "id": "mhkt.kart",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhkt",
+            "guid": "b3de05ad54b80470094636cf80bb7909",
+            "fileId": 11400000,
+            "displayName": "Blue Kart"
+        },
+        {
+            "id": "mhkt.kart2",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhkt",
+            "guid": "87027992d844547069c7c0fe817c1fc4",
+            "fileId": 11400000,
+            "displayName": "Red Kart"
+        },
+        {
+            "id": "mhkt.kart3",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhkt",
+            "guid": "9e4da9519558e443d96542bdd6ed0aaa",
+            "fileId": 11400000,
+            "displayName": "Yellow Kart"
+        },
+        {
+            "id": "mhkt.kart4",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhkt",
+            "guid": "3e91fd0add78a4fd39a31503e9f495b0",
+            "fileId": 11400000,
+            "displayName": "Black Kart"
+        },
+        {
+            "id": "mhkt.kart5",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhkt",
+            "guid": "4442c94adc5084ea9a7f49fdd4044858",
+            "fileId": 11400000,
+            "displayName": "Green Kart"
+        },
+        {
+            "id": "mhkt.kart6",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhkt",
+            "guid": "b53c85f6e90f04a71a565e26f93fc794",
+            "fileId": 11400000,
+            "displayName": "Pink Kart"
+        }
+    ]
+}
