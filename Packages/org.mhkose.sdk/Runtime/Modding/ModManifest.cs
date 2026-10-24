@@ -6,13 +6,14 @@ namespace MHK.Modding
 {
     /// <summary>
     /// mod.json of a mod release (and of a mod folder the game installed): pack id, texts, mod and SDK commit, the SDK
-    /// build number the mod was built with and the zip asset of each platform.
+    /// build number and mod API level (<see cref="ModSdk.ApiLevel"/>, 0 when missing) the mod was built with and the
+    /// zip asset of each platform.
     /// </summary>
     [Serializable]
     sealed class ModManifest
     {
         public string packId, title, description, commit, sdkCommit;
-        public int sdkBuild;
+        public int sdkBuild, sdkApi;
         public ModTargets targets;
 
         static readonly Regex PackIdPattern = new("^[a-z0-9][a-z0-9_.-]*$", RegexOptions.CultureInvariant);

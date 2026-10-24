@@ -28,6 +28,10 @@ namespace MHK.UI
         public string needsNewerGame = "Needs a newer game";
         [Tooltip("Tooltip of the needs a newer game state.")]
         public string needsNewerGameTip = "The newest release was made for a newer version of the game. Update the game to get it.";
+        [Tooltip("State text when the newest release was made for an older game version (another mod API level).")]
+        public string needsModUpdate = "Made for an older game";
+        [Tooltip("Tooltip of the made for an older game state.")]
+        public string needsModUpdateTip = "The newest release was made for an older version of the game. Ask its author for an update.";
         [Tooltip("State text of a repository without a release this game can use.")]
         public string noRelease = "No release";
         [Tooltip("Tooltip of the no release state.")]
@@ -51,12 +55,12 @@ namespace MHK.UI
 
         static readonly string[] Icons =
         {
-            "sync", "sync", "cloud_download", "cloud_done", "update", "download", "download", "warning", "warning", "cloud_off", "error"
+            "sync", "sync", "cloud_download", "cloud_done", "update", "download", "download", "warning", "warning", "cloud_off", "error", "warning"
         };
 
         static readonly string[] StateClasses =
         {
-            "src-muted", "src-muted", "src-muted", "src-good", "src-accent", "src-accent", "src-accent", "src-bad", "src-muted", "src-bad", "src-bad"
+            "src-muted", "src-muted", "src-muted", "src-good", "src-accent", "src-accent", "src-accent", "src-bad", "src-muted", "src-bad", "src-bad", "src-bad"
         };
 
         /// <summary>Material Symbols icon name of <paramref name="state"/>.</summary>
@@ -72,6 +76,7 @@ namespace MHK.UI
             ModSources.State.Downloading => string.Format(downloading, UiText.Percent(Mathf.Round(Progress(source) * 100f))),
             ModSources.State.Installing => installing,
             ModSources.State.NeedsNewerGame => needsNewerGame,
+            ModSources.State.NeedsModUpdate => needsModUpdate,
             ModSources.State.NoRelease => noRelease,
             ModSources.State.Offline => offline,
             ModSources.State.Error => error,
@@ -82,6 +87,7 @@ namespace MHK.UI
         public string StateTip(ModSources.Source source) => source.state switch
         {
             ModSources.State.NeedsNewerGame => needsNewerGameTip,
+            ModSources.State.NeedsModUpdate => needsModUpdateTip,
             ModSources.State.NoRelease => noReleaseTip,
             ModSources.State.Offline => offlineTip,
             ModSources.State.Error => source.error,

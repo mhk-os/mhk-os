@@ -41,8 +41,8 @@ namespace MHK.Editor.Modding
         /// Checks and builds <paramref name="packs"/> for <paramref name="target"/> into one folder per pack under
         /// <paramref name="outDir"/> (default Builds/Mods/&lt;target&gt;). <paramref name="loose"/> (desktop targets only)
         /// writes the textures and sounds as files and bundles placeholders. The built packs carry the commit of the
-        /// project (<paramref name="commit"/>, else <see cref="ProjectCommit"/>) as their version and the build stamp (SDK
-        /// commit, <paramref name="sdkCommit"/> else <see cref="SourceCommit.Sdk"/>, Unity version, target). Every project
+        /// project (<paramref name="commit"/>, else <see cref="ProjectCommit"/>) as their version and the build stamp (mod
+        /// API level <see cref="ModSdk.ApiLevel"/>, SDK commit, <paramref name="sdkCommit"/> else <see cref="SourceCommit.Sdk"/>, Unity version, target). Every project
         /// file the build changes comes back byte for byte. Returns the folder, or null when a check or the build failed.
         /// </summary>
         public static string Build(IList<ContentPack> packs, BuildTarget target, string outDir = null, string commit = null,
@@ -131,6 +131,7 @@ namespace MHK.Editor.Modding
                 journal.Save(AssetDatabase.GetAssetPath(p));
                 p.version = commit;
                 p.sdkVersion = sdkCommit;
+                p.sdkApi = ModSdk.ApiLevel;
                 p.unityVersion = Application.unityVersion;
                 p.buildTarget = target.ToString();
                 p.assetIndex = p == pack ? index : null;

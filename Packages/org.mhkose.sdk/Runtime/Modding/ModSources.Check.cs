@@ -90,7 +90,7 @@ namespace MHK.Modding
         static async Awaitable ChooseAsync(Source s, GitHubRelease[] releases, RepoCache cache, CancellationToken ct)
         {
             s.latest = null;
-            s.newestNeedsNewerGame = false;
+            s.newestNeedsNewerGame = s.newestNeedsModUpdate = false;
             if (s.kind == Kind.Unknown) s.kind = Detect(releases);
             if (s.kind == Kind.AssetPack) await ChoosePackAsync(s, releases, cache, ct);
             else if (s.kind == Kind.Mod) await ChooseModAsync(s, releases, cache, ct);
@@ -98,11 +98,11 @@ namespace MHK.Modding
             s.downloadBytes = s.latest?.zipSize ?? 0;
         }
 
-        // Releases come newest first. The first with a usable mod.json tells whether the newest needs a newer game, the
-        // first whose SDK build this game has (0 = any) and that has this platform's zip is the one to install.
+        // Releases come newest first. The first with a usable mod.json tells whether the newest is made for a newer or an
+        // older game, the first with this game's mod API level (ModSdk.Level: a mod.json without sdkApi predates the level
+        // and has the first one) and this platform's zip is the one to install.
         static async Awaitable ChooseModAsync(Source s, GitHubRelease[] releases, RepoCache cache, CancellationToken ct)
         {
-            var number = BuildInfo.Number;
             var target = ModSdk.CurrentBuildTarget;
             ModManifest newest = null;
             var keep = new HashSet<long>();
@@ -117,7 +117,7 @@ namespace MHK.Modding
                 var manifest = ModManifest.Parse(json);
                 if (manifest == null) continue;
                 newest ??= manifest;
-                if (number > 0 && manifest.sdkBuild > number) continue;
+                if (!ModSdk.IsCompatible(manifest.sdkApi)) continue;
                 var zip = rel.Asset(manifest.targets?.For(target));
                 if (zip == null) continue;
                 s.latest = new Release
@@ -127,7 +127,8 @@ namespace MHK.Modding
                 };
             }
             cache.manifests.RemoveAll(m => !keep.Contains(m.assetId));
-            s.newestNeedsNewerGame = newest != null && number > 0 && newest.sdkBuild > number;
+            s.newestNeedsNewerGame = newest != null && ModSdk.Level(newest.sdkApi) > ModSdk.ApiLevel;
+            s.newestNeedsModUpdate = newest != null && ModSdk.Level(newest.sdkApi) < ModSdk.ApiLevel;
             var described = s.latest != null ? s.latest.manifest : newest;
             if (described != null) Describe(s, described.packId, described.title, described.description);
         }
@@ -141,7 +142,8 @@ namespace MHK.Modding
 
         static State Evaluate(Source s)
         {
-            if (s.latest == null) return s.newestNeedsNewerGame ? State.NeedsNewerGame : State.NoRelease;
+            if (s.latest == null)
+                return s.newestNeedsNewerGame ? State.NeedsNewerGame : s.newestNeedsModUpdate ? State.NeedsModUpdate : State.NoRelease;
             if (!s.installed) return State.NotInstalled;
             if (!IsInstalled(s, s.latest)) return State.UpdateAvailable;
             return s.newestNeedsNewerGame ? State.NeedsNewerGame : State.UpToDate;
@@ -154,6 +156,7 @@ namespace MHK.Modding
             {
                 State.NoRelease => "No release for this platform yet.",
                 State.NeedsNewerGame => "The newest release needs a newer game.",
+                State.NeedsModUpdate => "The newest release was made for an older game version.",
                 _ => null,
             });
         }

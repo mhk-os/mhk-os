@@ -52,8 +52,9 @@ namespace MHK.Editor.Modding
         {
             if (def == null)
             {
-                Debug.LogWarning($"[Mods] '{pack.packId}': empty entry in the content list.", pack);
-                return true;
+                Debug.LogError($"[Mods] '{pack.packId}': empty entry in the content list. Remove it: the game does not load a mod with an empty " +
+                               "entry (it looks like content whose script is missing).", pack);
+                return false;
             }
             if (!def.Id.StartsWith(pack.packId + ".") && !otherIds.Contains(def.Id))
                 Debug.LogWarning($"[Mods] '{def.Id}' ({AssetDatabase.GetAssetPath(def)}) is not namespaced '{pack.packId}.<name>': ids are global, " +

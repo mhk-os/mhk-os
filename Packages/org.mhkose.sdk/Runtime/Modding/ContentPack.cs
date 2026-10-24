@@ -60,6 +60,8 @@ namespace MHK.Modding
         public List<ContentDefinition> content = new();
 
         [Header("Build stamp (written by the mod build)")]
+        [Tooltip("Mod API level (ModSdk.ApiLevel) of the SDK the mod's bundles were built with: the game loads only mods with its own level. 0 in the project and in bundles built before the level existed (they count as level 1).")]
+        public int sdkApi;
         [Tooltip("Commit of the SDK (org.mhkose.sdk) the mod's bundles were built with. Empty in the project and in bundles built before the stamp existed.")]
         public string sdkVersion;
         [Tooltip("Unity version that built the mod's bundles.")]

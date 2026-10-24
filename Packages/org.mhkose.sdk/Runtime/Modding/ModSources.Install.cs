@@ -260,7 +260,7 @@ namespace MHK.Modding
             {
                 if (s.busy) continue;
                 RefreshInstalled(s);
-                if (s.state is State.NotInstalled or State.UpToDate or State.UpdateAvailable or State.NeedsNewerGame) SetEvaluated(s);
+                if (s.state is State.NotInstalled or State.UpToDate or State.UpdateAvailable or State.NeedsNewerGame or State.NeedsModUpdate) SetEvaluated(s);
             }
             RaiseChanged();
         }

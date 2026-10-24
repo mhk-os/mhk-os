@@ -57,7 +57,7 @@ namespace MHK.UI
             list.Clear();
             foreach (var s in ModSources.All)
             {
-                if (!s.builtIn) continue;
+                if (!s.BaseMod) continue;
                 var row = UiTree.Spawn<VisualElement>(rowTemplate, list);
                 if (row == null) break;
                 rows.Add((s.repo, row));
@@ -79,14 +79,15 @@ namespace MHK.UI
             download = null;
         }
 
-        static bool Needed(ModSources.Source s) => s.builtIn && !s.installed && !ModSourceTexts.Busy(s) && Downloadable(s);
+        static bool Needed(ModSources.Source s) => s.BaseMod && !s.installed && !ModSourceTexts.Busy(s) && Downloadable(s);
 
-        static bool Downloadable(ModSources.Source s) => s.state is not (ModSources.State.NoRelease or ModSources.State.NeedsNewerGame);
+        static bool Downloadable(ModSources.Source s) =>
+            s.state is not (ModSources.State.NoRelease or ModSources.State.NeedsNewerGame or ModSources.State.NeedsModUpdate);
 
         static bool NothingChecked()
         {
             foreach (var s in ModSources.All)
-                if (s.builtIn && s.state != ModSources.State.Unknown) return false;
+                if (s.BaseMod && s.state != ModSources.State.Unknown) return false;
             return true;
         }
 

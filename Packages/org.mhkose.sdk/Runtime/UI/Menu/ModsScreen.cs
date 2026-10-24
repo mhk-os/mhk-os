@@ -39,6 +39,16 @@ namespace MHK.UI
         string missingKartsTip = "{0} drivers have no kart. Enable the pack with their karts.";
         [SerializeField, Tooltip("Tooltip of a loaded mod whose definitions are replaced by mods above it. {0} = number of definitions.")]
         string replacedTip = "{0} of its definitions are replaced by mods above it.";
+        [SerializeField, Tooltip("Line of a mod built for an older game version (another mod API level), which is not loaded.")]
+        string needsModUpdateText = "Made for an older game version. Ask its author for an update.";
+        [SerializeField, Tooltip("Line of a mod built for a newer game version, which is not loaded.")]
+        string needsNewerGameText = "Made for a newer game version. Update the game.";
+        [SerializeField, Tooltip("Line of a mod that failed to load. {0} = one-line reason.")]
+        string loadFailedText = "Could not be loaded. {0}";
+        [SerializeField, Tooltip("Tooltip of Report on a mod that is not loaded. {0} = source repository (owner/name).")]
+        string reportTip = "Opens the issues page of {0} in the browser to ask its author for an update.";
+        [SerializeField, Tooltip("Page Report opens. {0} = source repository (owner/name).")]
+        string issuesUrlFormat = "https://github.com/{0}/issues";
         [SerializeField, Tooltip("Chip texts of the sections.")]
         string modsTab = "Mods", packsTab = "Asset Packs";
         [SerializeField, Tooltip("Empty line of the Mods section.")]
@@ -84,7 +94,7 @@ namespace MHK.UI
             });
             BindSources();
             Fill(true);
-            FocusTarget = list.childCount > 0 ? list[0].Q<Button>("mod-toggle") ?? list[0].Q<Button>("src-action") : sourceInput;
+            FocusTarget = list.childCount > 0 ? FirstButton(list[0]) : sourceInput;
             OnClick("apply", Apply);
             OnClick("open-mods", () => GhostUi.Reveal(section == Section.AssetPacks ? AssetPacks.UserFolder : ModLoader.UserFolder));
             OnClick("reload", Reload);
@@ -118,6 +128,15 @@ namespace MHK.UI
         }
 
         VisualElement FirstRowButton() => list.childCount > 0 ? RowButton(list[0], null) : null;
+
+        static Button FirstButton(VisualElement row)
+        {
+            var toggle = row.Q<Button>("mod-toggle");
+            if (toggle == null || toggle.enabledSelf) return toggle ?? row.Q<Button>("src-action");
+            if (row.ClassListContains("mod-reportable")) return row.Q<Button>("mod-report");
+            var down = row.Q<Button>("mod-down");
+            return down.enabledSelf ? down : toggle;
+        }
 
         // The row's button named like the one the focus comes from, else its first shown and enabled button.
         static Button RowButton(VisualElement row, string name)
@@ -219,6 +238,32 @@ namespace MHK.UI
             BindToggle(toggle, pack.packId, Settings.disabledPacks);
             var withoutKart = DriversWithoutKart(pack);
             if (withoutKart > 0) toggle.tooltip = string.Format(missingKartsTip, withoutKart);
+            ShowProblem(row, toggle, pack);
+        }
+
+        // A mod that is not loaded: the reason and no toggle, Report when its author can fix it and its repository is known.
+        void ShowProblem(VisualElement row, Button toggle, ContentPack pack)
+        {
+            var problem = ModLoader.ProblemOf(pack);
+            row.Q("mod-problem")?.SetVisible(problem != ModProblem.None);
+            if (problem == ModProblem.None) return;
+            row.SetText("mod-problem-label", problem switch
+            {
+                ModProblem.NeedsModUpdate => needsModUpdateText,
+                ModProblem.NeedsNewerGame => needsNewerGameText,
+                _ => string.Format(loadFailedText, ModLoader.ProblemDetail(pack)),
+            });
+            toggle.SetEnabled(false);
+            var repo = SourceOf(pack.packId)?.repo;
+            var report = row.Q<Button>("mod-report");
+            if (report == null || repo == null || problem == ModProblem.NeedsNewerGame) return;
+            row.AddToClassList("mod-reportable");
+            report.tooltip = string.Format(reportTip, repo);
+            report.clicked += () =>
+            {
+                Click();
+                Application.OpenURL(string.Format(issuesUrlFormat, repo));
+            };
         }
 
         static void SetDescription(VisualElement row, string description)

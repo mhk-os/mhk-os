@@ -10,11 +10,12 @@ namespace MHK.Modding
     /// <summary>
     /// Mod sources: GitHub repositories whose releases the game installs and keeps up to date, mods (a <c>mod.json</c>
     /// asset plus one zip per platform) into the user Mods folder and asset packs (one zip with pack.json, optionally a
-    /// pack.json asset) into the asset pack folder. The base game mods and TINcan Race are built-in sources.
+    /// pack.json asset) into the asset pack folder. The base game mods, TINcan Race and the Music Pack are built-in sources.
     /// </summary>
     public static partial class ModSources
     {
-        public enum State { Unknown, Checking, NotInstalled, UpToDate, UpdateAvailable, Downloading, Installing, NeedsNewerGame, NoRelease, Offline, Error }
+        /// <summary>What the last check found. NeedsNewerGame and NeedsModUpdate: no release has this game's mod API level (<see cref="ModSdk.ApiLevel"/>), the newest is newer or older.</summary>
+        public enum State { Unknown, Checking, NotInstalled, UpToDate, UpdateAvailable, Downloading, Installing, NeedsNewerGame, NoRelease, Offline, Error, NeedsModUpdate }
 
         /// <summary>What a source publishes, Unknown until the first check of an added source finds out.</summary>
         public enum Kind { Unknown, Mod, AssetPack }
@@ -31,7 +32,7 @@ namespace MHK.Modding
             public State state;
             /// <summary>
             /// Identity of the installed copy (null when unknown) and of the release an install would take: the mod commit,
-            /// for asset packs the pack.json commit or else the release tag. <see cref="error"/> is a one-line reason (Offline, Error, NoRelease, NeedsNewerGame).
+            /// for asset packs the pack.json commit or else the release tag. <see cref="error"/> is a one-line reason (Offline, Error, NoRelease, NeedsNewerGame, NeedsModUpdate).
             /// </summary>
             public string installedCommit, latestCommit, error;
             /// <summary>Size of the chosen release's zip and the bytes downloaded so far (while Downloading).</summary>
@@ -42,23 +43,27 @@ namespace MHK.Modding
             public bool managed;
 
             internal Release latest;
-            internal bool newestNeedsNewerGame, busy;
+            internal bool newestNeedsNewerGame, newestNeedsModUpdate, busy;
             internal int installedSdkBuild;
             internal string installedTag;
             internal float checkedAt = float.NegativeInfinity;
+
+            /// <summary>A built-in mod (a base game or TINcan Race), the ones the first start download offers. Built-in asset packs are only listed.</summary>
+            public bool BaseMod => builtIn && kind == Kind.Mod;
         }
 
         /// <summary>Command-line option with another GitHub API base URL (tests use a local mock server).</summary>
         public const string ApiOption = "-modSourcesApi";
         public const string DefaultApi = "https://api.github.com";
 
-        static readonly (string repo, string packId, string title)[] BuiltIns =
+        static readonly (string repo, Kind kind, string packId, string title)[] BuiltIns =
         {
-            ("mhk-os/mhk2-mod", "mhk2", "Moorhuhn Kart 2"),
-            ("mhk-os/mhk3-mod", "mhk3", "Moorhuhn Kart 3"),
-            ("mhk-os/mhke-mod", "mhke", "Moorhuhn Kart Extra"),
-            ("mhk-os/mhkt-mod", "mhkt", "Moorhuhn Kart Thunder"),
-            ("mhk-os/tincan-mod", "tincan", "TINcan Race"),
+            ("mhk-os/mhk2-mod", Kind.Mod, "mhk2", "Moorhuhn Kart 2"),
+            ("mhk-os/mhk3-mod", Kind.Mod, "mhk3", "Moorhuhn Kart 3"),
+            ("mhk-os/mhke-mod", Kind.Mod, "mhke", "Moorhuhn Kart Extra"),
+            ("mhk-os/mhkt-mod", Kind.Mod, "mhkt", "Moorhuhn Kart Thunder"),
+            ("mhk-os/tincan-mod", Kind.Mod, "tincan", "TINcan Race"),
+            ("mhk-os/music-asset-pack", Kind.AssetPack, "music", "Music Pack"),
         };
 
         [AutoStaticsCleanup] static List<Source> sources;
@@ -103,13 +108,13 @@ namespace MHK.Modding
             }
         }
 
-        /// <summary>A built-in source in the list has no installed pack with its id (enabled or disabled).</summary>
+        /// <summary>A built-in mod in the list has no installed pack with its id (enabled or disabled).</summary>
         public static bool BaseGamesMissing
         {
             get
             {
                 foreach (var s in All)
-                    if (s.builtIn && FindAvailable(s.packId) == null) return true;
+                    if (s.BaseMod && FindAvailable(s.packId) == null) return true;
                 return false;
             }
         }
@@ -342,23 +347,24 @@ namespace MHK.Modding
         {
             var list = new List<Source>();
             var settings = Settings;
-            foreach (var (repo, packId, title) in BuiltIns)
+            foreach (var (repo, kind, packId, title) in BuiltIns)
                 if (settings == null || !ContainsIgnoreCase(settings.removedModSources, repo))
-                    list.Add(Listed(repo) ?? NewSource(repo, true, packId, title));
+                    list.Add(Listed(repo) ?? NewSource(repo, kind, packId, title));
             if (settings != null)
                 foreach (var repo in settings.modSources)
                     if (RepoLink.TryParse(repo, out var r) && BuiltInRepo(r) == null && list.Find(s => SameRepo(s.repo, r)) == null)
-                        list.Add(Listed(r) ?? NewSource(r, false, null, null));
+                        list.Add(Listed(r) ?? NewSource(r, Kind.Unknown, null, null));
             return list;
         }
 
         static Source Listed(string repo) => sources?.Find(s => SameRepo(s.repo, repo));
 
-        static Source NewSource(string repo, bool builtIn, string packId, string title)
+        // A built-in source comes with its kind, an added one is Kind.Unknown until its first check.
+        static Source NewSource(string repo, Kind kind, string packId, string title)
         {
             var s = new Source
             {
-                repo = repo, builtIn = builtIn, kind = builtIn ? Kind.Mod : Kind.Unknown, packId = packId,
+                repo = repo, builtIn = kind != Kind.Unknown, kind = kind, packId = packId,
                 title = title ?? repo.Substring(repo.IndexOf('/') + 1),
             };
             if (packId == null) RememberPackId(s);

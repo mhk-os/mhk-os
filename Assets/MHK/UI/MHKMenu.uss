@@ -375,6 +375,11 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .mod-row.src-update .mhk-button.src-row-update { display: flex; margin: 0 8px 0 0; }
 .mod-row.src-managed .mhk-button.src-row-remove { visibility: visible; }
 .mod-row.src-confirm.src-update .mhk-button.src-row-update, .mod-row.src-confirm.src-managed .mhk-button.src-row-remove { display: none; }
+.src-state.mod-problem { flex-shrink: 1; margin-top: 4px; }
+.src-state.mod-problem .src-state-label { flex-shrink: 1; white-space: normal; }
+.mhk-button.mod-report { display: none; margin: 0 8px 0 0; }
+.mod-row.mod-reportable .mhk-button.mod-report { display: flex; }
+.mod-row.src-confirm .mhk-button.mod-report { display: none; }
 .src-tools { flex-direction: row; align-items: center; margin-top: 6px; }
 .src-tools .src-error { flex-grow: 1; flex-shrink: 1; margin-top: 0; }
 .mhk-button.src-tool { margin: 0 0 0 8px; }

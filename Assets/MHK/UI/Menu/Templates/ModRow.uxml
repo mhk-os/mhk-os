@@ -1,11 +1,15 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One installed mod or asset pack row. Code sets mod-logo (or the fallback icon class), the texts, the toggle state (class on or off), the move tooltips and disables mod-up on the first row and mod-down on the last. An item downloaded from a source (GitHub repository) shows its update state (mod-source), the bar while it downloads, Update while an update is available (class src-update on the row) and Remove (class src-managed), src-confirm on the row shows Keep Files and Delete instead of the buttons. -->
+    <!-- One installed mod or asset pack row. Code sets mod-logo (or the fallback icon class), the texts, the toggle state (class on or off), the move tooltips and disables mod-up on the first row and mod-down on the last. A mod that is not loaded (another game version, or it failed to load) shows mod-problem with a one-line reason, its toggle disabled and, when its source repository is known and its author can fix it, Report (opens the repository's issues page). An item downloaded from a source (GitHub repository) shows its update state (mod-source), the bar while it downloads, Update while an update is available (class src-update on the row) and Remove (class src-managed), src-confirm on the row shows Keep Files and Delete instead of the buttons. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="mod-row">
         <ui:VisualElement name="mod-logo" class="mod-logo" />
         <ui:VisualElement class="mod-info">
             <ui:Label name="mod-title" text="Moorhuhn Kart" class="mod-title" />
             <ui:Label name="mod-text" text="The base content pack required by the game." class="mod-text" />
+            <ui:VisualElement name="mod-problem" class="src-state src-bad mod-problem" style="display: none;">
+                <ui:VisualElement class="icon i-error" />
+                <ui:Label name="mod-problem-label" text="Made for an older game version. Ask its author for an update." class="src-state-label" />
+            </ui:VisualElement>
             <ui:VisualElement name="mod-status" class="src-status" style="display: none;">
                 <ui:VisualElement name="mod-source" class="src-state src-good">
                     <ui:VisualElement class="icon i-cloud_done" />
@@ -16,6 +20,10 @@
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
+        <ui:Button name="mod-report" class="mhk-button small secondary mod-report">
+            <ui:VisualElement class="icon i-campaign" />
+            <ui:Label text="Report" class="button-label" />
+        </ui:Button>
         <ui:Button name="mod-update" class="mhk-button small src-action src-row-update">
             <ui:VisualElement class="icon i-update" />
             <ui:Label text="Update" class="button-label" />

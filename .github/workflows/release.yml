@@ -1,12 +1,10 @@
 # Release: every push to main builds the game for all release targets and publishes the GitHub release build-<sha7>
 # with an installer per desktop target (Windows setup .exe, Linux self-extracting .run, macOS .dmg) and the Android APK.
-# They ship the core content only, the game downloads the base mods from their repositories' releases. After
-# publishing, every mod repository of MOD_REPOS gets a repository_dispatch (game-release, with this commit) and
-# rebuilds its main against this SDK.
-# Secrets: UNITY_LICENSE (contents of a Unity Personal .ulf file), UNITY_EMAIL, UNITY_PASSWORD, UNITY_SERIAL (Pro only),
-# MODS_DISPATCH_TOKEN (fine-grained token with Contents read and write on the mod repositories, without it the mods
-# are not rebuilt). Variables (optional): MOD_REPOS (space separated repositories, default the five below),
-# LIBRARY_CACHE (false turns the Library cache off).
+# They ship the core content only, the game downloads the base mods from their repositories' releases. Every mod
+# repository releases on its own, built against the SDK of main, and the game loads only mods built for its mod API
+# level (ModSdk.ApiLevel).
+# Secrets: UNITY_LICENSE (contents of a Unity Personal .ulf file), UNITY_EMAIL, UNITY_PASSWORD, UNITY_SERIAL (Pro only).
+# Variables (optional): LIBRARY_CACHE (false turns the Library cache off).
 # Every Unity run uses a GameCI docker image on ubuntu: desktop players use Mono, Android IL2CPP ARM64 (Player
 # Settings). Unity 6.6 has no desktop Linux Arm64 player, so there is no linux-arm64 build. Tools/installer/package.sh
 # makes the installers, the macOS builds travel as workflow artifacts kept for one day to the disk image job on a Mac,
@@ -26,9 +24,6 @@ concurrency:
 
 permissions:
   contents: read
-
-env:
-  MOD_REPOS: ${{ vars.MOD_REPOS || 'mhk-os/mhk2-mod mhk-os/mhk3-mod mhk-os/mhke-mod mhk-os/mhkt-mod mhk-os/tincan-mod' }}
 
 jobs:
   prepare:
@@ -324,23 +319,3 @@ jobs:
               | map(sort_by(.createdAt) | .[:-1][]) | .[]
               | select((.lastAccessedAt | sub("\\.[0-9]+"; "") | fromdateiso8601) < (now - 10800)) | .id' |
             while read -r id; do gh cache delete --repo "$GITHUB_REPOSITORY" "$id"; done
-
-      # The mod workflows build their main against the SDK of this commit, the token needs Contents write on them.
-      - name: Rebuild the mods
-        env:
-          GH_TOKEN: ${{ secrets.MODS_DISPATCH_TOKEN }}
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::notice::MODS_DISPATCH_TOKEN is not set, the mods are not rebuilt for this SDK: $MOD_REPOS"
-            exit 0
-          fi
-          failed=0
-          for repo in $MOD_REPOS; do
-            if gh api "repos/$repo/dispatches" -f event_type=game-release -f "client_payload[sdk_commit]=$GITHUB_SHA" > /dev/null; then
-              echo "Rebuild of $repo requested"
-            else
-              echo "::error::Could not start the rebuild of $repo"
-              failed=1
-            fi
-          done
-          exit "$failed"

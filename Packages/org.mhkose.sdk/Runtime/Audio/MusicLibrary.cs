@@ -105,12 +105,15 @@ namespace MHK.Audio
             return int.MaxValue;
         }
 
-        /// <summary>Default main menu playlist: the menu music of every loaded pack, in content order.</summary>
+        /// <summary>Default main menu playlist: the menu music of every loaded pack in content order, then the menuMusic of every enabled asset pack in priority order.</summary>
         public static List<string> DefaultMenu()
         {
             var list = new List<string>();
             foreach (var pack in Content.Packs)
                 if (pack.menuMusic != null) AddIfKnown(list, GameAssets.PathOf(pack.menuMusic));
+            foreach (var info in AssetPacks.Available)
+                if (info.enabled && info.menuMusic != null)
+                    foreach (var path in info.menuMusic) AddIfKnown(list, path);
             return list;
         }
 

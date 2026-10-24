@@ -20,9 +20,14 @@ MonoBehaviour:
   loadOrder: 50
   includes: []
   logo: {fileID: 0}
-  menuMusic: {fileID: 8300000, guid: f890ad95717904fd782d6f315549b052, type: 3}
+  menuMusic: {fileID: 0}
   uiClick: {fileID: 0}
   sharedPowerups: []
+  itemBoxLook:
+    model: {fileID: 0}
+    spinSpeed: 0
+    trackHeight: 0
+    scale: 1
   preferredDefaults: 0
   engineLoop: {fileID: 0}
   skidLoop: {fileID: 0}
@@ -50,3 +55,4 @@ MonoBehaviour:
   sdkVersion: 
   unityVersion: 
   buildTarget: 
+  assetIndex: {fileID: 0}

@@ -10,7 +10,8 @@ namespace MHK.Assets
     /// <summary>
     /// Asset packs: folders or zips in <see cref="UserFolder"/> with a pack.json, an optional icon.png and replacement
     /// files at Assets/&lt;virtual path&gt;. Enabled packs apply in the order of <see cref="UserSettings.assetPackOrder"/>, the
-    /// first wins. They replace textures and sounds of the game and of any mod and may add music.
+    /// first wins. They replace textures and sounds of the game and of any mod and may add music (pack.json menuMusic
+    /// lists the songs that join the default main menu playlist).
     /// </summary>
     public static partial class AssetPacks
     {
@@ -22,12 +23,15 @@ namespace MHK.Assets
             public bool enabled;
             /// <summary>Folder holding pack.json and Assets/ (the cache folder for a zip).</summary>
             public string folder;
+            /// <summary>Virtual paths of the pack's music that belong in the default main menu playlist (pack.json menuMusic).</summary>
+            public string[] menuMusic;
         }
 
         [Serializable]
         sealed class PackJson
         {
             public string id, title, description, author;
+            public string[] menuMusic;
         }
 
         const string PackFile = "pack.json";
@@ -141,6 +145,7 @@ namespace MHK.Assets
                 location = location,
                 folder = folder,
                 icon = LoadIcon(Path.Combine(folder, IconFile), id),
+                menuMusic = json?.menuMusic ?? Array.Empty<string>(),
             });
         }
 
