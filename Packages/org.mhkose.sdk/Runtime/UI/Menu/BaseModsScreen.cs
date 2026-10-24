@@ -10,7 +10,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Built-in mods download (BaseMods.uxml): after the graphics first run screen while built-in mods are missing, and
-    /// from the title screen. Download All installs the missing ones one after the other, then content reloads.
+    /// from the title screen. Each row downloads its mod, Download All the missing ones one after the other. Once every
+    /// mod is installed content reloads.
     /// </summary>
     public partial class BaseModsScreen : MenuScreen
     {
@@ -36,15 +37,19 @@ namespace MHK.UI
         string unavailableLine = "No downloads available yet.";
         [SerializeField, Tooltip("Download button texts: before the first try and after a failed one.")]
         string downloadAllText = "Download All", retryText = "Retry";
+        [SerializeField, Tooltip("Row button texts: before the download, after a failed one, once installed. While it downloads it shows the percent.")]
+        string rowDownloadText = "Download", rowRetryText = "Retry", rowInstalledText = "Installed";
         [SerializeField, Tooltip("Seconds between the rows' entry animations.")]
         float rowStep = 0.06f;
         [SerializeField, Tooltip("Entry animation delay of the first row, seconds.")]
         float rowFirst = 0.12f;
 
         // The download outlives the screen (Back while it runs), the next open shows its progress.
-        [AutoStaticsCleanup] static bool downloading, failed;
+        [AutoStaticsCleanup] static bool downloading;
         [AutoStaticsCleanup] static int current;
         [AutoStaticsCleanup] static readonly List<string> targets = new();
+        [AutoStaticsCleanup] static readonly HashSet<string> rowDownloads = new(StringComparer.OrdinalIgnoreCase);
+        [AutoStaticsCleanup] static readonly HashSet<string> tried = new(StringComparer.OrdinalIgnoreCase);
 
         readonly List<(string repo, VisualElement row)> rows = new();
         Button download;
@@ -61,8 +66,15 @@ namespace MHK.UI
                 var row = UiTree.Spawn<VisualElement>(rowTemplate, list);
                 if (row == null) break;
                 rows.Add((s.repo, row));
+                var repo = s.repo;
+                row.Q<Button>("base-action").clicked += () =>
+                {
+                    Click();
+                    DownloadOne(repo);
+                };
             }
             UiAnim.Stagger(list, rowStep, rowFirst, "from-left");
+            list.RegisterCallback<NavigationMoveEvent>(OnRowsNavigate);
             download = OnClick("download", DownloadAll);
             OnClick("skip", Skip);
             FocusTarget = download;
@@ -77,6 +89,28 @@ namespace MHK.UI
             ModSources.Changed -= Refresh;
             rows.Clear();
             download = null;
+        }
+
+        // Up and down go to the nearest enabled row button. Nothing above the first, below the last MenuScreen goes to the footer.
+        void OnRowsNavigate(NavigationMoveEvent e)
+        {
+            var up = e.direction == NavigationMoveEvent.Direction.Up;
+            if ((!up && e.direction != NavigationMoveEvent.Direction.Down) || e.target is not Button from) return;
+            var index = -1;
+            for (var i = 0; i < rows.Count; i++)
+                if (rows[i].row.Contains(from)) index = i;
+            for (var i = index + (up ? -1 : 1); i >= 0 && i < rows.Count; i += up ? -1 : 1)
+            {
+                var to = rows[i].row.Q<Button>("base-action");
+                if (to == null || !to.enabledSelf) continue;
+                to.Focus();
+                e.StopPropagation();
+                from.focusController?.IgnoreEvent(e);
+                return;
+            }
+            if (!up) return;
+            e.StopPropagation();
+            from.focusController?.IgnoreEvent(e);
         }
 
         static bool Needed(ModSources.Source s) => s.BaseMod && !s.installed && !ModSourceTexts.Busy(s) && Downloadable(s);
@@ -95,21 +129,56 @@ namespace MHK.UI
         {
             if (downloading) return;
             downloading = true;
-            failed = false;
             targets.Clear();
             foreach (var s in ModSources.All)
-                if (Needed(s)) targets.Add(s.repo);
+                if (Needed(s) && !rowDownloads.Contains(s.repo)) targets.Add(s.repo);
             current = 0;
             Refresh();
             foreach (var repo in targets)
             {
                 current++;
-                if (!await ModInstalls.InstallAsync(repo)) failed = true;
+                if (rowDownloads.Contains(repo) || ModSources.Find(repo) is not { installed: false }) continue;
+                tried.Add(repo);
+                await ModInstalls.InstallAsync(repo);
             }
             downloading = false;
-            if (!failed) Finish();
+            AfterDownload();
+        }
+
+        async void DownloadOne(string repo)
+        {
+            if (rowDownloads.Contains(repo) || ModSources.Find(repo) is not { } s || s.installed || ModSourceTexts.Busy(s)) return;
+            rowDownloads.Add(repo);
+            tried.Add(repo);
+            Refresh();
+            await ModInstalls.InstallAsync(repo);
+            rowDownloads.Remove(repo);
+            AfterDownload();
+        }
+
+        void AfterDownload()
+        {
+            if (!downloading && rowDownloads.Count == 0 && !MissingDownloadable()) Finish();
             else if (this != null && IsBound) Refresh();
         }
+
+        static bool MissingDownloadable()
+        {
+            foreach (var s in ModSources.All)
+                if (s.BaseMod && !s.installed && Downloadable(s)) return true;
+            return false;
+        }
+
+        // A download of a built-in mod failed (its row offers Retry, its state tooltip tells why).
+        static bool Failed(bool offlineOnly)
+        {
+            foreach (var s in ModSources.All)
+                if (s.BaseMod && FailedDownload(s) && (!offlineOnly || s.state == ModSources.State.Offline)) return true;
+            return false;
+        }
+
+        static bool FailedDownload(ModSources.Source s) =>
+            !s.installed && tried.Contains(s.repo) && s.state is ModSources.State.Offline or ModSources.State.Error;
 
         // Every missing mod installed: forget an earlier skip and load them (back at the title screen).
         static void Finish()
@@ -145,8 +214,10 @@ namespace MHK.UI
                 }
             }
             ShowTotal(needed, unavailable, bytes);
-            download.SetEnabled(!downloading && needed > 0);
-            var retry = failed && !downloading;
+            var canDownload = !downloading && needed > 0;
+            if (!canDownload && download.focusController?.focusedElement == download) FocusLater(Q<Button>("skip"));
+            download.SetEnabled(canDownload);
+            var retry = Failed(false) && !downloading;
             download.SetText("download-label", retry ? retryText : downloadAllText);
             download.Q("download-icon")?.SetIcon(retry ? "replay" : "download");
         }
@@ -166,6 +237,23 @@ namespace MHK.UI
             }
             ModSourceTexts.ShowProgress(row.Q("base-bar"), s);
             row.SetText("base-size", present ? "" : texts.Size(s.downloadBytes) ?? "");
+            ShowRowAction(row.Q<Button>("base-action"), s, present);
+        }
+
+        void ShowRowAction(Button action, ModSources.Source s, bool present)
+        {
+            var busy = !present && (ModSourceTexts.Busy(s) || rowDownloads.Contains(s.repo));
+            var retry = !busy && FailedDownload(s);
+            string text = rowDownloadText, icon = "download";
+            if (present) (text, icon) = (rowInstalledText, "check");
+            else if (busy) text = UiText.Percent(Mathf.Round(ModSourceTexts.Progress(s) * 100f));
+            else if (retry) (text, icon) = (rowRetryText, "replay");
+            action.SetText("base-action-label", text);
+            action.Q("base-action-icon")?.SetIcon(icon);
+            var enabled = !present && !busy && Downloadable(s);
+            action.tooltip = enabled || present || busy ? null : texts.StateTip(s);
+            if (!enabled && action.focusController?.focusedElement == action) FocusLater(download.enabledSelf ? download : Q<Button>("skip"));
+            action.SetEnabled(enabled);
         }
 
         void ShowTotal(int needed, int unavailable, long bytes)
@@ -180,8 +268,8 @@ namespace MHK.UI
                 (text, icon, tone) = (string.Format(progressFormat, current, targets.Count, UiText.Percent(Mathf.Round(progress * 100f))), "download", "src-accent");
                 bar.Q(className: "src-bar-fill").style.width = Length.Percent(progress * 100f);
             }
-            else if (failed && AnyOffline()) (text, icon, tone) = (offlineLine, "cloud_off", "src-bad");
-            else if (failed) (text, icon, tone) = (failedLine, "error", "src-bad");
+            else if (Failed(true)) (text, icon, tone) = (offlineLine, "cloud_off", "src-bad");
+            else if (Failed(false)) (text, icon, tone) = (failedLine, "error", "src-bad");
             else if (needed == 0 && unavailable > 0) (text, icon, tone) = (unavailableLine, "warning", "src-muted");
             else if (needed == 0) (text, icon, tone) = (doneLine, "cloud_done", "src-good");
             else
@@ -195,13 +283,6 @@ namespace MHK.UI
         }
 
         static readonly string[] Tones = { "src-muted", "src-good", "src-accent", "src-bad" };
-
-        static bool AnyOffline()
-        {
-            foreach (var repo in targets)
-                if (ModSources.Find(repo) is { state: ModSources.State.Offline }) return true;
-            return false;
-        }
 
         // Bytes of the finished and the running download over all, a mod of unknown size weighs the average. Failed ones drop out.
         static float OverallProgress()

@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One built-in mod on the first start download screen. Code sets the title, the size, the state (icon, text, colour class, tooltip) and the progress bar fill width while it downloads. -->
+    <!-- One built-in mod on the first start download screen. Code sets the title, the size, the state (icon, text, colour class, tooltip), the progress bar fill width while it downloads and base-action: Download, the percent while downloading (disabled), Retry after an error, Installed (disabled) afterwards. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="mod-row base-row">
         <ui:VisualElement class="mod-logo mod-logo-fallback src-logo i-extension" />
@@ -16,5 +16,9 @@
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:Label name="base-size" text="96 MB" class="base-size" />
+        <ui:Button name="base-action" class="mhk-button small src-action base-action">
+            <ui:VisualElement name="base-action-icon" class="icon i-download" />
+            <ui:Label name="base-action-label" text="Download" class="button-label" />
+        </ui:Button>
     </ui:VisualElement>
 </ui:UXML>
