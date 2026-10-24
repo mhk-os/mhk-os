@@ -12,12 +12,16 @@ namespace MHK.Editor.Build
 {
     /// <summary>
     /// Player builds of the release targets (CI and local). Command line: <c>-executeMethod MHK.Editor.Build.CiBuild.Build
-    /// -mhkTarget macos-arm64 -mhkOut build/macos-arm64</c> plus the <see cref="BuildStamp"/> options, exit code 0 on success.
+    /// -mhkTarget macos-arm64 -mhkOut build/macos-arm64 [-mhkLoose true|false] [-mhkExtraMods &lt;folder&gt;]</c> plus the
+    /// <see cref="BuildStamp"/> options, exit code 0 on success. Desktop: &lt;out&gt;/ holds the executable or .app and
+    /// Mods/&lt;id&gt;/ with the shipped mods, their textures and sounds loose by default.
     /// </summary>
     public static class CiBuild
     {
         public const string TargetOption = "-mhkTarget";
         public const string OutOption = "-mhkOut";
+        /// <summary>Command-line option: "false" bundles the textures and sounds of a desktop build.</summary>
+        public const string LooseOption = "-mhkLoose";
         /// <summary>File name of the player executable (and of the .app and .apk).</summary>
         public const string ExecutableName = "MoorhuhnKart";
 
@@ -56,7 +60,8 @@ namespace MHK.Editor.Build
             var ok = false;
             try
             {
-                ok = Run(CommandLine.Value(TargetOption), CommandLine.Value(OutOption));
+                ok = Run(CommandLine.Value(TargetOption), CommandLine.Value(OutOption), CommandLine.Value(LooseOption) != "false",
+                         CommandLine.Value(ShippedModsBuild.ExtraModsOption));
             }
             catch (Exception e)
             {
@@ -67,10 +72,12 @@ namespace MHK.Editor.Build
 
         /// <summary>
         /// Builds the target named <paramref name="targetName"/> into <paramref name="outFolder"/> (default Builds/&lt;target&gt;)
-        /// with the global scene list. The editor's architecture setting gets its value back afterwards. A target other than
-        /// the active one leaves the editor switched to it (Unity defers that switch past the build). True on success.
+        /// with the global scene list, desktop textures and sounds <paramref name="loose"/>, plus the built mods in
+        /// <paramref name="extraMods"/> (&lt;id&gt;/ folders). The editor's architecture setting and every project file the
+        /// build changes get their values back afterwards. A target other than the active one leaves the editor switched to
+        /// it (Unity defers that switch past the build). True on success.
         /// </summary>
-        public static bool Run(string targetName, string outFolder)
+        public static bool Run(string targetName, string outFolder, bool loose = true, string extraMods = null)
         {
             var target = Targets.FirstOrDefault(t => t.name == targetName);
             if (target.name == null)
@@ -88,10 +95,15 @@ namespace MHK.Editor.Build
             try
             {
                 if (previous != null) architecture.SetValue(null, target.architecture.Value);
+                ShippedModsBuild.Loose = loose;
+                ShippedModsBuild.ExtraMods = extraMods;
                 return BuildPlayer(target, Path.GetFullPath(string.IsNullOrEmpty(outFolder) ? Path.Combine("Builds", target.name) : outFolder));
             }
             finally
             {
+                GameAssetsBuild.Finish();
+                ShippedModsBuild.Loose = false;
+                ShippedModsBuild.ExtraMods = null;
                 if (previous != null) architecture.SetValue(null, previous);
             }
         }

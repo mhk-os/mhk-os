@@ -123,6 +123,7 @@ namespace MHK.Race
         int finishCounter;
         Vector3 defaultGravity;
         Camera raceCamera;
+        float playbackSpeed = 1f;
 
         DifficultySettings Difficulty => GameRoot.Instance.Config.GetDifficulty(Session.difficulty);
 
@@ -163,7 +164,7 @@ namespace MHK.Race
             yield return SpawnKarts();
             AttachModeRules();
             Debug.Log($"[Race] {Track.Id}: track scene {trackLoaded - loadStart:0.00} s, karts {Time.realtimeSinceStartup - trackLoaded:0.00} s.");
-            if (!IsAttract) AudioManager.PlayMusic(Track.music, Track.musicVolume);
+            if (!IsAttract) MusicPlayer.PlayTrack(Track);
 
             yield return RunIntro();
             yield return RunCountdown();
@@ -357,9 +358,29 @@ namespace MHK.Race
         {
             if (Paused == paused) return;
             Paused = paused;
-            Time.timeScale = paused ? 0f : 1f;
+            Time.timeScale = paused ? 0f : playbackSpeed;
             AudioListener.pause = paused;
             PauseChanged?.Invoke(paused);
+        }
+
+        /// <summary>
+        /// Speed the race runs at while it is not paused (the time scale): 1 = real time, 0 holds the picture. Replays
+        /// change it, a race leaves it at 1.
+        /// </summary>
+        public float PlaybackSpeed
+        {
+            get => playbackSpeed;
+            set
+            {
+                playbackSpeed = Mathf.Max(0f, value);
+                if (!Paused) Time.timeScale = playbackSpeed;
+            }
+        }
+
+        /// <summary>Replay seeking (<see cref="TimeTrialRun.Seek"/>): the race clock jumps to <paramref name="ticks"/>.</summary>
+        internal void SeekReplayTicks(int ticks)
+        {
+            if (Session.IsReplay && ClockRunning) RaceTicks = Mathf.Max(0, ticks);
         }
 
         void UpdateRanking() => ranking.Update(karts, Battle);

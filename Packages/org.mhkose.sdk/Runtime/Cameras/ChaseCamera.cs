@@ -193,9 +193,8 @@ namespace MHK.Cameras
 
         void PollViewInput()
         {
-            if (CurrentMode != Mode.Chase) return;
             var input = target is Kart k ? k.Driver as PlayerKartDriver : Viewer;
-            if (input != null && input.Camera.WasPressedThisFrame()) CycleView();
+            if (input != null && input.CameraPressed() && CurrentMode == Mode.Chase) CycleView();
         }
 
         void UpdatePose(float dt)

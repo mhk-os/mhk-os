@@ -8,54 +8,114 @@ using UnityEngine;
 namespace MHK.Modding
 {
     /// <summary>
-    /// Points the definition references of bundle-loaded content (fields of a <see cref="ContentDefinition"/> type, lists
+    /// Points the definition references of registered content (fields of a <see cref="ContentDefinition"/> type, lists
     /// and arrays of them) at the registered definition with the same id. An AssetBundle build copies content from other
-    /// packs, so a mod's reference to a core kart or track becomes the registered one, and overrides are followed.
+    /// packs, so a mod's reference to a core kart or track becomes the registered one, and replacements are followed.
     /// </summary>
     static partial class ContentReferenceResolver
     {
         [NoAutoStaticsCleanup] static readonly Dictionary<Type, FieldInfo[]> ReferenceFieldsByType = new();
+        [NoAutoStaticsCleanup] static readonly List<Change> recorded = new();
 
-        /// <summary>Rewires the references of every definition in <paramref name="pack"/>, returns how many changed.</summary>
-        public static int Resolve(ContentRegistry registry, ContentPack pack)
+        struct Change
         {
+            public ContentDefinition def;
+            public FieldInfo field;
+            public int index;
+            public ContentDefinition original;
+        }
+
+        sealed class Context
+        {
+            public ContentRegistry registry;
+            public bool shared;
+            public HashSet<string> ownPacks;
+            public List<string> dropped;
+        }
+
+        /// <summary>
+        /// Rewires the references of every definition in <paramref name="pack"/>, returns how many changed.
+        /// <paramref name="shared"/> packs outlive the mods (the game's own and project packs): their changes are recorded
+        /// for <see cref="RestoreRecorded"/>. In the other (bundle) packs a reference to another pack's content that is
+        /// not registered (its mod is disabled or missing) is a bundle stub: it is removed and its id added to <paramref name="dropped"/>.
+        /// </summary>
+        public static int Resolve(ContentRegistry registry, ContentPack pack, bool shared, List<string> dropped)
+        {
+            var ctx = new Context { registry = registry, shared = shared, ownPacks = OwnPacks(registry.RootOf(pack) ?? pack), dropped = dropped };
             var remapped = 0;
             foreach (var def in pack.content)
             {
                 if (def == null) continue;
-                foreach (var f in ReferenceFields(def.GetType())) remapped += ResolveField(registry, def, f);
+                foreach (var f in ReferenceFields(def.GetType())) remapped += ResolveField(ctx, def, f);
             }
             return remapped;
         }
 
-        static int ResolveField(ContentRegistry registry, ContentDefinition def, FieldInfo f)
+        /// <summary>Undoes every recorded change, newest first.</summary>
+        public static void RestoreRecorded()
         {
-            var remapped = 0;
+            for (var i = recorded.Count - 1; i >= 0; i--)
+            {
+                var c = recorded[i];
+                if (c.def == null) continue;
+                if (c.index < 0) c.field.SetValue(c.def, c.original);
+                else if (c.field.GetValue(c.def) is IList list && c.index < list.Count) list[c.index] = c.original;
+            }
+            recorded.Clear();
+        }
+
+        static HashSet<string> OwnPacks(ContentPack root)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in root.SelfAndIncluded()) ids.Add(p.packId);
+            return ids;
+        }
+
+        static int ResolveField(Context ctx, ContentDefinition def, FieldInfo f)
+        {
             var value = f.GetValue(def);
             if (value is ContentDefinition single)
             {
-                var resolved = Registered(registry, single);
-                if (resolved != single) remapped++;
+                var resolved = Registered(ctx, single);
+                if (resolved == single) return 0;
+                if (ctx.shared) recorded.Add(new Change { def = def, field = f, index = -1, original = single });
                 f.SetValue(def, resolved);
+                return 1;
             }
-            else if (value is IList list)
+            return value is IList list ? ResolveList(ctx, def, f, list) : 0;
+        }
+
+        // A dropped list entry is removed (a List) or left null (an array).
+        static int ResolveList(Context ctx, ContentDefinition def, FieldInfo f, IList list)
+        {
+            var remapped = 0;
+            for (var i = list.Count - 1; i >= 0; i--)
             {
-                for (var i = 0; i < list.Count; i++)
-                {
-                    if (list[i] is not ContentDefinition item) continue;
-                    var resolved = Registered(registry, item);
-                    if (resolved != item) remapped++;
-                    list[i] = resolved;
-                }
+                if (list[i] is not ContentDefinition item) continue;
+                var resolved = Registered(ctx, item);
+                if (resolved == item) continue;
+                remapped++;
+                if (ctx.shared) recorded.Add(new Change { def = def, field = f, index = i, original = item });
+                if (resolved == null && !list.IsFixedSize) list.RemoveAt(i);
+                else list[i] = resolved;
             }
             return remapped;
         }
 
-        static ContentDefinition Registered(ContentRegistry registry, ContentDefinition d)
+        static ContentDefinition Registered(Context ctx, ContentDefinition d)
         {
             if (d == null) return null;
-            var registered = registry.Get<ContentDefinition>(d.Id);
-            return registered == null || registered.GetType() != d.GetType() ? d : registered;
+            var registered = ctx.registry.Get<ContentDefinition>(d.Id);
+            if (registered != null) return registered.GetType() != d.GetType() ? d : registered;
+            if (ctx.shared || d.OwnerPack != null || ctx.ownPacks.Contains(IdPack(d.Id))) return d;
+            ctx.dropped?.Add(d.Id);
+            return null;
+        }
+
+        static string IdPack(string id)
+        {
+            var dot = id.IndexOf('.');
+            return dot > 0 ? id.Substring(0, dot) : id;
         }
 
         static FieldInfo[] ReferenceFields(Type type)

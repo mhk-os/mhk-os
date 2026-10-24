@@ -1,27 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Touch buttons (positions: id rules in MHKHud.uss, next to the speedometer and minimap offsets that depend on them). Code only wires them, add class pressed to a button to see its pressed look. -->
+    <!-- Touch controls. Code builds one TouchControlElement per control of the player's touch layout into touch (places, sizes and opacity from the layout, looks: touch-button rules in MHKHud.uss). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
-    <ui:VisualElement name="touch" picking-mode="Ignore" class="touch-root">
-        <ui:VisualElement name="steer-left" class="touch-button">
-            <ui:VisualElement picking-mode="Ignore" class="icon i-chevron_left touch-icon" />
-        </ui:VisualElement>
-        <ui:VisualElement name="steer-right" class="touch-button">
-            <ui:VisualElement picking-mode="Ignore" class="icon i-chevron_right touch-icon" />
-        </ui:VisualElement>
-        <ui:VisualElement name="gas" class="touch-button accent">
-            <ui:VisualElement picking-mode="Ignore" class="icon i-arrow_forward touch-icon up" />
-        </ui:VisualElement>
-        <ui:VisualElement name="brake" class="touch-button small">
-            <ui:VisualElement picking-mode="Ignore" class="icon i-arrow_forward touch-icon down" />
-        </ui:VisualElement>
-        <ui:VisualElement name="fire" class="touch-button accent">
-            <ui:VisualElement picking-mode="Ignore" class="icon i-bolt touch-icon" />
-        </ui:VisualElement>
-        <ui:VisualElement name="look-back" class="touch-button small">
-            <ui:VisualElement picking-mode="Ignore" class="icon i-replay touch-icon" />
-        </ui:VisualElement>
-        <ui:Button name="pause" class="mhk-button small touch-pause icon-only">
-            <ui:VisualElement picking-mode="Ignore" class="icon i-pause" />
-        </ui:Button>
-    </ui:VisualElement>
+    <ui:VisualElement name="touch" picking-mode="Ignore" class="touch-root" />
 </ui:UXML>

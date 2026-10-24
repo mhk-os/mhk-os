@@ -20,6 +20,16 @@ namespace MHK.Race
         /// </summary>
         public static IEnumerator Load(string path, System.Action<Scene> done, System.Action<float> progress = null)
         {
+            var prepare = MHK.Assets.GameAssets.PrepareSceneAsync(path, default);
+            while (!prepare.IsCompleted) yield return null;
+            try
+            {
+                prepare.GetAwaiter().GetResult();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogException(e);
+            }
             AsyncOperation op;
 #if UNITY_EDITOR
             op = MHK.Modding.ModLoader.IsBundleScene(path)

@@ -19,9 +19,7 @@ namespace MHK.UI
         public MenuShowcase showcase;
         [SerializeField, Tooltip("Menu stage that spins the showcase. Selection pages frame the turntable through it.")]
         MenuStage stage;
-        [SerializeField, Tooltip("Empty: the highest-priority content pack's menu music.")]
-        AudioClip menuMusic;
-        [SerializeField, Tooltip("Menu music volume (0-1).")]
+        [SerializeField, Tooltip("Volume (0-1) of the main menu playlist and of the Music screen's player.")]
         [Range(0f, 1f)] float menuMusicVolume = 0.6f;
         [SerializeField, Tooltip("Empty: the highest-priority content pack's UI click.")]
         AudioClip clickSound;
@@ -36,6 +34,7 @@ namespace MHK.UI
 
         public MenuScreen Current { get; private set; }
         public MenuSelection Selection { get; } = new();
+        public float MenuMusicVolume => menuMusicVolume;
 
         /// <summary>
         /// Screen type the next menu start opens on top of the title screen (Back returns to the title), cleared once
@@ -53,10 +52,8 @@ namespace MHK.UI
 
         void Start()
         {
-            var packs = Content.Packs;
-            if (menuMusic == null) menuMusic = ContentPack.Find(packs, p => p.menuMusic);
-            if (clickSound == null) clickSound = ContentPack.Find(packs, p => p.uiClick);
-            if (menuMusic != null) AudioManager.PlayMusic(menuMusic, menuMusicVolume);
+            if (clickSound == null) clickSound = ContentPack.Find(Content.Packs, p => p.uiClick);
+            MusicPlayer.PlayMenu(menuMusicVolume);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = ambientLight;
 
@@ -66,10 +63,19 @@ namespace MHK.UI
             Selection.character = last != null ? last : all.Count > 0 ? all[0] : null;
             Selection.kart = MenuSelection.LoadedDefaultKart(Selection.character);
             ShowcaseSelection();
-            Show(settings.graphicsChosen || firstRunScreen == null ? titleScreen : firstRunScreen, false);
+            var start = settings.graphicsChosen || firstRunScreen == null ? StartScreen() : firstRunScreen;
+            Show(start, false);
             var reopen = OpenOnStart;
             OpenOnStart = null;
-            if (reopen != null && settings.graphicsChosen) Show(GetComponentInChildren(reopen, true) as MenuScreen);
+            if (reopen != null && start == titleScreen) Show(GetComponentInChildren(reopen, true) as MenuScreen);
+        }
+
+        // The built-in mods download while they are missing (unless the player skipped it), else the title.
+        MenuScreen StartScreen()
+        {
+            var baseMods = Get<BaseModsScreen>();
+            var wanted = baseMods != null && ModSources.Enabled && ModSources.BaseGamesMissing && !GameRoot.Instance.Settings.baseModsSkipped;
+            return wanted ? baseMods : titleScreen;
         }
 
         /// <summary>The child screen of type <typeparamref name="T"/>.</summary>
@@ -106,6 +112,13 @@ namespace MHK.UI
             ClearHistory();
             Selection.trackFixed = false;
             Show(titleScreen, false);
+        }
+
+        /// <summary>After the first run screen: the built-in mods download while they are missing, else the title screen.</summary>
+        public void ShowStart()
+        {
+            ClearHistory();
+            Show(StartScreen(), false);
         }
 
         public void ClearHistory() => history.Clear();

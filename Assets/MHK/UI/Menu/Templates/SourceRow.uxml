@@ -1,0 +1,34 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One mod source (a GitHub repository). Code sets the title, the details line (repository | installed | latest commit), the state (icon, text, colour class src-good, src-accent, src-bad or src-muted, tooltip), the progress bar fill width while downloading, the action button (Download or Update, hidden otherwise) and the remove confirmation (src-confirm on the row shows Keep Files and Delete instead of Remove). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="mod-row src-row">
+        <ui:VisualElement name="src-logo" class="mod-logo mod-logo-fallback src-logo i-extension" />
+        <ui:VisualElement class="mod-info">
+            <ui:Label name="src-title" text="TINcan Race" class="mod-title" />
+            <ui:Label name="src-details" text="mhk-os/tincan-mod | Installed 4b69b07 | Latest 9c1d2e3" class="mod-text" />
+            <ui:VisualElement class="src-status">
+                <ui:VisualElement name="src-state" class="src-state src-accent">
+                    <ui:VisualElement class="icon i-update" />
+                    <ui:Label text="Update available" class="src-state-label" />
+                </ui:VisualElement>
+                <ui:VisualElement name="src-bar" class="src-bar" style="display: none;">
+                    <ui:VisualElement class="src-bar-fill" style="width: 40%;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Button name="src-action" class="mhk-button small src-action">
+            <ui:VisualElement class="icon i-download" />
+            <ui:Label name="src-action-label" text="Update" class="button-label" />
+        </ui:Button>
+        <ui:Button name="src-remove" tooltip="Remove" class="mhk-button small secondary icon-only mod-move src-remove">
+            <ui:VisualElement class="icon i-delete" />
+        </ui:Button>
+        <ui:Button name="src-keep" tooltip="Stops updates. The files stay installed." class="mhk-button small secondary src-confirm-button">
+            <ui:Label text="Keep Files" class="button-label" />
+        </ui:Button>
+        <ui:Button name="src-delete" tooltip="Stops updates and deletes the installed files." class="mhk-button small src-confirm-button src-delete">
+            <ui:VisualElement class="icon i-delete" />
+            <ui:Label text="Delete" class="button-label" />
+        </ui:Button>
+    </ui:VisualElement>
+</ui:UXML>

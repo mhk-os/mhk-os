@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using MHK.Core;
 using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -11,8 +10,10 @@ namespace MHK.Modding
 {
     /// <summary>
     /// Discovers content packs and registers the enabled ones in load order: the game's own packs (built-in catalog,
-    /// always on), editor project packs and <c>.mhkmod</c> AssetBundles in the dev mods folders, the user mods folder
-    /// and the build's <see cref="ShippedFolder"/> (the base content).
+    /// always on, always lowest), then editor project packs and mods (folders, zips and <c>.mhkmod</c> files in the dev
+    /// mods folders, the user mods folder and <see cref="ShippedFolder"/>) from the bottom of the load order up, so a mod
+    /// higher in the order replaces definitions with the same id. A mod built for another mod API level, or whose files
+    /// or content fail to load or register, is left out for the session (<see cref="ProblemOf"/>), the others load as usual.
     /// </summary>
     public static partial class ModLoader
     {
@@ -34,49 +35,16 @@ namespace MHK.Modding
 
         /// <summary>
         /// Editor only: extra folders with built mods (MHK ▸ Modding ▸ Dev Mods Folders), searched before the user folder
-        /// so a fresh build wins over an installed copy. Null in players. Set by the editor.
+        /// so a fresh build wins over an installed copy of the same pack. Null in players. Set by the editor.
         /// </summary>
         [NoAutoStaticsCleanup] public static Func<IEnumerable<string>> EditorModFolders { get; set; }
 
         /// <summary>
-        /// Command-line option with extra mod folders (several joined by the path separator), searched first. Like the
-        /// dev mods folders, a folder with a subfolder named after this platform (a mod build output) is searched there.
-        /// </summary>
-        public const string ModsOption = "-mods";
-
-        /// <summary>Folder for user-installed mods (shown in the Mods menu).</summary>
-        public static string UserFolder => DataPaths.Mods;
-
-        /// <summary>Mods that ship with the game (the base content), StreamingAssets/Mods of the build.</summary>
-        public static string ShippedFolder => Path.Combine(Application.streamingAssetsPath, DataPaths.ModsFolder);
-
-        /// <summary>
-        /// Every mod found by the last <see cref="LoadAll"/>, enabled or disabled, in load order (the Mods screen). The
-        /// game's own packs are not listed. A disabled bundled mod is a stand-in that only carries its metadata and logo.
+        /// Every mod found by the last <see cref="LoadAll"/>, enabled or disabled, in load order: first = highest priority
+        /// (the Mods screen). The game's own packs are not listed. A disabled, incompatible or failed bundled mod is a
+        /// stand-in that only carries its metadata and logo.
         /// </summary>
         public static IReadOnlyList<ContentPack> AvailablePacks => available;
-
-        static IEnumerable<string> SearchFolders
-        {
-            get
-            {
-                var option = CommandLine.Value(ModsOption);
-                if (!string.IsNullOrEmpty(option))
-                    foreach (var folder in option.Split(Path.PathSeparator))
-                        if (folder.Length > 0) yield return PlatformFolder(folder);
-                var editorFolders = EditorModFolders?.Invoke();
-                if (editorFolders != null)
-                    foreach (var folder in editorFolders) yield return PlatformFolder(folder);
-                yield return UserFolder;
-                yield return ShippedFolder;
-            }
-        }
-
-        static string PlatformFolder(string folder)
-        {
-            var platform = Path.Combine(folder, ModSdk.CurrentBuildTarget);
-            return Directory.Exists(platform) ? platform : folder;
-        }
 
         /// <summary>Whether <paramref name="scenePath"/> comes from a loaded mod scene bundle (load it with SceneManager, not as a project scene).</summary>
         public static bool IsBundleScene(string scenePath) => bundleScenes.Contains(scenePath);
@@ -85,36 +53,53 @@ namespace MHK.Modding
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void UnloadPreviousSession() => UnloadExternal();
 
-        /// <summary>Loads the game's own packs, then every enabled mod, into <paramref name="registry"/> in load order.</summary>
-        public static void LoadAll(ContentRegistry registry, ICollection<string> disabledPackIds = null)
+        /// <summary>
+        /// Loads the game's own packs, then every mod not in <paramref name="disabledPackIds"/> into <paramref name="registry"/>,
+        /// in the load order <paramref name="order"/> (pack ids, first = highest, see <see cref="ModOrder"/>).
+        /// </summary>
+        public static void LoadAll(ContentRegistry registry, ICollection<string> disabledPackIds = null, IReadOnlyList<string> order = null)
         {
+            ContentReferenceResolver.RestoreRecorded();
             DestroyStandIns();
             available.Clear();
-            RegisterBuiltin(registry);
+            folderOf.Clear();
+            bundleOf.Clear();
+            sceneBundleOf.Clear();
+            problems.Clear();
+            RegisterBuiltin(registry, true);
             var packs = new List<ContentPack>();
             AddProjectPacks(packs);
             var sceneBundles = new List<string>();
-            var bundleFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var external = AddExternalPacks(packs, sceneBundles, bundleFolders, disabledPackIds);
-            LoadSceneBundles(sceneBundles, bundleFolders);
-            RegisterEnabled(registry, packs, disabledPackIds);
-            foreach (var pack in external) ResolveReferences(registry, pack);
+            AddExternalPacks(packs, sceneBundles, disabledPackIds);
+            available.AddRange(ModOrder.Sort(packs, order));
+            LoadSceneBundles(sceneBundles);
+            RegisterMods(registry, disabledPackIds);
         }
 
-        /// <summary>Unloads every mod bundle and the stand-ins of disabled mods.</summary>
+        /// <summary>Unloads every mod bundle and the stand-ins of disabled mods, after restoring the references resolved into the game's own packs.</summary>
         public static void UnloadExternal()
         {
+            ContentReferenceResolver.RestoreRecorded();
             foreach (var b in loadedBundles)
                 if (b != null) b.Unload(true);
             loadedBundles.Clear();
             bundleScenes.Clear();
+            folderOf.Clear();
+            bundleOf.Clear();
+            sceneBundleOf.Clear();
             DestroyStandIns();
         }
+
+        /// <summary>
+        /// Points the definition references of the game's own and project packs back at the original definitions (the
+        /// editor calls it when play mode ends, so project assets never keep a mod's replacement).
+        /// </summary>
+        public static void RestoreResolvedReferences() => ContentReferenceResolver.RestoreRecorded();
 
         static bool IsEnabled(ContentPack p, ICollection<string> disabledPackIds) =>
             disabledPackIds == null || !disabledPackIds.Contains(p.packId);
 
-        static void RegisterBuiltin(ContentRegistry registry)
+        static void RegisterBuiltin(ContentRegistry registry, bool log)
         {
             var catalog = Resources.Load<BuiltinContentCatalog>(BuiltinCatalogResource);
             if (catalog == null)
@@ -125,7 +110,7 @@ namespace MHK.Modding
             foreach (var pack in catalog.RootPacks())
             {
                 registry.RegisterRoot(pack);
-                Debug.Log($"[Mods] Game pack '{pack.packId}' ({pack.TotalContentCount} definitions, always on).");
+                if (log) Debug.Log($"[Mods] Game pack '{pack.packId}' ({pack.TotalContentCount} definitions, always on).");
             }
         }
 
@@ -141,62 +126,87 @@ namespace MHK.Modding
             }
         }
 
-        // A disabled mod's bundle is unloaded right away: only a metadata stand-in stays for the Mods screen. A file named
-        // like a pack already loaded from a bundle is skipped, a second copy of a loaded bundle cannot load (Unity logs an
-        // error). bundleFolders gets the folder of each enabled pack's content bundle, where its scene bundle must be.
-        static List<ContentPack> AddExternalPacks(List<ContentPack> packs, List<string> sceneBundles, Dictionary<string, string> bundleFolders,
-            ICollection<string> disabledPackIds)
+        // A disabled or incompatible mod's bundle is unloaded right away: only a metadata stand-in stays for the Mods
+        // screen. A file named like a pack already loaded from a bundle is skipped, a second copy of a loaded bundle cannot
+        // load (Unity logs an error). folderOf gets the folder of each enabled pack's content bundle, where its scene bundle must be.
+        static void AddExternalPacks(List<ContentPack> packs, List<string> sceneBundles, ICollection<string> disabledPackIds)
         {
-            var enabled = new List<ContentPack>();
-            foreach (var folder in SearchFolders)
-            foreach (var file in ModFiles(folder))
+            var bundleFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in AllModFiles())
             {
                 if (file.EndsWith(SceneBundleSuffix, StringComparison.OrdinalIgnoreCase))
                 {
                     sceneBundles.Add(file);
                     continue;
                 }
-                if (bundleFolders.TryGetValue(Path.GetFileNameWithoutExtension(file), out var loadedFrom))
+                var name = Path.GetFileNameWithoutExtension(file);
+                if (bundleFolders.TryGetValue(name, out var loadedFrom))
                 {
-                    Debug.LogWarning($"[Mods] Pack '{Path.GetFileNameWithoutExtension(file)}' is already loaded from '{loadedFrom}': the copy in '{file}' is ignored.");
+                    Debug.LogWarning($"[Mods] Pack '{name}' is already loaded from '{loadedFrom}': the copy in '{file}' is ignored.");
                     continue;
                 }
-                var bundle = AssetBundle.LoadFromFile(file);
-                if (bundle == null)
-                {
-                    Debug.LogWarning($"[Mods] Mod bundle '{file}' could not be loaded (wrong platform, corrupt, or already loaded).");
-                    continue;
-                }
-                if (RegisterPacks(bundle, file, packs, enabled, bundleFolders, disabledPackIds)) loadedBundles.Add(bundle);
-                else bundle.Unload(true);
+                bundleFolders[name] = Path.GetDirectoryName(file);
+                AddBundle(file, name, packs, disabledPackIds);
             }
-            return enabled;
         }
 
-        static bool RegisterPacks(AssetBundle bundle, string file, List<ContentPack> packs, List<ContentPack> enabled,
-            Dictionary<string, string> bundleFolders, ICollection<string> disabledPackIds)
+        // A bundle that does not load is listed as a failed mod named like its file.
+        static void AddBundle(string file, string name, List<ContentPack> packs, ICollection<string> disabledPackIds)
         {
-            var keep = false;
-            foreach (var pack in TopLevelPacks(bundle, file))
+            AssetBundle bundle = null;
+            IReadOnlyList<ContentPack> found;
+            try
             {
-                if (packs.Any(p => SameId(p, pack)))
-                    Debug.LogWarning($"[Mods] Pack '{pack.packId}' is already loaded: the copy in '{file}' is ignored.");
-                else if (!IsEnabled(pack, disabledPackIds)) packs.Add(StandIn(pack));
-                else
+                bundle = LooksLikeBundle(file) ? AssetBundle.LoadFromFile(file) : null;
+                if (bundle == null) throw new ModLoadException(UnreadableFile);
+                found = TopLevelPacks(bundle, file);
+            }
+            catch (Exception e)
+            {
+                if (bundle != null) bundle.Unload(true);
+                if (packs.Any(p => string.Equals(p.packId, name, StringComparison.OrdinalIgnoreCase))) return;
+                Fail(name, file, e);
+                packs.Add(StandIn(name, name, 0));
+                return;
+            }
+            var keep = false;
+            foreach (var pack in found) keep |= AddPack(pack, bundle, file, packs, disabledPackIds);
+            if (keep) loadedBundles.Add(bundle);
+            else bundle.Unload(true);
+        }
+
+        static bool AddPack(ContentPack pack, AssetBundle bundle, string file, List<ContentPack> packs, ICollection<string> disabledPackIds)
+        {
+            if (packs.Any(p => SameId(p, pack)))
+            {
+                Debug.LogWarning($"[Mods] Pack '{pack.packId}' is already loaded: the copy in '{file}' is ignored.");
+                return false;
+            }
+            var folder = Path.GetDirectoryName(file);
+            try
+            {
+                ModSdk.LogStamp(pack, file);
+                if (!CheckBuild(pack, file) || !IsEnabled(pack, disabledPackIds))
                 {
-                    packs.Add(pack);
-                    enabled.Add(pack);
-                    bundleFolders[pack.packId] = Path.GetDirectoryName(file);
-                    ModSdk.LogStamp(pack, file);
-                    keep = true;
+                    packs.Add(StandIn(pack, folder));
+                    return false;
                 }
             }
-            return keep;
+            catch (Exception e)
+            {
+                Fail(pack.packId, file, e);
+                packs.Add(StandIn(pack.packId, pack.title, pack.loadOrder));
+                return false;
+            }
+            packs.Add(pack);
+            folderOf[pack] = folder;
+            bundleOf[pack] = bundle;
+            return true;
         }
 
         static bool SameId(ContentPack a, ContentPack b) => string.Equals(a.packId, b.packId, StringComparison.OrdinalIgnoreCase);
 
-        static IEnumerable<ContentPack> TopLevelPacks(AssetBundle bundle, string file)
+        static IReadOnlyList<ContentPack> TopLevelPacks(AssetBundle bundle, string file)
         {
             if (bundle.isStreamedSceneAssetBundle)
             {
@@ -208,20 +218,28 @@ namespace MHK.Modding
             return all.Where(p => !included.Contains(p)).ToList();
         }
 
-        static ContentPack StandIn(ContentPack pack)
+        static ContentPack StandIn(ContentPack pack, string folder)
         {
-            var s = ScriptableObject.CreateInstance<ContentPack>();
+            var s = StandIn(pack.packId, pack.title, pack.loadOrder);
             s.name = pack.name;
-            s.hideFlags = HideFlags.DontUnloadUnusedAsset;
-            s.packId = pack.packId;
-            s.title = pack.title;
             s.author = pack.author;
             s.version = pack.version;
             s.description = pack.description;
-            s.loadOrder = pack.loadOrder;
+            MHK.Assets.GameAssets.ApplyNow(pack.logo, pack.assetIndex, folder);
             s.logo = CopyTexture(pack.logo);
-            standIns.Add(s);
             if (s.logo != null) standIns.Add(s.logo);
+            return s;
+        }
+
+        static ContentPack StandIn(string packId, string title, int loadOrder)
+        {
+            var s = ScriptableObject.CreateInstance<ContentPack>();
+            s.name = packId;
+            s.hideFlags = HideFlags.DontUnloadUnusedAsset;
+            s.packId = packId;
+            s.title = string.IsNullOrEmpty(title) ? packId : title;
+            s.loadOrder = loadOrder;
+            standIns.Add(s);
             return s;
         }
 
@@ -251,86 +269,47 @@ namespace MHK.Modding
             standIns.Clear();
         }
 
-        // Scene bundles of enabled mods stay loaded so the race can load their scenes by path.
-        static void LoadSceneBundles(List<string> files, Dictionary<string, string> bundleFolders)
+        // Scene bundles of enabled mods stay loaded so the race can load their scenes by path. They load from the top of
+        // the load order down: a scene path a higher mod already provides is left to it. A mod whose scene bundle fails is dropped.
+        static void LoadSceneBundles(List<string> files)
         {
-            foreach (var file in files)
+            for (var i = 0; i < available.Count; i++)
             {
-                var id = Path.GetFileName(file);
-                id = id.Substring(0, id.Length - SceneBundleSuffix.Length);
-                if (!bundleFolders.TryGetValue(id, out var folder) || Path.GetDirectoryName(file) != folder) continue;
-                var bundle = AssetBundle.LoadFromFile(file);
-                if (bundle == null)
+                var pack = available[i];
+                if (!folderOf.TryGetValue(pack, out var folder)) continue;
+                var file = files.Find(f => Path.GetDirectoryName(f) == folder &&
+                                           string.Equals(Path.GetFileName(f), pack.packId + SceneBundleSuffix, StringComparison.OrdinalIgnoreCase));
+                if (file == null) continue;
+                try
                 {
-                    Debug.LogWarning($"[Mods] Scene bundle '{file}' could not be loaded (wrong platform, corrupt, or already loaded).");
-                    continue;
+                    LoadSceneBundle(file, pack);
                 }
-                loadedBundles.Add(bundle);
-                bundleScenes.UnionWith(bundle.GetAllScenePaths());
-            }
-        }
-
-        static void RegisterEnabled(ContentRegistry registry, List<ContentPack> packs, ICollection<string> disabledPackIds)
-        {
-            foreach (var pack in packs.OrderBy(p => p.loadOrder))
-            {
-                available.Add(pack);
-                if (!IsEnabled(pack, disabledPackIds))
+                catch (Exception e)
                 {
-                    Debug.Log($"[Mods] Pack '{pack.packId}' disabled by settings.");
-                    continue;
+                    Fail(pack.packId, file, e);
+                    Drop(pack);
                 }
-                registry.RegisterRoot(pack);
-                var commit = string.IsNullOrEmpty(pack.version) ? "" : $" (commit {pack.version})";
-                Debug.Log($"[Mods] Loaded pack '{pack.packId}'{commit}, load order {pack.loadOrder} ({pack.TotalContentCount} definitions" +
-                          (pack.includes.Count > 0 ? $" in {pack.SelfAndIncluded().Count()} packs" : "") + ").");
             }
         }
 
-        static void ResolveReferences(ContentRegistry registry, ContentPack root)
+        static void LoadSceneBundle(string file, ContentPack pack)
         {
-            foreach (var p in root.SelfAndIncluded())
+            var bundle = LooksLikeBundle(file) ? AssetBundle.LoadFromFile(file) : null;
+            if (bundle == null) throw new ModLoadException(UnreadableSceneFile);
+            var paths = bundle.GetAllScenePaths();
+            var shadowed = paths.Count(bundleScenes.Contains);
+            if (shadowed > 0 && shadowed == paths.Length)
             {
-                var remapped = ContentReferenceResolver.Resolve(registry, p);
-                if (remapped > 0) Debug.Log($"[Mods] '{p.packId}': {remapped} references to other packs' content resolved by id.");
+                Debug.Log($"[Mods] Every scene of '{pack.packId}' comes from a mod higher in the load order: its scene bundle is not used.");
+                bundle.Unload(true);
+                return;
             }
+            if (shadowed > 0)
+                Debug.LogWarning($"[Mods] '{pack.packId}' has {shadowed} scenes with the same path as a mod higher in the load order. " +
+                                 "Give a replacing track its own scene path.");
+            loadedBundles.Add(bundle);
+            sceneBundleOf[pack] = bundle;
+            bundleScenes.UnionWith(paths);
         }
-
-        static IEnumerable<string> ModFiles(string folder)
-        {
-#if UNITY_ANDROID && !UNITY_EDITOR
-            if (folder == ShippedFolder) return ApkModFiles(folder);
-#endif
-            try
-            {
-                return Directory.Exists(folder)
-                    ? Directory.GetFiles(folder, "*" + ModFileExtension, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).ToArray()
-                    : Array.Empty<string>();
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[Mods] Cannot scan '{folder}': {e.Message}");
-                return Array.Empty<string>();
-            }
-        }
-
-#if UNITY_ANDROID && !UNITY_EDITOR
-        // StreamingAssets live inside the APK (or an install-time asset pack): the asset manager lists them.
-        static IEnumerable<string> ApkModFiles(string folder)
-        {
-            try
-            {
-                using var assets = UnityEngine.Android.AndroidApplication.currentContext.Call<AndroidJavaObject>("getAssets");
-                var names = assets.Call<string[]>("list", DataPaths.ModsFolder) ?? Array.Empty<string>();
-                return names.Where(n => n.EndsWith(ModFileExtension, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(n => n, StringComparer.Ordinal).Select(n => folder + "/" + n).ToArray();
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[Mods] Cannot list '{folder}': {e.Message}");
-                return Array.Empty<string>();
-            }
-        }
-#endif
     }
 }

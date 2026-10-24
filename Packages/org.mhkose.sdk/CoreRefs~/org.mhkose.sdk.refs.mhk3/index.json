@@ -1,0 +1,291 @@
+{
+    "packs": [
+        {
+            "packId": "mhk3",
+            "root": "mhk3",
+            "builtin": false
+        }
+    ],
+    "definitions": [
+        {
+            "id": "mhk3.affe",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk3",
+            "guid": "4c23a8112aca94d369c443ba67068593",
+            "fileId": 11400000,
+            "displayName": "Monkey"
+        },
+        {
+            "id": "mhk3.alien",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk3",
+            "guid": "9765a9a276e8b49c3b587b4bb1a09b11",
+            "fileId": 11400000,
+            "displayName": "Alien"
+        },
+        {
+            "id": "mhk3.tod",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk3",
+            "guid": "4212362faf76d4830b1c872b3892f89b",
+            "fileId": 11400000,
+            "displayName": "Death"
+        },
+        {
+            "id": "mhk3.stone_age",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk3",
+            "guid": "35d86e91615cf4d75adb76a23371094a",
+            "fileId": 11400000,
+            "displayName": "Stone Age"
+        },
+        {
+            "id": "mhk3.pirate_island",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk3",
+            "guid": "cf705c7aa3cf04f2e889e3fe066a86ef",
+            "fileId": 11400000,
+            "displayName": "Pirate Isle"
+        },
+        {
+            "id": "mhk3.rome",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk3",
+            "guid": "a13b7c04a6c124ec3b574874e18bf609",
+            "fileId": 11400000,
+            "displayName": "Rome"
+        },
+        {
+            "id": "mhk3.robin_hood",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk3",
+            "guid": "e1a2e707ceff0430aa947977759d17be",
+            "fileId": 11400000,
+            "displayName": "Robin Hood"
+        },
+        {
+            "id": "mhk3.egypt",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk3",
+            "guid": "808ade2517aff4df2a141fd34998400e",
+            "fileId": 11400000,
+            "displayName": "Egypt"
+        },
+        {
+            "id": "mhk3.wild_west",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk3",
+            "guid": "9ea71a67de5524c8298fc14acff9f372",
+            "fileId": 11400000,
+            "displayName": "Wild West"
+        },
+        {
+            "id": "mhk3.ufo",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk3",
+            "guid": "f5bf4274932044a379294b97e7c249fe",
+            "fileId": 11400000,
+            "displayName": "UFO"
+        },
+        {
+            "id": "mhk3.shimalaya",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk3",
+            "guid": "ac9debdd00d64490e9cf2791edcecc25",
+            "fileId": 11400000,
+            "displayName": "Shlimalaya"
+        },
+        {
+            "id": "mhk3.hit.frozen",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "ac4fd5f2df052409790ae87035aed144",
+            "fileId": 11400000,
+            "displayName": "Frozen"
+        },
+        {
+            "id": "mhk3.hit.shrunk",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "cf677dbe6c5f74d9483fd9408a06d057",
+            "fileId": 11400000,
+            "displayName": "Shrunk"
+        },
+        {
+            "id": "mhk3.hit.mine",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "59865265e4ec2490c9e29e8f8a0260fc",
+            "fileId": 11400000,
+            "displayName": "Mine"
+        },
+        {
+            "id": "mhk3.hit.soap",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "ffff96483e8d04e19bc29bd54d53caad",
+            "fileId": 11400000,
+            "displayName": "Soaped"
+        },
+        {
+            "id": "mhk3.hit.flash",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "af384ac87564945888c6c329397ced0d",
+            "fileId": 11400000,
+            "displayName": "Bang-flash"
+        },
+        {
+            "id": "mhk3.hit.magnet",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "d32555c9971a146a1aebf9f41486fbe6",
+            "fileId": 11400000,
+            "displayName": "Caught by a magnet"
+        },
+        {
+            "id": "mhk3.froster",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk3",
+            "guid": "e1ebe9494ecac4cfcbafc9bbda1905e9",
+            "fileId": 11400000,
+            "displayName": "Froster"
+        },
+        {
+            "id": "mhk3.shrinker",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk3",
+            "guid": "6d6e29263f9874084860cdfd881dcdbe",
+            "fileId": 11400000,
+            "displayName": "Shrinker"
+        },
+        {
+            "id": "mhk3.mine",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk3",
+            "guid": "1f5669871d3b7465fb66699dc6776017",
+            "fileId": 11400000,
+            "displayName": "Mine"
+        },
+        {
+            "id": "mhk3.soap_cannon",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk3",
+            "guid": "391497c00b38440a3a8ff5be508d030d",
+            "fileId": 11400000,
+            "displayName": "Soap Cannon"
+        },
+        {
+            "id": "mhk3.flash",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk3",
+            "guid": "a73558c07627a4846848943ea25e33ca",
+            "fileId": 11400000,
+            "displayName": "Bang-Flash"
+        },
+        {
+            "id": "mhk3.magnet",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk3",
+            "guid": "52843293e9a634bbd8d5079162a6a18b",
+            "fileId": 11400000,
+            "displayName": "Magnet"
+        },
+        {
+            "id": "mhk3.cup1",
+            "type": "MHK.Modding.CupDefinition",
+            "pack": "mhk3",
+            "guid": "22a621a785fa94439be389c1efe7da30",
+            "fileId": 11400000,
+            "displayName": "Championship 1"
+        },
+        {
+            "id": "mhk3.cup2",
+            "type": "MHK.Modding.CupDefinition",
+            "pack": "mhk3",
+            "guid": "f80c005bff7f8493e93c1b38847e7827",
+            "fileId": 11400000,
+            "displayName": "Championship 2"
+        },
+        {
+            "id": "mhk3.buff.speed_pad",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "4ac344cc93b1a45b7a623f4de0e0aa67",
+            "fileId": 11400000,
+            "displayName": "Speed pad"
+        },
+        {
+            "id": "mhk3.hit.crushed",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "d82ac07d2446b4024a6c06b000241788",
+            "fileId": 11400000,
+            "displayName": "Crushed"
+        },
+        {
+            "id": "mhk3.kart1",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk3",
+            "guid": "b78d319a9167a4349b485646d6408b2c",
+            "fileId": 11400000,
+            "displayName": "Red Kart"
+        },
+        {
+            "id": "mhk3.kart2",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk3",
+            "guid": "146a2271b329645e5be772f4a1f977d0",
+            "fileId": 11400000,
+            "displayName": "Blue Kart"
+        },
+        {
+            "id": "mhk3.kart3",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk3",
+            "guid": "02e7385a872df408a9ae8110b1ae697c",
+            "fileId": 11400000,
+            "displayName": "Black Kart"
+        },
+        {
+            "id": "mhk3.kart4",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk3",
+            "guid": "fcd64405c115e4c33b7662886311594b",
+            "fileId": 11400000,
+            "displayName": "Yellow Kart"
+        },
+        {
+            "id": "mhk3.kart",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk3",
+            "guid": "520735d912a77484d8ecc87abc474236",
+            "fileId": 11400000,
+            "displayName": "Green Kart"
+        },
+        {
+            "id": "mhk3.kart6",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk3",
+            "guid": "de03ca819b9fa43f3baed9f3ee9d14a8",
+            "fileId": 11400000,
+            "displayName": "Purple Kart"
+        },
+        {
+            "id": "mhk3.kart7",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk3",
+            "guid": "0b3644401e5ab4c09a3a8a4c01d88a9c",
+            "fileId": 11400000,
+            "displayName": "Orange Kart"
+        },
+        {
+            "id": "mhk3.kart8",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk3",
+            "guid": "82699a9f29abd486489b25ebd0bc9709",
+            "fileId": 11400000,
+            "displayName": "Light Blue Kart"
+        }
+    ]
+}

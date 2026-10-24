@@ -77,7 +77,7 @@ namespace MHK.Karts
         {
             ResolveFallbackClips();
             var clip = kart.KartDef != null && kart.KartDef.engineLoop != null ? kart.KartDef.engineLoop : defaultEngineLoop;
-            engine.clip = clip;
+            engine.clip = MHK.Assets.GameAssets.Audio(clip);
             if (clip != null) engine.Play();
             kart.Collided += OnCollided;
             kart.Effects.Started += OnEffectStarted;
@@ -180,9 +180,10 @@ namespace MHK.Karts
                 if (source.isPlaying) source.Stop();
                 return;
             }
-            if (source.clip != clip)
+            var play = MHK.Assets.GameAssets.Audio(clip);
+            if (source.clip != play)
             {
-                source.clip = clip;
+                source.clip = play;
                 source.Play();
             }
             else if (!source.isPlaying) source.Play();

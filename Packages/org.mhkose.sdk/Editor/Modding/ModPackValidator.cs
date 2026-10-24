@@ -52,14 +52,16 @@ namespace MHK.Editor.Modding
         {
             if (def == null)
             {
-                Debug.LogWarning($"[Mods] '{pack.packId}': empty entry in the content list.", pack);
-                return true;
+                Debug.LogError($"[Mods] '{pack.packId}': empty entry in the content list. Remove it: the game does not load a mod with an empty " +
+                               "entry (it looks like content whose script is missing).", pack);
+                return false;
             }
             if (!def.Id.StartsWith(pack.packId + ".") && !otherIds.Contains(def.Id))
                 Debug.LogWarning($"[Mods] '{def.Id}' ({AssetDatabase.GetAssetPath(def)}) is not namespaced '{pack.packId}.<name>': ids are global, " +
                                  "so it may collide with other mods. Reuse a base content id only to override that content on purpose.", def);
             else if (otherIds.Contains(def.Id))
-                Debug.Log($"[Mods] '{pack.packId}' overrides '{def.Id}' of the game or the base content (give the mod a higher loadOrder).", def);
+                Debug.Log($"[Mods] '{pack.packId}' replaces '{def.Id}' of the game or the base content while it is higher in the load order " +
+                          "(a higher loadOrder places it higher by default).", def);
             if (def is not TrackDefinition t || t.scene.IsSet) return true;
             Debug.LogError($"[Mods] Track '{t.Id}' has no scene.", t);
             return false;

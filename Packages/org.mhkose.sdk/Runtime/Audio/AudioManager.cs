@@ -1,3 +1,4 @@
+using MHK.Assets;
 using MHK.Core;
 using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
@@ -6,8 +7,8 @@ using UnityEngine.Audio;
 namespace MHK.Audio
 {
     /// <summary>
-    /// Plays music, pooled 3D one-shots and 2D UI sounds, and applies the volume settings to the audio mix. Lives on the
-    /// GameRoot object.
+    /// Plays pooled 3D one-shots and 2D UI sounds and applies the volume settings to the audio mix (music:
+    /// <see cref="MusicPlayer"/>). Lives on the GameRoot object.
     /// </summary>
     public partial class AudioManager : MonoBehaviour
     {
@@ -17,8 +18,6 @@ namespace MHK.Audio
 
         [AutoStaticsCleanup] static AudioManager instance;
         [AutoStaticsCleanup] static bool worldMuted;
-        AudioSource music;
-        float musicClipVolume = 1f;
         AudioSource ui;
         AudioSource[] pool;
         int next;
@@ -40,8 +39,6 @@ namespace MHK.Audio
         void Awake()
         {
             instance = this;
-            music = AudioSources.Create2D(gameObject, true);
-            music.ignoreListenerVolume = true;
             ui = AudioSources.Create2D(gameObject, false);
             ui.ignoreListenerVolume = true;
             CreateSfxPool();
@@ -56,26 +53,6 @@ namespace MHK.Audio
                 go.transform.SetParent(transform);
                 pool[i] = AudioSources.Create3D(go, false, SfxMinDistance, SfxMaxDistance);
             }
-        }
-
-        /// <summary>
-        /// Plays <paramref name="clip"/> as looping music at <paramref name="volume"/> (the track's or menu's own level,
-        /// × the music mix and settings). Null stops the music.
-        /// </summary>
-        public static void PlayMusic(AudioClip clip, float volume = 0.7f)
-        {
-            var inst = Instance;
-            var m = inst.music;
-            if (clip == null)
-            {
-                m.Stop();
-                return;
-            }
-            inst.musicClipVolume = volume;
-            inst.ApplyMusicVolume();
-            if (m.clip == clip && m.isPlaying) return;
-            m.clip = clip;
-            m.Play();
         }
 
         /// <summary>
@@ -99,7 +76,7 @@ namespace MHK.Audio
                 s.minDistance = SfxMinDistance;
                 s.maxDistance = SfxMaxDistance;
             }
-            s.resource = sound;
+            s.resource = sound is AudioClip clip ? GameAssets.Audio(clip) : sound;
             s.Play();
         }
 
@@ -107,7 +84,7 @@ namespace MHK.Audio
         public static void PlayUi(AudioClip clip, float volume = 1f)
         {
             if (clip == null) return;
-            Instance.ui.PlayOneShot(clip, volume);
+            Instance.ui.PlayOneShot(GameAssets.Audio(clip), volume);
         }
 
         /// <summary>
@@ -130,7 +107,7 @@ namespace MHK.Audio
         /// Applies the volume settings and <see cref="GameConfig"/> mix gains live. Every sound effect plays through
         /// AudioListener.volume (master × sfx gain × effects setting, 0 while <see cref="WorldMuted"/>), so any
         /// AudioSource follows the effects slider without code. UI sounds get the same level on their own source. The
-        /// music ignores the listener volume and gets master × music gain × music setting × its own clip volume instead.
+        /// <see cref="MusicPlayer"/> ignores the listener volume and applies master × music gain × music setting itself.
         /// Called by <see cref="GameRoot.ApplySettings"/>.
         /// </summary>
         public static void RefreshVolumes()
@@ -140,18 +117,12 @@ namespace MHK.Audio
             AudioListener.volume = worldMuted ? 0f : sfx;
             var inst = Instance;
             inst.ui.volume = sfx;
-            inst.ApplyMusicVolume();
+            MusicPlayer.RefreshVolume();
         }
 
         void StopPool()
         {
             foreach (var s in pool) s.Stop();
-        }
-
-        void ApplyMusicVolume()
-        {
-            var root = GameRoot.Instance;
-            music.volume = Mathf.Clamp01(musicClipVolume * root.Config.musicMixGain * root.Settings.musicVolume * root.Settings.masterVolume);
         }
     }
 }

@@ -21,13 +21,37 @@ namespace MHK.Core
         public float masterVolume = 1f;
         public float musicVolume = 0.7f;
         public float sfxVolume = 1f;
+        [Tooltip("Main menu playlist (Music screen): virtual music paths in play order. Empty = every pack's menu music.")]
+        public List<string> menuMusic = new();
+        [Tooltip("The main menu playlist plays in random order (a new order each round).")]
+        public bool menuMusicShuffle = true;
+        [Tooltip("Track playlists (Music screen), one per track that has its own. A track without one plays its own music.")]
+        public List<TrackMusic> trackMusic = new();
         public TouchControlsMode touchControls = TouchControlsMode.Auto;
+        [Tooltip("Places, sizes and opacity of the on-screen touch controls (Touch Layout screen).")]
+        public TouchLayoutSettings touchLayout = new();
         public GraphicsOptions graphics = new();
         [Tooltip("False until the player confirmed the first-run graphics screen.")]
         public bool graphicsChosen;
+        [Tooltip("The player continued without the built-in mods on the download screen. The title screen then offers the download.")]
+        public bool baseModsSkipped;
         [Tooltip("Race minimap size: 0 = hidden, 1 = default, up to MaxMinimapScale.")]
         public float minimapScale = 1f;
         public List<string> disabledPacks = new();
+        [Tooltip("Mod load order set in the Mods screen: pack ids, first = highest priority (its content replaces the same ids " +
+                 "of the mods below). Mods not listed are placed by their ContentPack.loadOrder.")]
+        public List<string> modOrder = new();
+        [Tooltip("Asset pack order set in the Mods screen: asset pack ids, first = highest priority (its files win). Packs " +
+                 "not listed come after the listed ones.")]
+        public List<string> assetPackOrder = new();
+        [Tooltip("Asset pack ids switched off in the Mods screen.")]
+        public List<string> disabledAssetPacks = new();
+        [Tooltip("Mod sources the player added in the Mods screen (GitHub repositories, owner/name), listed after the built-in ones.")]
+        public List<string> modSources = new();
+        [Tooltip("Built-in mod sources the player removed in the Mods screen: they stay removed until added again.")]
+        public List<string> removedModSources = new();
+        [Tooltip("Install compatible updates of mods from mod sources automatically at game start.")]
+        public bool autoUpdateMods = true;
         public string lastCharacterId;
         [Tooltip("Race camera view. The Camera key (minus) cycles it in races.")]
         public CameraMode cameraMode = CameraMode.Close;

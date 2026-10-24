@@ -24,6 +24,8 @@ namespace MHK.UI
         PauseMenu pause;
         [SerializeField, Tooltip("Results screen (child GameObject), opened when the results are ready.")]
         RaceResults results;
+        [SerializeField, Tooltip("Replay controls (child GameObject), open while a time-trial replay runs (from GO to the results).")]
+        ReplayControls replay;
 
         [Header("Messages")]
         [SerializeField, Tooltip("Flash when the player finishes a race ({0} = position, e.g. 2nd).")]
@@ -134,11 +136,15 @@ namespace MHK.UI
             // Layers left enabled in the scene (to preview them) start closed. The race events open them.
             SetLayer(touch, false);
             SetLayer(pause, false);
+            SetLayer(replay, false);
             SetLayer(touch, touchActive && !resultsShown);
             SetLayer(pause, race.Paused);
+            SetLayer(replay, ReplayRunning);
             SetLayer(results, false);
             SetLayer(results, resultsShown);
         }
+
+        bool ReplayRunning => !resultsShown && race.ClockRunning && race.Session != null && race.Session.IsReplay;
 
         protected override void Unbind()
         {
@@ -199,6 +205,7 @@ namespace MHK.UI
         {
             resultsShown = true;
             SetLayer(touch, false);
+            SetLayer(replay, false);
             hud.SetVisible(false);
             messages.StopPulse();
             if (results != null && results.gameObject.activeSelf) results.Rebuild();
@@ -220,6 +227,7 @@ namespace MHK.UI
             if (!IsBound || hud.panel == null) return;
             // Opened after the countdown started (live reload): no countdown event will slide the widgets in.
             if (!widgetsShown && race.Phase is not (RacePhase.Loading or RacePhase.Intro)) ShowWidgets();
+            if (replay != null && !replay.gameObject.activeSelf && ReplayRunning) SetLayer(replay, true);
             minimap.Tick(GameRoot.Instance.Settings.minimapScale);
             player = race.LocalPlayer;
             var dt = Time.unscaledDeltaTime;

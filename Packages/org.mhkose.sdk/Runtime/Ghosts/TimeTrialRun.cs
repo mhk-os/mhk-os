@@ -132,8 +132,27 @@ namespace MHK.Ghosts
         void UpdateReplayCamera()
         {
             var camera = race.ChaseCamera;
-            if (Spectated != null && Spectated.Finished && camera != null && camera.CurrentMode == ChaseCamera.Mode.Chase)
-                camera.CurrentMode = ChaseCamera.Mode.Finished;
+            if (Spectated == null || camera == null) return;
+            if (Spectated.Finished && camera.CurrentMode == ChaseCamera.Mode.Chase) camera.CurrentMode = ChaseCamera.Mode.Finished;
+            else if (!Spectated.Finished && camera.CurrentMode == ChaseCamera.Mode.Finished) camera.CurrentMode = ChaseCamera.Mode.Chase;
+        }
+
+        /// <summary>Recorded length of the watched ghost's run (s from GO), 0 outside replays.</summary>
+        public float ReplayLength => Spectated != null ? Spectated.Data.Duration : 0f;
+
+        /// <summary>
+        /// Replays only, from GO: jumps the race clock to <paramref name="seconds"/> (clamped to the recording) and
+        /// shows the watched ghost and the camera as they are at that time.
+        /// </summary>
+        public void Seek(float seconds)
+        {
+            if (!IsReplay || Spectated == null || !race.ClockRunning) return;
+            var dt = (double)Time.fixedDeltaTime;
+            var share = race.RenderSeconds / dt - race.RaceTicks;
+            race.SeekReplayTicks((int)Math.Round(Mathf.Clamp(seconds, 0f, ReplayLength) / dt - share));
+            Spectated.Resync(race.RenderSeconds);
+            UpdateReplayCamera();
+            if (race.ChaseCamera != null) race.ChaseCamera.SnapToTarget();
         }
 
         void CheckSplit(Kart player)

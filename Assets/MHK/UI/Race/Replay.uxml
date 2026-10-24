@@ -1,0 +1,39 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Replay controls (ReplayControls). Code replaces the sample speed chips and lap marks, moves fill and knob, swaps the play icon (i-pause while playing), adds pressed to slow while it is held and .replay-hidden to bar after a few seconds without input. Touch layout: class touch on replay (no camera button, the touch controls have one). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement name="replay" picking-mode="Ignore" class="replay-root">
+        <ui:VisualElement name="bar" class="panel replay-bar">
+            <ui:VisualElement picking-mode="Ignore" class="row replay-seek-row">
+                <ui:Label name="elapsed" text="00:42" picking-mode="Ignore" class="replay-time" />
+                <ui:VisualElement name="seek" tooltip="Replay time" class="replay-seek">
+                    <ui:VisualElement picking-mode="Ignore" class="replay-seek-track">
+                        <ui:VisualElement name="seek-fill" picking-mode="Ignore" class="replay-seek-fill" style="width: 45%;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="seek-marks" picking-mode="Ignore" class="replay-seek-marks">
+                        <ui:VisualElement picking-mode="Ignore" class="replay-seek-mark" style="left: 32%;" />
+                        <ui:VisualElement picking-mode="Ignore" class="replay-seek-mark" style="left: 63%;" />
+                        <ui:VisualElement picking-mode="Ignore" class="replay-seek-mark" style="left: 94%;" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="seek-knob" picking-mode="Ignore" class="replay-seek-knob" style="left: 45%;" />
+                </ui:VisualElement>
+                <ui:Label name="total" text="01:27" picking-mode="Ignore" class="replay-time" />
+            </ui:VisualElement>
+            <ui:VisualElement picking-mode="Ignore" class="row replay-buttons">
+                <ui:Button name="play" tooltip="Play | Pause" focusable="false" class="mhk-button small icon-only replay-button">
+                    <ui:VisualElement name="play-icon" picking-mode="Ignore" class="icon i-pause" />
+                </ui:Button>
+                <ui:VisualElement name="speeds" tooltip="Playback speed" class="tabs replay-speeds">
+                    <ui:Button text="0.25x" focusable="false" class="chip replay-speed" />
+                    <ui:Button text="1x" focusable="false" class="chip replay-speed selected" />
+                    <ui:Button text="4x" focusable="false" class="chip replay-speed" />
+                </ui:VisualElement>
+                <ui:VisualElement name="slow" tooltip="Slow motion while held" class="mhk-button small icon-only replay-button replay-slow">
+                    <ui:VisualElement picking-mode="Ignore" class="icon i-slow_motion_video" />
+                </ui:VisualElement>
+                <ui:Button name="camera" tooltip="Camera view" focusable="false" class="mhk-button small icon-only replay-button replay-camera">
+                    <ui:VisualElement picking-mode="Ignore" class="icon i-videocam" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

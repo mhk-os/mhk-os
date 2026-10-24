@@ -1,0 +1,113 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Music. Code fills song-list with the library: a music-group label per game, then one SongRow per song. The playlist side edits the main menu playlist or, on the Tracks tab (playlist-tabs, one Chip each), the playlist of the track picked in track-list (one TrackCard each, .selected on the picked one): playlist-title, the shuffle toggle (.selected while on), reset (back to the default playlist) and one SongRow per song in playlist-list. The player bar shows the song that plays (now-title, now-game), its position and length around the seek slider, and previous, play or pause, next. Preview class on page: preview-tracks (Tracks tab: the track strip shows). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="SongRow" src="/Assets/MHK/UI/Menu/Templates/SongRow.uxml" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="TrackCard" src="/Assets/MHK/UI/Menu/Templates/TrackCard.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Music" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide music-main anim from-left">
+                <ui:VisualElement class="music-browser">
+                    <ui:VisualElement name="library-panel" class="panel music-library">
+                        <ui:Label text="Library" class="music-section-title" />
+                        <ui:ScrollView name="song-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                            <ui:VisualElement name="song-list" class="song-list-library">
+                                <ui:Label text="Moorhuhn Kart 2" class="music-group" />
+                                <ui:Instance template="SongRow" class="sample-current">
+                                    <ui:AttributeOverrides element-name="song-title" text="Mhk2title" />
+                                    <ui:AttributeOverrides element-name="song-length" text="03:05" />
+                                </ui:Instance>
+                                <ui:Instance template="SongRow" class="sample-alt" />
+                                <ui:Instance template="SongRow">
+                                    <ui:AttributeOverrides element-name="song-title" text="Mhk2 Winter Music" />
+                                    <ui:AttributeOverrides element-name="song-length" text="02:12" />
+                                </ui:Instance>
+                                <ui:Label text="Moorhuhn Kart 3" class="music-group" />
+                                <ui:Instance template="SongRow">
+                                    <ui:AttributeOverrides element-name="song-title" text="Mhk3 Menu" />
+                                    <ui:AttributeOverrides element-name="song-length" text="01:58" />
+                                </ui:Instance>
+                                <ui:Instance template="SongRow" class="sample-alt">
+                                    <ui:AttributeOverrides element-name="song-title" text="Mhk3 Rome Music" />
+                                    <ui:AttributeOverrides element-name="song-length" text="02:47" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:Label name="song-empty" text="No music found." class="music-empty" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="playlist-panel" class="panel music-playlists">
+                        <ui:VisualElement name="playlist-tabs" class="tabs music-tabs">
+                            <ui:Instance template="Chip" class="sample-selected">
+                                <ui:AttributeOverrides element-name="chip" text="Main Menu" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="Tracks" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                        <ui:ScrollView name="track-scroll" mode="Horizontal" vertical-scroller-visibility="Hidden" class="music-track-scroll">
+                            <ui:VisualElement name="track-list" class="music-track-list">
+                                <ui:Instance template="TrackCard" class="sample-selected" />
+                                <ui:Instance template="TrackCard" />
+                                <ui:Instance template="TrackCard" />
+                                <ui:Instance template="TrackCard" />
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:VisualElement class="row music-playlist-head">
+                            <ui:Label name="playlist-title" text="Main Menu" class="music-section-title music-playlist-title" />
+                            <ui:Button name="shuffle" tooltip="Shuffle" class="mhk-button small secondary icon-only selected">
+                                <ui:VisualElement class="icon i-shuffle" />
+                            </ui:Button>
+                            <ui:Button name="reset" tooltip="Default playlist" class="mhk-button small secondary icon-only">
+                                <ui:VisualElement class="icon i-restart_alt" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:ScrollView name="playlist-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                            <ui:VisualElement name="playlist-list" class="song-list-playlist">
+                                <ui:Instance template="SongRow" class="sample-current">
+                                    <ui:AttributeOverrides element-name="song-title" text="Mhk2title" />
+                                    <ui:AttributeOverrides element-name="song-length" text="03:05" />
+                                </ui:Instance>
+                                <ui:Instance template="SongRow" class="sample-alt">
+                                    <ui:AttributeOverrides element-name="song-title" text="Mhk3 Menu" />
+                                    <ui:AttributeOverrides element-name="song-game" text="Moorhuhn Kart 3" />
+                                    <ui:AttributeOverrides element-name="song-length" text="01:58" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="player" class="panel row music-player">
+                    <ui:Button name="previous" tooltip="Previous" class="mhk-button small secondary icon-only">
+                        <ui:VisualElement class="icon i-skip_previous" />
+                    </ui:Button>
+                    <ui:Button name="play-pause" tooltip="Pause" class="mhk-button go icon-only music-play">
+                        <ui:VisualElement name="play-pause-icon" class="icon i-pause" />
+                    </ui:Button>
+                    <ui:Button name="next" tooltip="Next" class="mhk-button small secondary icon-only">
+                        <ui:VisualElement class="icon i-skip_next" />
+                    </ui:Button>
+                    <ui:VisualElement class="music-now">
+                        <ui:Label name="now-title" text="Mhk2title" class="music-now-title" />
+                        <ui:Label name="now-game" text="Moorhuhn Kart 2" class="music-now-game" />
+                    </ui:VisualElement>
+                    <ui:Label name="elapsed" text="01:12" class="music-time" />
+                    <ui:Slider name="seek" low-value="0" high-value="185" value="72" class="music-seek" />
+                    <ui:Label name="total" text="03:05" class="music-time" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

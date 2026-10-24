@@ -1,0 +1,61 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Touch layout editor. Code scales tl-screen (the race screen: a track picture, the HUD with sample values, the touch controls at their race places) to fit tl-frame, fills the palette with one button per control type and shows the sliders of the picked control (dead zone: joystick and wheel only). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Touch Layout" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body tl-body">
+            <ui:VisualElement name="tl-frame" class="tl-frame anim from-left">
+                <ui:VisualElement name="tl-screen" class="tl-screen">
+                    <ui:VisualElement name="tl-backdrop" picking-mode="Ignore" class="tl-fill tl-backdrop" />
+                    <ui:VisualElement name="tl-hud" picking-mode="Ignore" class="tl-fill" />
+                    <ui:VisualElement name="tl-controls" picking-mode="Ignore" class="tl-fill" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="tl-side" class="panel tl-side anim from-right">
+                <ui:Label text="Add" class="tl-caption" />
+                <ui:VisualElement name="tl-palette" class="tl-palette">
+                    <ui:Button class="mhk-button small icon-only tl-add">
+                        <ui:VisualElement class="icon i-arrow_forward" />
+                    </ui:Button>
+                    <ui:Button class="mhk-button small icon-only tl-add">
+                        <ui:VisualElement class="icon i-joystick" />
+                    </ui:Button>
+                    <ui:Button class="mhk-button small icon-only tl-add">
+                        <ui:VisualElement class="icon i-search_hands_free" />
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:VisualElement name="tl-picked" class="tl-picked">
+                    <ui:Label name="tl-picked-name" text="Throttle" class="tl-caption" />
+                    <ui:Slider name="tl-size" label="Size" low-value="0.5" high-value="2" value="1" />
+                    <ui:Slider name="tl-opacity" label="Opacity" low-value="0" high-value="1" value="1" />
+                    <ui:Slider name="tl-dead-zone" label="Dead zone" low-value="0" high-value="0.6" value="0.15" />
+                    <ui:Button name="tl-remove" class="mhk-button small secondary tl-remove">
+                        <ui:VisualElement class="icon i-delete" />
+                        <ui:Label text="Remove" class="button-label" />
+                    </ui:Button>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="reset" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-restart_alt" />
+                    <ui:Label text="Reset to defaults" class="button-label" />
+                </ui:Button>
+                <ui:Button name="save" class="mhk-button small">
+                    <ui:VisualElement class="icon i-check" />
+                    <ui:Label text="Save" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

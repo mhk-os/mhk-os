@@ -1,0 +1,323 @@
+{
+    "packs": [
+        {
+            "packId": "mhk2",
+            "root": "mhk2",
+            "builtin": false
+        }
+    ],
+    "definitions": [
+        {
+            "id": "mhk2.moorhuhn_x",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk2",
+            "guid": "798794d06df694bad95bf31caf392113",
+            "fileId": 11400000,
+            "displayName": "Moorhuhn X"
+        },
+        {
+            "id": "mhk2.hank",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk2",
+            "guid": "549fa82b5d9c04df4aa6bf4293ab4b39",
+            "fileId": 11400000,
+            "displayName": "Hank"
+        },
+        {
+            "id": "mhk2.lesshuhn",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk2",
+            "guid": "83a40b4d371674771b3a8c74decd53fa",
+            "fileId": 11400000,
+            "displayName": "Lesshuhn"
+        },
+        {
+            "id": "mhk2.moorfrosch",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk2",
+            "guid": "c556a588b483e4a0e81171c3489b1e5c",
+            "fileId": 11400000,
+            "displayName": "Moorfrosch"
+        },
+        {
+            "id": "mhk2.kart",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk2",
+            "guid": "7e0f7fd5e6f8740dd85475ffdf9bf3b9",
+            "fileId": 11400000,
+            "displayName": "Red Kart"
+        },
+        {
+            "id": "mhk2.moorhuhn",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk2",
+            "guid": "4d594191a559c4e3a85f7bad41e88f15",
+            "fileId": 11400000,
+            "displayName": "Moorhuhn"
+        },
+        {
+            "id": "mhk2.pumpkin",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk2",
+            "guid": "ecebb1ecc612543cba21e566fceba617",
+            "fileId": 11400000,
+            "displayName": "Pumpkin"
+        },
+        {
+            "id": "mhk2.snowman",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk2",
+            "guid": "6669bf1bc699b4b0ca5f6cdaa60b2066",
+            "fileId": 11400000,
+            "displayName": "Snowman"
+        },
+        {
+            "id": "mhk2.turtle",
+            "type": "MHK.Modding.CharacterDefinition",
+            "pack": "mhk2",
+            "guid": "7d01ed5369fbf412580cb4e17dcb7c10",
+            "fileId": 11400000,
+            "displayName": "Turtle"
+        },
+        {
+            "id": "mhk2.winter",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk2",
+            "guid": "6ab4b9a74e6654f4aa8d02233d8906cb",
+            "fileId": 11400000,
+            "displayName": "Winter"
+        },
+        {
+            "id": "mhk2.island",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk2",
+            "guid": "6ffec51acf4a34809ab94c8c8d1526b8",
+            "fileId": 11400000,
+            "displayName": "Island"
+        },
+        {
+            "id": "mhk2.egypt",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk2",
+            "guid": "589ec66d47584491abd8ffa01f7f5b58",
+            "fileId": 11400000,
+            "displayName": "Egypt"
+        },
+        {
+            "id": "mhk2.factory",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk2",
+            "guid": "5d8057aa0c8474ac0b9341c415ebc45c",
+            "fileId": 11400000,
+            "displayName": "Factory"
+        },
+        {
+            "id": "mhk2.mine",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk2",
+            "guid": "be3f9462d772d4e39beaafd845fb2af1",
+            "fileId": 11400000,
+            "displayName": "Mine"
+        },
+        {
+            "id": "mhk2.castle",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk2",
+            "guid": "26c753ab88ccd438fb9a75eb10c09e94",
+            "fileId": 11400000,
+            "displayName": "Castle"
+        },
+        {
+            "id": "mhk2.swamp",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhk2",
+            "guid": "2f89c29dd7fe94781ab2e29397780b1e",
+            "fileId": 11400000,
+            "displayName": "Swamp"
+        },
+        {
+            "id": "mhk2.hit.shotdown",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk2",
+            "guid": "c66bc5a7fda0a4689b6ad8a92dd0e09b",
+            "fileId": 11400000,
+            "displayName": "Shot down"
+        },
+        {
+            "id": "mhk2.hit.slimed",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk2",
+            "guid": "a8101754419804b90b08eadbaa7b7223",
+            "fileId": 11400000,
+            "displayName": "Slimed"
+        },
+        {
+            "id": "mhk2.hit.blackhole",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk2",
+            "guid": "98d8ef8a1d6b242b7add41949b174fb5",
+            "fileId": 11400000,
+            "displayName": "Fell into a black hole"
+        },
+        {
+            "id": "mhk2.hit.xfield",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk2",
+            "guid": "d0abf587c3d464c1fa3980f7c8335692",
+            "fileId": 11400000,
+            "displayName": "X-field slide"
+        },
+        {
+            "id": "mhk2.buff.bluelight",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk2",
+            "guid": "3953fa1cfda38415089ff39ff92931bd",
+            "fileId": 11400000,
+            "displayName": "Blue light"
+        },
+        {
+            "id": "mhk2.buff.shield",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk2",
+            "guid": "73b06784f59f54701bc198565acca6d9",
+            "fileId": 11400000,
+            "displayName": "Shield"
+        },
+        {
+            "id": "mhk2.buff.turbo",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk2",
+            "guid": "4b615fe64d0bf45a48258236aeed356e",
+            "fileId": 11400000,
+            "displayName": "Turbo can"
+        },
+        {
+            "id": "mhk2.homing_missile",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk2",
+            "guid": "f383a3ce9eeb646c280d9ee7da6ae685",
+            "fileId": 11400000,
+            "displayName": "Homing Missile"
+        },
+        {
+            "id": "mhk2.glibber_ball",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk2",
+            "guid": "23fcae25d0bd5454a81218344df626e7",
+            "fileId": 11400000,
+            "displayName": "Slime Ball"
+        },
+        {
+            "id": "mhk2.blue_light",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk2",
+            "guid": "622204ad78a54412695b14c250ea069f",
+            "fileId": 11400000,
+            "displayName": "Blue Light"
+        },
+        {
+            "id": "mhk2.shield",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk2",
+            "guid": "7bbae467ecb1e4910951dff39f8d22c1",
+            "fileId": 11400000,
+            "displayName": "Shield"
+        },
+        {
+            "id": "mhk2.turbo_can",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk2",
+            "guid": "885ce13763bae4c7b99f9c012162271b",
+            "fileId": 11400000,
+            "displayName": "Turbo Can"
+        },
+        {
+            "id": "mhk2.black_hole",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk2",
+            "guid": "27c0ad43d0f724960a437cb0d66ff0bf",
+            "fileId": 11400000,
+            "displayName": "Black Hole"
+        },
+        {
+            "id": "mhk2.fake_powerup",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk2",
+            "guid": "1d4cefbc5bd9c47f4a8c661cc76e3d88",
+            "fileId": 11400000,
+            "displayName": "Fake Item Box"
+        },
+        {
+            "id": "mhk2.x_field",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk2",
+            "guid": "4d3d086b5d21b4f5f9694de0c6168e06",
+            "fileId": 11400000,
+            "displayName": "X-Field"
+        },
+        {
+            "id": "mhk2.cup1",
+            "type": "MHK.Modding.CupDefinition",
+            "pack": "mhk2",
+            "guid": "b8d2c02dbf0394b24aa8697612573164",
+            "fileId": 11400000,
+            "displayName": "Championship 1"
+        },
+        {
+            "id": "mhk2.cup2",
+            "type": "MHK.Modding.CupDefinition",
+            "pack": "mhk2",
+            "guid": "9ca771b5722fa490ba6006a0df87a025",
+            "fileId": 11400000,
+            "displayName": "Championship 2"
+        },
+        {
+            "id": "mhk2.kart2",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk2",
+            "guid": "cf197378e40f54dcd94b97c1a81fd6be",
+            "fileId": 11400000,
+            "displayName": "Blue Kart"
+        },
+        {
+            "id": "mhk2.kart3",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk2",
+            "guid": "144238260d34640f4ab926fe500c0143",
+            "fileId": 11400000,
+            "displayName": "Purple Kart"
+        },
+        {
+            "id": "mhk2.kart4",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk2",
+            "guid": "d2c967fc7ccd142d192e0da06e2e44ea",
+            "fileId": 11400000,
+            "displayName": "Pink Kart"
+        },
+        {
+            "id": "mhk2.kart5",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk2",
+            "guid": "e806793ef6dff459f9d364c63a3f6919",
+            "fileId": 11400000,
+            "displayName": "Green Kart"
+        },
+        {
+            "id": "mhk2.kart6",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk2",
+            "guid": "b2696ec1fc7b342818298d66b7c86646",
+            "fileId": 11400000,
+            "displayName": "Yellow Kart"
+        },
+        {
+            "id": "mhk2.kart7",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhk2",
+            "guid": "f5caef5b4201d449e88a9979f6e282b7",
+            "fileId": 11400000,
+            "displayName": "Turquoise Kart"
+        }
+    ]
+}

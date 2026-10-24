@@ -1,10 +1,16 @@
-# Release: every push to main builds the game for all release targets and publishes the GitHub release build-<sha7>.
+# Release: every push to main builds the game for all release targets and publishes the GitHub release build-<sha7>
+# with an installer per desktop target (Windows setup .exe, Linux self-extracting .run, macOS .dmg) and the Android APK.
+# They ship the core content only, the game downloads the base mods from their repositories' releases. Every mod
+# repository releases on its own, built against the SDK of main, and the game loads only mods built for its mod API
+# level (ModSdk.ApiLevel).
 # Secrets: UNITY_LICENSE (contents of a Unity Personal .ulf file), UNITY_EMAIL, UNITY_PASSWORD, UNITY_SERIAL (Pro only).
-# Every build runs in a GameCI Unity docker image on ubuntu: desktop players use Mono, Android IL2CPP ARM64 (Player
-# Settings). Unity 6.6 has no desktop Linux Arm64 player, so there is no linux-arm64 build. Builds upload straight into
-# a draft release (no artifact storage), the macOS apps get an ad hoc signature on a Mac, the last job publishes.
-# Identity: the commit only (-mhkCommit, no version number). Build number: the number of commits on main, so it grows
-# with every commit or merge (release title "Build <n> | <sha7>", Android versionCode and macOS build number).
+# Variables (optional): LIBRARY_CACHE (false turns the Library cache off).
+# Every Unity run uses a GameCI docker image on ubuntu: desktop players use Mono, Android IL2CPP ARM64 (Player
+# Settings). Unity 6.6 has no desktop Linux Arm64 player, so there is no linux-arm64 build. Tools/installer/package.sh
+# makes the installers, the macOS builds travel as workflow artifacts kept for one day to the disk image job on a Mac,
+# installers go straight into a draft release and the publish job publishes it and removes caches superseded by a
+# newer key for at least three hours. Identity: the commit only (-mhkCommit, no version number). Build number: the
+# number of commits on main (release title "Build <n> | <sha7>", Android versionCode, macOS build number, BuildInfo).
 name: Release
 
 on:
@@ -48,7 +54,7 @@ jobs:
       # LFS objects are downloaded once per set of binaries (key: the object list of this commit) and shared by all
       # builds through the cache. A miss starts from the newest older set, so only changed files use LFS bandwidth.
       - id: lfs
-        run: echo "key=lfs-$(git lfs ls-files --long | cut -d' ' -f1 | sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "key=lfs-game-$(git lfs ls-files --long | cut -d' ' -f1 | sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - id: lfs-exact
         uses: actions/cache/restore@v6
@@ -62,7 +68,9 @@ jobs:
         with:
           path: .git/lfs/objects
           key: ${{ steps.lfs.outputs.key }}
-          restore-keys: lfs-
+          restore-keys: |
+            lfs-game-
+            lfs-
 
       - if: steps.lfs-exact.outputs.cache-hit != 'true'
         run: |
@@ -87,6 +95,11 @@ jobs:
           {
             echo "Moorhuhn Kart: Open Source, commit $GITHUB_SHA"
             echo
+            echo "Windows: MHK-windows-x64-$SHA7-setup.exe (windows-arm64 for Windows on Arm)."
+            echo "macOS: open the .dmg and drag the folder Moorhuhn Kart OSE into Applications, allow the app once in System Settings, Privacy & Security."
+            echo "Linux: sh MHK-linux-x64-$SHA7.run"
+            echo "Android: MHK-android-$SHA7.apk"
+            echo
             git log -1 --format=%B
           } > "$notes"
           gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "Build $NUMBER | $SHA7" --notes-file "$notes"
@@ -108,11 +121,10 @@ jobs:
           - { target: linux-x64, platform: StandaloneLinux64 }
           - { target: windows-x64, platform: StandaloneWindows64 }
           - { target: windows-arm64, platform: StandaloneWindows64 }
+    env:
+      TARGET: ${{ matrix.target }}
+      ASSET: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}
     steps:
-      - uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          large-packages: false
-
       - uses: actions/checkout@v7
         with:
           lfs: false
@@ -125,8 +137,6 @@ jobs:
 
       - run: git lfs checkout
 
-      # Imported assets, one cache per Unity build target (the two macOS and the two Windows builds share one). The
-      # repository cache holds 10 GB: set the repository variable LIBRARY_CACHE to false if these evict the LFS cache.
       - if: vars.LIBRARY_CACHE != 'false'
         uses: actions/cache@v6
         with:
@@ -153,56 +163,159 @@ jobs:
 
       - name: Package
         env:
-          TARGET: ${{ matrix.target }}
-          ASSET: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}
+          NUMBER: ${{ needs.prepare.outputs.number }}
+          SHA7: ${{ needs.prepare.outputs.sha7 }}
         run: |
           sudo chown -R "$(id -u):$(id -g)" "build/$TARGET"
-          cd "build/$TARGET"
           case "$TARGET" in
-            android) mv MoorhuhnKart.apk "$RUNNER_TEMP/$ASSET.apk" ;;
-            macos-*) find MoorhuhnKart.app/Contents/MacOS -type f -exec chmod +x {} + ;;
-            linux-*) chmod +x MoorhuhnKart.x86_64 ;;
+            android) file="$RUNNER_TEMP/$ASSET.apk"; mv "build/$TARGET/MoorhuhnKart.apk" "$file" ;;
+            windows-*) file="$RUNNER_TEMP/$ASSET-setup.exe"; tool=nsis ;;
+            linux-*) file="$RUNNER_TEMP/$ASSET.run"; tool=makeself ;;
+            macos-*) file="$RUNNER_TEMP/game-$TARGET.tar"
+              tar -cf "$file" -C "build/$TARGET" --exclude='*_DoNotShip' --exclude='*_ButDontShipItWithYourGame' . ;;
           esac
-          if [ "$TARGET" != android ]; then zip -r -y -q "$RUNNER_TEMP/$ASSET.zip" . -x '*_DoNotShip/*'; fi
+          if [ -n "${tool:-}" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq "$tool" > /dev/null
+            Tools/installer/package.sh "$TARGET" "build/$TARGET" "$file" "$NUMBER" "$SHA7"
+          fi
+          echo "FILE=$file" >> "$GITHUB_ENV"
+
+      - name: Check the Linux installer
+        if: startsWith(matrix.target, 'linux-')
+        run: |
+          export HOME="$RUNNER_TEMP/home" XDG_DATA_HOME="$RUNNER_TEMP/home/share"
+          dir="$HOME/Games/Moorhuhn Kart OSE"
+          "$FILE" --quiet -- --yes
+          "$FILE" --quiet -- --dir "$dir" --yes
+          test -x "$dir/MoorhuhnKart.x86_64"
+          for mod in build/"$TARGET"/Mods/*/; do test -d "$dir/Mods/$(basename "$mod")/Assets"; done
+          grep -qxF "Path=$dir" "$XDG_DATA_HOME/applications/org.mhkose.moorhuhnkart.desktop"
+          "$dir/uninstall.sh" --yes
+          test ! -e "$dir" && test ! -e "$XDG_DATA_HOME/applications/org.mhkose.moorhuhnkart.desktop"
+
+      - if: startsWith(matrix.target, 'windows-') || startsWith(matrix.target, 'macos-')
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ env.FILE }}
+          archive: false
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Upload to the draft release
+        if: ${{ !startsWith(matrix.target, 'macos-') }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
-        run: gh release upload "$TAG" "$RUNNER_TEMP"/MHK-* --clobber
+        run: gh release upload "$TAG" "$FILE" --clobber
 
-  sign-macos:
-    name: Sign macOS apps
+  dmg:
+    name: Disk image ${{ matrix.target }}
     needs: [prepare, build]
     runs-on: macos-latest
     permissions:
       contents: write
+    strategy:
+      matrix:
+        target: [macos-arm64, macos-x64]
+    env:
+      TARGET: ${{ matrix.target }}
+      ASSET: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}
     steps:
-      # Bundles built on Linux carry no valid bundle signature, Apple Silicon Macs call such apps damaged.
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: Tools/installer
+          lfs: false
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: game-${{ matrix.target }}.tar
+          path: ${{ runner.temp }}
+
+      - run: |
+          mkdir "$RUNNER_TEMP/game"
+          tar -xf "$RUNNER_TEMP/game-$TARGET.tar" -C "$RUNNER_TEMP/game"
+          rm "$RUNNER_TEMP/game-$TARGET.tar"
+          echo "DMG=$RUNNER_TEMP/$ASSET.dmg" >> "$GITHUB_ENV"
+          Tools/installer/package.sh "$TARGET" "$RUNNER_TEMP/game" "$RUNNER_TEMP/$ASSET.dmg" "${{ needs.prepare.outputs.number }}" "${{ needs.prepare.outputs.sha7 }}"
+
+      - name: Check the image
+        run: |
+          mount=$(hdiutil attach -nobrowse -readonly "$DMG" | sed -n 's|.*\(/Volumes/.*\)$|\1|p' | tail -1)
+          folder="$mount/Moorhuhn Kart OSE"
+          codesign --verify --deep --strict "$folder/MoorhuhnKart.app"
+          for mod in "$RUNNER_TEMP"/game/Mods/*/; do test -d "$folder/Mods/$(basename "$mod")"; done
+          test -L "$mount/Applications"
+          hdiutil detach "$mount"
+
       - env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
-          SHA7: ${{ needs.prepare.outputs.sha7 }}
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$DMG" --clobber
+
+  windows-check:
+    name: Install check ${{ matrix.target }}
+    needs: [prepare, build]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - { target: windows-x64, runner: windows-latest }
+          - { target: windows-arm64, runner: windows-11-arm }
+    env:
+      SETUP: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}-setup.exe
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ env.SETUP }}
+          path: ${{ runner.temp }}
+
+      # Silent install, an update over it, then the uninstaller in place (_?=), which leaves itself and foreign files.
+      - shell: pwsh
         run: |
-          for target in macos-arm64 macos-x64; do
-            asset="MHK-$target-$SHA7.zip"
-            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$RUNNER_TEMP/$target"
-            app="$RUNNER_TEMP/$target/app"
-            ditto -x -k "$RUNNER_TEMP/$target/$asset" "$app"
-            codesign --force --deep --sign - "$app/MoorhuhnKart.app"
-            codesign --verify --deep --strict "$app/MoorhuhnKart.app"
-            ditto -c -k --keepParent "$app/MoorhuhnKart.app" "$RUNNER_TEMP/$asset"
-          done
-          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" "$RUNNER_TEMP"/MHK-macos-*.zip --clobber
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'Moorhuhn Kart OSE'
+          $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MoorhuhnKartOSE'
+          function Run($exe, $arguments) {
+            $p = Start-Process $exe -ArgumentList $arguments -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "$exe exit code $($p.ExitCode)" }
+          }
+          Run (Join-Path $env:RUNNER_TEMP $env:SETUP) "/S /D=$dir"
+          foreach ($f in 'MoorhuhnKart.exe', 'Uninstall.exe', 'MoorhuhnKart.ico', 'Mods\core\core.mhkmod') {
+            if (-not (Test-Path (Join-Path $dir $f))) { throw "Missing $f" }
+          }
+          Write-Output "Mods: $((Get-ChildItem (Join-Path $dir 'Mods') -Directory).Name -join ', ')"
+          if (-not (Test-Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'Moorhuhn Kart OSE.lnk'))) { throw 'No Start menu shortcut' }
+          if ((Get-ItemProperty $key).InstallLocation -ne $dir) { throw 'No Apps and Features entry' }
+          Set-Content (Join-Path $dir 'Mods\core\stale.txt') 'old build'
+          New-Item -ItemType Directory (Join-Path $dir 'Mods\mymod') | Out-Null
+          Set-Content (Join-Path $dir 'Mods\mymod\my.mhkmod') 'own mod'
+          Run (Join-Path $env:RUNNER_TEMP $env:SETUP) "/S /D=$dir"
+          if (Test-Path (Join-Path $dir 'Mods\core\stale.txt')) { throw 'The update kept a file of the old build' }
+          Run (Join-Path $dir 'Uninstall.exe') "/S _?=$dir"
+          $left = (Get-ChildItem $dir -Recurse -Name | Sort-Object) -join ' | '
+          if ($left -ne 'Mods | Mods\mymod | Mods\mymod\my.mhkmod | Uninstall.exe') { throw "Left after uninstall: $left" }
+          if (Test-Path $key) { throw 'Apps and Features entry left' }
 
   publish:
     name: Publish release
-    needs: [prepare, sign-macos]
+    needs: [prepare, build, dmg, windows-check]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
     steps:
       - env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
         run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+      - name: Remove superseded caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh cache list --repo "$GITHUB_REPOSITORY" --limit 1000 --json id,key,createdAt,lastAccessedAt |
+            jq -r 'map(select(.key | test("-[0-9a-f]{64}$"))) | group_by(.key | sub("-[0-9a-f]{64}$"; ""))
+              | map(sort_by(.createdAt) | .[:-1][]) | .[]
+              | select((.lastAccessedAt | sub("\\.[0-9]+"; "") | fromdateiso8601) < (now - 10800)) | .id' |
+            while read -r id; do gh cache delete --repo "$GITHUB_REPOSITORY" "$id"; done

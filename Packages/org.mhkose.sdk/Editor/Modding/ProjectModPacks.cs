@@ -7,7 +7,8 @@ namespace MHK.Editor.Modding
 {
     /// <summary>
     /// The packs play mode loads from the project like installed mods: always the shipped base content (players load it
-    /// from StreamingAssets/Mods), and the project's other mods with <b>MHK ▸ Modding ▸ Load Project Mods in Play Mode</b>.
+    /// from their Mods folder), and the project's other mods with <b>MHK ▸ Modding ▸ Load Project Mods in Play Mode</b>.
+    /// When play mode ends, project definitions get back the references a mod's replacements took over.
     /// </summary>
     [InitializeOnLoad]
     public static class ProjectModPacks
@@ -15,7 +16,14 @@ namespace MHK.Editor.Modding
         const string PrefKey = "MHK.Modding.LoadProjectMods";
         const string MenuPath = "MHK/Modding/Load Project Mods in Play Mode";
 
-        static ProjectModPacks() => ModLoader.EditorProjectPacks = PlayModePacks;
+        static ProjectModPacks()
+        {
+            ModLoader.EditorProjectPacks = PlayModePacks;
+            EditorApplication.playModeStateChanged += s =>
+            {
+                if (s == PlayModeStateChange.EnteredEditMode) ModLoader.RestoreResolvedReferences();
+            };
+        }
 
         /// <summary>Whether play mode also loads the project's mod packs (the shipped base content always loads).</summary>
         public static bool Enabled

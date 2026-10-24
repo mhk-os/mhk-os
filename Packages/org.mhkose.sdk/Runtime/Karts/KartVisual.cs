@@ -37,6 +37,10 @@ namespace MHK.Karts
 
         /// <summary>Wheels and seat of the kart model. Null without a kart prefab or KartModel.</summary>
         public KartModel Model => model;
+        /// <summary>Animator of the driver, null without one.</summary>
+        public CharacterAnimator DriverAnimator => animator;
+        /// <summary>Animator of the kart model, null when it has no animations.</summary>
+        public CharacterAnimator KartAnimator => kartAnimator;
 
         /// <summary>
         /// Child of this visual holding the kart model, the driver, held items and effect attachments, moved by the

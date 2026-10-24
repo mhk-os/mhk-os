@@ -1,0 +1,243 @@
+{
+    "packs": [
+        {
+            "packId": "mhke",
+            "root": "mhke",
+            "builtin": false
+        }
+    ],
+    "definitions": [
+        {
+            "id": "mhke.scribble_blocks",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "ff14255a337f74a21ba21c1e72444dac",
+            "fileId": 11400000,
+            "displayName": "Scribble Blocks"
+        },
+        {
+            "id": "mhke.kart_track",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "206a051031cf04d02bc18a8434b83e17",
+            "fileId": 11400000,
+            "displayName": "Kart Track"
+        },
+        {
+            "id": "mhke.moon",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "37f5bf4b1baf64c7486d542926d94186",
+            "fileId": 11400000,
+            "displayName": "Luna"
+        },
+        {
+            "id": "mhke.docklands",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "61c8b947f0c9d4817aa5886cb2be187e",
+            "fileId": 11400000,
+            "displayName": "Dockland"
+        },
+        {
+            "id": "mhke.graveyard",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "89780e3b2437a4009af1fd7cbc1aae7b",
+            "fileId": 11400000,
+            "displayName": "Booo!"
+        },
+        {
+            "id": "mhke.outdoor",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "fa5030d8c6e094f9dba9d1e145f5338e",
+            "fileId": 11400000,
+            "displayName": "Outdoor"
+        },
+        {
+            "id": "mhke.desert",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "161f874682fb14c81862501fc3502b6d",
+            "fileId": 11400000,
+            "displayName": "Desert"
+        },
+        {
+            "id": "mhke.canyon",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "5cbb5c8d802b3495cb47b143196c872c",
+            "fileId": 11400000,
+            "displayName": "Canyon"
+        },
+        {
+            "id": "mhke.ice",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "05ad03559845a4b6790b38b9b2d69947",
+            "fileId": 11400000,
+            "displayName": "Ice"
+        },
+        {
+            "id": "mhke.volcano",
+            "type": "MHK.Modding.TrackDefinition",
+            "pack": "mhke",
+            "guid": "eef13be400e204ebea39f071bf62159e",
+            "fileId": 11400000,
+            "displayName": "Volcano"
+        },
+        {
+            "id": "mhke.hit.rocket",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhke",
+            "guid": "21ab41488bab149d68cf463458158335",
+            "fileId": 11400000,
+            "displayName": "Pulverised"
+        },
+        {
+            "id": "mhke.hit.flattened",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhke",
+            "guid": "d5c36526994af45758a67bb74bb29642",
+            "fileId": 11400000,
+            "displayName": "Flattened"
+        },
+        {
+            "id": "mhke.hit.weight",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhke",
+            "guid": "d599cec41edeb4f1888cbc85307659c5",
+            "fileId": 11400000,
+            "displayName": "Crushed by 16 tons"
+        },
+        {
+            "id": "mhke.hit.spikes",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhke",
+            "guid": "a82980ed8d7fb4149a1766d6ba83b545",
+            "fileId": 11400000,
+            "displayName": "Flat tyres"
+        },
+        {
+            "id": "mhke.hit.waterbomb",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhke",
+            "guid": "db929c175b1fa4982855627c4ba2f94b",
+            "fileId": 11400000,
+            "displayName": "Aquaplaning"
+        },
+        {
+            "id": "mhke.hit.gum",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhke",
+            "guid": "b06a2388b76d54c11891e1a4bf0565d4",
+            "fileId": 11400000,
+            "displayName": "Stuck in chewing gum"
+        },
+        {
+            "id": "mhke.rocket",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhke",
+            "guid": "af15ce1078df44e87b1f3fcf3085b3bc",
+            "fileId": 11400000,
+            "displayName": "Rocket"
+        },
+        {
+            "id": "mhke.wooden_hammer",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhke",
+            "guid": "424ba8e4849574bb0bbd7a0d5a862117",
+            "fileId": 11400000,
+            "displayName": "Wooden Hammer"
+        },
+        {
+            "id": "mhke.weight16t",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhke",
+            "guid": "a51334c139bd14c3e9df7d1d4dc48bed",
+            "fileId": 11400000,
+            "displayName": "16t Weight"
+        },
+        {
+            "id": "mhke.spike_strip",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhke",
+            "guid": "71a250cb098f54b639b8544c5d545f15",
+            "fileId": 11400000,
+            "displayName": "Spike Strip"
+        },
+        {
+            "id": "mhke.water_bomb",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhke",
+            "guid": "6dc40c0a02cb040dea18e3adae28d668",
+            "fileId": 11400000,
+            "displayName": "Water Bomb"
+        },
+        {
+            "id": "mhke.chewing_gum",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhke",
+            "guid": "db98a1ee966ed4c4080e942203efbf45",
+            "fileId": 11400000,
+            "displayName": "Chewing Gum"
+        },
+        {
+            "id": "mhke.cup_extra",
+            "type": "MHK.Modding.CupDefinition",
+            "pack": "mhke",
+            "guid": "30c27795cb9644f1b879af8f517457e6",
+            "fileId": 11400000,
+            "displayName": "Extra Cup"
+        },
+        {
+            "id": "mhke.cup_classic",
+            "type": "MHK.Modding.CupDefinition",
+            "pack": "mhke",
+            "guid": "3a803653c7d38401fb34b56324e10814",
+            "fileId": 11400000,
+            "displayName": "Classic Cup"
+        },
+        {
+            "id": "mhke.kart1",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhke",
+            "guid": "5e3e7974ae8c64da9b5eb8582de7837a",
+            "fileId": 11400000,
+            "displayName": "Red Kart"
+        },
+        {
+            "id": "mhke.kart2",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhke",
+            "guid": "5dd01ac4299264cc8a1e5d780368b3e1",
+            "fileId": 11400000,
+            "displayName": "Blue Kart"
+        },
+        {
+            "id": "mhke.kart3",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhke",
+            "guid": "f58a249b7757145cb94ff32478f68680",
+            "fileId": 11400000,
+            "displayName": "Orange Kart"
+        },
+        {
+            "id": "mhke.kart4",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhke",
+            "guid": "3138e1cd289674f08bb88f8a3203222b",
+            "fileId": 11400000,
+            "displayName": "Green Kart"
+        },
+        {
+            "id": "mhke.kart",
+            "type": "MHK.Modding.KartDefinition",
+            "pack": "mhke",
+            "guid": "ad44981ff97404a7989968b228511769",
+            "fileId": 11400000,
+            "displayName": "Yellow Kart"
+        }
+    ]
+}

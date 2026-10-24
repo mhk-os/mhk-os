@@ -7,44 +7,38 @@ using UnityEngine;
 
 namespace MHK.Powerups
 {
-    /// <summary>Item box looks of the original games (<see cref="ItemBoxLook"/>).</summary>
-    public enum ItemBoxStyle
+    /// <summary>One item box look: model, animation and placement (a <see cref="ContentPack.itemBoxLook"/> or a variant of <see cref="ItemBoxLook"/>).</summary>
+    [Serializable]
+    public class ItemBoxAppearance
     {
-        /// <summary>The look of the current track's game (its <see cref="ContentDefinition.SourceGame"/>).</summary>
-        Auto,
-        Extra,
-        MHK2,
-        MHK3,
-        Thunder,
+        [Tooltip("Model prefab: the box art, its glow and its light (centred on the box), placed like this game's track boxes relative to their root.")]
+        public GameObject model;
+        [Tooltip("Rotation around the world up axis (degrees per second). 0 = no animation.")]
+        public float spinSpeed;
+        [Tooltip("Height of the box roots above the ground on this game's tracks. Boxes with a known heightAboveGround are moved to match.")]
+        public float trackHeight;
+        [Tooltip("Size of the model (1 = as built). It scales around the ground below the box (trackHeight under the root), so the box stays clear of the ground and its gap to the ground scales with it.")]
+        [Min(0.01f)] public float scale = 1f;
     }
 
     /// <summary>
-    /// Shows an item box model in one of several looks (<see cref="Variant"/>), picked by style or by the current
-    /// track's game. The model is a runtime child, and the editor preview is never saved.
+    /// Shows an item box model: the look of the current track's game (<see cref="ContentPack.itemBoxLook"/> of the pack
+    /// named by the track's source game), else one of the box's own <see cref="Variant"/>s. The model is a runtime child,
+    /// and the editor preview is never saved.
     /// </summary>
     [ExecuteAlways]
     public partial class ItemBoxLook : MonoBehaviour
     {
         [Serializable]
-        public class Variant
+        public class Variant : ItemBoxAppearance
         {
-            [Tooltip("Style this look stands for (picked when ItemBoxLook.style names it).")]
-            public ItemBoxStyle style;
-            [Tooltip("Track source games (pack ids, e.g. mhk2) that use this look when the style is Auto.")]
+            [Tooltip("Track source games (pack ids, e.g. tincan) that use this look when their pack has no item box look.")]
             public string[] games = Array.Empty<string>();
-            [Tooltip("Model prefab: the box art, its glow and its light (centred on the box), placed like this game's track boxes relative to their root.")]
-            public GameObject model;
-            [Tooltip("Rotation around the world up axis (degrees per second). 0 = no animation.")]
-            public float spinSpeed;
-            [Tooltip("Height of the box roots above the ground on this game's tracks. Boxes with a known heightAboveGround are moved to match.")]
-            public float trackHeight;
-            [Tooltip("Size of the model (1 = as built). It scales around the ground below the box (trackHeight under the root), so the box stays clear of the ground and its gap to the ground scales with it.")]
-            [Min(0.01f)] public float scale = 1f;
         }
 
-        [Tooltip("Auto uses the look of the current track's game. The other styles force one look.")]
-        [SerializeField] ItemBoxStyle style = ItemBoxStyle.Auto;
-        [Tooltip("Available looks. The first one is used when none matches.")]
+        [Tooltip("Use the item box look of the current track's game when its pack has one. Off = always the box's own looks (e.g. special item boxes).")]
+        [SerializeField] bool usePackLook = true;
+        [Tooltip("The box's own looks: the one listing the track's game, else the first one (the default look).")]
         [SerializeField] Variant[] variants = Array.Empty<Variant>();
         [Tooltip("Colour multiplied onto the model's materials (fake item boxes are slightly darker).")]
         [SerializeField] Color tint = Color.white;
@@ -57,9 +51,9 @@ namespace MHK.Powerups
         [NoAutoStaticsCleanup] static readonly Dictionary<(Material, Color), Material> tinted = new();
 
         GameObject instance;
-        Variant current;
+        ItemBoxAppearance current;
 
-        /// <summary>The spawned model (null when no variant has one).</summary>
+        /// <summary>The spawned model (null when no look has one).</summary>
         public GameObject Model => instance;
 
         void OnEnable()
@@ -157,17 +151,34 @@ namespace MHK.Powerups
             tinted.Clear();
         }
 
-        /// <summary>The variant shown for the current <see cref="style"/> and track (null without variants).</summary>
-        public Variant Resolve()
+        /// <summary>The look shown on the current track: its game's pack look, else the matching or first variant (null without any).</summary>
+        public ItemBoxAppearance Resolve()
         {
-            if (variants == null || variants.Length == 0) return null;
-            var game = style == ItemBoxStyle.Auto ? TrackGame() : null;
-            foreach (var v in variants)
+            var game = TrackGame();
+            if (usePackLook && !string.IsNullOrEmpty(game))
             {
-                if (v == null) continue;
-                if (style != ItemBoxStyle.Auto ? v.style == style : game != null && Array.IndexOf(v.games, game) >= 0) return v;
+                var pack = PackOf(game);
+                if (pack != null && pack.itemBoxLook != null && pack.itemBoxLook.model != null) return pack.itemBoxLook;
             }
+            if (variants == null || variants.Length == 0) return null;
+            foreach (var v in variants)
+                if (v != null && game != null && Array.IndexOf(v.games, game) >= 0) return v;
             return variants[0];
+        }
+
+        static ContentPack PackOf(string packId)
+        {
+            if (Application.isPlaying)
+            {
+                foreach (var p in GameRoot.Instance.Content.Packs)
+                    if (p != null && string.Equals(p.packId, packId, StringComparison.OrdinalIgnoreCase)) return p;
+                return null;
+            }
+#if UNITY_EDITOR
+            return EditorPacks().TryGetValue(packId, out var pack) ? pack : null;
+#else
+            return null;
+#endif
         }
 
         // Source game of the track being raced, or of the track whose scene holds this box.
@@ -192,9 +203,14 @@ namespace MHK.Powerups
 
 #if UNITY_EDITOR
         [AutoStaticsCleanup] static Dictionary<string, string> editorTrackGames;
+        [AutoStaticsCleanup] static Dictionary<string, ContentPack> editorPacks;
 
         [UnityEditor.InitializeOnLoadMethod]
-        static void ForgetTrackGamesOnProjectChange() => UnityEditor.EditorApplication.projectChanged += () => editorTrackGames = null;
+        static void ForgetCachesOnProjectChange() => UnityEditor.EditorApplication.projectChanged += () =>
+        {
+            editorTrackGames = null;
+            editorPacks = null;
+        };
 
         static Dictionary<string, string> EditorTrackGames()
         {
@@ -206,6 +222,18 @@ namespace MHK.Powerups
                 if (t != null && t.scene.IsSet) editorTrackGames[t.scene.Path] = t.SourceGame;
             }
             return editorTrackGames;
+        }
+
+        static Dictionary<string, ContentPack> EditorPacks()
+        {
+            if (editorPacks != null) return editorPacks;
+            editorPacks = new Dictionary<string, ContentPack>(StringComparer.OrdinalIgnoreCase);
+            foreach (var guid in UnityEditor.AssetDatabase.FindAssetGUIDs("t:" + nameof(ContentPack)))
+            {
+                var p = UnityEditor.AssetDatabase.LoadAssetByGUID<ContentPack>(guid);
+                if (p != null && !string.IsNullOrEmpty(p.packId)) editorPacks.TryAdd(p.packId, p);
+            }
+            return editorPacks;
         }
 #endif
     }

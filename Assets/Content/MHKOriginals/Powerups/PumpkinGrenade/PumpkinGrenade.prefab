@@ -47,6 +47,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40388de9b207c482a939b3e40f31fa34, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MHK.Runtime::MHK.Powerups.PlacementPowerup
+  soundVolume: 1
   dropDistance: 2.2
   dropClearOfChassis: 0
   dropGap: 0.1
@@ -73,7 +74,6 @@ MonoBehaviour:
   bounceSound: {fileID: 0}
   landSound: {fileID: 0}
   failSound: {fileID: 0}
-  soundVolume: 1
 --- !u!114 &4682977609908167309
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -86,11 +86,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 08b5f9e1282f347798bfddd93f06ec82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: MHK.Runtime::MHK.Powerups.ExplosiveCharge
+  soundVolume: 1
   contactRadius: 1.4
   flightSpin: {x: 360, y: 90, z: 0}
   model: {fileID: 6434129286624617459}
   hitRadius: 3
-  hitEffect: {fileID: 11400000, guid: c66bc5a7fda0a4689b6ad8a92dd0e09b, type: 2}
+  hitEffect: {fileID: 11400000, guid: ee2e38aae90ce42429b5d16f02338bed, type: 2}
   splashRadius: 6
   splashEffect: {fileID: 11400000, guid: 35d7ce787d20e43a39451b387e948326, type: 2}
   splashPush: 8
@@ -102,8 +103,11 @@ MonoBehaviour:
   smokeSeconds: 1.2
   vfxHeight: 0.6
   explosionSound: {fileID: 8300000, guid: 4868943f823a14c889926d7cdf75cdac, type: 3}
-  soundVolume: 1
   quakeAmplitude: 0.25
+  quakeDuration: 0.5
+  quakeFrequency: 6
+  quakeWaveSpeed: 25
+  quakeDecay: 0.8
 --- !u!114 &6603908938871467930
 MonoBehaviour:
   m_ObjectHideFlags: 0

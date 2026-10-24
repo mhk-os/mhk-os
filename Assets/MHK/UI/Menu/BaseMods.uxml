@@ -1,0 +1,46 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Built-in mods download (first start, or the title screen's download button). Code fills base-list with one BaseModRow per built-in mod source, the overall line (base-total: icon, text, colour class) and its bar, and switches download between Download All and Retry. skip continues with the core game only. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="BaseModRow" src="/Assets/MHK/UI/Menu/Templates/BaseModRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Download Mods" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="base-panel" class="panel list-panel base-panel">
+                    <ui:ScrollView name="base-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                        <ui:VisualElement name="base-list">
+                            <ui:Instance template="BaseModRow" />
+                            <ui:Instance template="BaseModRow" />
+                        </ui:VisualElement>
+                    </ui:ScrollView>
+                    <ui:VisualElement class="base-total-row">
+                        <ui:VisualElement name="base-total" class="src-state src-muted">
+                            <ui:VisualElement class="icon i-cloud_download" />
+                            <ui:Label name="base-total-label" text="5 mods | 452 MB" class="src-state-label" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="base-total-bar" class="src-bar base-total-bar">
+                            <ui:VisualElement class="src-bar-fill" style="width: 25%;" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="skip" tooltip="Starts with the core game only. The title screen offers the download later." class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_forward" />
+                    <ui:Label text="Continue Without" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="download" class="mhk-button go">
+                    <ui:VisualElement name="download-icon" class="icon i-download" />
+                    <ui:Label name="download-label" text="Download All" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

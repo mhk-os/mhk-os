@@ -10,15 +10,17 @@ namespace MHK.Editor.Modding
 {
     /// <summary>
     /// Command-line mod build for CI: <c>-executeMethod MHK.Editor.Modding.ModBuildCli.Build -mhkPacks &lt;pack asset
-    /// paths&gt; -mhkOut &lt;folder&gt; [-mhkCommit &lt;sha&gt;] [-mhkSdkCommit &lt;sha&gt;]</c> (with <c>-batchmode -quit
-    /// -buildTarget</c>). Builds for the active build target into &lt;folder&gt;/&lt;target&gt; and exits with a non-zero
-    /// code on failure. The commits default to the git checkouts of the project and the SDK, which git in a CI container
-    /// may refuse to read.
+    /// paths&gt; -mhkOut &lt;folder&gt; [-mhkLoose true|false] [-mhkCommit &lt;sha&gt;] [-mhkSdkCommit &lt;sha&gt;]</c> (with
+    /// <c>-batchmode -quit -buildTarget</c>). Builds for the active build target into &lt;folder&gt;/&lt;target&gt;/&lt;packid&gt;/
+    /// (loose by default on desktop targets) and exits with a non-zero code on failure. The commits default to the git
+    /// checkouts of the project and the SDK, which git in a CI container may refuse to read.
     /// </summary>
     public static class ModBuildCli
     {
         public const string PacksOption = "-mhkPacks";
         public const string OutOption = "-mhkOut";
+        /// <summary>Command-line option: "false" bundles the textures and sounds also on desktop targets.</summary>
+        public const string LooseOption = "-mhkLoose";
         const string DefaultOut = "Builds/Mods";
         const int FailureExitCode = 1;
 
@@ -32,7 +34,8 @@ namespace MHK.Editor.Modding
                 var outRoot = OptionValues(args, OutOption).FirstOrDefault() ?? DefaultOut;
                 var commit = OptionValues(args, ModBundleBuilder.CommitOption).FirstOrDefault();
                 var sdkCommit = OptionValues(args, ModBundleBuilder.SdkCommitOption).FirstOrDefault();
-                ok = Run(OptionValues(args, PacksOption), outRoot, commit, sdkCommit) != null;
+                var loose = OptionValues(args, LooseOption).FirstOrDefault() != "false";
+                ok = Run(OptionValues(args, PacksOption), outRoot, commit, sdkCommit, loose) != null;
             }
             catch (Exception e)
             {
@@ -43,10 +46,10 @@ namespace MHK.Editor.Modding
 
         /// <summary>
         /// Builds the packs at <paramref name="packPaths"/> (asset paths, entries may hold several joined by ',' or ';') for
-        /// the active build target into <paramref name="outRoot"/>/&lt;target&gt;, stamped with <paramref name="commit"/> and
-        /// <paramref name="sdkCommit"/> (null: from git). Returns the output folder, null on failure.
+        /// the active build target into <paramref name="outRoot"/>/&lt;target&gt;/&lt;packid&gt;/, stamped with <paramref name="commit"/>
+        /// and <paramref name="sdkCommit"/> (null: from git), <paramref name="loose"/> on desktop targets. Returns the output folder, null on failure.
         /// </summary>
-        public static string Run(IEnumerable<string> packPaths, string outRoot, string commit = null, string sdkCommit = null)
+        public static string Run(IEnumerable<string> packPaths, string outRoot, string commit = null, string sdkCommit = null, bool loose = true)
         {
             var paths = packPaths.SelectMany(p => p.Split(',', ';')).Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
             if (paths.Count == 0)
@@ -66,7 +69,7 @@ namespace MHK.Editor.Modding
                 packs.Add(pack);
             }
             var target = EditorUserBuildSettings.activeBuildTarget;
-            return ModBundleBuilder.Build(packs, target, Path.Combine(outRoot, target.ToString()), commit, sdkCommit);
+            return ModBundleBuilder.Build(packs, target, Path.Combine(outRoot, target.ToString()), commit, sdkCommit, loose);
         }
 
         // The arguments after an option up to the next option (one starting with '-').

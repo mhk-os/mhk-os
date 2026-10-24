@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Options. Code sets the slider values and the camera / touch-controls / graphics / controls row values (samples: the default settings) and hides the controls row on mobile. -->
+    <!-- Options. Code sets the slider values and the camera / touch-controls / touch-layout / graphics / controls row values (samples: the default settings) and hides the controls row on mobile. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
@@ -21,11 +21,15 @@
                         <ui:AttributeOverrides element-name="setting-label" text="Touch controls" />
                         <ui:AttributeOverrides element-name="setting-value-label" text="Auto" />
                     </ui:Instance>
-                    <ui:Instance template="SettingRow" name="graphics" class="setting-row setting-link anim from-left" style="transition-delay: 390ms;">
+                    <ui:Instance template="SettingRow" name="touch-layout" class="setting-row setting-link anim from-left" style="transition-delay: 390ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Touch layout" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Default" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="graphics" class="setting-row setting-link anim from-left" style="transition-delay: 435ms;">
                         <ui:AttributeOverrides element-name="setting-label" text="Graphics" />
                         <ui:AttributeOverrides element-name="setting-value-label" text="Low" />
                     </ui:Instance>
-                    <ui:Instance template="SettingRow" name="controls" class="setting-row setting-link anim from-left desktop-only" style="transition-delay: 435ms;">
+                    <ui:Instance template="SettingRow" name="controls" class="setting-row setting-link anim from-left desktop-only" style="transition-delay: 480ms;">
                         <ui:AttributeOverrides element-name="setting-label" text="Keyboard keys" />
                         <ui:AttributeOverrides element-name="setting-value-label" text="Default" />
                     </ui:Instance>

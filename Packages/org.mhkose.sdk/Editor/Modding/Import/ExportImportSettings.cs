@@ -210,7 +210,7 @@ namespace MHK.Editor.Modding.Import
         /// <summary>Fills the empty asset references with the SDK defaults (and the game's item box in the game project) and saves the settings.</summary>
         public void ApplyDefaultAssets()
         {
-            if (itemBoxPrefab == null) itemBoxPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SdkPaths.GameItemBoxPrefab);
+            if (itemBoxPrefab == null) itemBoxPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SdkPaths.ItemBoxPrefab);
             if (lightingSettings == null) lightingSettings = AssetDatabase.LoadAssetAtPath<LightingSettings>(SdkPaths.TrackLighting);
             if (groundMaterial == null) groundMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(SdkPaths.TrackGroundMaterial);
             if (wallMaterial == null) wallMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(SdkPaths.TrackWallMaterial);

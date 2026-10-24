@@ -54,7 +54,7 @@ namespace MHK.Effects
         {
             if (source != null || clip == null) return;
             source = AudioSources.Create3D(gameObject, true, minDistance, Mathf.Max(minDistance + 0.01f, maxDistance));
-            source.clip = clip;
+            source.clip = MHK.Assets.GameAssets.Audio(clip);
             source.dopplerLevel = 0f;
         }
 
