@@ -3,16 +3,19 @@
 # Secrets: UNITY_LICENSE (contents of a Unity Personal .ulf file), UNITY_EMAIL, UNITY_PASSWORD, UNITY_SERIAL (Pro only),
 # MODS_REPO_TOKEN (read access to the base mod repositories) only while one of them is private. Variables (optional):
 # BASE_MODS (space separated repositories, default the four below), BASE_MODS_REF (default main), LIBRARY_CACHE (false
-# turns the game's Library cache off), MOD_LIBRARY_CACHE (true turns the Library caches of the base mods on).
+# turns the game's Library cache off), MOD_LIBRARY_CACHE (false turns the Library caches of the base mods off).
 # Every Unity run uses a GameCI docker image on ubuntu: desktop players use Mono, Android IL2CPP ARM64 (Player
 # Settings). Unity 6.6 has no desktop Linux Arm64 player, so there is no linux-arm64 build. The base mods are built from
 # their repositories (one commit per run, from BASE_MODS_REF) with this commit's SDK checked out next to them, once per
-# Unity build target, and the player builds put them into Mods/<id>/ next to the player (Android: packed into
-# StreamingAssets/Mods). Tools/installer/package.sh makes the installers, intermediate builds travel as workflow
-# artifacts kept for one day, installers go straight into a draft release and the last job publishes it.
-# Caches (10 GB per repository): LFS objects of the game and of each base mod, the Library of each Unity build target
-# (the two macOS and the two Windows builds share one). Mod Library caches are off by default, together with the game's
-# they would evict the LFS caches. The publish job removes caches superseded by a newer key for at least three hours.
+# Unity build target. The Android player waits for the Android mod builds and packs them (-mhkExtraMods). Desktop
+# players need no mods to build and start right after prepare. The installer jobs put each mod into Mods/<id>/ next to
+# the player (the same files -mhkExtraMods would copy) and run Tools/installer/package.sh. Intermediate builds travel as
+# workflow artifacts kept for one day, installers go straight into a draft release and the last job publishes it.
+# Caches (10 GB per repository): LFS objects of the game and of each base mod, the game's Library per Unity build target
+# (the two macOS and the two Windows builds share one), each base mod's Library for its three desktop targets (one
+# Library serves them, a target switch reimports only a few platform dependent assets) and for Android. Set
+# MOD_LIBRARY_CACHE to false if they evict the LFS caches. The publish job removes caches superseded by a newer key
+# for at least three hours.
 # Identity: the commit only (-mhkCommit, no version number). Build number: the number of commits on main (release
 # title "Build <n> | <sha7>", Android versionCode and macOS build number).
 name: Release
@@ -174,7 +177,9 @@ jobs:
           path: mod/.git/lfs/objects
           key: ${{ steps.lfs.outputs.key }}
 
-  mods:
+  # One job per mod and Unity build target. The Android player waits only for mods-android, each desktop installer
+  # only for the mod builds of its target. The job definitions share their steps through YAML anchors.
+  mods-android:
     name: Mod ${{ matrix.mod.name }} ${{ matrix.platform }}
     needs: [prepare, mod-lfs]
     runs-on: ubuntu-latest
@@ -183,12 +188,8 @@ jobs:
       fail-fast: false
       matrix:
         mod: ${{ fromJSON(needs.prepare.outputs.mods) }}
-        platform: [StandaloneOSX, StandaloneLinux64, StandaloneWindows64, Android]
-    steps:
-      - uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          large-packages: false
-
+        platform: [Android]
+    steps: &mod-steps
       - uses: actions/checkout@v7
         with:
           repository: ${{ matrix.mod.repo }}
@@ -230,12 +231,12 @@ jobs:
           echo "packs=$(IFS=,; echo "${packs[*]}")" >> "$GITHUB_OUTPUT"
           echo "ids=${ids% }" >> "$GITHUB_OUTPUT"
 
-      - if: vars.MOD_LIBRARY_CACHE == 'true'
+      - if: vars.MOD_LIBRARY_CACHE != 'false'
         uses: actions/cache@v6
         with:
           path: mod/Library
-          key: Library-${{ matrix.mod.name }}-${{ matrix.platform }}-${{ hashFiles('mod/ProjectSettings/ProjectVersion.txt', 'mod/Packages/packages-lock.json') }}
-          restore-keys: Library-${{ matrix.mod.name }}-${{ matrix.platform }}-
+          key: Library-${{ matrix.mod.name }}-${{ matrix.platform == 'Android' && 'Android' || 'desktop' }}-${{ hashFiles('mod/ProjectSettings/ProjectVersion.txt', 'mod/Packages/packages-lock.json') }}
+          restore-keys: Library-${{ matrix.mod.name }}-${{ matrix.platform == 'Android' && 'Android' || 'desktop' }}-
 
       # Library/*.pid hold the Burst and ILPP process ids of the run that saved the cache. Container process ids
       # repeat, and Unity kills the process with that id at startup, sometimes the editor itself (exit code 137).
@@ -275,18 +276,51 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
-  build:
+  mods-macos:
+    name: Mod ${{ matrix.mod.name }} ${{ matrix.platform }}
+    needs: [prepare, mod-lfs]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: ${{ fromJSON(needs.prepare.outputs.mods) }}
+        platform: [StandaloneOSX]
+    steps: *mod-steps
+
+  mods-linux:
+    name: Mod ${{ matrix.mod.name }} ${{ matrix.platform }}
+    needs: [prepare, mod-lfs]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: ${{ fromJSON(needs.prepare.outputs.mods) }}
+        platform: [StandaloneLinux64]
+    steps: *mod-steps
+
+  mods-windows:
+    name: Mod ${{ matrix.mod.name }} ${{ matrix.platform }}
+    needs: [prepare, mod-lfs]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: ${{ fromJSON(needs.prepare.outputs.mods) }}
+        platform: [StandaloneWindows64]
+    steps: *mod-steps
+
+  build-desktop:
     name: Build ${{ matrix.target }}
-    needs: [prepare, mods]
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 300
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { target: android, platform: Android }
           - { target: macos-arm64, platform: StandaloneOSX }
           - { target: macos-x64, platform: StandaloneOSX }
           - { target: linux-x64, platform: StandaloneLinux64 }
@@ -295,11 +329,7 @@ jobs:
     env:
       TARGET: ${{ matrix.target }}
       ASSET: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}
-    steps:
-      - uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          large-packages: false
-
+    steps: &build-steps
       - uses: actions/checkout@v7
         with:
           lfs: false
@@ -312,14 +342,16 @@ jobs:
 
       - run: git lfs checkout
 
-      - uses: actions/download-artifact@v8
+      - if: matrix.target == 'android'
+        uses: actions/download-artifact@v8
         with:
           pattern: mod-*-${{ matrix.platform }}.tar
           path: ${{ runner.temp }}/mods
           merge-multiple: true
 
       # Inside the workspace: the Unity container sees only the workspace.
-      - run: |
+      - if: matrix.target == 'android'
+        run: |
           mkdir -p build/shipped-mods
           for tar in "$RUNNER_TEMP"/mods/*.tar; do tar -xf "$tar" -C build/shipped-mods; done
           ls build/shipped-mods
@@ -342,44 +374,114 @@ jobs:
         with:
           targetPlatform: ${{ matrix.platform }}
           buildMethod: MHK.Editor.Build.CiBuild.Build
-          customParameters: -mhkTarget ${{ matrix.target }} -mhkOut build/${{ matrix.target }} -mhkExtraMods build/shipped-mods -mhkCommit ${{ github.sha }} -mhkBuildCode ${{ needs.prepare.outputs.number }}
+          customParameters: -mhkTarget ${{ matrix.target }} -mhkOut build/${{ matrix.target }} ${{ matrix.target == 'android' && '-mhkExtraMods build/shipped-mods' || '' }} -mhkCommit ${{ github.sha }} -mhkBuildCode ${{ needs.prepare.outputs.number }}
           versioning: None
           allowDirtyBuild: true
+
+      - run: sudo chown -R "$(id -u):$(id -g)" "build/$TARGET"
+
+      - if: matrix.target == 'android'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          mv "build/$TARGET/MoorhuhnKart.apk" "$RUNNER_TEMP/$ASSET.apk"
+          gh release upload "$TAG" "$RUNNER_TEMP/$ASSET.apk" --clobber
+
+      - if: matrix.target != 'android'
+        run: tar -cf "$RUNNER_TEMP/game-$TARGET.tar" -C "build/$TARGET" --exclude='*_DoNotShip' --exclude='*_ButDontShipItWithYourGame' .
+
+      - if: matrix.target != 'android'
+        uses: actions/upload-artifact@v7
+        with:
+          path: ${{ runner.temp }}/game-${{ matrix.target }}.tar
+          archive: false
+          retention-days: 1
+          if-no-files-found: error
+
+  build-android:
+    name: Build ${{ matrix.target }}
+    needs: [prepare, mods-android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - { target: android, platform: Android }
+    env:
+      TARGET: ${{ matrix.target }}
+      ASSET: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}
+    steps: *build-steps
+
+  package-windows:
+    name: Installer ${{ matrix.target }}
+    needs: [prepare, build-desktop, mods-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - { target: windows-x64, platform: StandaloneWindows64 }
+          - { target: windows-arm64, platform: StandaloneWindows64 }
+    env:
+      TARGET: ${{ matrix.target }}
+      ASSET: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}
+    steps: &package-steps
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: Tools/installer
+          lfs: false
+
+      - run: git lfs pull --include "Tools/installer/*"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: game-${{ matrix.target }}.tar
+          path: ${{ runner.temp }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: mod-*-${{ matrix.platform }}.tar
+          path: ${{ runner.temp }}/mods
+          merge-multiple: true
 
       - name: Package
         env:
           NUMBER: ${{ needs.prepare.outputs.number }}
           SHA7: ${{ needs.prepare.outputs.sha7 }}
         run: |
-          sudo chown -R "$(id -u):$(id -g)" "build/$TARGET"
+          game="$RUNNER_TEMP/game"
+          mkdir -p "$game/Mods"
+          tar -xf "$RUNNER_TEMP/game-$TARGET.tar" -C "$game"
+          for tar in "$RUNNER_TEMP"/mods/*.tar; do tar -xf "$tar" -C "$game/Mods"; done
+          rm -r "$RUNNER_TEMP/game-$TARGET.tar" "$RUNNER_TEMP/mods"
           case "$TARGET" in
-            android) file="$RUNNER_TEMP/$ASSET.apk"; mv "build/$TARGET/MoorhuhnKart.apk" "$file" ;;
             windows-*) file="$RUNNER_TEMP/$ASSET-setup.exe"; tool=nsis ;;
-            linux-*) file="$RUNNER_TEMP/$ASSET.run"; tool=makeself ;;
-            macos-*) file="$RUNNER_TEMP/game-$TARGET.tar"
-              tar -cf "$file" -C "build/$TARGET" --exclude='*_DoNotShip' --exclude='*_ButDontShipItWithYourGame' . ;;
+            *) file="$RUNNER_TEMP/$ASSET.run"; tool=makeself ;;
           esac
-          if [ -n "${tool:-}" ]; then
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq "$tool" > /dev/null
-            Tools/installer/package.sh "$TARGET" "build/$TARGET" "$file" "$NUMBER" "$SHA7"
-          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "$tool" > /dev/null
+          Tools/installer/package.sh "$TARGET" "$game" "$file" "$NUMBER" "$SHA7"
           echo "FILE=$file" >> "$GITHUB_ENV"
 
       - name: Check the Linux installer
         if: startsWith(matrix.target, 'linux-')
         run: |
+          build="$RUNNER_TEMP/game"
           export HOME="$RUNNER_TEMP/home" XDG_DATA_HOME="$RUNNER_TEMP/home/share"
           dir="$HOME/Games/Moorhuhn Kart OSE"
           "$FILE" --quiet -- --yes
           "$FILE" --quiet -- --dir "$dir" --yes
           test -x "$dir/MoorhuhnKart.x86_64"
-          for mod in build/"$TARGET"/Mods/*/; do test -d "$dir/Mods/$(basename "$mod")/Assets"; done
+          for mod in "$build"/Mods/*/; do test -d "$dir/Mods/$(basename "$mod")/Assets"; done
           grep -qxF "Path=$dir" "$XDG_DATA_HOME/applications/org.mhkose.moorhuhnkart.desktop"
           "$dir/uninstall.sh" --yes
           test ! -e "$dir" && test ! -e "$XDG_DATA_HOME/applications/org.mhkose.moorhuhnkart.desktop"
 
-      - if: startsWith(matrix.target, 'windows-') || startsWith(matrix.target, 'macos-')
+      - if: startsWith(matrix.target, 'windows-')
         uses: actions/upload-artifact@v7
         with:
           path: ${{ env.FILE }}
@@ -388,15 +490,29 @@ jobs:
           if-no-files-found: error
 
       - name: Upload to the draft release
-        if: ${{ !startsWith(matrix.target, 'macos-') }}
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.prepare.outputs.tag }}
         run: gh release upload "$TAG" "$FILE" --clobber
 
+  package-linux:
+    name: Installer ${{ matrix.target }}
+    needs: [prepare, build-desktop, mods-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - { target: linux-x64, platform: StandaloneLinux64 }
+    env:
+      TARGET: ${{ matrix.target }}
+      ASSET: MHK-${{ matrix.target }}-${{ needs.prepare.outputs.sha7 }}
+    steps: *package-steps
+
   dmg:
     name: Disk image ${{ matrix.target }}
-    needs: [prepare, build]
+    needs: [prepare, build-desktop, mods-macos]
     runs-on: macos-latest
     permissions:
       contents: write
@@ -417,12 +533,20 @@ jobs:
           name: game-${{ matrix.target }}.tar
           path: ${{ runner.temp }}
 
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: mod-*-StandaloneOSX.tar
+          path: ${{ runner.temp }}/mods
+          merge-multiple: true
+
       - run: |
-          mkdir "$RUNNER_TEMP/game"
-          tar -xf "$RUNNER_TEMP/game-$TARGET.tar" -C "$RUNNER_TEMP/game"
-          rm "$RUNNER_TEMP/game-$TARGET.tar"
+          game="$RUNNER_TEMP/game"
+          mkdir -p "$game/Mods"
+          tar -xf "$RUNNER_TEMP/game-$TARGET.tar" -C "$game"
+          for tar in "$RUNNER_TEMP"/mods/*.tar; do tar -xf "$tar" -C "$game/Mods"; done
+          rm -r "$RUNNER_TEMP/game-$TARGET.tar" "$RUNNER_TEMP/mods"
           echo "DMG=$RUNNER_TEMP/$ASSET.dmg" >> "$GITHUB_ENV"
-          Tools/installer/package.sh "$TARGET" "$RUNNER_TEMP/game" "$RUNNER_TEMP/$ASSET.dmg" "${{ needs.prepare.outputs.number }}" "${{ needs.prepare.outputs.sha7 }}"
+          Tools/installer/package.sh "$TARGET" "$game" "$RUNNER_TEMP/$ASSET.dmg" "${{ needs.prepare.outputs.number }}" "${{ needs.prepare.outputs.sha7 }}"
 
       - name: Check the image
         run: |
@@ -440,7 +564,7 @@ jobs:
 
   windows-check:
     name: Install check ${{ matrix.target }}
-    needs: [prepare, build]
+    needs: [prepare, package-windows]
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -484,7 +608,7 @@ jobs:
 
   publish:
     name: Publish release
-    needs: [prepare, dmg, windows-check]
+    needs: [prepare, build-android, package-linux, dmg, windows-check]
     runs-on: ubuntu-latest
     permissions:
       contents: write
