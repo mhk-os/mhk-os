@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhk3_rome
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhk3.rome
+  displayName: Rome
+  sourceGame: mhk3
+  icon: {fileID: 2800000, guid: eb42bb85e119a420f89b5d05f3ca2636, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: 33f507915e9c54328a6901f999044184, type: 3}
+    path: Assets/Content/MHK3/Tracks/mhk3_rome/mhk3_rome.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: e02204323c44143bd99bbfd5b9fae48d, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: eb42bb85e119a420f89b5d05f3ca2636, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings: []
+  physics:
+    overrideSlopeGravity: 1
+    slopeGravityFactor: 0
+    gravityIntoGround: 1
+  itemPacks: []

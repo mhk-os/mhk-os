@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c65d815979c3f41809b88a4a7b001a53, type: 3}
+  m_Name: mhk3_kart_Physics
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Karts.KartPhysicsProfile
+  mass: 20
+  chassisSize: {x: 0.625, y: 0.2, z: 0.555}
+  centerOfMass: {x: 0.05, y: 0, z: 0}
+  chassisCollOffset: {x: 0.0875, y: 0, z: 0}
+  wheelsRadiusFront: 0.2
+  wheelsRadiusRear: 0.2
+  wheelsStiffnessFront: 20000
+  wheelsStiffnessRear: 20000
+  wheelsDampingFront: 200
+  wheelsDampingRear: 200
+  lateralFrictionCoeffFront: 2.35
+  lateralFrictionCoeffRear: 2.35
+  rollFrictionCoeffFront: 4.4
+  rollFrictionCoeffRear: 2.2
+  rollFrictionCoeffLockedFront: 1
+  rollFrictionCoeffLockedRear: 0.5
+  wheelCollOffsets:
+  - {x: 0.542, y: -0.1, z: -0.46}
+  - {x: 0.542, y: -0.1, z: 0.46}
+  - {x: -0.487, y: -0.1, z: -0.46}
+  - {x: -0.487, y: -0.1, z: 0.46}
+  brakeCoefficientFront: 1
+  brakeCoefficientRear: 1
+  maxBrakeFront: 1
+  maxBrakeRear: 1
+  torqueCoefficientFront: 0
+  torqueCoefficientRear: 1
+  gears:
+  - 1
+  - 1
+  - 0.75
+  - 0.5
+  gearReverse: 3
+  diffRatio: 6.06
+  changeUpRpm: 4000
+  torqueCurve:
+  - rpm: 0
+    torque: 1.4
+    engineBraking: 0
+  - rpm: 2000
+    torque: 1
+    engineBraking: 0
+  - rpm: 4000
+    torque: 0.6
+    engineBraking: 0.2
+  - rpm: 6000
+    torque: 0
+    engineBraking: 2
+  steeringWashout: 0.03
+  steeringWashoutPower: 1.6
+  dragCoefficient: 0
+  downforceCoefficient: 0.5
+  steeringSpeed: 210
+  steeringRestSpeed: 700
+  maxSteeringAngle: 40
+  accelerationSpeed: 10
+  brakeSpeed: 100
+  frictionEqualizer: 0.8
+  angularVelDamping: 2
+  angularVelCollisionLimit: 2
+  angularVelCollisionDamping: 12
+  extraSteeringTorque: 3
+  extraSteeringTorqueImpulse: 0
+  uprightTorqueFactor: 100
+  lateralSlipAngle: 0
+  slopeGravityFactor: 0.25

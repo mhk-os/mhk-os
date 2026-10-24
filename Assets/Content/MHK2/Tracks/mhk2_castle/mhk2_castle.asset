@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhk2_castle
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhk2.castle
+  displayName: Castle
+  sourceGame: mhk2
+  icon: {fileID: 2800000, guid: c0f10bc638ea24a8280852471cc6aba9, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: 90b8033b051ab4a7da5ea9c5516809a3, type: 3}
+    path: Assets/Content/MHK2/Tracks/mhk2_castle/mhk2_castle.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: bd32674d7edad4082b02809a10071d86, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: c0f10bc638ea24a8280852471cc6aba9, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings:
+  - leadingDistance: 300
+    leadingSpeedFactor: 0.7
+    normalSpeedFactor: 0.9
+    trailingDistance: 200
+    trailingSpeedFactor: 0.9
+    rankFactors:
+    - 1
+    - 0.95
+    - 0.95
+    - 0.9
+    - 0.85
+    - 0.8
+  - leadingDistance: 200
+    leadingSpeedFactor: 0.8
+    normalSpeedFactor: 0.9
+    trailingDistance: 100
+    trailingSpeedFactor: 0.95
+    rankFactors:
+    - 1
+    - 1
+    - 1
+    - 0.95
+    - 0.95
+    - 0.95
+  - leadingDistance: 100
+    leadingSpeedFactor: 0.95
+    normalSpeedFactor: 0.95
+    trailingDistance: 100
+    trailingSpeedFactor: 1
+    rankFactors:
+    - 1
+    - 1
+    - 1
+    - 1
+    - 1
+    - 0.95
+  physics:
+    overrideSlopeGravity: 0
+    slopeGravityFactor: 1
+    gravityIntoGround: 0
+  itemPacks: []

@@ -1,0 +1,90 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Keyboard keys. Code fills ctl-list with one row per action (samples: the default keys). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="ControlRow" src="/Assets/MHK/UI/Menu/Templates/ControlRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Controls" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="controls-panel" class="panel list-panel controls-panel">
+                    <ui:VisualElement class="ctl-head">
+                        <ui:Label text="Action" class="ctl-action" />
+                        <ui:Label text="Key" class="ctl-key-head" />
+                        <ui:Label text="Second key" class="ctl-key-head" />
+                    </ui:VisualElement>
+                    <ui:ScrollView name="ctl-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                        <ui:VisualElement name="ctl-list">
+                            <ui:Instance template="ControlRow">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Steer left" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="A" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="Left" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow" class="sample-alt">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Steer right" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="D" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="Right" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Throttle" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="W" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="Up" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow" class="sample-alt">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Brake" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="S" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="Down" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Fire" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="Space" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="Control" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow" class="sample-alt">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Look back" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="C" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="Shift" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow" class="sample-empty">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Horn" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="H" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="—" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow" class="sample-alt sample-empty">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Respawn" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="R" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="—" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Pause" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="Esc" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="P" />
+                            </ui:Instance>
+                            <ui:Instance template="ControlRow" class="sample-alt">
+                                <ui:AttributeOverrides element-name="ctl-action" text="Camera" />
+                                <ui:AttributeOverrides element-name="ctl-key-0" text="-" />
+                                <ui:AttributeOverrides element-name="ctl-key-1" text="Num -" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                    </ui:ScrollView>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="reset" class="mhk-button small">
+                    <ui:VisualElement class="icon i-restart_alt" />
+                    <ui:Label text="Reset to defaults" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

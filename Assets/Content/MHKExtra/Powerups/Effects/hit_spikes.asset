@@ -1,0 +1,146 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0e071ba0498a4581aca51e4f6f6e17a, type: 3}
+  m_Name: hit_spikes
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.StatusEffectDefinition
+  id: mhke.hit.spikes
+  displayName: Flat tyres
+  sourceGame: mhke
+  icon: {fileID: 0}
+  hidden: 0
+  reaction: {fileID: 0}
+  overrides: []
+  duration: 5
+  durationFromAnimation: 0
+  refreshOnReapply: 1
+  exclusiveBuff: 0
+  accelerationMultiplier: 0.6
+  maxSpeedMultiplier: 0.6
+  modifiersMinSpeed: 0
+  steeringMultiplier: 1
+  gripMultiplier: 1
+  forwardImpulse: 0
+  velocityRetain: 1
+  velocityDamping: 0
+  lockControls: 0
+  forceThrottle: 0
+  blockThrottle: 0
+  blocksItemUse: 0
+  invertSteering: 0
+  freezeKart: 0
+  spinTurns: 0
+  upwardImpulse: 0
+  respawnOnEnd: 0
+  respawnBackDistance: 15
+  gravityMultiplier: 1
+  landingEffect: {fileID: 0}
+  endOnLanding: 0
+  blocksHostileEffects: 0
+  hostile: 1
+  dropsHeldItem: 0
+  cancelsBuffs: 0
+  survivesHits: 0
+  ghost: 0
+  runOver: 0
+  hideKart: 0
+  hideDelay: 0
+  damage: -1
+  heal: 0
+  damageDealtMultiplier: 1
+  damageTakenMultiplier: 1
+  scaleMultiplier: 1
+  verticalScale: 1
+  auraEffect: {fileID: 0}
+  auraRadius: 2
+  attachedVfxPrefab: {fileID: 4410982617340551201, guid: c3e1b7a24f6d4e0a8b9d5f1e2a7c6b40, type: 3}
+  attachToVisual: 0
+  attachMount: 3
+  opacity: 1
+  useCharacterAnimation: 1
+  characterAnimation: 18
+  applySound: {fileID: 8300000, guid: 5ddb5fab52894dc59c1f7f304c892e59, type: 3}
+  expiringSound: {fileID: 0}
+  expiringSoundLead: 3
+  endSound: {fileID: 8300000, guid: 7dc3badd459345dbbc4ef26880694e53, type: 3}
+  screenOverlay: {r: 1, g: 1, b: 1, a: 0}
+  burnVisual: 0
+  hideWheels: 0
+  bodyBob:
+    height: 0.073
+    frequency: 6
+    shape:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: -5
+        outSlope: 0.6
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.2
+        value: 0.121
+        inSlope: 2.5
+        outSlope: 2.5
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.4
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.6
+        value: 0.47
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.8
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 0
+        inSlope: -5
+        outSlope: 0.6
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    sway: 0.012
+    pitch: 0
+    roll: 0
+    fadeIn: 0.1
+    fadeOut: 0.3
+  endVfxPrefab: {fileID: 0}
+  cameraFovBoost: 0

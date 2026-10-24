@@ -1,0 +1,555 @@
+/* Race HUD, pause, results and touch controls (imported by MHKTheme.uss, layouts in the Assets/MHK/UI/Race UXML files,
+ * bound by RaceHud, PauseMenu, RaceResults and TouchControls). Layout reference 1920x1080.
+ * This file is imported before the theme rules: to override a theme class (.panel, .icon, .ribbon, .badge, ...)
+ * use a compound selector (.icon.hud-x) so it wins over the later, equally specific theme rule.
+ * HUD text sits on the scene without a plate: white (or a state colour) with a charcoal outline and a soft drop shadow,
+ * readable on bright snow and in dark tunnels. HudSpeedometer and Minimap take their colours from the --speedo-* and
+ * --minimap-* custom properties below.
+ * Elements that code shows only in some states (messages, battle parts, held item, championship columns) are hidden
+ * here, code sets them inline at runtime. The preview-* classes, never added by code, show those states when added to
+ * the root of RaceHud.uxml / Results.uxml in UI Builder (see the comment at the top of each UXML), and
+ * TemplateContainer.sample-* give a row sample in Results.uxml the look code gives a cloned row (.gold, .me, ...).
+ * .hud.intro hides the .hud-widget elements until the countdown starts (RaceHud removes it, they fly in).
+ * .preview-item shows a bundled powerup icon by asset path, update it if that content moves. */
+
+.hud, .hud-overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+
+.hud-widget {
+    transition-property: opacity, translate;
+    transition-duration: 0.35s, 0.6s;
+    transition-timing-function: ease-out, ease-out-back;
+}
+.hud.intro .hud-widget { opacity: 0; }
+.hud.intro .hud-from-bottom { translate: 0 120px; }
+.hud.intro .hud-from-left { translate: -160px 0; }
+.hud.intro .hud-from-right { translate: 160px 0; }
+
+/* Item slot (top left): the empty MHK3 slot with the held item's icon drawn over it. Slot texture and icons cover the
+ * same 120-unit cell (the ring spans units 18..100), the frame is that cell. The anchor takes the wider of the slot and
+ * the name plate (no fixed width, it would clip long names), the name plate starts at the ring's left edge and long
+ * names run on under the position display. The race position is absolute beside the 176px slot, so a long item name
+ * never moves it, and its number sits level with the ring (ring centre 88px down the slot). */
+.hud-topleft { position: absolute; left: 10px; top: 4px; align-items: flex-start; }
+.hud-position { position: absolute; left: 186px; top: 20px; align-items: flex-start; }
+.hud-pos-num {
+    -unity-font-definition: var(--font-display);
+    font-size: 112px;
+    color: var(--mhk-white);
+    -unity-text-outline: 4px var(--mhk-outline);
+    text-shadow: 0 5px 8px var(--mhk-shadow);
+    -unity-text-align: upper-left;
+    letter-spacing: -2px;
+    padding: 0; margin: 0;
+}
+.hud-pos-side { padding-top: 26px; margin-left: 2px; }
+.hud-pos-suffix {
+    -unity-font-definition: var(--font-display);
+    font-size: 40px;
+    color: var(--mhk-white);
+    -unity-text-outline: 3px var(--mhk-outline);
+    text-shadow: 0 3px 6px var(--mhk-shadow);
+    padding: 0; margin: 0;
+}
+.hud-pos-total {
+    -unity-font-definition: var(--font-display);
+    font-size: 28px;
+    color: var(--mhk-white-85);
+    -unity-text-outline: 3px var(--mhk-outline);
+    text-shadow: 0 2px 4px var(--mhk-shadow);
+    padding: 0; margin: 0;
+}
+.hud-position.p1 .hud-pos-num, .hud-position.p1 .hud-pos-suffix { color: var(--mhk-accent); }
+.hud-position.p2 .hud-pos-num, .hud-position.p2 .hud-pos-suffix { color: var(--mhk-gray-200); }
+.hud-position.p3 .hud-pos-num, .hud-position.p3 .hud-pos-suffix { color: var(--mhk-bronze); }
+
+.hud-lapbox { position: absolute; right: 28px; top: 14px; width: 300px; align-items: stretch; }
+.hud-lap-row, .hud-time-row, .hud-best-row, .hud-split-row { justify-content: flex-end; }
+.hud-lap-row { align-items: flex-end; }
+.icon.hud-lap-icon, .icon.hud-time-icon, .icon.hud-best-icon, .icon.hud-split-icon, .hud-lap-divider { display: none; }
+.hud-lap-caption {
+    -unity-font-definition: var(--font-display);
+    font-size: 32px;
+    color: var(--mhk-white-85);
+    -unity-text-outline: 3px var(--mhk-outline);
+    text-shadow: 0 3px 5px var(--mhk-shadow);
+    padding: 0; margin: 0 10px 9px 0;
+}
+.hud-lap-value {
+    -unity-font-definition: var(--font-display);
+    font-size: 68px;
+    color: var(--mhk-white);
+    -unity-text-outline: 4px var(--mhk-outline);
+    text-shadow: 0 4px 8px var(--mhk-shadow);
+    -unity-text-align: middle-right;
+    padding: 0; margin: 0;
+}
+.hud-time-row { align-items: flex-end; margin-top: -6px; }
+.hud-time-main {
+    -unity-font-definition: var(--font-bold);
+    font-size: 42px;
+    color: var(--mhk-white);
+    -unity-text-outline: 3px var(--mhk-outline);
+    text-shadow: 0 3px 6px var(--mhk-shadow);
+    -unity-text-align: lower-right;
+    letter-spacing: 1px;
+    padding: 0; margin: 0;
+}
+.hud-time-frac {
+    width: 48px;
+    -unity-font-definition: var(--font-bold);
+    font-size: 28px;
+    color: var(--mhk-white-85);
+    -unity-text-outline: 3px var(--mhk-outline);
+    text-shadow: 0 2px 4px var(--mhk-shadow);
+    -unity-text-align: lower-left;
+    padding: 0 0 4px 0; margin: 0;
+}
+.hud-best-row, .hud-split-row { margin-top: 2px; align-items: center; display: none; }
+.preview-best-lap .hud-best-row { display: flex; }
+.preview-time-trial .hud-split-row { display: flex; }
+.hud-best-caption, .hud-split-caption {
+    -unity-font-definition: var(--font-display);
+    font-size: 22px;
+    color: var(--mhk-white-85);
+    -unity-text-outline: 3px var(--mhk-outline);
+    text-shadow: 0 2px 4px var(--mhk-shadow);
+    padding: 0; margin: 0 10px 0 0;
+}
+.hud-best-time, .hud-split-time {
+    -unity-font-definition: var(--font-bold);
+    font-size: 28px;
+    color: var(--mhk-white);
+    -unity-text-outline: 3px var(--mhk-outline);
+    text-shadow: 0 2px 4px var(--mhk-shadow);
+    -unity-text-align: middle-right;
+    padding: 0; margin: 0;
+}
+.hud-split-time.ahead { color: var(--mhk-good); }
+.hud-split-time.behind { color: var(--mhk-bad); }
+.preview-time-trial #top-left, .preview-replay #top-left { display: none; }
+.hud-ghost-tags { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: none; }
+.preview-time-trial .hud-ghost-tags { display: flex; }
+/* Ghost name tags: RaceHud moves each zero-size anchor to the point above a ghost's driver with translate (no layout
+ * pass per frame). The tag inside centres itself above that point with its own percentage translate. */
+.hud-ghost-anchor { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.hud-ghost-tag {
+    position: absolute;
+    translate: -50% -100%;
+    -unity-font-definition: var(--font-bold);
+    font-size: 18px;
+    color: var(--mhk-white);
+    background-color: var(--mhk-glass);
+    border-radius: 9px;
+    padding: 1px 10px 2px 10px;
+    margin: 0;
+    white-space: nowrap;
+}
+.panel.hud-replay.hud-widget { position: absolute; left: 22px; top: 16px; padding: 10px 22px 14px 16px; align-items: center; display: none; background-color: var(--mhk-glass-dark-lite-fill); border-color: var(--mhk-glass-dark-rim); }
+.preview-replay .panel.hud-replay.hud-widget { display: flex; }
+.icon.hud-replay-icon { width: 40px; height: 40px; margin-right: 12px; -unity-background-image-tint-color: var(--mhk-white); }
+.hud-replay-caption {
+    -unity-font-definition: var(--font-display);
+    font-size: 26px;
+    color: var(--mhk-white);
+    padding: 0; margin: 0;
+}
+.hud-replay-name { font-size: 19px; color: var(--mhk-white-70); padding: 0; margin: 0; }
+.hud-health {
+    height: 26px; margin-top: 8px;
+    border-radius: 13px;
+    border-width: 2px; border-color: var(--mhk-outline);
+    background-color: var(--mhk-glass);
+    overflow: hidden;
+    justify-content: center;
+    display: none;
+}
+.preview-battle .hud-health { display: flex; }
+.hud-health-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    border-radius: 11px;
+    background-color: var(--mhk-white);
+    transition-property: width, background-color;
+    transition-duration: 0.3s;
+    transition-timing-function: ease-out;
+}
+.hud-health-fill.low { background-color: var(--mhk-accent); }
+.hud-health.out { opacity: 0.5; }
+.hud-health-text {
+    -unity-font-definition: var(--font-display);
+    font-size: 18px;
+    color: var(--mhk-white);
+    -unity-text-outline: 2px var(--mhk-outline);
+    -unity-text-align: middle-center;
+    padding: 0; margin: 0;
+}
+
+.hud-item-anchor { align-items: flex-start; }
+.hud-item-wrap { width: 176px; height: 176px; }
+.sunburst.hud-item-burst { left: -44px; top: -44px; width: 260px; height: 260px; border-radius: 130px; opacity: 0; }
+.hud-item-frame {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    background-image: url("Textures/hud_item_slot.png");
+    background-size: 100% 100%;
+}
+.hud-item-icon {
+    position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+    background-size: 100% 100%;
+}
+.hud-item-icon.cooling {
+    opacity: 0.4;
+    -unity-background-image-tint-color: var(--mhk-gray-400);
+}
+.hud-item-charges {
+    position: absolute; right: 18px; bottom: 18px;
+    width: 46px; height: 46px;
+    background-image: url("Textures/badge_dark.png");
+    background-size: 100% 100%;
+    align-items: center; justify-content: center;
+}
+.hud-item-charges-label {
+    -unity-font-definition: var(--font-display);
+    font-size: 19px;
+    color: var(--mhk-white);
+    -unity-text-align: middle-center;
+    padding: 0 0 2px 3px; margin: 0;
+}
+.hud-item-name {
+    margin: -24px 0 0 22px;
+    padding: 2px 14px 4px 14px;
+    border-radius: 12px;
+    background-color: var(--mhk-glass);
+    -unity-font-definition: var(--font-bold);
+    font-size: 19px;
+    color: var(--mhk-white);
+    white-space: nowrap;
+}
+.hud-item-charges, .hud-item-name { display: none; }
+.preview-item .hud-item-charges, .preview-item .hud-item-name { display: flex; }
+.preview-item .hud-item-icon { background-image: url("/Assets/MHK/UI/Samples/homing_missile.png"); }
+.preview-item .sunburst.hud-item-burst { opacity: 0.9; }
+
+.hud-speedo {
+    position: absolute; left: 22px; bottom: 14px;
+    width: 250px; height: 250px;
+    align-items: center; justify-content: center;
+    --speedo-plate: rgba(23, 25, 29, 0.72);
+    --speedo-rim: rgba(255, 255, 255, 0.9);
+    --speedo-rim-shade: rgba(23, 25, 29, 0.85);
+    --speedo-track: rgba(255, 255, 255, 0.16);
+    --speedo-redline: #FFB400;
+    --speedo-tick: rgba(255, 255, 255, 0.7);
+    --speedo-fill: #FFFFFF;
+    --speedo-fill-hot: #FFB400;
+}
+.hud-speedo-value {
+    -unity-font-definition: var(--font-display);
+    font-size: 78px;
+    color: var(--mhk-white);
+    -unity-text-outline: 3px var(--mhk-outline);
+    text-shadow: 0 4px 6px var(--mhk-shadow);
+    -unity-text-align: middle-center;
+    padding: 0; margin: 8px 0 0 0;
+}
+.hud-speedo.touch .hud-speedo-value { font-size: 58px; }
+.hud-speedo.hot .hud-speedo-value { color: var(--mhk-accent); }
+.hud-speedo-unit {
+    -unity-font-definition: var(--font-bold);
+    font-size: 18px;
+    color: var(--mhk-white-70);
+    letter-spacing: 1px;
+    -unity-text-align: middle-center;
+    padding: 0; margin: -14px 0 0 0;
+}
+
+.hud-minimap {
+    position: absolute; right: 28px; bottom: 24px;
+    --minimap-track: #F5F6F8;
+    --minimap-outline: rgba(23, 25, 29, 0.92);
+    --minimap-shadow: rgba(0, 0, 0, 0.4);
+    --minimap-player: #33EB40;
+    --minimap-opponent: #F2261F;
+    --minimap-dot-border: rgba(23, 25, 29, 0.95);
+    --minimap-ring-fill: rgba(23, 25, 29, 0.35);
+}
+.hud-minimap-track { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.hud-minimap-dot { position: absolute; left: 0; top: 0; border-radius: 50%; }
+
+.hud-countdown { position: absolute; left: 0; right: 0; top: 12%; height: 380px; align-items: center; justify-content: center; }
+.sunburst.hud-countdown-burst { left: 50%; top: -190px; width: 760px; height: 760px; margin-left: -380px; border-radius: 380px; opacity: 0; }
+.hud-countdown-num {
+    -unity-font-definition: var(--font-display);
+    font-size: 250px;
+    color: var(--mhk-white);
+    -unity-text-outline: 7px var(--mhk-outline);
+    text-shadow: 0 10px 14px var(--mhk-shadow);
+    -unity-text-align: middle-center;
+    letter-spacing: 2px;
+    padding: 0; margin: 0;
+    opacity: 0;
+}
+.preview-messages .hud-countdown-num { opacity: 1; }
+.preview-messages .sunburst.hud-countdown-burst { opacity: 0.6; }
+.hud-countdown-num.go { color: var(--mhk-accent); }
+
+.hud-banner-anchor { position: absolute; left: 0; right: 0; top: 34%; align-items: center; }
+.ribbon.hud-banner {
+    height: 92px; min-width: 560px;
+    padding: 0 80px 4px 80px;
+    border-radius: 20px;
+    opacity: 0;
+    translate: -1700px 0;
+    transition-property: translate, opacity;
+    transition-duration: 0.55s, 0.3s;
+    transition-timing-function: ease-out-back, ease-out;
+}
+.ribbon.hud-banner.in { translate: 0 0; opacity: 1; }
+.ribbon.hud-banner.out { translate: 1700px 0; opacity: 0; transition-timing-function: ease-in, ease-in; }
+.ribbon-label.hud-banner-label { font-size: 58px; letter-spacing: 2px; }
+.preview-messages .ribbon.hud-banner { translate: 0 0; opacity: 1; }
+
+.hud-warn-anchor {
+    position: absolute; left: 0; right: 0; top: 22%;
+    align-items: center;
+    opacity: 0; scale: 0.5 0.5;
+    transition-property: opacity, scale;
+    transition-duration: 0.2s, 0.35s;
+    transition-timing-function: ease-out, ease-out-back;
+}
+.hud-warn-anchor.shown { opacity: 1; scale: 1 1; }
+.preview-messages .hud-warn-anchor { opacity: 1; scale: 1 1; }
+.hud-warn {
+    background-image: url("Textures/button_accent.png");
+    -unity-slice-left: 36; -unity-slice-right: 36; -unity-slice-top: 30; -unity-slice-bottom: 40;
+    -unity-slice-scale: 0.5px;
+    min-height: 84px;
+    padding: 6px 38px 12px 28px;
+    align-items: center;
+}
+.icon.hud-warn-icon { width: 52px; height: 52px; margin-right: 12px; -unity-background-image-tint-color: var(--mhk-gray-900); }
+.hud-warn-label {
+    -unity-font-definition: var(--font-display);
+    font-size: 52px;
+    color: var(--mhk-gray-900);
+    letter-spacing: 1px;
+}
+
+.hud-flash-anchor {
+    position: absolute; left: 0; right: 0; top: 58%;
+    align-items: center;
+    opacity: 0;
+    transition-property: opacity;
+    transition-duration: 0.3s;
+}
+.hud-flash-anchor.shown { opacity: 1; }
+.preview-messages .hud-flash-anchor { opacity: 1; }
+.hud-flash {
+    background-image: url("Textures/panel_dark.png");
+    -unity-slice-left: 44; -unity-slice-right: 44; -unity-slice-top: 44; -unity-slice-bottom: 48;
+    -unity-slice-scale: 0.5px;
+    padding: 10px 40px 18px 40px;
+}
+.hud-flash.good, .hud-flash.bad {
+    -unity-slice-left: 36; -unity-slice-right: 36; -unity-slice-top: 30; -unity-slice-bottom: 40;
+    padding: 6px 44px 14px 44px;
+}
+.hud-flash.good { background-image: url("Textures/button_light.png"); }
+.hud-flash.bad { background-image: url("Textures/button_accent.png"); }
+.hud-flash-label {
+    -unity-font-definition: var(--font-display);
+    font-size: 48px;
+    color: var(--mhk-white);
+    letter-spacing: 1px;
+}
+.hud-flash.good .hud-flash-label, .hud-flash.bad .hud-flash-label { color: var(--mhk-gray-900); }
+
+.hud-pause { background-color: var(--mhk-scrim); }
+.hud-pause-column {
+    align-items: stretch;
+    opacity: 0;
+    scale: 0.9 0.9;
+    translate: 0 30px;
+    transition-property: opacity, scale, translate;
+    transition-duration: 0.22s, 0.32s, 0.32s;
+    transition-timing-function: ease-out, ease-out-cubic, ease-out-cubic;
+}
+.hud-pause-column.shown { opacity: 1; scale: 1 1; translate: 0 0; }
+.hud-pause-title { margin-bottom: 22px; }
+.panel.hud-pause-panel { min-width: 560px; align-items: stretch; padding: 26px 34px 30px 34px; }
+.hud-pause-panel .mhk-button { margin: 5px 0; }
+.hud-pause-setting {
+    margin-top: 16px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    background-color: var(--mhk-row);
+}
+.icon.hud-pause-setting-icon { width: 28px; height: 28px; margin-right: 10px; -unity-background-image-tint-color: var(--mhk-gray-600); }
+.hud-pause-slider { flex-grow: 1; margin: 0; }
+.hud-pause-slider .unity-base-slider__label { min-width: 170px; }
+.hud-pause-value {
+    width: 64px;
+    -unity-font-definition: var(--font-bold);
+    font-size: 21px;
+    color: var(--mhk-gray-900);
+    -unity-text-align: middle-right;
+}
+
+.hud-results { background-color: var(--mhk-scrim); }
+.hud-results-column { align-items: center; }
+.panel.hud-results-panel { min-width: 900px; padding: 16px 28px 4px 28px; align-items: stretch; }
+.hud-results-head, .hud-lapres-head { justify-content: center; padding: 0 6px 6px 6px; border-bottom-width: 1px; border-color: var(--mhk-divider); margin-bottom: 4px; }
+.hud-res-head {
+    -unity-font-definition: var(--font-bold);
+    font-size: 16px;
+    color: var(--mhk-gray-500);
+    letter-spacing: 1px;
+    -unity-text-align: middle-center;
+}
+.hud-results-row, .hud-lapres-row {
+    justify-content: center;
+    height: 60px;
+    margin: 3px 0;
+    padding: 0 6px;
+    border-radius: 12px;
+    border-width: 2px;
+    border-color: transparent;
+    background-color: var(--mhk-row);
+}
+.hud-lapres-row { height: 52px; }
+.hud-results-row.me, TemplateContainer.sample-me > .hud-results-row { background-color: var(--mhk-accent); border-color: var(--mhk-accent-deep); }
+.hud-res-pos { width: 80px; flex-shrink: 0; }
+.hud-results-row .hud-res-pos { height: 56px; align-items: center; justify-content: center; }
+.badge.hud-res-badge { width: 46px; height: 46px; }
+/* Lilita One digits sit about 2px left of and 1.5px below the centre of their line box (measured at 1920x1080):
+ * the asymmetric padding moves them onto the badge centre (the same for .hud-item-charges-label). */
+.hud-res-badge .badge-label { font-size: 21px; padding: 0 0 3px 3px; }
+.sunburst.hud-res-burst { left: -10px; top: -22px; width: 100px; height: 100px; border-radius: 50px; opacity: 0.85; display: none; }
+TemplateContainer.sample-gold .sunburst.hud-res-burst { display: flex; }
+.hud-res-cell {
+    -unity-font-definition: var(--font-bold);
+    font-size: 25px;
+    color: var(--mhk-gray-900);
+    -unity-text-align: middle-center;
+    padding: 0; margin: 0;
+}
+.hud-res-cell.hud-res-name {
+    -unity-font-definition: var(--font-display);
+    font-size: 28px;
+    letter-spacing: 1px;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.hud-res-name { width: 320px; }
+.hud-res-racer { width: 420px; align-items: center; }
+.hud-res-racer > .hud-res-cell.hud-res-name { width: auto; flex-grow: 1; flex-shrink: 1; -unity-text-align: middle-left; }
+.hud-res-driver { margin-right: 12px; }
+.hud-res-head.hud-res-racer { -unity-text-align: middle-left; padding-left: 6px; }
+.hud-results-info {
+    -unity-font-definition: var(--font-bold);
+    font-size: 20px;
+    color: var(--mhk-gray-600);
+    -unity-text-align: middle-center;
+    margin-bottom: 10px;
+}
+.hud-res-time { width: 190px; }
+.hud-res-cell.hud-res-best { color: var(--mhk-gray-500); }
+.hud-res-cell.hud-res-best.good { color: var(--mhk-good-ink); }
+.hud-res-cell.hud-res-best.bad { color: var(--mhk-bad-ink); }
+.hud-res-points { width: 180px; justify-content: center; align-items: center; }
+.hud-res-gain {
+    -unity-font-definition: var(--font-display);
+    font-size: 30px;
+    color: var(--mhk-gray-900);
+    padding: 0; margin: 0;
+}
+.hud-res-total {
+    -unity-font-definition: var(--font-bold);
+    font-size: 20px;
+    color: var(--mhk-gray-500);
+    margin-left: 8px;
+}
+.hud-results-row.me .hud-res-cell, .hud-results-row.me .hud-res-total, .hud-results-row.me .hud-res-gain,
+TemplateContainer.sample-me > .hud-results-row .hud-res-cell, TemplateContainer.sample-me > .hud-results-row .hud-res-total,
+TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
+.hud-lapres-row.total .hud-res-cell, TemplateContainer.sample-total > .hud-lapres-row .hud-res-cell { color: var(--mhk-gray-900); }
+.hud-res-champion, .hud-tt-record {
+    align-self: center;
+    padding: 8px 26px 10px 20px;
+    border-radius: 16px;
+    border-width: 2px; border-color: var(--mhk-accent-deep);
+    background-color: var(--mhk-accent);
+}
+.hud-res-champion { margin-top: 14px; }
+.icon.hud-res-trophy { width: 36px; height: 36px; margin-right: 10px; -unity-background-image-tint-color: var(--mhk-gray-900); }
+.hud-res-champion-label {
+    -unity-font-definition: var(--font-display);
+    font-size: 28px;
+    color: var(--mhk-gray-900);
+}
+.checker-strip.hud-results-checker { margin: 16px 0 20px 0; opacity: 0.35; }
+.hud-results-buttons { margin-top: 18px; justify-content: center; }
+#head-status, #head-points, #next-race { display: none; }
+.hud-results-row > .hud-res-points, .hud-res-champion { display: none; }
+.preview-championship #head-points, .preview-championship #next-race { display: flex; }
+.preview-championship .hud-results-row > .hud-res-points, .preview-championship .hud-res-champion { display: flex; }
+.preview-championship #race-again { display: none; }
+.preview-battle #head-status { display: flex; }
+.preview-battle #head-best { display: none; }
+.hud-tt { display: none; align-items: stretch; }
+.preview-time-trial .hud-tt { display: flex; }
+.preview-time-trial #head, .preview-time-trial #rows { display: none; }
+#watch-replay, #export { display: none; }
+.preview-time-trial #watch-replay, .preview-time-trial #export { display: flex; }
+.hud-tt-record { margin: 4px 0 14px 0; display: none; }
+.preview-time-trial .hud-tt-record { display: flex; }
+.hud-lapres-row.best, TemplateContainer.sample-best > .hud-lapres-row { border-color: var(--mhk-accent); }
+.hud-lapres-row.total, TemplateContainer.sample-total > .hud-lapres-row { margin-top: 8px; background-color: var(--mhk-gray-100); border-color: var(--mhk-gray-300); }
+.hud-lapres-name { width: 240px; }
+.hud-lapres-time { width: 240px; }
+.hud-lapres-delta { width: 240px; }
+.hud-res-cell.hud-lapres-name { -unity-font-definition: var(--font-display); letter-spacing: 1px; }
+.hud-res-cell.hud-lapres-delta.good, .hud-lapres-row.total .hud-res-cell.hud-lapres-delta.good, TemplateContainer.sample-total > .hud-lapres-row .hud-res-cell.hud-lapres-delta.good { color: var(--mhk-good-ink); }
+.hud-res-cell.hud-lapres-delta.bad, .hud-lapres-row.total .hud-res-cell.hud-lapres-delta.bad, TemplateContainer.sample-total > .hud-lapres-row .hud-res-cell.hud-lapres-delta.bad { color: var(--mhk-bad-ink); }
+.hud-tt-note {
+    align-self: center;
+    max-width: 840px;
+    margin-top: 12px;
+    font-size: 18px;
+    color: var(--mhk-gray-600);
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+/* Touch layout. The steering buttons end 190px and the right-hand buttons 330px above the bottom edge, so with touch
+ * controls (.touch on the speedometer and the minimap) those two move above them (Minimap fits its height between its
+ * bottom offset and the lap text). Keep these button positions and offsets in step. The buttons are dark glass discs
+ * with a white rim (gas and fire white), pressed ones take the accent. The pause button is thumb-sized. */
+.hud-speedo.touch { left: 34px; bottom: 204px; width: 190px; height: 190px; }
+.hud-minimap.touch { right: 24px; bottom: 350px; }
+.touch-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.touch-button {
+    position: absolute;
+    width: 150px; height: 150px;
+    border-radius: 75px;
+    border-width: 3px; border-color: var(--mhk-white-85);
+    background-color: rgba(23, 25, 29, 0.5);
+    align-items: center; justify-content: center;
+    transition-property: scale, background-color;
+    transition-duration: 0.08s;
+    transition-timing-function: ease-out;
+}
+#steer-left { left: 30px; bottom: 40px; }
+#steer-right { left: 200px; bottom: 40px; }
+#gas { right: 30px; bottom: 150px; }
+#brake { right: 30px; bottom: 10px; }
+#fire { right: 200px; bottom: 60px; }
+#look-back { right: 200px; bottom: 220px; }
+.touch-button.accent { background-color: rgba(255, 255, 255, 0.88); border-color: rgba(23, 25, 29, 0.55); }
+.touch-button.pressed { background-color: var(--mhk-accent); border-color: var(--mhk-gray-900); scale: 0.92 0.92; }
+.touch-button.small { width: 110px; height: 110px; border-radius: 55px; }
+.icon.touch-icon { width: 72px; height: 72px; -unity-background-image-tint-color: var(--mhk-white); }
+.touch-button.small .icon.touch-icon { width: 52px; height: 52px; }
+.touch-button.accent .icon.touch-icon, .touch-button.pressed .icon.touch-icon { -unity-background-image-tint-color: var(--mhk-gray-900); }
+.icon.touch-icon.up { rotate: -90deg; }
+.icon.touch-icon.down { rotate: 90deg; }
+.mhk-button.touch-pause { position: absolute; top: 22px; right: 336px; }
+.mhk-button.small.icon-only.touch-pause { min-width: 88px; min-height: 72px; padding: 4px 16px 10px 16px; }
+.mhk-button.small.touch-pause .icon { width: 38px; height: 38px; margin: 0; }

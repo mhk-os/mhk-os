@@ -1,0 +1,61 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Race settings. Code fills the row values, preview-image, info-name, the mode line and the driver and kart pictures (names as tooltips), and hides rows that do not apply. Preview class on page: preview-championship (difficulty only). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Race settings" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main center anim from-left">
+                <ui:VisualElement name="settings-panel" class="panel settings-panel">
+                    <ui:Instance template="SettingRow" name="difficulty" class="setting-row anim from-left" style="transition-delay: 120ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Difficulty" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="100cc" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="opponents" class="setting-row setting-dropdown anim from-left" style="transition-delay: 170ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Opponents" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="5" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="laps" class="setting-row setting-dropdown anim from-left" style="transition-delay: 220ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Laps" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Track default" />
+                    </ui:Instance>
+                    <ui:Instance template="SettingRow" name="powerups" class="setting-row setting-link anim from-left" style="transition-delay: 270ms;">
+                        <ui:AttributeOverrides element-name="setting-label" text="Powerups" />
+                        <ui:AttributeOverrides element-name="setting-value-label" text="Standard" />
+                    </ui:Instance>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="side" class="page-side anim from-right">
+                <ui:VisualElement name="info-plate" class="panel info-plate">
+                    <ui:VisualElement name="preview-image" class="browser-image" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png&quot;);" />
+                    <ui:Label name="info-name" text="Scribble Blocks" class="info-name" />
+                    <ui:VisualElement class="info-line">
+                        <ui:VisualElement name="info-mode-icon" class="icon i-play_arrow" />
+                        <ui:Label name="info-mode" text="Single Race" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="info-driver" class="row race-driver">
+                        <ui:VisualElement name="info-character" tooltip="Hank" class="race-driver-thumb" style="background-image: url(&quot;/Assets/MHK/UI/Samples/character_hank.png&quot;);" />
+                        <ui:VisualElement name="info-kart" tooltip="Red Kart" class="race-driver-thumb" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2.kart_icon.png&quot;);" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="start" class="mhk-button big go pulse" usage-hints="DynamicTransform">
+                    <ui:VisualElement class="icon i-play_arrow" />
+                    <ui:Label text="Start!" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

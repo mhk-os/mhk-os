@@ -1,0 +1,180 @@
+# Based on https://github.com/gitattributes/gitattributes/blob/master/Unity.gitattributes
+# Macros (only work in the top-level .gitattributes)
+[attr]lfs               filter=lfs diff=lfs merge=lfs -text
+[attr]unity-json        eol=lf linguist-language=json
+# merge=unityyamlmerge: Unity Smart Merge, used once a clone sets merge.unityyamlmerge.driver to UnityYAMLMerge
+[attr]unity-yaml        merge=unityyamlmerge eol=lf linguist-language=yaml
+
+# Normalise line endings of every text file git detects
+*                       text=auto
+
+# Text
+*.md                    text
+*.txt                   text
+*.json                  text
+*.sh                    text eol=lf
+
+# Unity source files
+*.cginc                 text
+*.compute               text linguist-language=hlsl
+*.cs                    text diff=csharp
+*.hlsl                  text linguist-language=hlsl
+*.raytrace              text linguist-language=hlsl
+*.shader                text
+
+# Unity JSON files
+*.asmdef                unity-json
+*.asmref                unity-json
+*.index                 unity-json
+*.inputactions          unity-json
+*.shadergraph           unity-json
+*.shadersubgraph        unity-json
+
+# Unity UI Toolkit files
+*.tss                   text diff=css linguist-language=css
+*.uss                   text diff=css linguist-language=css
+*.uxml                  text linguist-language=xml linguist-detectable
+
+# Unity YAML files (the project uses Force Text serialization)
+*.anim                  unity-yaml
+*.asset                 unity-yaml
+*.brush                 unity-yaml
+*.controller            unity-yaml
+*.flare                 unity-yaml
+*.fontsettings          unity-yaml
+*.giparams              unity-yaml
+*.guiskin               unity-yaml
+*.lighting              unity-yaml
+*.mask                  unity-yaml
+*.mat                   unity-yaml
+*.meta                  unity-yaml
+*.mixer                 unity-yaml
+*.overrideController    unity-yaml
+*.playable              unity-yaml
+*.prefab                unity-yaml
+*.preset                unity-yaml
+*.renderTexture         unity-yaml
+*.scenetemplate         unity-yaml
+*.shadervariants        unity-yaml
+*.signal                unity-yaml
+*.spriteatlas           unity-yaml
+*.spriteatlasv2         unity-yaml
+*.terrainlayer          unity-yaml
+*.unity                 unity-yaml
+*.physicMaterial        unity-yaml
+*.physicmaterial        unity-yaml
+*.physicsMaterial2D     unity-yaml
+
+# Binary Unity assets: ModelLibrary files ([PreferBinarySerialization], meshes + animation clips) and baked lighting.
+# TextCore font assets are YAML but carry their (dynamic, editor-grown) glyph atlas as megabytes of hex.
+# Must come after *.asset to override it.
+*_models.asset          lfs
+LightingData.asset      lfs
+*SDF.asset              lfs
+
+# Exclude from GitHub stats and diffs
+Packages/packages-lock.json linguist-generated
+
+# Unity LFS
+*.cubemap               lfs
+*.unitypackage          lfs
+*.mhkmod                lfs
+*.raw                   lfs
+*.unity3d               lfs
+
+# 3D models
+*.3dm                   lfs
+*.3ds                   lfs
+*.blend                 lfs
+*.c4d                   lfs
+*.collada               lfs
+*.dae                   lfs
+*.dxf                   lfs
+*.FBX                   lfs
+*.fbx                   lfs
+*.glb                   lfs
+*.gltf                  lfs
+*.jas                   lfs
+*.lws                   lfs
+*.lxo                   lfs
+*.ma                    lfs
+*.max                   lfs
+*.mb                    lfs
+*.obj                   lfs
+*.ply                   lfs
+*.skp                   lfs
+*.stl                   lfs
+*.ztl                   lfs
+
+# Audio
+*.aac                   lfs
+*.aif                   lfs
+*.aiff                  lfs
+*.flac                  lfs
+*.it                    lfs
+*.m4a                   lfs
+*.mod                   lfs
+*.mp3                   lfs
+*.ogg                   lfs
+*.s3m                   lfs
+*.wav                   lfs
+*.xm                    lfs
+
+# Video
+*.asf                   lfs
+*.avi                   lfs
+*.flv                   lfs
+*.mov                   lfs
+*.mp4                   lfs
+*.mpeg                  lfs
+*.mpg                   lfs
+*.ogv                   lfs
+*.webm                  lfs
+*.wmv                   lfs
+
+# Images
+*.bmp                   lfs
+*.dds                   lfs
+*.exr                   lfs
+*.gif                   lfs
+*.hdr                   lfs
+*.icns                  lfs
+*.ico                   lfs
+*.iff                   lfs
+*.jpeg                  lfs
+*.jpg                   lfs
+*.pict                  lfs
+*.png                   lfs
+*.psd                   lfs
+*.tga                   lfs
+*.tif                   lfs
+*.tiff                  lfs
+*.webp                  lfs
+
+# Archives
+*.7z                    lfs
+*.bz2                   lfs
+*.gz                    lfs
+*.rar                   lfs
+*.tar                   lfs
+*.zip                   lfs
+
+# Compiled libraries / executables
+*.aar                   lfs
+*.a                     lfs
+*.dll                   lfs
+*.dylib                 lfs
+*.so                    lfs
+*.exe                   lfs
+*.jar                   lfs
+*.apk                   lfs
+
+# Fonts
+*.otf                   lfs
+*.ttc                   lfs
+*.ttf                   lfs
+*.woff                  lfs
+*.woff2                 lfs
+
+# Documents
+*.pdf                   lfs

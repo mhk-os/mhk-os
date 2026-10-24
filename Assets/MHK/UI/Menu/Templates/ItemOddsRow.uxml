@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One powerup of the Powerups screen. Code sets odds-icon, the texts, shows odds-tag (a powerup another game shares with the track's family), .alt (every second row) and .zero (0 %). The row takes the focus, odds-minus and odds-plus are for pointer and touch only. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="odds-row" focusable="true">
+        <ui:VisualElement name="odds-icon" class="odds-icon" style="background-image: url(&quot;/Assets/MHK/UI/Samples/homing_missile.png&quot;);" />
+        <ui:Label name="odds-name" text="Homing Missile" class="odds-name" />
+        <ui:Label name="odds-tag" text="Also a TINcan Race item" class="odds-tag" />
+        <ui:Button name="odds-minus" focusable="false" class="mhk-button small icon-only odds-step">
+            <ui:VisualElement class="icon i-chevron_left" />
+        </ui:Button>
+        <ui:Label name="odds-value" text="4.7 %" class="odds-value" />
+        <ui:Button name="odds-plus" focusable="false" class="mhk-button small icon-only odds-step">
+            <ui:VisualElement class="icon i-chevron_right" />
+        </ui:Button>
+    </ui:VisualElement>
+</ui:UXML>

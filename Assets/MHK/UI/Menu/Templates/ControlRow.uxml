@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One controls row. Code sets the caption, the key texts, .alt (every second row) and per key .empty (no key) or .listening (waiting for a key). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="ctl-row">
+        <ui:Label name="ctl-action" text="Steer left" class="ctl-action" />
+        <ui:Button name="ctl-key-0" text="A" class="mhk-button small ctl-key" />
+        <ui:Button name="ctl-key-1" text="Left" class="mhk-button small ctl-key" />
+    </ui:VisualElement>
+</ui:UXML>

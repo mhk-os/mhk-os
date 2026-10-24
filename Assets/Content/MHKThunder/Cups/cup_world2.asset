@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc0d01db3fa7d4b658cc3d3cc1b486c8, type: 3}
+  m_Name: cup_world2
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.CupDefinition
+  id: mhkt.cup_world2
+  displayName: World Tour 2
+  sourceGame: mhkt
+  icon: {fileID: 0}
+  hidden: 0
+  tracks:
+  - {fileID: 11400000, guid: 0a23def588064408ba863e0609336cb0, type: 2}
+  - {fileID: 11400000, guid: 6f2332adb6cda4809b579789974542b9, type: 2}
+  - {fileID: 11400000, guid: 08ec7b5c1de89417a9298df8c941d5e5, type: 2}
+  - {fileID: 11400000, guid: 16eafa10d32104dee9a10cba70ea8196, type: 2}
+  - {fileID: 11400000, guid: dd1f370beffd14e26bba906fcbcdd6b2, type: 2}
+  lapsOverride: 3
+  order: 41

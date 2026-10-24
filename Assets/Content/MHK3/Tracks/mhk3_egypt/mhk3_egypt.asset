@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhk3_egypt
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhk3.egypt
+  displayName: Egypt
+  sourceGame: mhk3
+  icon: {fileID: 2800000, guid: 273bc130a262f452e9ced8e940f11295, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: ab69834e95c0f4899ab6c0b327605d60, type: 3}
+    path: Assets/Content/MHK3/Tracks/mhk3_egypt/mhk3_egypt.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: 9c419d9b10cbe4da2b07748cccc8b504, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: 273bc130a262f452e9ced8e940f11295, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings: []
+  physics:
+    overrideSlopeGravity: 1
+    slopeGravityFactor: 0
+    gravityIntoGround: 1
+  itemPacks: []

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea65175193eb84886a17f9afff756e1c, type: 3}
+  m_Name: mhk3_pirate_island
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.TrackDefinition
+  id: mhk3.pirate_island
+  displayName: Pirate Isle
+  sourceGame: mhk3
+  icon: {fileID: 2800000, guid: d9c003d8bc5734e468b21e179717a0d7, type: 3}
+  hidden: 0
+  scene:
+    asset: {fileID: 102900000, guid: ec681a999c3734fec9ac64dea53dc263, type: 3}
+    path: Assets/Content/MHK3/Tracks/mhk3_pirate_island/mhk3_pirate_island.unity
+  layout: 0
+  defaultLaps: 3
+  music: {fileID: 8300000, guid: d5904b390b37f485688b38238ee1d0d9, type: 3}
+  musicVolume: 0.7
+  previewImage: {fileID: 2800000, guid: d9c003d8bc5734e468b21e179717a0d7, type: 3}
+  variant: 
+  gravity: 0
+  aiSettings: []
+  physics:
+    overrideSlopeGravity: 1
+    slopeGravityFactor: 0
+    gravityIntoGround: 1
+  itemPacks: []

@@ -1,0 +1,297 @@
+using System.Globalization;
+using System.Linq;
+using MHK.Core;
+using MHK.Ghosts;
+using MHK.Race;
+using UnityEngine;
+using UnityEngine.Serialization;
+using UnityEngine.UIElements;
+
+namespace MHK.UI
+{
+    /// <summary>
+    /// Results layer (Results.uxml): result table or time-trial lap table, champion and record plates, and the
+    /// next-step buttons.
+    /// </summary>
+    public class RaceResults : RaceLayer
+    {
+        [SerializeField, Tooltip("One result table row (Race/Templates/ResultRow.uxml).")]
+        VisualTreeAsset resultRowTemplate;
+        [SerializeField, Tooltip("One time-trial lap row (Race/Templates/LapRow.uxml).")]
+        VisualTreeAsset lapRowTemplate;
+
+        [Header("Texts")]
+        [SerializeField, Tooltip("Info line in championships ({0} = race number, {1} = races in the cup). The cup name is appended.")]
+        string raceOfCupFormat = "Race {0} of {1}";
+        [SerializeField, FormerlySerializedAs("battleSubtitle"), Tooltip("Info line in battles.")]
+        string battleInfo = "Battle";
+        [SerializeField, Tooltip("Info line in single races.")]
+        string raceInfo = "Single Race";
+        [SerializeField, Tooltip("Status of a battle racer still in the game at the end.")]
+        string survivorText = "Survivor";
+        [SerializeField, Tooltip("Status of a knocked-out battle racer.")]
+        string outText = "Out";
+        [SerializeField, Tooltip("Champion plate after the last cup race ({0} = name, {1} = points).")]
+        string championFormat = "Champion: {0} with {1} points!";
+
+        [Header("Time trial texts")]
+        [SerializeField, Tooltip("Info line of a time trial ({0} = engine class).")]
+        string timeTrialInfoFormat = "Time Trial | {0}";
+        [SerializeField, Tooltip("Info line of a replay ({0} = player name, {1} = engine class).")]
+        string replayInfoFormat = "Replay | {0} | {1}";
+        [SerializeField, Tooltip("Race again button in time trials.")]
+        string retryText = "Retry";
+        [SerializeField, Tooltip("Race again button in replays.")]
+        string watchAgainText = "Watch again";
+        [SerializeField, Tooltip("Lap row caption ({0} = lap number).")]
+        string lapFormat = "Lap {0}";
+        [SerializeField, Tooltip("Caption of the finish row.")]
+        string totalText = "Total";
+        [SerializeField, Tooltip("Delta column header against the personal best.")]
+        string vsBestText = "vs Your best";
+        [SerializeField, Tooltip("Delta column header against another ghost ({0} = its player).")]
+        string vsGhostFormat = "vs {0}";
+        [SerializeField, Tooltip("Plate of a new personal best without an earlier one.")]
+        string newRecordText = "New record!";
+        [SerializeField, Tooltip("Plate of a new personal best ({0} = time gained, e.g. -1.24).")]
+        string newRecordFormat = "New record!  {0}";
+        [SerializeField, Tooltip("Note when the run is the new personal best ({0} = track, {1} = engine class).")]
+        string savedBestFormat = "Saved as your best on {0} ({1}).";
+        [SerializeField, Tooltip("Note when the run missed the personal best ({0} = the best time, {1} = this run's gap to it).")]
+        string savedLastFormat = "Your best stays {0} ({1}). This run is kept as your last run.";
+        [SerializeField, Tooltip("Note when the run could not be stored.")]
+        string notSavedText = "This run could not be saved.";
+        [SerializeField, Tooltip("Note in a replay ({0} = date, {1} = version and commit it was recorded with).")]
+        string recordedNoteFormat = "Recorded {0} | build {1}";
+        [SerializeField, Tooltip("Appended to the replay note for a ghost of another simulation version or content.")]
+        string otherVersionNote = " | Other version";
+        [SerializeField, Tooltip("Tooltip of the replay note of a ghost of another simulation version or content.")]
+        string otherVersionTip = "Recorded with another version. It can be raced but never counts as a record.";
+        [SerializeField, Tooltip("Note after exporting ({0} = file).")]
+        string exportedFormat = "Exported: {0}";
+        [SerializeField, Tooltip("Note when exporting failed.")]
+        string exportFailedText = "Export failed (see the log).";
+
+        [Header("Timing (seconds)")]
+        [SerializeField, Tooltip("Delay before the first result row enters.")]
+        float rowsFirstDelay = 0.26f;
+        [SerializeField, Tooltip("Delay between two result rows.")]
+        float rowsStep = 0.11f;
+        [SerializeField, Tooltip("Points gain pop, after its row started entering.")]
+        float pointsPopDelay = 0.28f;
+        [SerializeField, Tooltip("Champion plate, after the last row started entering.")]
+        float championDelay = 0.12f;
+        [SerializeField, Tooltip("Buttons, after the last row started entering.")]
+        float buttonsDelay = 0.2f;
+
+        const float GainPopScale = 2f, WinnerSpinDegreesPerSecond = 30f;
+        const int GainPopMs = 420;
+        static readonly string[] MedalClasses = { "gold", "silver", "bronze" };
+
+        VisualElement staggered;
+
+        protected override void Bind()
+        {
+            var race = Race;
+            var session = race.Session;
+            var champ = session.mode == GameMode.Championship;
+            var battle = race.Battle != null;
+            BindHeader(race, session, champ, battle);
+            var rows = Q<VisualElement>("rows");
+            var rowCount = FillResultRows(rows, race, champ, battle);
+            var afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * rowCount;
+            BindChampion(session, champ, afterRows);
+            var laps = BindTimeTrial(race.TimeTrial);
+            staggered = laps ?? rows;
+            if (laps != null) afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * laps.childCount;
+            BindButtons(race, champ && session.HasNextRace, champ, afterRows);
+        }
+
+        protected override void AfterBind() => UiAnim.Stagger(staggered, rowsStep, rowsFirstDelay, "from-left");
+
+        protected override void Unbind() => staggered = null;
+
+        void BindHeader(RaceManager race, GameSession session, bool champ, bool battle)
+        {
+            Q<Label>("title").text = race.Track.DisplayName;
+            Q<Label>("info").text = champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
+            Q<VisualElement>("head-best").SetVisible(!battle);
+            Q<VisualElement>("head-status").SetVisible(battle);
+            Q<VisualElement>("head-points").SetVisible(champ);
+        }
+
+        int FillResultRows(VisualElement rows, RaceManager race, bool champ, bool battle)
+        {
+            rows.Clear();
+            var index = 0;
+            foreach (var r in race.Results)
+            {
+                var row = UiTree.Spawn<VisualElement>(resultRowTemplate, rows);
+                if (row == null) break;
+                FillResultRow(row, r, champ, battle, UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * index + UiAnim.Ms(pointsPopDelay));
+                index++;
+            }
+            return index;
+        }
+
+        void FillResultRow(VisualElement row, RaceResult r, bool champ, bool battle, long gainPopMs)
+        {
+            row.EnableInClassList("me", r.isHuman);
+            var burst = row.Q<VisualElement>("burst");
+            if (r.position == 1)
+            {
+                burst.SetVisible(true);
+                UiAnim.Spin(burst, WinnerSpinDegreesPerSecond);
+            }
+            else burst.RemoveFromHierarchy();
+            row.Q<VisualElement>("badge").SetExclusiveClass(r.position - 1, MedalClasses);
+            row.SetText("badge-label", r.position.ToString(CultureInfo.InvariantCulture));
+            row.SetText("name", r.name);
+            ContentDisplay.SetDriver(row, r.characterId, r.kartId);
+            row.SetText("time", UiText.Clock(r.time));
+            var extra = row.Q<Label>("best");
+            extra.text = battle ? (r.survived ? survivorText : outText) : r.bestLap > 0 ? UiText.Clock(r.bestLap) : "";
+            extra.EnableInClassList("good", battle && r.survived);
+            extra.EnableInClassList("bad", battle && !r.survived);
+            row.Q<VisualElement>("points").SetVisible(champ);
+            if (!champ) return;
+            var gain = row.Q<Label>("gain");
+            gain.text = "+" + r.pointsGained.ToString(CultureInfo.InvariantCulture);
+            row.SetText("total", "(" + r.totalPoints.ToString(CultureInfo.InvariantCulture) + ")");
+            if (r.pointsGained > 0) gain.schedule.Execute(() => UiAnim.Pop(gain, GainPopScale, GainPopMs)).ExecuteLater(gainPopMs);
+        }
+
+        void BindChampion(GameSession session, bool champ, long afterRows)
+        {
+            var champion = Q<VisualElement>("champion");
+            var cupOver = champ && !session.HasNextRace;
+            champion.SetVisible(cupOver);
+            if (!cupOver) return;
+            var winner = session.racers.OrderByDescending(r => r.points).First();
+            Q<Label>("champion-label").text = string.Format(championFormat, winner.displayName, winner.points);
+            champion.SetTransitionDelay(afterRows + UiAnim.Ms(championDelay));
+        }
+
+        void BindButtons(RaceManager race, bool hasNext, bool champ, long afterRows)
+        {
+            var raceAgain = Q<Button>("race-again");
+            var next = Q<Button>("next-race");
+            var menu = Q<Button>("menu");
+            raceAgain.SetVisible(!champ);
+            next.SetVisible(hasNext);
+            menu.SetVisible(!hasNext);
+            raceAgain.clicked += () => race.Restart();
+            next.clicked += () => race.Continue();
+            menu.clicked += () => race.Continue();
+            Q<VisualElement>("buttons").SetTransitionDelay(afterRows + UiAnim.Ms(buttonsDelay));
+            var focus = !champ ? raceAgain : hasNext ? next : menu;
+            Root.schedule.Execute(() => focus.Focus());
+        }
+
+        // Returns the lap table (staggered in), or null outside time trials.
+        VisualElement BindTimeTrial(TimeTrialRun tt)
+        {
+            var watch = Q<Button>("watch-replay");
+            var export = Q<Button>("export");
+            Q<VisualElement>("tt").SetVisible(tt != null);
+            watch.SetVisible(false);
+            export.SetVisible(false);
+            if (tt == null) return null;
+            Q<VisualElement>("head").SetVisible(false);
+            Q<VisualElement>("rows").SetVisible(false);
+
+            var replay = tt.IsReplay;
+            var run = replay ? tt.Spectated != null ? tt.Spectated.Data.header : null : tt.Run != null ? tt.Run.header : null;
+            var saved = tt.Saved;
+            var entry = replay ? tt.Spectated != null ? tt.Spectated.Entry : null : saved != null ? saved.entry : null;
+            var classLabel = GameRoot.Instance.Config.GetDifficulty(Race.Session.difficulty).label;
+            BindTimeTrialHeader(replay, run, classLabel);
+            // Deltas against the ghost raced (the personal best first), none in replays.
+            var reference = !replay && tt.Reference != null ? tt.Reference.Data.header : null;
+            BindDeltaHeader(tt, reference);
+            var laps = FillLapRows(run, reference);
+            BindRecordPlate(replay, saved, run);
+            var note = Q<Label>("tt-note");
+            note.text = NoteText(replay, saved, run, entry, classLabel);
+            note.tooltip = replay && entry != null && !entry.IsCurrent ? otherVersionTip : "";
+            BindGhostButtons(watch, export, note, entry, replay);
+            return laps;
+        }
+
+        void BindTimeTrialHeader(bool replay, GhostHeader run, string classLabel)
+        {
+            Q<Label>("info").text = replay && run != null ? string.Format(replayInfoFormat, run.playerName, run.engineClassLabel)
+                : string.Format(timeTrialInfoFormat, classLabel);
+            Q<Label>("race-again-label").text = replay ? watchAgainText : retryText;
+        }
+
+        void BindDeltaHeader(TimeTrialRun tt, GhostHeader reference)
+        {
+            var deltaHead = Q<Label>("tt-head-delta");
+            deltaHead.SetVisible(reference != null);
+            if (reference == null) return;
+            deltaHead.text = tt.Reference.Entry != null && tt.Reference.Entry.kind == GhostKind.Best ? vsBestText : string.Format(vsGhostFormat, reference.playerName);
+        }
+
+        VisualElement FillLapRows(GhostHeader run, GhostHeader reference)
+        {
+            var laps = Q<VisualElement>("tt-laps");
+            laps.Clear();
+            if (run == null) return laps;
+            var best = run.BestLap;
+            var hasReference = reference != null;
+            for (var i = 0; i < run.lapTimes.Length; i++)
+            {
+                var t = run.lapTimes[i];
+                var refLap = hasReference && i < reference.lapTimes.Length ? reference.lapTimes[i] : float.NaN;
+                LapRow(laps, string.Format(lapFormat, i + 1), t, refLap, hasReference, t == best && run.lapTimes.Length > 1, false);
+            }
+            LapRow(laps, totalText, run.finishTime, hasReference ? reference.finishTime : float.NaN, hasReference, false, true);
+            return laps;
+        }
+
+        void BindRecordPlate(bool replay, GhostSaveResult saved, GhostHeader run)
+        {
+            var newRecord = !replay && saved != null && saved.newRecord;
+            Q<VisualElement>("tt-record").SetVisible(newRecord);
+            if (!newRecord) return;
+            Q<Label>("tt-record-label").text = saved.previousBest > 0f && run != null
+                ? string.Format(newRecordFormat, UiText.SignedSeconds(run.finishTime - saved.previousBest))
+                : newRecordText;
+        }
+
+        string NoteText(bool replay, GhostSaveResult saved, GhostHeader run, GhostEntry entry, string classLabel)
+        {
+            if (replay)
+                return run == null ? "" : string.Format(recordedNoteFormat, run.Date.ToLocalTime().ToString("g"), run.gameBuild)
+                                          + (entry != null && !entry.IsCurrent ? otherVersionNote : "");
+            if (saved == null || saved.entry == null) return notSavedText;
+            if (saved.newRecord) return string.Format(savedBestFormat, Race.Track.DisplayName, classLabel);
+            return string.Format(savedLastFormat, UiText.Clock(saved.previousBest), UiText.SignedSeconds(run.finishTime - saved.previousBest));
+        }
+
+        void BindGhostButtons(Button watch, Button export, Label note, GhostEntry entry, bool replay)
+        {
+            watch.SetVisible(!replay && entry != null);
+            export.SetVisible(entry != null);
+            watch.clicked += () => SceneFlow.StartSession(TimeTrialRun.ReplaySession(entry));
+            export.clicked += () => note.text = GhostUi.ExportStatus(entry, exportedFormat, exportFailedText);
+        }
+
+        void LapRow(VisualElement parent, string caption, float time, float referenceTime, bool deltaColumn, bool best, bool total)
+        {
+            var row = UiTree.Spawn<VisualElement>(lapRowTemplate, parent);
+            if (row == null) return;
+            row.EnableInClassList("best", best);
+            row.EnableInClassList("total", total);
+            row.SetText("lap-name", caption);
+            row.SetText("lap-time", UiText.Clock(time));
+            var delta = row.Q<Label>("lap-delta");
+            delta.SetVisible(deltaColumn);
+            var has = !float.IsNaN(referenceTime);
+            delta.text = has ? UiText.SignedSeconds(time - referenceTime) : "";
+            delta.EnableInClassList("good", has && time < referenceTime);
+            delta.EnableInClassList("bad", has && time > referenceTime);
+        }
+    }
+}
