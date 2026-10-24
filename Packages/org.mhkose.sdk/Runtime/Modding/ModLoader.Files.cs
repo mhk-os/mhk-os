@@ -114,6 +114,7 @@ namespace MHK.Modding
         }
 
         // A mod folder's Assets/ holds its loose files, never bundles. Zips made on macOS carry __MACOSX/ and ._ files.
+        // Hidden folders (.<packId>.staging, .old, .pending of ModSources) are installs in progress.
         static void CollectBundles(string folder, List<string> files)
         {
             foreach (var f in Directory.GetFiles(folder, "*" + ModFileExtension))
@@ -121,7 +122,8 @@ namespace MHK.Modding
             foreach (var sub in Directory.GetDirectories(folder))
             {
                 var name = Path.GetFileName(sub);
-                if (!string.Equals(name, AssetsFolder, StringComparison.OrdinalIgnoreCase) && name != "__MACOSX") CollectBundles(sub, files);
+                if (!string.Equals(name, AssetsFolder, StringComparison.OrdinalIgnoreCase) && name != "__MACOSX" &&
+                    !name.StartsWith(".", StringComparison.Ordinal)) CollectBundles(sub, files);
             }
         }
 

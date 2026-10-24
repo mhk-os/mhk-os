@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Kart choice. Code fills tabs (game filter), card-grid (one card per kart, picture = kart icon) and the info panel (hovered or focused card, stat bar widths) at the bottom centre of the side. showcase-area frames the 3D turntable (selected driver in that kart) above the panel. empty replaces the body when no kart is loaded (preview class on page: preview-empty). Samples: the Red Kart (Moorhuhn Kart 2) selected and focused. -->
+    <!-- Kart choice. Code fills tabs (game filter), card-grid (one card per kart, picture = kart icon) and the info panel (hovered or focused card, stat bar widths) at the bottom centre of the side. showcase-area frames the 3D turntable (selected driver in that kart) above the panel. empty (with the built-in mods download while they are missing) replaces the body when no kart is loaded (preview class on page: preview-empty). Samples: the Red Kart (Moorhuhn Kart 2) selected and focused. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="PortraitCard" src="/Assets/MHK/UI/Menu/Templates/PortraitCard.uxml" />
@@ -80,7 +80,11 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="empty" class="select-empty">
-                <ui:Label text="No karts available (is the base mod enabled?)" class="panel select-empty-text" />
+                <ui:Label name="empty-text" text="No karts available." class="panel select-empty-text" />
+                <ui:Button name="empty-download" tooltip="Opens the Mods page to download the built-in mods with the drivers, karts and tracks." class="mhk-button go select-empty-download">
+                    <ui:VisualElement class="icon i-download" />
+                    <ui:Label text="Download Mods" class="button-label" />
+                </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="footer" class="page-footer anim">

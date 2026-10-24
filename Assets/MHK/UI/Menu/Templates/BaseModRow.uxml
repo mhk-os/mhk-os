@@ -1,0 +1,20 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One built-in mod on the first start download screen. Code sets the title, the size, the state (icon, text, colour class, tooltip) and the progress bar fill width while it downloads. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="mod-row base-row">
+        <ui:VisualElement class="mod-logo mod-logo-fallback src-logo i-extension" />
+        <ui:VisualElement class="mod-info">
+            <ui:Label name="base-title" text="Moorhuhn Kart 2" class="mod-title" />
+            <ui:VisualElement class="src-status">
+                <ui:VisualElement name="base-state" class="src-state src-accent">
+                    <ui:VisualElement class="icon i-download" />
+                    <ui:Label text="Downloading 40 %" class="src-state-label" />
+                </ui:VisualElement>
+                <ui:VisualElement name="base-bar" class="src-bar">
+                    <ui:VisualElement class="src-bar-fill" style="width: 40%;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:Label name="base-size" text="96 MB" class="base-size" />
+    </ui:VisualElement>
+</ui:UXML>

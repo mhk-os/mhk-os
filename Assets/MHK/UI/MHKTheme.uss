@@ -428,3 +428,11 @@ TemplateContainer.sample-gold .badge-label, TemplateContainer.sample-silver .bad
 .i-location_on { background-image: url("Icons/location_on.png"); }
 .i-search_hands_free { background-image: url("Icons/search_hands_free.png"); }
 .i-videocam { background-image: url("Icons/videocam.png"); }
+.i-content_paste { background-image: url("Icons/content_paste.png"); }
+.i-sync { background-image: url("Icons/sync.png"); }
+.i-cloud_off { background-image: url("Icons/cloud_off.png"); }
+.i-error { background-image: url("Icons/error.png"); }
+.i-update { background-image: url("Icons/update.png"); }
+.i-close { background-image: url("Icons/close.png"); }
+.i-cloud_done { background-image: url("Icons/cloud_done.png"); }
+.i-cloud_download { background-image: url("Icons/cloud_download.png"); }

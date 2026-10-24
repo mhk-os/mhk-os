@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Championship choice. Code fills tabs, card-grid (one card per cup, badge on won cups) and the info panel (hovered or focused cup, cup-tracks list, Won! line). Card and info pictures cross-fade through the cup's track previews (ImageCycle adds an image-fade layer). empty replaces the body when no cup is loaded. Preview classes on page: preview-won (badges + Won! line), preview-empty. -->
+    <!-- Championship choice. Code fills tabs, card-grid (one card per cup, badge on won cups) and the info panel (hovered or focused cup, cup-tracks list, Won! line). Card and info pictures cross-fade through the cup's track previews (ImageCycle adds an image-fade layer). empty (with the built-in mods download while they are missing) replaces the body when no cup is loaded. Preview classes on page: preview-won (badges + Won! line), preview-empty. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="TrackCard" src="/Assets/MHK/UI/Menu/Templates/TrackCard.uxml" />
@@ -107,7 +107,11 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="empty" class="select-empty">
-                <ui:Label text="No championships available (is the base mod enabled?)" class="panel select-empty-text" />
+                <ui:Label name="empty-text" text="No championships available." class="panel select-empty-text" />
+                <ui:Button name="empty-download" tooltip="Opens the Mods page to download the built-in mods with the drivers, karts and tracks." class="mhk-button go select-empty-download">
+                    <ui:VisualElement class="icon i-download" />
+                    <ui:Label text="Download Mods" class="button-label" />
+                </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="footer" class="page-footer anim">

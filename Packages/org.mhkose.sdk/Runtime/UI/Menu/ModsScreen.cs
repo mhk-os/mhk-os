@@ -10,9 +10,10 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// Mods and asset packs (Mods.uxml), one section each: a row per mod or asset pack in load order (the top one wins)
-    /// with an Enabled / Disabled toggle and move up and down. Apply reloads content and asset packs and restarts the
-    /// menu, Reload does the same and comes back here (finds new mods and packs), Open Folder shows the section's folder.
+    /// Mods and asset packs (Mods.uxml), one section each: a row per installed mod or asset pack in load order (the top
+    /// one wins) with an Enabled / Disabled toggle and move up and down, then a row per source (GitHub repository) not
+    /// installed yet. Items from a source download and update here. Apply reloads content and asset packs and restarts
+    /// the menu, Reload does the same and comes back here (finds new mods and packs), Open Folder shows the section's folder.
     /// </summary>
     public partial class ModsScreen : MenuScreen
     {
@@ -38,7 +39,7 @@ namespace MHK.UI
         string missingKartsTip = "{0} drivers have no kart. Enable the pack with their karts.";
         [SerializeField, Tooltip("Tooltip of a loaded mod whose definitions are replaced by mods above it. {0} = number of definitions.")]
         string replacedTip = "{0} of its definitions are replaced by mods above it.";
-        [SerializeField, Tooltip("Chip texts of the two sections.")]
+        [SerializeField, Tooltip("Chip texts of the sections.")]
         string modsTab = "Mods", packsTab = "Asset Packs";
         [SerializeField, Tooltip("Empty line of the Mods section.")]
         string modsEmpty = "No mods found.";
@@ -81,20 +82,24 @@ namespace MHK.UI
                 section = (Section)index;
                 Fill(true);
             });
+            BindSources();
             Fill(true);
+            FocusTarget = list.childCount > 0 ? list[0].Q<Button>("mod-toggle") ?? list[0].Q<Button>("src-action") : sourceInput;
             OnClick("apply", Apply);
-            OnClick("open-mods", () => GhostUi.Reveal(section == Section.Mods ? ModLoader.UserFolder : AssetPacks.UserFolder));
+            OnClick("open-mods", () => GhostUi.Reveal(section == Section.AssetPacks ? AssetPacks.UserFolder : ModLoader.UserFolder));
             OnClick("reload", Reload);
         }
 
         protected override void Unbind()
         {
+            base.Unbind();
+            UnbindSources();
             list = null;
             sections = null;
         }
 
-        // Up and down keep the column (toggle, move up, move down) from row to row: a disabled move button falls back
-        // to the row's toggle, up from the first row goes to the section chips. Below the last row MenuScreen takes over.
+        // Up and down keep the column (toggle, move up, move down, ...) from row to row: a hidden or disabled button falls
+        // back to the row's first one, up from the first row goes to the source tools. Below the last row MenuScreen takes over.
         void OnListNavigate(NavigationMoveEvent e)
         {
             var up = e.direction == NavigationMoveEvent.Direction.Up;
@@ -103,16 +108,27 @@ namespace MHK.UI
             while (row.parent != null && row.parent != list) row = row.parent;
             var next = list.IndexOf(row) + (up ? -1 : 1);
             if (next >= list.childCount) return;
-            VisualElement to = next < 0 ? SelectedChip() : list[next].Q<Button>(from.name);
-            if (to != null && !to.enabledSelf) to = list[next].Q<Button>("mod-toggle");
-            Navigate(e, from, to);
+            Navigate(e, from, next < 0 ? FirstTool() : RowButton(list[next], from.name));
         }
 
         void OnSectionsNavigate(NavigationMoveEvent e)
         {
             if (e.direction != NavigationMoveEvent.Direction.Down || e.target is not VisualElement from) return;
-            Navigate(e, from, list.childCount > 0 ? list[0].Q<Button>("mod-toggle") : null);
+            Navigate(e, from, sourceInput);
         }
+
+        VisualElement FirstRowButton() => list.childCount > 0 ? RowButton(list[0], null) : null;
+
+        // The row's button named like the one the focus comes from, else its first shown and enabled button.
+        static Button RowButton(VisualElement row, string name)
+        {
+            var same = name != null ? row.Q<Button>(name) : null;
+            if (same != null && Navigable(same)) return same;
+            return row.Query<Button>().Where(Navigable).First();
+        }
+
+        static bool Navigable(Button b) =>
+            b.enabledInHierarchy && b.resolvedStyle.display != DisplayStyle.None && b.resolvedStyle.visibility == Visibility.Visible;
 
         VisualElement SelectedChip() => sections.Q(className: "selected") ?? (sections.childCount > 0 ? sections[0] : null);
 
@@ -127,14 +143,17 @@ namespace MHK.UI
         void Fill(bool animate)
         {
             list.Clear();
-            var modsShown = section == Section.Mods;
-            if (modsShown) FillMods();
-            else FillPacks();
+            sourceViews.Clear();
+            var packsShown = section == Section.AssetPacks;
+            if (packsShown) FillPacks();
+            else FillMods();
+            FillSources();
             var empty = Q<Label>("mod-empty");
-            empty.text = modsShown ? modsEmpty : packsEmpty;
+            empty.text = packsShown ? packsEmpty : modsEmpty;
             empty.SetVisible(list.childCount == 0);
-            Root.SetText("open-mods-label", modsShown ? modsFolderText : packsFolderText);
-            Q<Button>("reload").tooltip = modsShown ? modsReloadTip : packsReloadTip;
+            Root.SetText("open-mods-label", packsShown ? packsFolderText : modsFolderText);
+            Q<Button>("reload").tooltip = packsShown ? packsReloadTip : modsReloadTip;
+            ShowTools();
             if (animate) UiAnim.Stagger(list, rowStep, rowFirst, "from-left");
         }
 
@@ -162,6 +181,7 @@ namespace MHK.UI
                 SetLogo(row.Q("mod-logo"), p.icon, "palette");
                 row.SetText("mod-title", string.IsNullOrEmpty(p.title) ? p.id : p.title);
                 SetDescription(row, p.description);
+                BindInstalledSource(row, p.id);
                 var toggle = row.Q<Button>("mod-toggle");
                 if (toggle != null) BindToggle(toggle, p.id, Settings.disabledAssetPacks);
                 BindMove(row, i, packs.Count);
@@ -191,6 +211,7 @@ namespace MHK.UI
             SetLogo(row.Q("mod-logo"), pack.logo, "extension");
             row.SetText("mod-title", string.IsNullOrEmpty(pack.version) ? pack.title : string.Format(titleFormat, pack.title, pack.version));
             SetDescription(row, pack.description);
+            BindInstalledSource(row, pack.packId);
             var replaced = ReplacedCount(pack);
             if (replaced > 0) row.tooltip = string.Format(replacedTip, replaced);
             var toggle = row.Q<Button>("mod-toggle");

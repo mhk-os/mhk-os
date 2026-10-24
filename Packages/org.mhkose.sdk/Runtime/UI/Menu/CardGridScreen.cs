@@ -78,7 +78,7 @@ namespace MHK.UI
             ShowEmptyState(empty);
             if (empty)
             {
-                FocusTarget = Root.Q<Button>("back");
+                FocusTarget = BindEmptyDownload() ?? Root.Q<Button>("back");
                 Flow.SetShowcaseVisible(false);
                 return;
             }
@@ -105,6 +105,22 @@ namespace MHK.UI
             var line = Q<VisualElement>("empty");
             if (line.parent == null) return;
             foreach (var child in line.parent.Children()) child.SetVisible(empty ? child == line : child != line);
+        }
+
+        // The download of the built-in mods while they are missing, null when the page has none.
+        Button BindEmptyDownload()
+        {
+            var download = Root.Q<Button>("empty-download");
+            if (download == null) return null;
+            var missing = ModSources.BaseGamesMissing;
+            download.SetVisible(missing);
+            if (!missing) return null;
+            download.clicked += () =>
+            {
+                Click();
+                ModsScreen.OpenModsSection(Flow);
+            };
+            return download;
         }
 
         void OnShowcaseAreaChanged(GeometryChangedEvent e)

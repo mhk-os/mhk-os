@@ -6,7 +6,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// First start (FirstRun.uxml), shown instead of the title until the player picked graphics once: three preset
-    /// cards and the frame-rate cap, both applied immediately. Continue remembers the choice and opens the title.
+    /// cards and the frame-rate cap, both applied immediately. Continue remembers the choice and opens the title (or
+    /// the built-in mods download while they are missing).
     /// </summary>
     public class FirstRunScreen : MenuScreen
     {
@@ -34,7 +35,7 @@ namespace MHK.UI
             {
                 Settings.graphicsChosen = true;
                 GameRoot.Instance.SaveSettings();
-                Flow.ShowTitle();
+                Flow.ShowStart();
             });
         }
 

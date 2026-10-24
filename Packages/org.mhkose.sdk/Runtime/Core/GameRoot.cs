@@ -61,6 +61,7 @@ namespace MHK.Core
             LoadConfig();
             LoadUserData();
             LoadContent();
+            ModSources.Startup(destroyCancellationToken);
             if (Save.RememberContent(Content)) SaveProgress();
             Time.fixedDeltaTime = 1f / Mathf.Max(MinPhysicsHz, Config.physicsHz);
             CreateChildServices();
@@ -91,8 +92,10 @@ namespace MHK.Core
         void LoadContent()
         {
             Content = new ContentRegistry();
+            ModSources.ApplyPending();
             Assets.GameAssets.BeginContent(Settings);
             ModLoader.LoadAll(Content, Settings.disabledPacks, Settings.modOrder);
+            ModSources.ContentLoaded();
             Assets.GameAssets.ApplyContent(destroyCancellationToken);
         }
 
@@ -136,8 +139,10 @@ namespace MHK.Core
             Powerups.ItemBoxLook.ReleaseTints();
             Assets.GameAssets.UnloadContent();
             ModLoader.UnloadExternal();
+            ModSources.ApplyPending();
             Assets.GameAssets.BeginContent(Settings);
             ModLoader.LoadAll(Content, Settings.disabledPacks, Settings.modOrder);
+            ModSources.ContentLoaded();
             Assets.GameAssets.ApplyContent(destroyCancellationToken);
             if (Save.RememberContent(Content)) SaveProgress();
         }

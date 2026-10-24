@@ -33,6 +33,8 @@ namespace MHK.Core
         public GraphicsOptions graphics = new();
         [Tooltip("False until the player confirmed the first-run graphics screen.")]
         public bool graphicsChosen;
+        [Tooltip("The player continued without the built-in mods on the download screen. The title screen then offers the download.")]
+        public bool baseModsSkipped;
         [Tooltip("Race minimap size: 0 = hidden, 1 = default, up to MaxMinimapScale.")]
         public float minimapScale = 1f;
         public List<string> disabledPacks = new();
@@ -44,6 +46,12 @@ namespace MHK.Core
         public List<string> assetPackOrder = new();
         [Tooltip("Asset pack ids switched off in the Mods screen.")]
         public List<string> disabledAssetPacks = new();
+        [Tooltip("Mod sources the player added in the Mods screen (GitHub repositories, owner/name), listed after the built-in ones.")]
+        public List<string> modSources = new();
+        [Tooltip("Built-in mod sources the player removed in the Mods screen: they stay removed until added again.")]
+        public List<string> removedModSources = new();
+        [Tooltip("Install compatible updates of mods from mod sources automatically at game start.")]
+        public bool autoUpdateMods = true;
         public string lastCharacterId;
         [Tooltip("Race camera view. The Camera key (minus) cycles it in races.")]
         public CameraMode cameraMode = CameraMode.Close;

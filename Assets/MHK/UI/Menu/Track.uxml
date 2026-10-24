@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Track choice. Code fills title (battles), tabs, card-grid (one picture card per track) and the info panel (hovered or focused card: picture, name, game, laps or arena, records from the save). empty replaces the body when no track is loaded. Preview classes on page: preview-arena (arena line instead of laps), preview-empty. -->
+    <!-- Track choice. Code fills title (battles), tabs, card-grid (one picture card per track) and the info panel (hovered or focused card: picture, name, game, laps or arena, records from the save). empty (with the built-in mods download while they are missing) replaces the body when no track is loaded. Preview classes on page: preview-arena (arena line instead of laps), preview-empty. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="TrackCard" src="/Assets/MHK/UI/Menu/Templates/TrackCard.uxml" />
@@ -122,7 +122,11 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="empty" class="select-empty">
-                <ui:Label text="No tracks available (is the base mod enabled?)" class="panel select-empty-text" />
+                <ui:Label name="empty-text" text="No tracks available." class="panel select-empty-text" />
+                <ui:Button name="empty-download" tooltip="Opens the Mods page to download the built-in mods with the drivers, karts and tracks." class="mhk-button go select-empty-download">
+                    <ui:VisualElement class="icon i-download" />
+                    <ui:Label text="Download Mods" class="button-label" />
+                </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="footer" class="page-footer anim">

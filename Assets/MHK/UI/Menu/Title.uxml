@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, quit is hidden on mobile (desktop-only) and in WebGL builds. -->
+    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing, quit is hidden on mobile (desktop-only) and in WebGL builds. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="page" class="title-page">
         <ui:VisualElement class="title-body">
@@ -9,6 +9,10 @@
                 </ui:VisualElement>
                 <ui:Label name="logo-text" text="Moorhuhn Kart: Open Source" class="title logo-text anim pop" style="display: none;"/>
                 <ui:VisualElement class="panel title-buttons">
+                    <ui:Button name="get-mods" tooltip="Opens the Mods page to download the built-in mods with the drivers, karts and tracks." class="mhk-button go anim from-left title-get-mods" style="transition-delay: 140ms; display: none;">
+                        <ui:VisualElement class="icon i-download"/>
+                        <ui:Label text="Download Mods" class="button-label"/>
+                    </ui:Button>
                     <ui:Button name="championship" class="mhk-button big anim from-left" style="transition-delay: 200ms;">
                         <ui:VisualElement class="icon i-emoji_events"/>
                         <ui:Label text="Championship" class="button-label"/>

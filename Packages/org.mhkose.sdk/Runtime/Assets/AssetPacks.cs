@@ -97,7 +97,8 @@ namespace MHK.Assets
             try
             {
                 if (!Directory.Exists(root)) Directory.CreateDirectory(root);
-                foreach (var dir in Directory.GetDirectories(root)) AddPack(found, dir, dir);
+                foreach (var dir in Directory.GetDirectories(root))
+                    if (!Path.GetFileName(dir).StartsWith(".", StringComparison.Ordinal)) AddPack(found, dir, dir);
                 foreach (var zip in Directory.GetFiles(root, "*" + ZipExtension))
                 {
                     var dir = ZipCache.Extract(zip, CacheFolder);

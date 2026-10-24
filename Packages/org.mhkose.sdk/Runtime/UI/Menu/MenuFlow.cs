@@ -63,10 +63,19 @@ namespace MHK.UI
             Selection.character = last != null ? last : all.Count > 0 ? all[0] : null;
             Selection.kart = MenuSelection.LoadedDefaultKart(Selection.character);
             ShowcaseSelection();
-            Show(settings.graphicsChosen || firstRunScreen == null ? titleScreen : firstRunScreen, false);
+            var start = settings.graphicsChosen || firstRunScreen == null ? StartScreen() : firstRunScreen;
+            Show(start, false);
             var reopen = OpenOnStart;
             OpenOnStart = null;
-            if (reopen != null && settings.graphicsChosen) Show(GetComponentInChildren(reopen, true) as MenuScreen);
+            if (reopen != null && start == titleScreen) Show(GetComponentInChildren(reopen, true) as MenuScreen);
+        }
+
+        // The built-in mods download while they are missing (unless the player skipped it), else the title.
+        MenuScreen StartScreen()
+        {
+            var baseMods = Get<BaseModsScreen>();
+            var wanted = baseMods != null && ModSources.Enabled && ModSources.BaseGamesMissing && !GameRoot.Instance.Settings.baseModsSkipped;
+            return wanted ? baseMods : titleScreen;
         }
 
         /// <summary>The child screen of type <typeparamref name="T"/>.</summary>
@@ -103,6 +112,13 @@ namespace MHK.UI
             ClearHistory();
             Selection.trackFixed = false;
             Show(titleScreen, false);
+        }
+
+        /// <summary>After the first run screen: the built-in mods download while they are missing, else the title screen.</summary>
+        public void ShowStart()
+        {
+            ClearHistory();
+            Show(StartScreen(), false);
         }
 
         public void ClearHistory() => history.Clear();
