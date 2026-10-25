@@ -194,7 +194,6 @@ namespace MHK.Attract
                     characterId = c.Id,
                     kartId = c.defaultKart != null ? c.defaultKart.Id : null,
                     displayName = c.DisplayName,
-                    aiTargetRank = i,
                 });
             }
             return session;

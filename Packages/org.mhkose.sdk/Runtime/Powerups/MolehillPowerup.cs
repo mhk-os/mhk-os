@@ -236,7 +236,7 @@ namespace MHK.Powerups
         {
             Owner.Physics.Suspended = true;
             Owner.Physics.Body.detectCollisions = false;
-            if (tunnelEffect != null) Owner.Effects.Apply(tunnelEffect, Owner);
+            if (tunnelEffect != null) Owner.Effects.Apply(tunnelEffect, Owner, -1f, Usage);
             visualRoot = Owner.Visual != null ? Owner.Visual.transform : null;
         }
 
@@ -378,7 +378,7 @@ namespace MHK.Powerups
                 var dist = flat.magnitude;
                 if (dist > hitRadius) continue;
                 launched.Add(k);
-                if (hitEffect != null && !KartReactions.Apply(k, hitEffect, Owner)) continue;
+                if (hitEffect != null && !KartReactions.Apply(k, hitEffect, Owner, -1f, Usage)) continue;
                 Launch(k, flat, dist, right);
             }
         }

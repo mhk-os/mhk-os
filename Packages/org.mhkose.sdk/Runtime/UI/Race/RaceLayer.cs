@@ -11,6 +11,8 @@ namespace MHK.UI
     {
         /// <summary>Race this layer shows, set by the HUD before it opens the layer.</summary>
         public RaceManager Race { get; internal set; }
+        /// <summary>HUD that opened this layer (set with <see cref="Race"/>).</summary>
+        public RaceHud Hud { get; internal set; }
 
         protected static UserSettings Settings => GameRoot.Instance.Settings;
 

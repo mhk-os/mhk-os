@@ -44,6 +44,10 @@ namespace MHK.Modding
         public float velocityRetain = 1f;
         [Tooltip("Continuous velocity damping while active (1/s), e.g. x-field slide.")]
         public float velocityDamping;
+        [Tooltip("On apply the kart's forward speed jumps straight to its current top speed (KartPhysics.MaxSpeed, " +
+                 "including this effect's maxSpeedMultiplier) unless it is already faster. Sideways and vertical " +
+                 "velocity are kept (TINcan turbo oil, leapfrog landing).")]
+        public bool snapToTopSpeed;
 
         [Header("Control")]
         public bool lockControls;

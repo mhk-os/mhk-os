@@ -8,8 +8,8 @@ namespace MHK.AI
 {
     /// <summary>
     /// Lane choice of a computer driver: the MHK2 centre band with its wobble, item boxes, a lined-up shot, speed pads, a
-    /// missile yield, berths around melee holders, kart traffic (<see cref="AIPassPlanner"/>), planted traps and finally a
-    /// lane free of walls and props.
+    /// missile yield, berths around melee holders, kart traffic (<see cref="AIPassPlanner"/>: passing, or flattening a
+    /// shrunk kart), planted traps and finally a lane free of walls and props.
     /// </summary>
     internal sealed class AILanePlanner
     {
@@ -38,7 +38,9 @@ namespace MHK.AI
             this.board = board;
             this.line = line;
             this.feelers = feelers;
-            traffic = new AIPassPlanner(line, feelers);
+            // Rolled once per driver and race (the roll seed is new every race).
+            var seekFlatten = AIRolls.Roll01(rollSeed ^ AIRolls.FlattenSalt, 0) < difficulty.aiFlattenSeekChance;
+            traffic = new AIPassPlanner(line, feelers, seekFlatten);
             this.rollSeed = rollSeed;
             this.noiseSeed = noiseSeed;
             Lane = laneU;
@@ -83,7 +85,7 @@ namespace MHK.AI
             var wobble = (Mathf.PerlinNoise(noiseSeed, time * WobbleRate) - 0.5f) * WobbleAmplitude * (1f - difficulty.aiPrecision);
             var desired = AILanes.Centre + wobble;
             if (WantsItem(kart) && FindPickup(kart, range, out var pickLane)) desired = pickLane;
-            else if (board.aimRequested && line.Route == null) desired = board.aimLaneU - roadShift;
+            else if (board.aimRequested && line.Route == null) desired = line.FollowedRoadLane(board.aimLaneU) - roadShift;
             else if (FindSpeedPad(kart, range, desired, out var padLane)) desired = padLane;
             if (board.yieldRequested && board.yieldTo != null)
                 desired = (kart.transform.InverseTransformPoint(board.yieldTo.transform.position).x < 0f ? YieldLeftLane : YieldRightLane) - roadShift;

@@ -7,175 +7,183 @@ using UnityEngine;
 
 namespace MHK.AI
 {
-    /// <summary>What a computer driver in a battle is after.</summary>
-    internal enum BattleGoal : byte { Wander, ItemBox, Attack, Escape }
+    /// <summary>What a computer driver in a battle is doing.</summary>
+    internal enum BattleMode : byte
+    {
+        /// <summary>Circuits: drives the track like a race in its direction (<see cref="AIBattlePlanner.Direction"/>), picking up item boxes on the way.</summary>
+        Race,
+        /// <summary>Circuits: turns around on the road to its direction along the track.</summary>
+        Turn,
+        /// <summary>Hunts an opponent to take it down with its item (or a ram).</summary>
+        Hunt,
+        /// <summary>Arenas: roams to item boxes and open spots at full speed.</summary>
+        Roam,
+    }
 
     /// <summary>
-    /// Goals of a computer driver in a battle: an item box when its hands are empty (a health pickup when it is weak), an
-    /// opponent to hunt with an attacking item or to ram, a way out from a hunter or a crowd when weak, else a spot to
-    /// wander to (offroad included). Decides every <see cref="BattleAiSettings.decisionInterval"/> seconds.
+    /// What a computer driver in a battle does. On circuits it races the track in its direction (<see cref="BattleMode.Race"/>,
+    /// the race driving with its item box pickups), in arenas it roams to item boxes and open spots (<see cref="BattleMode.Roam"/>).
+    /// Holding an attacking item with an opponent in sight within <see cref="BattleAiSettings.huntRange"/> it hunts that
+    /// opponent (<see cref="BattleMode.Hunt"/>, also a ram of a close opponent right in front without an item) until the
+    /// item is used up, the target is gone or it stays too far or out of sight; then it races on the way it faces. Once per
+    /// battle, at a seeded time after GO, it reverses its direction, and it turns back at dead ends (a gap jumped the
+    /// other way, the end of an open line). Every change of direction is a turn on the road (<see cref="BattleMode.Turn"/>).
     /// </summary>
     internal sealed class AIBattlePlanner
     {
-        const float DecisionSpread = 0.2f, TurnCostPerDegree = 0.12f, PathCostShare = 1.2f;
-        const float ContestMargin = 4f, ContestCost = 20f, KeepShare = 0.8f, PowerDetour = 25f, LevelHeight = 3f;
-        const float HunterCone = 35f, AimTargetBonus = 10f, KeepTargetBonus = 8f, WoundedBonus = 30f, CrowdShare = 0.5f;
-        const float RamRange = 25f, ArenaRamRange = 40f, RamContact = 3.5f, MaxLeadSeconds = 1.5f, MinLeadSpeed = 5f;
-        const float ArriveDistance = 5f, WanderMinSeconds = 4f, WanderMaxSeconds = 9f, WanderLeashShare = 0.8f, OffroadWanderChance = 0.3f;
+        const float DecisionSpread = 0.2f;
+        const int ReverseKey = 0x52455653;
+        // The nose more than TurnEnterAngle off the direction along the line starts a turn around, less than
+        // TurnLeaveAngle ends it (the navigator's turn uses the same angles).
+        const float TurnEnterAngle = 110f, TurnLeaveAngle = 50f;
+        // Dead ends are looked for this often (s), as far as the stopping distance plus DeadEndMargin (at least DeadEndMin).
+        const float DeadEndInterval = 0.1f, DeadEndMin = 12f, DeadEndMargin = 8f;
+        // Hunting: the cost of a target is its distance plus BehindCost when it is behind, HuntedCost per other computer
+        // driver hunting it, less bonuses for the current target, the item brain's aim target and a wounded one.
+        const float BehindCost = 25f, HuntedCost = 15f, KeepTargetBonus = 10f, AimTargetBonus = 8f, WoundedBonus = 20f;
+        const float LevelHeight = 4f, RamCone = 30f, RamContact = 3.5f, RamLeaveShare = 1.5f;
+        const float MaxLeadSeconds = 1.5f, MinLeadSpeed = 5f;
         const float ProgressStep = 3f, GiveUpSeconds = 4f, IgnoreSeconds = 8f;
-        const int WanderTries = 5;
+        // Arenas: a box costs its distance plus TurnCostPerDegree per degree to turn towards it, ContestCost when an
+        // empty-handed opponent is closer; spots lie within RoamCone of the heading (wider when none is safe).
+        const float TurnCostPerDegree = 0.12f, ContestMargin = 4f, ContestCost = 20f, KeepShare = 0.8f;
+        const float RoamCone = 60f, ArriveDistance = 5f, RoamSpeed = 8f, MinRoamSeconds = 4f, MinMoveSpeed = 2f;
+        const int RoamTries = 6;
 
         readonly BattleAiSettings skill;
         readonly System.Random rng;
         readonly AIBlackboard board;
-        readonly AIBattleArea.Hints wanderHints = new();
-        float decideTimer, wanderTimer, kartIgnoreTimer, boxIgnoreTimer, closest, stallTimer;
-        ItemBox box, ignoredBox, stationBox;
+        readonly bool arena;
+        readonly float reverseAt;
+        readonly AIBattleArea.Hints roamHints = new();
+        float decideTimer, deadEndTimer, loseTimer, kartIgnoreTimer, boxIgnoreTimer, roamTimer, closest, stallTimer;
+        float lastClock = -1f;
+        bool started, reversed, turnBack, ramming, targetVisible;
+        ItemBox box, ignoredBox;
         Kart ignoredKart;
         Object pursued;
-        Vector3 escapePoint, wanderPoint;
-        int station = -1, lastStation = -1, pursuedStation = -1, received;
-        bool pursuedAlong;
+        Vector3 roamPoint;
 
-        public AIBattlePlanner(BattleAiSettings skill, AIBlackboard board, System.Random rng)
+        /// <param name="seed">Seed of this driver's rolls in this battle (the reversal time is rolled from it).</param>
+        public AIBattlePlanner(BattleAiSettings skill, AIBlackboard board, bool arena, int seed)
         {
             this.skill = skill;
             this.board = board;
-            this.rng = rng;
+            this.arena = arena;
+            rng = new System.Random(seed);
+            reverseAt = Mathf.Lerp(Mathf.Min(skill.reverseMinSeconds, skill.reverseMaxSeconds),
+                Mathf.Max(skill.reverseMinSeconds, skill.reverseMaxSeconds), AIRolls.Roll01(seed, ReverseKey));
         }
 
-        public BattleGoal Goal { get; private set; }
-        /// <summary>Where the kart heads for this step.</summary>
+        public BattleMode Mode { get; private set; }
+        /// <summary>Circuits: 1 along the track's direction, -1 against it.</summary>
+        public int Direction { get; private set; } = 1;
+        /// <summary>Where the kart heads for (<see cref="BattleMode.Hunt"/>, <see cref="BattleMode.Roam"/>).</summary>
         public Vector3 Point { get; private set; }
-        /// <summary>Opponent hunted (<see cref="BattleGoal.Attack"/>) or escaped from (<see cref="BattleGoal.Escape"/>).</summary>
-        public Kart Opponent { get; private set; }
-        /// <summary>Item box station the kart heads for (<see cref="AIBattleBoxes"/>), -1 for none.</summary>
-        public int Station => Goal == BattleGoal.ItemBox ? station : -1;
+        /// <summary>Opponent hunted, null when not hunting.</summary>
+        public Kart Target => Mode == BattleMode.Hunt ? opponent : null;
+        /// <summary>Item box the kart roams to (arenas), null for none.</summary>
+        public ItemBox Box => Mode == BattleMode.Roam ? box : null;
 
-        /// <summary>Re-decides when due or when the goal is gone, then updates <see cref="Point"/>.</summary>
-        public void Tick(Kart kart, TrackRuntime track, bool arena, float leash, GameConfig cfg, float dt)
+        Kart opponent;
+
+        /// <summary>
+        /// Updates mode, direction and goal for this physics step. <paramref name="line"/> is the kart's line follower (dead
+        /// ends ahead), <paramref name="leash"/> how far beyond the road edges spots may lie.
+        /// </summary>
+        public void Tick(Kart kart, TrackRuntime track, AIRouteFollower line, float leash, GameConfig cfg, float dt)
         {
+            var clock = kart.Progress.RaceClock;
+            if (!started || clock < lastClock) Restart(kart, track);
+            lastClock = clock;
             decideTimer -= dt;
-            wanderTimer -= dt;
+            deadEndTimer -= dt;
             kartIgnoreTimer -= dt;
             boxIgnoreTimer -= dt;
-            WatchContact(kart, cfg);
-            WatchReceived(kart);
-            if (station >= 0) stationBox = AIBattleBoxes.NearestAvailable(station, kart.transform.position);
-            if (decideTimer <= 0f || GoalGone(kart))
+            roamTimer -= dt;
+            var armed = Armed(kart);
+            if (Mode == BattleMode.Hunt && !KeepHunting(kart, armed, cfg, dt)) EndHunt(kart, track);
+            WatchReverse(kart, clock);
+            if (!arena) WatchDirection(kart, track, line, cfg);
+            if (decideTimer <= 0f || RoamGoalGone(kart))
             {
                 decideTimer = skill.decisionInterval * rng.Range(1f - DecisionSpread, 1f + DecisionSpread);
-                Decide(kart, track, arena, leash, cfg);
+                Decide(kart, track, armed, leash, cfg);
             }
-            Point = Goal switch
+            Point = Mode switch
             {
-                BattleGoal.ItemBox => station < 0 ? box.transform.position
-                    : stationBox != null ? stationBox.transform.position : AIBattleBoxes.StationCentre(station),
-                BattleGoal.Attack => Lead(kart, Opponent),
-                BattleGoal.Escape => escapePoint,
-                _ => wanderPoint,
+                BattleMode.Hunt => Lead(kart, opponent),
+                BattleMode.Roam => box != null ? box.transform.position : roamPoint,
+                _ => kart.transform.position,
             };
         }
 
-        /// <summary>
-        /// Gives up a box, station or kart the kart does not get closer to (walls, other karts, a faster target) for a while.
-        /// <paramref name="way"/> is the distance left along the way the navigator takes (<paramref name="alongLine"/>: along
-        /// the lines), so following a winding road or a route towards the goal counts as progress.
-        /// </summary>
-        public void WatchProgress(float way, bool alongLine, float dt)
+        // A new battle (first step, or the race clock started again): drive the way the kart faces, reversal still to come.
+        void Restart(Kart kart, TrackRuntime track)
         {
-            var atStation = Goal == BattleGoal.ItemBox && station >= 0;
-            Object goal = Goal == BattleGoal.ItemBox ? atStation ? null : box : Goal == BattleGoal.Attack ? Opponent : null;
-            var key = atStation ? station : -1;
-            if (goal != pursued || key != pursuedStation || alongLine != pursuedAlong || way < closest - ProgressStep)
-            {
-                pursued = goal;
-                pursuedStation = key;
-                pursuedAlong = alongLine;
-                closest = way;
-                stallTimer = 0f;
-                return;
-            }
-            stallTimer += dt;
-            if ((goal == null && !atStation) || stallTimer < GiveUpSeconds) return;
-            if (atStation) LeaveStation();
-            else if (goal == box) Ignore(box);
-            else Ignore(Opponent, IgnoreSeconds);
+            started = true;
+            reversed = turnBack = ramming = false;
+            opponent = null;
+            box = null;
             pursued = null;
-            pursuedStation = -1;
-            decideTimer = 0f;
+            decideTimer = roamTimer = deadEndTimer = loseTimer = 0f;
+            Mode = arena ? BattleMode.Roam : BattleMode.Race;
+            Direction = arena ? 1 : FacingSign(kart, track);
         }
 
-        void WatchReceived(Kart kart)
+        // The one reversal, at the rolled time, while racing or roaming (a hunt or a turn finishes first).
+        void WatchReverse(Kart kart, float clock)
         {
-            if (kart.Inventory.Received == received) return;
-            received = kart.Inventory.Received;
-            if (station >= 0) LeaveStation();
-        }
-
-        void LeaveStation()
-        {
-            lastStation = station;
-            station = -1;
-            stationBox = null;
-        }
-
-        void Ignore(ItemBox b)
-        {
-            ignoredBox = b;
-            boxIgnoreTimer = IgnoreSeconds;
-        }
-
-        void Ignore(Kart o, float seconds)
-        {
-            ignoredKart = o;
-            kartIgnoreTimer = seconds;
-        }
-
-        bool Ignored(Kart o) => o == ignoredKart && kartIgnoreTimer > 0f;
-
-        bool GoalGone(Kart kart) => Goal switch
-        {
-            BattleGoal.ItemBox => station >= 0 ? stationBox == null : box == null || !box.Available || !box.isActiveAndEnabled,
-            BattleGoal.Attack => Opponent == null || !AIKartQueries.IsOpponent(kart, Opponent) || Opponent.Effects.IsProtected || Ignored(Opponent),
-            BattleGoal.Wander => wanderTimer <= 0f || Arrived(kart),
-            _ => false,
-        };
-
-        // A rammed kart takes no ramming damage for GameConfig.ramCooldown: pull away and come back later.
-        void WatchContact(Kart kart, GameConfig cfg)
-        {
-            if (Goal != BattleGoal.Attack || Opponent == null || Flat(Opponent.transform.position - kart.transform.position).magnitude > RamContact) return;
-            Ignore(Opponent, cfg.ramCooldown);
-        }
-
-        // Health when weak, escape when weak and pressed, attack with an attacking item, an item box with empty hands (one
-        // close on the way first, else a station), escape from a hunter without a weapon, ram when aggressive, else wander.
-        void Decide(Kart kart, TrackRuntime track, bool arena, float leash, GameConfig cfg)
-        {
-            var weak = kart.Health <= skill.fleeHealth * cfg.maxHealth;
-            var held = kart.Inventory.Held;
-            var attacking = held != null && Attacks(held);
-            if (weak && TryBox(kart, track, arena, cfg, BattleBoxKind.Health)) return;
-            var threat = rng.Roll(skill.threatAwareness) ? Hunter(kart, cfg) : null;
-            if (weak && (threat != null || (threat = Nearest(kart, cfg.aiBattleThreatRange * CrowdShare)) != null))
+            if (reversed || clock < reverseAt || Mode is BattleMode.Hunt or BattleMode.Turn) return;
+            reversed = true;
+            if (arena)
             {
-                Escape(kart, track, arena, threat, cfg);
+                turnBack = true;
+                box = null;
+                roamTimer = decideTimer = 0f;
                 return;
             }
-            if (attacking && TryAttack(kart, track, arena, float.PositiveInfinity, cfg)) return;
-            var powered = kart.Effects.DamageDealtMultiplier > 1f;
-            if (held == null && ((!powered && TryBox(kart, track, arena, cfg, BattleBoxKind.Power, PowerDetour))
-                    || TryBox(kart, track, arena, cfg, BattleBoxKind.Item, cfg.aiBattleBoxGrabRange) || TryStation(kart, track, arena, cfg)))
-                return;
-            if (threat != null && !attacking)
+            Direction = -Direction;
+            Mode = BattleMode.Turn;
+        }
+
+        // Circuits: a nose far off the direction (reversal, respawn, spin) turns the kart around; a dead end ahead turns
+        // the direction around.
+        void WatchDirection(Kart kart, TrackRuntime track, AIRouteFollower line, GameConfig cfg)
+        {
+            if (Mode == BattleMode.Hunt) return;
+            var angle = Vector3.Angle(Flat(kart.transform.forward), Flat(LineTangent(kart, track)) * Direction);
+            if (Mode == BattleMode.Turn)
             {
-                Escape(kart, track, arena, threat, cfg);
+                if (angle < TurnLeaveAngle) Mode = BattleMode.Race;
                 return;
             }
-            var keepRam = Goal == BattleGoal.Attack && Opponent != null;
-            if (!weak && (keepRam || rng.Roll(skill.aggression)) && TryAttack(kart, track, arena, arena ? ArenaRamRange : RamRange, cfg)) return;
-            Wander(kart, track, leash, cfg);
+            if (angle > TurnEnterAngle)
+            {
+                Mode = BattleMode.Turn;
+                return;
+            }
+            if (deadEndTimer > 0f || line.Direction != Direction) return;
+            deadEndTimer = DeadEndInterval;
+            var speed = Mathf.Max(0f, kart.Physics.ForwardSpeed);
+            var range = Mathf.Max(DeadEndMin, speed * speed / (2f * Mathf.Max(1f, cfg.aiPlanBraking)) + DeadEndMargin);
+            if (!line.DeadEndWithin(range)) return;
+            Direction = -Direction;
+            Mode = BattleMode.Turn;
+        }
+
+        // Hunts start (or switch targets) at decisions, not while turning around. Arenas roam otherwise.
+        void Decide(Kart kart, TrackRuntime track, bool armed, float leash, GameConfig cfg)
+        {
+            if (Mode != BattleMode.Turn && TryHunt(kart, armed, cfg)) return;
+            if (arena) Roam(kart, track, leash, cfg);
+        }
+
+        /// <summary>An item held that hurts opponents (shots, melee, ramming boosts...), not a trap or a dig.</summary>
+        static bool Armed(Kart kart)
+        {
+            var inv = kart.Inventory;
+            return inv != null && inv.HasItem && inv.Charges > 0 && Attacks(inv.Held);
         }
 
         static bool Attacks(PowerupDefinition def)
@@ -190,97 +198,174 @@ namespace MHK.AI
             };
         }
 
-        bool TryBox(Kart kart, TrackRuntime track, bool arena, GameConfig cfg, BattleBoxKind wanted, float maxCost = float.PositiveInfinity)
+        bool TryHunt(Kart kart, bool armed, GameConfig cfg)
+        {
+            if (Mode == BattleMode.Hunt && ramming && !armed) return true;
+            Kart best = null;
+            var bestCost = float.PositiveInfinity;
+            var pos = kart.transform.position;
+            var forward = Flat(kart.transform.forward);
+            var range = armed ? skill.huntRange : skill.ramRange;
+            if (range <= 0f || (!armed && !rng.Roll(skill.aggression))) return false;
+            var karts = Kart.All;
+            for (var i = 0; i < karts.Count; i++)
+            {
+                var o = karts[i];
+                if (!AIKartQueries.IsOpponent(kart, o) || o.Effects.IsProtected || Ignored(o)) continue;
+                var to = o.transform.position - pos;
+                if (Mathf.Abs(to.y) > LevelHeight) continue;
+                var flat = Flat(to);
+                var distance = flat.magnitude;
+                if (distance > range) continue;
+                var behind = Vector3.Dot(flat, forward) < 0f;
+                // A ram goes for an opponent right in front only, never one to turn around for.
+                if (!armed && Vector3.Angle(forward, flat) > RamCone) continue;
+                var cost = distance + (behind ? BehindCost : 0f) + HuntedCost * Hunters(kart, o)
+                    - skill.aggression * WoundedBonus * (1f - o.Health / (float)Mathf.Max(1, cfg.maxHealth))
+                    - (o == board.aimTarget ? AimTargetBonus : 0f) - (o == opponent && Mode == BattleMode.Hunt ? KeepTargetBonus : 0f);
+                if (cost >= bestCost || !AIKartQueries.LineOfSight(kart, o)) continue;
+                best = o;
+                bestCost = cost;
+            }
+            if (best == null)
+            {
+                if (Mode == BattleMode.Hunt) targetVisible = opponent != null && AIKartQueries.LineOfSight(kart, opponent);
+                return Mode == BattleMode.Hunt;
+            }
+            if (Mode != BattleMode.Hunt || best != opponent) loseTimer = 0f;
+            opponent = best;
+            ramming = !armed;
+            targetVisible = true;
+            Mode = BattleMode.Hunt;
+            box = null;
+            return true;
+        }
+
+        // Each step: the hunt goes on while armed (a ram: until contact or the target pulls away) and the target is
+        // still there, not too far and in sight for longer than huntLoseSeconds.
+        bool KeepHunting(Kart kart, bool armed, GameConfig cfg, float dt)
+        {
+            var o = opponent;
+            if (o == null || !AIKartQueries.IsOpponent(kart, o) || o.Effects.IsProtected || Ignored(o)) return false;
+            var distance = Flat(o.transform.position - kart.transform.position).magnitude;
+            if (ramming && !armed)
+            {
+                // A rammed kart takes no ramming damage for GameConfig.ramCooldown: race on and come back later.
+                if (distance < RamContact)
+                {
+                    Ignore(o, cfg.ramCooldown);
+                    return false;
+                }
+                return distance <= skill.ramRange * RamLeaveShare;
+            }
+            if (!armed) return false;
+            ramming = false;
+            var lost = distance > skill.huntRange * skill.huntLeaveShare || !targetVisible;
+            loseTimer = lost ? loseTimer + dt : 0f;
+            return loseTimer < skill.huntLoseSeconds;
+        }
+
+        // Back to racing the way the kart faces now (no turning around for a direction it had before the hunt).
+        void EndHunt(Kart kart, TrackRuntime track)
+        {
+            opponent = null;
+            ramming = false;
+            pursued = null;
+            Mode = arena ? BattleMode.Roam : BattleMode.Race;
+            if (!arena) Direction = FacingSign(kart, track);
+            roamTimer = decideTimer = 0f;
+        }
+
+        /// <summary>
+        /// Gives up a target or box the kart does not get closer to (walls, other karts, a faster target) for a while.
+        /// <paramref name="way"/> is the distance left along the way the navigator takes (<paramref name="alongLine"/>: along
+        /// the lines), so following a winding road towards the goal counts as progress.
+        /// </summary>
+        public void WatchProgress(float way, bool alongLine, float dt)
+        {
+            Object goal = Mode == BattleMode.Hunt ? opponent : Mode == BattleMode.Roam ? box : null;
+            if (goal != pursued || way < closest - ProgressStep)
+            {
+                pursued = goal;
+                closest = way;
+                stallTimer = 0f;
+                return;
+            }
+            stallTimer += dt;
+            if (goal == null || stallTimer < GiveUpSeconds) return;
+            if (goal == box)
+            {
+                ignoredBox = box;
+                boxIgnoreTimer = IgnoreSeconds;
+                box = null;
+            }
+            else Ignore(opponent, IgnoreSeconds);
+            pursued = null;
+            decideTimer = 0f;
+        }
+
+        void Ignore(Kart o, float seconds)
+        {
+            ignoredKart = o;
+            kartIgnoreTimer = seconds;
+        }
+
+        bool Ignored(Kart o) => o == ignoredKart && kartIgnoreTimer > 0f;
+
+        bool RoamGoalGone(Kart kart) => Mode == BattleMode.Roam &&
+            (box != null ? !box.Available || !box.isActiveAndEnabled : roamTimer <= 0f || Flat(roamPoint - kart.transform.position).magnitude < ArriveDistance);
+
+        // An item box with empty hands (or a health / power pickup that helps), else an open spot ahead. Right after the
+        // reversal only ones behind the kart.
+        void Roam(Kart kart, TrackRuntime track, float leash, GameConfig cfg)
+        {
+            var inv = kart.Inventory;
+            if (inv != null && inv.Held == null && !inv.Rolling && PowerupRoller.ItemsEnabled && TryBox(kart, cfg))
+            {
+                turnBack = false;
+                return;
+            }
+            box = null;
+            if (!turnBack && roamTimer > 0f && Flat(roamPoint - kart.transform.position).magnitude >= ArriveDistance) return;
+            PickSpot(kart, track, leash, cfg);
+            turnBack = false;
+        }
+
+        bool TryBox(Kart kart, GameConfig cfg)
         {
             ItemBox best = null;
-            var bestCost = maxCost;
+            var bestCost = float.PositiveInfinity;
+            var pos = kart.transform.position;
+            var forward = Flat(kart.transform.forward);
+            var hurt = kart.Health < cfg.maxHealth;
+            var powered = kart.Effects.DamageDealtMultiplier > 1f;
             var boxes = ItemBox.Active;
             for (var i = 0; i < boxes.Count; i++)
             {
                 var b = boxes[i];
-                if (!b.Available || (b == ignoredBox && boxIgnoreTimer > 0f) || AIBattleBoxes.KindOf(b) != wanted) continue;
-                // A detour box on another level (a bridge above, a road below) is not on the way.
-                if (maxCost < float.PositiveInfinity && Mathf.Abs(b.transform.position.y - kart.transform.position.y) > LevelHeight) continue;
-                var cost = Travel(kart, track, arena, b.transform.position, AIBattleBoxes.LineDistance(track, b), cfg) + Contest(kart, b);
-                if (b == box && station < 0) cost *= KeepShare;
+                if (!b.Available || (b == ignoredBox && boxIgnoreTimer > 0f) || (b != box && Claimed(kart, b))) continue;
+                var kind = AIBattleBoxes.KindOf(b);
+                if (!(kind == BattleBoxKind.Item || (kind == BattleBoxKind.Health && hurt) || (kind == BattleBoxKind.Power && !powered))) continue;
+                var to = Flat(b.transform.position - pos);
+                if (turnBack && Vector3.Dot(to, forward) > 0f) continue;
+                var cost = to.magnitude + Vector3.Angle(forward, to) * TurnCostPerDegree + Contest(kart, b);
+                if (b == box) cost *= KeepShare;
                 if (cost >= bestCost) continue;
                 best = b;
                 bestCost = cost;
             }
-            if (best == null) return false;
             box = best;
-            station = -1;
-            Goal = BattleGoal.ItemBox;
-            return true;
+            return best != null;
         }
 
-        bool TryStation(Kart kart, TrackRuntime track, bool arena, GameConfig cfg)
-        {
-            var count = AIBattleBoxes.StationCount(track, cfg.aiBattleStationSpacing);
-            if (station < 0 || station >= count || AIBattleBoxes.NearestAvailable(station, kart.transform.position) == null)
-                station = PickStation(kart, track, arena, count, cfg);
-            if (station < 0) return false;
-            stationBox = AIBattleBoxes.NearestAvailable(station, kart.transform.position);
-            Goal = BattleGoal.ItemBox;
-            return true;
-        }
-
-        // aiBattleStationAheadChance: a station ahead along the track, else one behind (the first one always ahead: the grid
-        // faces forwards). Not the one just used, not one another computer driver heads for, chosen at random with the
-        // chance falling with the square of the distance.
-        int PickStation(Kart kart, TrackRuntime track, bool arena, int count, GameConfig cfg)
-        {
-            var ahead = lastStation < 0 || rng.Roll(cfg.aiBattleStationAheadChance);
-            var pick = PickStation(kart, track, arena, count, cfg, ahead ? 1 : -1, true);
-            if (pick < 0) pick = PickStation(kart, track, arena, count, cfg, ahead ? -1 : 1, true);
-            if (pick < 0) pick = PickStation(kart, track, arena, count, cfg, 0, false);
-            return pick < 0 && lastStation >= 0 && lastStation < count && AIBattleBoxes.NearestAvailable(lastStation, kart.transform.position) != null
-                ? lastStation : pick;
-        }
-
-        int PickStation(Kart kart, TrackRuntime track, bool arena, int count, GameConfig cfg, int direction, bool unclaimed)
-        {
-            var total = 0f;
-            for (var pass = 0; pass < 2; pass++)
-            {
-                var roll = pass == 0 ? 0f : rng.NextFloat() * total;
-                for (var s = 0; s < count; s++)
-                {
-                    var weight = StationWeight(kart, track, arena, s, cfg, direction, unclaimed);
-                    if (pass == 0) total += weight;
-                    else if (weight > 0f && (roll -= weight) <= 0f) return s;
-                }
-                if (total <= 0f) return -1;
-            }
-            return -1;
-        }
-
-        float StationWeight(Kart kart, TrackRuntime track, bool arena, int s, GameConfig cfg, int direction, bool unclaimed)
-        {
-            if (s == lastStation || AIBattleBoxes.NearestAvailable(s, kart.transform.position) == null) return 0f;
-            var line = AIBattleBoxes.StationLineDistance(s);
-            if (direction != 0 && track.path.Delta(kart.Progress.PathDistance, line) * direction <= 0f) return 0f;
-            if (unclaimed && Claimed(kart, s)) return 0f;
-            var travel = Travel(kart, track, arena, AIBattleBoxes.StationCentre(s), line, cfg) / Mathf.Max(1f, cfg.aiBattleStationDistanceScale);
-            return 1f / (1f + travel * travel);
-        }
-
-        static bool Claimed(Kart kart, int s)
+        // Another computer driver roams to b: boxes are shared out.
+        static bool Claimed(Kart kart, ItemBox b)
         {
             var karts = Kart.All;
             for (var i = 0; i < karts.Count; i++)
-                if (karts[i] != kart && !karts[i].Eliminated && karts[i].Driver is AIKartDriver d && d.BattleStation == s)
+                if (karts[i] != kart && !karts[i].Eliminated && karts[i].Driver is AIKartDriver d && d.BattleBox == b)
                     return true;
             return false;
-        }
-
-        float Travel(Kart kart, TrackRuntime track, bool arena, Vector3 to, float toLine, GameConfig cfg)
-        {
-            var delta = Flat(to - kart.transform.position);
-            var straight = delta.magnitude;
-            var turn = Vector3.Angle(Flat(kart.transform.forward), delta) * TurnCostPerDegree;
-            if (arena || straight <= cfg.aiBattleDirectRange) return straight + turn;
-            return Mathf.Abs(track.path.Delta(kart.Progress.PathDistance, toLine)) * PathCostShare + turn;
         }
 
         static float Contest(Kart kart, ItemBox b)
@@ -298,27 +383,40 @@ namespace MHK.AI
             return 0f;
         }
 
-        bool TryAttack(Kart kart, TrackRuntime track, bool arena, float maxRange, GameConfig cfg)
+        // A safe spot aiBattleWanderRadius to twice that ahead (behind after the reversal), within RoamCone of the heading,
+        // the cone widening to all around when none is safe. Kept until reached or out of time.
+        void PickSpot(Kart kart, TrackRuntime track, float leash, GameConfig cfg)
         {
-            Kart best = null;
-            var bestCost = float.PositiveInfinity;
+            var pos = kart.transform.position;
+            var heading = kart.Physics.ForwardSpeed > MinMoveSpeed ? Flat(kart.Physics.Body.linearVelocity) : Flat(kart.transform.forward);
+            heading = heading.sqrMagnitude > 1e-4f ? heading.normalized : Vector3.forward;
+            if (turnBack) heading = -heading;
+            var minNormalY = AIBattleArea.MinNormalY(cfg);
+            for (var i = 0; i < RoamTries; i++)
+            {
+                var cone = Mathf.Lerp(RoamCone, 180f, i / (float)(RoamTries - 1));
+                var distance = cfg.aiBattleWanderRadius * rng.Range(1f, 2f);
+                var p = pos + Quaternion.AngleAxis(rng.Range(-cone, cone), Vector3.up) * heading * distance;
+                roamHints.Reset();
+                if (!AIBattleArea.Safe(track, p, pos.y, leash, minNormalY, roamHints, out var y)) continue;
+                roamPoint = new Vector3(p.x, y, p.z);
+                roamTimer = Mathf.Max(MinRoamSeconds, distance / RoamSpeed);
+                return;
+            }
+            var path = track.path;
+            roamPoint = path.GetPoint(path.WrapDistance(kart.Progress.PathDistance + cfg.aiBattleWanderRadius));
+            roamTimer = MinRoamSeconds;
+        }
+
+        // Other computer drivers hunting o: hunters spread over the opponents.
+        static int Hunters(Kart kart, Kart o)
+        {
+            var n = 0;
             var karts = Kart.All;
             for (var i = 0; i < karts.Count; i++)
-            {
-                var o = karts[i];
-                if (!AIKartQueries.IsOpponent(kart, o) || o.Effects.IsProtected || Ignored(o)) continue;
-                var travel = Travel(kart, track, arena, o.transform.position, o.Progress.PathDistance, cfg);
-                if (travel > maxRange) continue;
-                var cost = travel - skill.aggression * WoundedBonus * (1f - o.Health / (float)Mathf.Max(1, cfg.maxHealth))
-                    - (o == board.aimTarget ? AimTargetBonus : 0f) - (o == Opponent && Goal == BattleGoal.Attack ? KeepTargetBonus : 0f);
-                if (cost >= bestCost) continue;
-                best = o;
-                bestCost = cost;
-            }
-            if (best == null) return false;
-            Opponent = best;
-            Goal = BattleGoal.Attack;
-            return true;
+                if (karts[i] != kart && !karts[i].Eliminated && karts[i].Driver is AIKartDriver d && d.BattleTarget == o)
+                    n++;
+            return n;
         }
 
         Vector3 Lead(Kart kart, Kart target)
@@ -329,81 +427,16 @@ namespace MHK.AI
             return p + Flat(target.Physics.Body.linearVelocity) * (seconds * skill.aimLead);
         }
 
-        static Kart Hunter(Kart kart, GameConfig cfg)
-        {
-            Kart best = null;
-            var bestDistance = cfg.aiBattleThreatRange;
-            var p = kart.transform.position;
-            var karts = Kart.All;
-            for (var i = 0; i < karts.Count; i++)
-            {
-                var o = karts[i];
-                if (!AIKartQueries.IsOpponent(kart, o) || o.Inventory.Held == null || !Attacks(o.Inventory.Held)) continue;
-                var to = p - o.transform.position;
-                var distance = to.magnitude;
-                if (distance >= bestDistance || Vector3.Angle(o.transform.forward, to) > HunterCone) continue;
-                best = o;
-                bestDistance = distance;
-            }
-            return best;
-        }
+        // Direction along the track the kart's nose points to.
+        static int FacingSign(Kart kart, TrackRuntime track) => Vector3.Dot(kart.transform.forward, LineTangent(kart, track)) >= 0f ? 1 : -1;
 
-        static Kart Nearest(Kart kart, float range)
+        // Track direction where the kart is: along the alternative route it is on, else the main line.
+        static Vector3 LineTangent(Kart kart, TrackRuntime track)
         {
-            Kart best = null;
-            var bestDistance = range;
-            var karts = Kart.All;
-            for (var i = 0; i < karts.Count; i++)
-            {
-                var o = karts[i];
-                if (!AIKartQueries.IsOpponent(kart, o)) continue;
-                var distance = AIKartQueries.Distance(kart, o);
-                if (distance >= bestDistance) continue;
-                best = o;
-                bestDistance = distance;
-            }
-            return best;
+            var prog = kart.Progress;
+            var route = prog.CurrentBranch;
+            return route != null ? route.GetTangent(prog.BranchDistance) : track.path.GetTangent(prog.PathDistance);
         }
-
-        void Escape(Kart kart, TrackRuntime track, bool arena, Kart threat, GameConfig cfg)
-        {
-            Opponent = threat;
-            Goal = BattleGoal.Escape;
-            var p = kart.transform.position;
-            if (arena)
-            {
-                var away = Flat(p - threat.transform.position);
-                escapePoint = p + (away.sqrMagnitude > 0.01f ? away.normalized : Flat(kart.transform.forward).normalized) * cfg.aiBattleWanderRadius;
-                return;
-            }
-            var path = track.path;
-            var from = kart.Progress.PathDistance;
-            var direction = path.Delta(from, threat.Progress.PathDistance) > 0f ? -1f : 1f;
-            escapePoint = path.GetPoint(path.WrapDistance(from + direction * cfg.aiBattleWanderRadius));
-        }
-
-        void Wander(Kart kart, TrackRuntime track, float leash, GameConfig cfg)
-        {
-            Opponent = null;
-            if (Goal == BattleGoal.Wander && wanderTimer > 0f && !Arrived(kart)) return;
-            Goal = BattleGoal.Wander;
-            wanderTimer = rng.Range(WanderMinSeconds, WanderMaxSeconds);
-            var path = track.path;
-            var from = kart.Progress.PathDistance;
-            for (var i = 0; i < WanderTries; i++)
-            {
-                var d = path.WrapDistance(from + rng.Range(-2f, 2f) * cfg.aiBattleWanderRadius);
-                var centre = path.GetPoint(d);
-                var side = Vector3.Cross(Vector3.up, path.GetFlatTangent(d, 1f)).normalized;
-                var reach = 0.5f * path.GetWidth(d) + (rng.Roll(OffroadWanderChance) ? leash * WanderLeashShare : 0f);
-                wanderPoint = centre + side * rng.Range(-reach, reach);
-                wanderHints.Reset();
-                if (AIBattleArea.Safe(track, wanderPoint, centre.y, leash, AIBattleArea.MinNormalY(cfg), wanderHints, out _)) return;
-            }
-            wanderPoint = path.GetPoint(path.WrapDistance(from + rng.Range(-1f, 1f) * cfg.aiBattleWanderRadius));
-        }
-
-        bool Arrived(Kart kart) => Flat(wanderPoint - kart.transform.position).magnitude < ArriveDistance;
 
         static Vector3 Flat(Vector3 v) => new(v.x, 0f, v.z);
     }

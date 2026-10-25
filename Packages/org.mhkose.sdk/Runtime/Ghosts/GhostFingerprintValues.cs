@@ -140,6 +140,22 @@ namespace MHK.Ghosts
             b.Add(p.bodies != null ? p.bodies.Length : 0);
         }
 
+        // Only what decides when and where karts fall; the pieces' fall is visual.
+        static void AddBridge(FingerprintBuilder b, CollapsingBridge c, TrackRuntime runtime)
+        {
+            b.Add(runtime != null && c.route != null ? runtime.alternatePaths.IndexOf(c.route) : -1);
+            b.Add(c.gates.Count);
+            foreach (var g in c.gates)
+            {
+                b.Add(c.transform.TransformPoint(g.left));
+                b.Add(c.transform.TransformPoint(g.right));
+            }
+            b.Add(c.sideMargin);
+            b.Add(c.heightRange);
+            b.Add(c.triggerWait);
+            b.Add(c.dropWait);
+        }
+
         static void AddClip(FingerprintBuilder b, AnimationClip clip)
         {
             b.Add(clip != null ? clip.name : "");
@@ -168,6 +184,8 @@ namespace MHK.Ghosts
             b.Add(e.forwardImpulse);
             b.Add(e.velocityRetain);
             b.Add(e.velocityDamping);
+            // Added only when set, so the hashes of every effect without it stay as they were.
+            if (e.snapToTopSpeed) b.Add("snapToTopSpeed");
             AddEffectControl(b, e);
             AddEffectProtection(b, e);
             b.Add(e.scaleMultiplier);

@@ -8,6 +8,9 @@ namespace MHK.Core
     /// <summary>When the on-screen touch controls show.</summary>
     public enum TouchControlsMode { Auto, On, Off }
 
+    /// <summary>When a human kart accelerates by itself.</summary>
+    public enum AutoAccelerateMode { Auto, On, Off }
+
     /// <summary>Race camera view (<see cref="Cameras.ChaseCamera"/> presets).</summary>
     public enum CameraMode { Close, Far, Pov }
 
@@ -29,6 +32,8 @@ namespace MHK.Core
         [Tooltip("Track playlists (Music screen), one per track that has its own. A track without one plays its own music.")]
         public List<TrackMusic> trackMusic = new();
         public TouchControlsMode touchControls = TouchControlsMode.Auto;
+        [Tooltip("Full throttle while the brake is released (after GO). Auto = on while the touch controls show.")]
+        public AutoAccelerateMode autoAccelerate = AutoAccelerateMode.Auto;
         [Tooltip("Race screen layout (UI Layout screen): places, sizes and visibility of the HUD elements and the touch controls.")]
         public UiLayoutSettings uiLayout = new();
         public GraphicsOptions graphics = new();
@@ -91,5 +96,9 @@ namespace MHK.Core
         /// <summary>The touch controls show: forced on, or Auto on a mobile device.</summary>
         public bool TouchControlsActive =>
             touchControls == TouchControlsMode.On || (touchControls == TouchControlsMode.Auto && Application.isMobilePlatform);
+
+        /// <summary>Human karts accelerate by themselves: forced on, or Auto while the touch controls show (touchscreen play).</summary>
+        public bool AutoAccelerateActive =>
+            autoAccelerate == AutoAccelerateMode.On || (autoAccelerate == AutoAccelerateMode.Auto && TouchControlsActive);
     }
 }

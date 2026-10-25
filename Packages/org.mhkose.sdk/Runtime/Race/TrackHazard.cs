@@ -15,9 +15,12 @@ namespace MHK.Race
 
     /// <summary>
     /// Moving kinematic hazard (MHK3 crushers) that applies <see cref="effectId"/> to karts it hits. Touch hazards are
-    /// triggers, Stomp hazards stay solid and only fire when coming down on a kart's roof.
+    /// triggers, Stomp hazards stay solid and only fire when coming down on a kart's roof. Moved by a
+    /// <see cref="PropAnimator"/> on the <see cref="RaceClock"/>; execution order 10 so the step's start pose is read
+    /// after the animator placed its bodies (it teleports them on the first step after GO and on replay seeks).
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
+    [DefaultExecutionOrder(10)]
     public partial class TrackHazard : MonoBehaviour
     {
         [Tooltip("Touch: any contact hits. Stomp: only coming down on a kart's roof hits.")]

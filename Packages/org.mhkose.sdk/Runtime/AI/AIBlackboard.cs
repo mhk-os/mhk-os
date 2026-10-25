@@ -12,6 +12,8 @@ namespace MHK.AI
         // Written by the driving, read by the item brain.
         /// <summary>Alternative route the kart is currently following (null = main line).</summary>
         public TrackPath route;
+        /// <summary>1 while the kart drives along the track's direction, -1 against it (battles).</summary>
+        public int direction = 1;
 
         // Written by the item brain, read by the driving.
         /// <summary>The item brain wants the kart lined up for a straight shot: steer towards <see cref="aimLaneU"/>.</summary>

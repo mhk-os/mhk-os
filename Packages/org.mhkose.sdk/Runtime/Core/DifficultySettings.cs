@@ -11,9 +11,6 @@ namespace MHK.Core
         [Tooltip("Engine class factor applied to every kart: diff ÷ f, torque × f (MHK2 50/100/150cc = 0.9/1.1/1.3, the " +
                  "remake's classes run one step up: 1.1/1.3/1.5).")]
         public float engineClassFactor = 1.1f;
-        [Tooltip("× the track's level speed factor (MHK2 rubber band) × target-rank factor = share of the kart's top speed " +
-                 "computer drivers keep to (full throttle below it, none above, 1 or more: always full throttle).")]
-        public float aiSpeedFactor = 1f;
         [Tooltip("How precisely AI follows the racing line (0 = sloppy, 1 = perfect).")]
         [Range(0, 1)] public float aiPrecision = 0.8f;
         [Tooltip("Seconds between AI powerup usage decisions.")]
@@ -45,5 +42,9 @@ namespace MHK.Core
                  "lap: a low-priority lane nudge to about the item's reach beside it. Never overrides kart, trap or wall " +
                  "avoidance and never brakes or leaves the road.")]
         [Range(0, 1)] public float aiAvoidHammerChance;
+        [Tooltip("Chance that a computer driver hunts karts it can flatten (shrunk karts, CrushOnKartContact), rolled once " +
+                 "per driver and race: it steers into such a kart close ahead on the road (a few tens of metres, within " +
+                 "reach of its lane) instead of passing it. Never chases karts far away or behind and never leaves the road.")]
+        [Range(0, 1)] public float aiFlattenSeekChance;
     }
 }

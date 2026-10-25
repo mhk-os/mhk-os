@@ -24,13 +24,19 @@ namespace MHK.Karts
             public float Progress => Duration > 0 ? 1f - TimeLeft / Duration : 1f;
             /// <summary>Seconds since the effect started (or was last extended by a refresh).</summary>
             public float Elapsed => Duration - TimeLeft;
+            /// <summary>
+            /// The powerup use (<see cref="Powerups.PowerupContext.usage"/>) that last applied or refreshed this effect, 0 =
+            /// none. Hits by its aura count as that use (<see cref="Kart.TakeDamage"/>).
+            /// </summary>
+            public int Usage { get; internal set; }
 
-            internal ActiveEffect(StatusEffectDefinition definition, float duration, GameObject vfx)
+            internal ActiveEffect(StatusEffectDefinition definition, float duration, GameObject vfx, int usage)
             {
                 Definition = definition;
                 TimeLeft = duration;
                 Duration = duration;
                 Vfx = vfx;
+                Usage = usage;
             }
         }
 
@@ -94,8 +100,11 @@ namespace MHK.Karts
         public bool Hidden => Modifiers.hidden;
         /// <summary>Visual yaw offset (degrees) of spinning effects.</summary>
         public float SpinAngle { get; private set; }
-        /// <summary>Hostile effects are ignored until this time (respawn protection).</summary>
-        public float ProtectedUntil { get; set; }
+        /// <summary>
+        /// Hostile effects are ignored before this race tick (<see cref="Race.RaceClock.Ticks"/>, respawn protection).
+        /// Ticks, not seconds: a hit right at its end lands on the same step in every run.
+        /// </summary>
+        public int ProtectedUntilTick { get; set; }
 
         /// <summary>Every successful <see cref="Apply"/>, including refreshes of a running effect (ghost recording replays these).</summary>
         public event Action<StatusEffectDefinition, Kart> Applied;
@@ -109,17 +118,19 @@ namespace MHK.Karts
         void Awake() => kart = GetComponent<Kart>();
 
         /// <summary>Hostile effects are blocked: shield, ghost or respawn protection.</summary>
-        public bool IsProtected => Shielded || Ghost || Time.time < ProtectedUntil;
+        public bool IsProtected => Shielded || Ghost || RespawnProtected;
 
-        /// <summary>Inside the protection after a respawn (<see cref="ProtectedUntil"/>), shield and ghost aside.</summary>
-        public bool RespawnProtected => Time.time < ProtectedUntil;
+        /// <summary>Inside the protection after a respawn (<see cref="ProtectedUntilTick"/>), shield and ghost aside.</summary>
+        public bool RespawnProtected => Race.RaceClock.Ticks < ProtectedUntilTick;
 
         /// <summary>
         /// Applies an effect. Returns false if a shield / protection blocked it, or if it flattens
         /// (<see cref="StatusEffectDefinition.verticalScale"/> &lt; 1) a kart that is already flattened or waiting to
         /// respawn (<see cref="HasRespawnPending"/>): nothing is applied, refreshed or extended then.
+        /// <paramref name="usage"/> is the powerup use the hit comes from (<see cref="Powerups.PowerupContext.usage"/>, 0 =
+        /// none): it costs this kart health only once per use (<see cref="Kart.TakeDamage"/>).
         /// </summary>
-        public bool Apply(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f)
+        public bool Apply(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f, int usage = 0)
         {
             if (IsBlocked(def)) return false;
             var duration = ResolveDuration(def, durationOverride);
@@ -129,14 +140,17 @@ namespace MHK.Karts
             {
                 existing.TimeLeft = Mathf.Max(existing.TimeLeft, duration);
                 existing.Duration = Mathf.Max(existing.Duration, duration);
+                if (usage != 0) existing.Usage = usage;
             }
-            else active.Add(new ActiveEffect(def, duration, SpawnAttachedVfx(def)));
+            else active.Add(new ActiveEffect(def, duration, SpawnAttachedVfx(def), usage));
 
             ApplyImpulses(def);
-            ApplyHealthAndInventory(def, source);
+            ApplyHealthAndInventory(def, source, usage);
             if (existing == null && def.applySound != null) AudioManager.PlaySfx(def.applySound, transform.position);
 
             Recalculate();
+            // After Recalculate: the top speed includes this effect's maxSpeedMultiplier (within its start grace).
+            if (def.snapToTopSpeed) SnapToTopSpeed();
             Applied?.Invoke(def, source);
             if (existing == null) Started?.Invoke(def, source);
             return true;
@@ -195,13 +209,26 @@ namespace MHK.Karts
             if (def.upwardImpulse != 0f) rb.linearVelocity += Vector3.up * def.upwardImpulse;
         }
 
-        void ApplyHealthAndInventory(StatusEffectDefinition def, Kart source)
+        /// <summary>
+        /// Raises the forward component of the kart's velocity to <see cref="KartPhysics.MaxSpeed"/> under the current
+        /// modifiers (<see cref="StatusEffectDefinition.snapToTopSpeed"/>). Sideways and vertical velocity stay.
+        /// </summary>
+        void SnapToTopSpeed()
+        {
+            if (kart == null || kart.Physics == null) return;
+            var rb = kart.Physics.Body;
+            var fwd = transform.forward;
+            var missing = kart.Physics.MaxSpeed() - Vector3.Dot(rb.linearVelocity, fwd);
+            if (missing > 0f) rb.linearVelocity += fwd * missing;
+        }
+
+        void ApplyHealthAndInventory(StatusEffectDefinition def, Kart source, int usage)
         {
             if (def.dropsHeldItem && kart != null && kart.Inventory != null) kart.Inventory.Clear();
             if (kart == null) return;
             if (def.heal > 0) kart.Heal(def.heal);
             if (def.hostile && source != null && source != kart)
-                kart.TakeDamage(def.damage >= 0 ? def.damage : Core.GameRoot.Instance.Config.defaultHitDamage, source);
+                kart.TakeDamage(def.damage >= 0 ? def.damage : Core.GameRoot.Instance.Config.defaultHitDamage, source, usage);
         }
 
         public bool Has(StatusEffectDefinition def) => Find(def) != null;
@@ -327,7 +354,7 @@ namespace MHK.Karts
                 {
                     var other = karts[i];
                     if (other == kart || other.Effects.Has(aura) || other.Effects.Ghost) continue;
-                    if ((other.transform.position - transform.position).sqrMagnitude < r2) KartReactions.Apply(other, aura, kart);
+                    if ((other.transform.position - transform.position).sqrMagnitude < r2) KartReactions.Apply(other, aura, kart, -1f, e.Usage);
                 }
             }
         }

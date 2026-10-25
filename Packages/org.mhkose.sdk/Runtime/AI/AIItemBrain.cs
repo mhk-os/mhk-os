@@ -136,7 +136,7 @@ namespace MHK.AI
             if (firedLast || inv.CoolingDown) return;
             var leading = AIKartQueries.IsLeading(kart);
             if (item.Kind == AIItemKind.HomingMissile && leading) return;
-            if (item.Kind == AIItemKind.Dig && !AIItemJudge.DigClear(kart, item)) return;
+            if (item.Kind == AIItemKind.Dig && !AIItemJudge.DigClear(kart, item, board.direction)) return;
             input.lookBack = IsTrap(item) ? RearCapable(item) : item.CanGoBehind && leading;
             input.fire = true;
         }
@@ -177,7 +177,7 @@ namespace MHK.AI
             PowerupAiUsage.OffensiveForward => AIKartQueries.CountAhead(kart, OffensiveRange, OffensiveHalfWidth) > 0
                 || (!AIKartQueries.IsLeading(kart) && rng.NextFloat() < OffensiveBlindChance),
             PowerupAiUsage.Defensive => false,
-            PowerupAiUsage.Boost => AIKartQueries.OnStraight(kart, steer),
+            PowerupAiUsage.Boost => AIKartQueries.OnStraight(kart, steer, board.direction),
             PowerupAiUsage.Protect => rng.NextFloat() < ProtectChance,
             _ => true,
         };
@@ -188,7 +188,7 @@ namespace MHK.AI
             if (!RearCapable(item) || lookBack.Elapsed < AILookBack.Warning) return;
             var trap = IsTrap(item);
             var go = lookBack.PlantLook
-                ? AIKartQueries.NarrowRoad(kart, board.route, kart.Progress.PathDistance - DropBehind)
+                ? AIKartQueries.NarrowRoad(kart, board.route, kart.Progress.PathDistance - board.direction * DropBehind)
                 : RearTargetOrBlindDrop(kart, item, trap, dt);
             if (!go) return;
             input.fire = true;

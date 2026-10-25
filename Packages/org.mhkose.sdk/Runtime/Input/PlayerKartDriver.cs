@@ -10,7 +10,8 @@ namespace MHK.Input
     /// <summary>
     /// Human driver: reads the Kart map of a per-player copy of the controls (with the saved rebinds,
     /// <see cref="UserSettings.keyBindings"/>) and merges the on-screen touch controls. Analog touch steering
-    /// (joystick, wheel) is turned into steering key presses that hold the wished share of full lock.
+    /// (joystick, wheel) is turned into steering key presses that hold the wished share of full lock. With
+    /// <see cref="UserSettings.AutoAccelerateActive"/> the throttle is held while the brake is released.
     /// </summary>
     public sealed class PlayerKartDriver : IKartDriver, IDisposable
     {
@@ -48,17 +49,32 @@ namespace MHK.Input
             Object.Destroy(actions);
         }
 
+        /// <summary>Reloads the saved rebinds (<see cref="UserSettings.keyBindings"/>) after the pause menu's options changed them.</summary>
+        public void ReloadBindings()
+        {
+            // Cleared first: keys reset to their defaults have no override left in the JSON.
+            actions.RemoveAllBindingOverrides();
+            actions.LoadBindingOverridesFromJson(GameRoot.Instance.Settings.keyBindings);
+        }
+
         /// <summary>The Camera key or the touch camera button was pressed (consumes the touch press).</summary>
         public bool CameraPressed() => VirtualKartInput.TakeCameraPress(playerIndex) | Camera.WasPressedThisFrame();
 
+        /// <summary>Reads this player's keys and touch controls. <paramref name="kart"/> is null for a viewer without a kart (replays).</summary>
         public void UpdateInput(Kart kart, ref KartInput input)
         {
             var v = VirtualKartInput.ForPlayer(playerIndex);
             var touchSteer = v.steer;
-            if (VirtualKartInput.TryGetSteerWish(playerIndex, out var wish)) touchSteer += AnalogSteerKey(kart, wish);
+            // Without a kart there is no wheel to steer with keys: the viewer takes the analog wish as it is.
+            if (VirtualKartInput.TryGetSteerWish(playerIndex, out var wish)) touchSteer += kart != null ? AnalogSteerKey(kart, wish) : wish;
             input.steer = Mathf.Clamp(steer.ReadValue<float>() + touchSteer, -1f, 1f);
-            input.throttle = Mathf.Clamp01(throttle.ReadValue<float>() + v.throttle);
             input.brake = Mathf.Clamp01(brake.ReadValue<float>() + v.brake);
+            // Throttle wins over brake in the pedal model, so auto-accelerate lets go while braking (and reversing).
+            // Not before GO: countdown presses stay the player's own power start attempt. Read live: the pause menu's
+            // options can change it mid-race.
+            input.throttle = kart != null && kart.ControlsEnabled && input.brake <= 0f && GameRoot.Instance.Settings.AutoAccelerateActive
+                ? 1f
+                : Mathf.Clamp01(throttle.ReadValue<float>() + v.throttle);
             input.fire = fire.IsPressed() || v.fire;
             input.lookBack = lookBack.IsPressed() || v.lookBack;
             input.horn = horn.IsPressed() || v.horn;

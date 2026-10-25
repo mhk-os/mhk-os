@@ -7,10 +7,13 @@ using UnityEngine;
 namespace MHK.AI
 {
     /// <summary>
-    /// Finds the way of a computer driver to a battle goal: straight across the ground when it is near (always in arenas),
-    /// else along the racing line in whichever direction is shorter and along the alternative route a goal lies on, and
-    /// around walls, solid props and unsafe ground (<see cref="AIBattleArea"/>) by trying headings to both sides of the
-    /// wanted one.
+    /// Finds the way of a computer driver in a battle to its goal (an opponent hunted, an arena spot or item box, or the
+    /// line behind it when it turns around): straight across the ground when it is near (always in arenas), else along the
+    /// racing line in whichever direction is shorter and along the alternative route a goal lies on, and around walls,
+    /// solid props and unsafe ground (<see cref="AIBattleArea"/>) by trying headings to both sides of the wanted one. Off
+    /// arenas it turns around on the road: first on to a wide stretch or a fork close ahead when the road is narrow, then
+    /// keeping to the road (its edges stop the kart like drops, so a narrow road gets a three-point turn). Offroad it
+    /// prefers headings back towards the road.
     /// </summary>
     internal sealed class AIBattleNavigator
     {
@@ -22,6 +25,16 @@ namespace MHK.AI
         const float BlockedSeconds = 1.5f, LineSeconds = 3f, BlockedAngle = 60f, NearGoal = 15f;
         const float DirectionMargin = 30f, GapCheckStep = 2f, GoalJump = 20f;
         const float HazardMargin = 6f, KartClearance = 2f, KartGap = 1.5f;
+        // Turning around off arenas: a wanted direction more than TurnEnterAngle off the nose starts a turn, less than
+        // TurnLeaveAngle ends it. While turning the probes keep within TurnLeash of the road edges, or no farther out than
+        // the kart already is plus TurnSlack (paved ground within the leash too). A road narrower than TurnWidth: drive on first to a wider stretch or a fork
+        // (JunctionRoom) up to TurnSearch metres ahead, for at most TurnDelaySeconds, unless the goal is nearer than
+        // TurnDelayGoal (and is no turn around). TurnArrive: close enough to the turning spot.
+        const float TurnEnterAngle = 110f, TurnLeaveAngle = 50f, TurnLeash = 1f, TurnSlack = 1f;
+        const float TurnWidth = 14f, TurnSearch = 30f, TurnSearchStep = 5f, JunctionRoom = 8f, TurnDelaySeconds = 4f;
+        const float TurnDelayGoal = 60f, TurnArrive = 3f;
+        // Offroad, a heading scores this per metre its reach gets closer to the road.
+        const float RoadPull = 1f;
 
         [NoAutoStaticsCleanup] static readonly float[] Headings = { 0f, -20f, 20f, -40f, 40f, -65f, 65f, -95f, 95f, -130f, 130f };
         [NoAutoStaticsCleanup] static readonly RaycastHit[] Hits = new RaycastHit[32];
@@ -35,7 +48,9 @@ namespace MHK.AI
         int lineDirection;
         float scanTimer, lineTimer, blockedTimer;
         float bestAngle, bestReach, minNormalY;
-        bool alongLine;
+        float roadBeyond, turnLeash, turnSpot, turnDelayTimer;
+        int turnSign;
+        bool alongLine, turning, turnDelayed;
 
         public AIBattleNavigator(DifficultySettings difficulty) =>
             scanInterval = Mathf.Lerp(SlowScanInterval, FastScanInterval, difficulty.aiPrecision);
@@ -55,9 +70,31 @@ namespace MHK.AI
         public float Way { get; private set; }
         /// <summary>A jump over a gap lies ahead on the racing line being followed forwards: full throttle along the line.</summary>
         public bool Jumping { get; private set; }
+        /// <summary>The kart turns around (or drives on to a spot to turn at): the way to the goal may grow meanwhile.</summary>
+        public bool Turning => turning;
 
-        /// <summary>Plans this physics step's steering point towards <paramref name="goal"/>, around every kart but <paramref name="target"/>.</summary>
-        public void Tick(Kart kart, Kart target, TrackRuntime track, Vector3 goal, bool arena, float leash, float radius, GameConfig cfg, float dt)
+        /// <summary>
+        /// Forgets the state of an earlier stretch off the racing line (turns, blocked goals, line direction): the kart
+        /// at <paramref name="position"/> starts a new one.
+        /// </summary>
+        public void Reset(Vector3 position)
+        {
+            turning = turnDelayed = false;
+            lineTimer = blockedTimer = scanTimer = 0f;
+            lineDirection = 0;
+            bestAngle = 0f;
+            bestReach = 0f;
+            SteerPoint = position;
+            GroundAhead = WallAhead = float.PositiveInfinity;
+        }
+
+        /// <summary>
+        /// Plans this physics step's steering point towards <paramref name="goal"/>, around every kart but <paramref name="target"/>.
+        /// <paramref name="turnAround"/>: the goal is the way back along the road, so a narrow road is driven on to a wide
+        /// spot first however near the goal is.
+        /// </summary>
+        public void Tick(Kart kart, Kart target, TrackRuntime track, Vector3 goal, bool arena, float leash, float radius, bool turnAround,
+            GameConfig cfg, float dt)
         {
             var pos = kart.transform.position;
             minNormalY = AIBattleArea.MinNormalY(cfg);
@@ -80,10 +117,24 @@ namespace MHK.AI
             var toWanted = Flat(wanted - pos);
             var wantedDir = toWanted.sqrMagnitude > 0.01f ? toWanted.normalized : Flat(kart.transform.forward).normalized;
             scanTimer -= dt;
-            if (scanTimer <= 0f)
+            turnDelayTimer -= dt;
+            var scan = scanTimer <= 0f;
+            if (scan)
             {
                 scanTimer = scanInterval;
-                Scan(kart, target, track, wantedDir, toWanted.magnitude, leash, radius, cfg);
+                roadBeyond = AIBattleArea.BeyondRoad(track, pos, hints);
+                WatchTurn(kart, track, arena, wantedDir, turnAround);
+            }
+            if (turnDelayed && TurnSpotReached(kart, track)) turnDelayed = false;
+            if (turnDelayed)
+            {
+                wanted = track.path.GetPoint(turnSpot);
+                toWanted = Flat(wanted - pos);
+                if (toWanted.sqrMagnitude > 0.01f) wantedDir = toWanted.normalized;
+            }
+            if (scan)
+            {
+                Scan(kart, target, track, wantedDir, toWanted.magnitude, arena, leash, radius, cfg);
                 Hazard(kart, track, leash, radius, cfg);
             }
             WatchBlocked(toWanted.magnitude, dt);
@@ -102,21 +153,89 @@ namespace MHK.AI
             lineTimer = LineSeconds;
         }
 
-        void Scan(Kart kart, Kart target, TrackRuntime track, Vector3 wantedDir, float toWanted, float leash, float radius, GameConfig cfg)
+        // A turn of the wanted direction behind the kart starts (off arenas): on a narrow road maybe after driving on to a
+        // better spot. It ends once the wanted direction is roughly ahead.
+        void WatchTurn(Kart kart, TrackRuntime track, bool arena, Vector3 wantedDir, bool turnAround)
+        {
+            if (arena)
+            {
+                turning = turnDelayed = false;
+                return;
+            }
+            var forward = Flat(kart.transform.forward);
+            var angle = Vector3.Angle(forward, wantedDir);
+            if (turning)
+            {
+                if (angle < TurnLeaveAngle) turning = turnDelayed = false;
+                return;
+            }
+            if (angle <= TurnEnterAngle) return;
+            turning = true;
+            turnLeash = Mathf.Max(TurnLeash, roadBeyond + TurnSlack);
+            turnDelayed = (turnAround || Way > TurnDelayGoal) && roadBeyond <= 0f && FindTurnSpot(kart, track, forward);
+            turnDelayTimer = TurnDelaySeconds;
+        }
+
+        // A stretch at least TurnWidth wide or a fork up to TurnSearch metres ahead on the main line, short of a jump or
+        // the end of an open line. None when the road here is wide enough or the kart is on an alternative route.
+        bool FindTurnSpot(Kart kart, TrackRuntime track, Vector3 forward)
+        {
+            if (AIBattleArea.RouteAt(track, kart.transform.position, hints, out _) >= 0) return false;
+            var path = track.path;
+            var d = kart.Progress.PathDistance;
+            if (path.GetWidth(d) >= TurnWidth) return false;
+            turnSign = Vector3.Dot(forward, path.GetFlatTangent(d, 1f)) >= 0f ? 1 : -1;
+            for (var x = TurnSearchStep; x <= TurnSearch; x += TurnSearchStep)
+            {
+                var at = d + turnSign * x;
+                if (!path.closed && (at < 0f || at > path.Length)) return false;
+                if (TrackGaps.IsGap(track, path, at)) return false;
+                if (path.GetWidth(at) < TurnWidth && !NearFork(track, at)) continue;
+                turnSpot = path.WrapDistance(at);
+                return true;
+            }
+            return false;
+        }
+
+        static bool NearFork(TrackRuntime track, float at)
+        {
+            var path = track.path;
+            var routes = track.alternatePaths;
+            for (var i = 0; i < routes.Count; i++)
+                if (routes[i] != null && (Mathf.Abs(path.Delta(at, track.BranchJoinStart(i))) < JunctionRoom
+                        || Mathf.Abs(path.Delta(at, track.BranchJoinEnd(i))) < JunctionRoom))
+                    return true;
+            return false;
+        }
+
+        bool TurnSpotReached(Kart kart, TrackRuntime track) =>
+            turnDelayTimer <= 0f || track.path.Delta(kart.Progress.PathDistance, turnSpot) * turnSign < TurnArrive;
+
+        // A kart pushed beyond the leash may still drive back, but no further out. While turning around (not while driving
+        // on to the turning spot) the probes keep to the road and paved ground (pavedLeash) within the leash.
+        float ProbeLeash(float leash, out float pavedLeash)
+        {
+            pavedLeash = Mathf.Max(leash, roadBeyond);
+            return turning && !turnDelayed ? Mathf.Min(pavedLeash, turnLeash) : pavedLeash;
+        }
+
+        void Scan(Kart kart, Kart target, TrackRuntime track, Vector3 wantedDir, float toWanted, bool arena, float leash, float radius, GameConfig cfg)
         {
             AIObstacleClassifier.Prepare(cfg.aiPushableMass);
             var range = Mathf.Min(cfg.aiBattleLookRange, toWanted + SampleStep);
             Origin(kart, track, radius, out var origin, out var groundY);
-            leash = LeashHere(track, kart.transform.position, leash);
+            leash = ProbeLeash(leash, out var paved);
+            var offroad = !arena && roadBeyond > 0f;
             var previous = bestAngle;
             var bestScore = float.NegativeInfinity;
             for (var i = 0; i < Headings.Length; i++)
             {
                 var angle = Headings[i];
                 var dir = Quaternion.AngleAxis(angle, Vector3.up) * wantedDir;
-                var reach = KartsAlong(kart, target, origin, dir, Probe(track, origin, groundY, dir, range, leash, radius, out _));
+                var reach = KartsAlong(kart, target, origin, dir, Probe(track, origin, groundY, dir, range, leash, paved, radius, out _, out var endBeyond));
                 var free = reach >= range - 0.01f;
-                var score = reach - Mathf.Abs(angle) * AngleCost + (angle == previous ? KeepBonus : 0f) + (free ? FreeBonus : 0f);
+                var score = reach - Mathf.Abs(angle) * AngleCost + (angle == previous ? KeepBonus : 0f) + (free ? FreeBonus : 0f)
+                    + (offroad ? RoadPull * (roadBeyond - endBeyond) : 0f);
                 if (score <= bestScore) continue;
                 bestScore = score;
                 bestAngle = angle;
@@ -149,13 +268,10 @@ namespace MHK.AI
             var dir = speed >= 1f ? v / speed : Flat(kart.transform.forward).normalized;
             Origin(kart, track, radius, out var origin, out var groundY);
             var range = speed * speed / (2f * Mathf.Max(1f, cfg.aiPlanBraking)) + HazardMargin;
-            var reach = Probe(track, origin, groundY, dir, range, LeashHere(track, kart.transform.position, leash), radius, out var wall);
+            var reach = Probe(track, origin, groundY, dir, range, ProbeLeash(leash, out var paved), paved, radius, out var wall, out _);
             if (wall < range - 0.01f) WallAhead = wall;
             if (reach < wall) GroundAhead = reach;
         }
-
-        // A kart pushed beyond the leash may still drive back, but no further out.
-        float LeashHere(TrackRuntime track, Vector3 pos, float leash) => Mathf.Max(leash, AIBattleArea.BeyondRoad(track, pos, hints));
 
         static void Origin(Kart kart, TrackRuntime track, float radius, out Vector3 origin, out float groundY)
         {
@@ -168,15 +284,20 @@ namespace MHK.AI
             origin = ground.point + lift;
         }
 
-        float Probe(TrackRuntime track, Vector3 origin, float groundY, Vector3 dir, float range, float leash, float radius, out float wall)
+        // Safe reach along dir; wall: distance to the first wall or solid body; endBeyond: how far the last safe sample lies
+        // beyond the road edges (where the kart is when there is none).
+        float Probe(TrackRuntime track, Vector3 origin, float groundY, Vector3 dir, float range, float leash, float pavedLeash, float radius,
+            out float wall, out float endBeyond)
         {
             wall = Mathf.Min(Sweep(origin, dir, range, radius, track.ObstacleMask),
                 AIFeelers.LowWall(origin, dir, range, radius + GroundClearance, radius, track.ObstacleMask));
+            endBeyond = roadBeyond;
             var y = groundY;
             for (var s = SampleStep; s <= wall; s += SampleStep)
             {
-                if (!AIBattleArea.Safe(track, origin + dir * s, y, leash, minNormalY, hints, out var next)) return s - SampleStep;
+                if (!AIBattleArea.Safe(track, origin + dir * s, y, leash, pavedLeash, minNormalY, hints, out var next, out var beyond)) return s - SampleStep;
                 y = next;
+                endBeyond = beyond;
             }
             return wall;
         }

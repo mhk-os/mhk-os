@@ -83,6 +83,12 @@ namespace MHK.UI
             Race.PlaybackSpeed = EffectiveSpeed;
         }
 
+        /// <summary>Touch controls were switched mid-replay (the pause menu's options): the touch sizing follows without a rebind.</summary>
+        public void RefreshTouchMode()
+        {
+            if (IsBound) root.EnableInClassList("touch", Settings.TouchControlsActive);
+        }
+
         void ResetState()
         {
             speedIndex = Mathf.Clamp(startSpeed, 0, speeds.Length - 1);

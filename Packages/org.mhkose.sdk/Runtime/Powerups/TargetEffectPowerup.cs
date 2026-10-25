@@ -108,7 +108,7 @@ namespace MHK.Powerups
             {
                 var v = victims[i];
                 if (v == null) continue;
-                var landed = KartReactions.Apply(v, effect, Owner);
+                var landed = KartReactions.Apply(v, effect, Owner, -1f, Usage);
                 if (visuals[i] != null) Destroy(visuals[i], VisualLinger);
                 PowerupFx.Spawn(visuals[i] != null ? null : targetVfx, v.transform.position, landed ? hitSound : failSound, soundVolume,
                     landSoundRange);

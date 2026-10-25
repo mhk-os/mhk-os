@@ -30,8 +30,10 @@ namespace MHK.Karts
         /// <summary>
         /// Applies <paramref name="reaction"/> to <paramref name="victim"/> on behalf of <paramref name="source"/> (null for
         /// hazards). False when nothing landed: no victim or reaction, shield, ghost, respawn protection, already flattened.
+        /// <paramref name="usage"/> is the powerup use the hit belongs to (<see cref="Powerups.PowerupContext.usage"/>, 0 =
+        /// none): a victim loses health once per use, every hit still applies the reaction.
         /// </summary>
-        public static bool Apply(Kart victim, StatusEffectDefinition reaction, Kart source = null, float durationOverride = -1f) =>
-            victim != null && reaction != null && victim.Effects.Apply(reaction, source, durationOverride);
+        public static bool Apply(Kart victim, StatusEffectDefinition reaction, Kart source = null, float durationOverride = -1f, int usage = 0) =>
+            victim != null && reaction != null && victim.Effects.Apply(reaction, source, durationOverride, usage);
     }
 }

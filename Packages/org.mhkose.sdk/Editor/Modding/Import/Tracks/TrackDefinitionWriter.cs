@@ -8,8 +8,8 @@ using UnityEngine;
 namespace MHK.Editor.Modding.Import
 {
     /// <summary>
-    /// Writes the <see cref="TrackDefinition"/> of an imported track scene (laps, layout, variant, music, AI settings,
-    /// physics, gravity, the preview only while the track has none, so in-game captures stay) and adds it to the pack.
+    /// Writes the <see cref="TrackDefinition"/> of an imported track scene (laps, layout, variant, music, physics,
+    /// gravity, the preview only while the track has none, so in-game captures stay) and adds it to the pack.
     /// Fields the import does not set are kept.
     /// </summary>
     public static class TrackDefinitionWriter
@@ -28,7 +28,6 @@ namespace MHK.Editor.Modding.Import
             def.variant = ExportJson.Str(json["variant"]);
             if (music != null) def.music = music;
             if (preview != null) def.previewImage = preview;
-            if (json["aiSettings"] is JArray ai) def.aiSettings = ai.OfType<JObject>().Select(a => a.ToObject<TrackAiSettings>()).ToArray();
             def.physics = JsonUtility.FromJson<TrackPhysicsSettings>(JsonUtility.ToJson(s.trackPhysics ?? new TrackPhysicsSettings()));
             if (json["gravity"] != null) def.gravity = ExportJson.F(json["gravity"]);
             EditorUtility.SetDirty(def);

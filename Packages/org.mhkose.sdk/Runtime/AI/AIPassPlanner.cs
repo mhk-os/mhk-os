@@ -1,60 +1,75 @@
 using MHK.Core;
 using MHK.Karts;
+using MHK.Powerups;
 using UnityEngine;
 
 namespace MHK.AI
 {
     /// <summary>
-    /// Kart traffic of a computer driver: an early passing side for a slower or blocking kart ahead, a side gap to karts
-    /// alongside, and a follow speed behind a kart that leaves no side free (<see cref="GameConfig.aiPassLookSeconds"/>).
+    /// Kart traffic of a computer driver: an early passing side for a slower or blocking kart ahead (driven out alongside
+    /// and past it at full speed, <see cref="GameConfig.aiPassLookSeconds"/>), a side gap to karts alongside, a follow
+    /// speed only behind a kart that leaves no side free, and a lane straight at a nearby kart it can flatten when the
+    /// driver hunts those (<see cref="DifficultySettings.aiFlattenSeekChance"/>). Karts it can drive through (ghosts,
+    /// flattened or shrunk karts) are no traffic.
     /// </summary>
     internal sealed class AIPassPlanner
     {
         // A kart ahead closer than BlockGap (m, nose to tail) blocks even at the same speed, slower ones from MinClosing (m/s).
-        // Following keeps FollowGap plus FollowHeadway seconds of the own speed (PassSafetyGap while moving out to pass) and
-        // backs off at FollowBackOff (m/s per m), but a stopped kart is pushed past at CrawlSpeed, a finished one at speed.
+        // Following keeps FollowGap plus FollowHeadway seconds of the own speed and backs off at FollowBackOff (m/s per m),
+        // but a stopped kart is pushed past at CrawlSpeed, a finished one at speed. Moving out to pass only brakes when even
+        // an urgent lane change (plus LaneLag s for the steering) would not clear the kart before PassSafetyGap.
         const float MinClosing = 0.5f, BlockGap = 3f;
         const float ReturnGap = 1.5f, PassClearMargin = 2f, AbortDrop = 2f, AbortSeconds = 0.3f;
-        const float FollowGap = 2.5f, FollowHeadway = 0.25f, FollowBackOff = 1f, PassSafetyGap = 1f, CrawlSpeed = 2f;
+        const float FollowGap = 2.5f, FollowHeadway = 0.25f, FollowBackOff = 1f, PassSafetyGap = 1f, CrawlSpeed = 2f, LaneLag = 0.3f;
         const float UrgentSeconds = 1f, LostSeconds = 1f;
         const float EdgeSlack = 0.02f, AlongsideMargin = 1f, DefaultHalfWidth = 0.6f, DefaultHalfLength = 1f;
+        // Flatten hunting: karts up to FlattenReach (m, nose to tail) ahead whose lane is at most FlattenSwerveShare of
+        // their distance sideways, so the kart only leans towards targets on its way.
+        const float FlattenReach = 30f, FlattenSwerveShare = 0.5f;
 
         readonly AIRouteFollower line;
         readonly AIFeelers feelers;
+        readonly bool seekFlatten;
         Kart kart;
         GameConfig cfg;
         float speed, cap, width, roadShift, myU, halfWidth, halfLength;
+        bool selfCrushable;
         Kart target;
         float side, lostTime, blockedTime;
 
-        public AIPassPlanner(AIRouteFollower line, AIFeelers feelers)
+        /// <summary><paramref name="seekFlatten"/>: this driver steers into karts it can flatten close ahead.</summary>
+        public AIPassPlanner(AIRouteFollower line, AIFeelers feelers, bool seekFlatten)
         {
             this.line = line;
             this.feelers = feelers;
+            this.seekFlatten = seekFlatten;
         }
 
         /// <summary>Speed (m/s) to stay behind a kart that cannot be passed, infinity when the way is free.</summary>
         public float FollowSpeed { get; private set; } = float.PositiveInfinity;
 
-        /// <summary>This step's lane wish keeps clear of a kart: small lane corrections count too.</summary>
+        /// <summary>This step's lane wish keeps clear of a kart or aims at one: small lane corrections count too.</summary>
         public bool Engaged { get; private set; }
 
         /// <summary>
-        /// Moves the lane wish <paramref name="u"/> onto the passing side of a kart ahead or clear of karts alongside.
-        /// <paramref name="capSpeed"/> is the kart's speed without traffic: a kart ahead it could drive faster than counts
-        /// as slower. <paramref name="urgent"/> is set when a kart is less than a second ahead in the lane.
+        /// Moves the lane wish <paramref name="u"/> onto a kart to flatten, the passing side of a kart ahead or clear of
+        /// karts alongside. <paramref name="capSpeed"/> is the kart's speed without traffic: a kart ahead it could drive
+        /// faster than counts as slower. <paramref name="urgent"/> is set when the lane must change fast to clear or reach
+        /// a kart.
         /// </summary>
         public float Plan(Kart self, float kartSpeed, float capSpeed, float roadWidth, float shift, float dt, GameConfig config, ref bool urgent,
             float u)
         {
             FollowSpeed = float.PositiveInfinity;
             Engaged = false;
-            if (Kart.All.Count < 2)
+            // A ghost or flattened kart drives through every other kart.
+            if (Kart.All.Count < 2 || self.Effects.Ghost || self.Effects.RunOverActive)
             {
                 target = null;
                 return u;
             }
             Begin(self, kartSpeed, capSpeed, roadWidth, shift, config);
+            if (seekFlatten && !selfCrushable) u = SeekFlatten(u, ref urgent);
             u = KeepPass(u, dt, ref urgent);
             var blocker = FindBlocker(u, out var gap, out var closing);
             if (blocker != null && blocker != target) u = StartPass(blocker, u, gap, closing, ref urgent);
@@ -70,7 +85,36 @@ namespace MHK.AI
             roadShift = shift;
             cfg = config;
             myU = line.LaneHere(self.transform.position);
+            selfCrushable = CrushOnKartContact.IsCrushable(self);
             if (halfWidth <= 0f) HalfSize(self, out halfWidth, out halfLength);
+        }
+
+        // Nearest kart this one flattens on contact, close ahead in reach of its lane and slower: the wish goes straight at it.
+        float SeekFlatten(float u, ref bool urgent)
+        {
+            var best = FlattenReach;
+            var closing = 0f;
+            var lane = u;
+            var all = Kart.All;
+            for (var i = 0; i < all.Count; i++)
+            {
+                var o = all[i];
+                if (!CrushOnKartContact.IsCrushable(o) || o.Effects.Ghost || o.Effects.RunOverActive) continue;
+                if (!Locate(o, out var otherU, out var along, out _, out var lengths) || along <= 0f) continue;
+                var gap = along - lengths;
+                var road = otherU + roadShift;
+                if (gap > best || road < AILanes.TargetMin || road > AILanes.TargetMax) continue;
+                if (Mathf.Abs(otherU - myU) * width > along * FlattenSwerveShare) continue;
+                var c = cap - o.Physics.ForwardSpeed;
+                if (c < MinClosing) continue;
+                best = gap;
+                closing = c;
+                lane = otherU;
+            }
+            if (closing <= 0f) return u;
+            Engaged = true;
+            if (best < closing * UrgentSeconds) urgent = true;
+            return lane;
         }
 
         float KeepPass(float u, float dt, ref bool urgent)
@@ -93,7 +137,8 @@ namespace MHK.AI
             blockedTime = Free(to, target, along, lengths, closing) ? 0f : blockedTime + dt;
             if (blockedTime > AbortSeconds)
             {
-                // Still behind it: plan again. Alongside but not ahead yet: drop back behind it on this side.
+                // Still behind it: plan again (the other side, else follow). Alongside but not ahead yet: drop back behind
+                // it on this side.
                 if (gap > 0f)
                 {
                     target = null;
@@ -102,8 +147,7 @@ namespace MHK.AI
                 if (along > 0f) FollowSpeed = Mathf.Max(0f, target.Physics.ForwardSpeed - AbortDrop);
             }
             Engaged = true;
-            if (gap > 0f && Mathf.Abs(otherU - myU) < half) FollowSpeed = Mathf.Min(FollowSpeed, Follow(target, gap, PassSafetyGap));
-            if (gap > 0f && gap < (speed - target.Physics.ForwardSpeed) * UrgentSeconds) urgent = true;
+            if (gap > 0f) MoveOut(target, otherU, half, gap, ref urgent);
             return side < 0f ? Mathf.Min(u, to) : Mathf.Max(u, to);
         }
 
@@ -129,6 +173,8 @@ namespace MHK.AI
             return best;
         }
 
+        // Passes on the cheaper free side. Only a kart with no side free (walls, traps or other karts beside it, or road
+        // too narrow) is followed.
         float StartPass(Kart o, float u, float gap, float closing, ref bool urgent)
         {
             Measure(o, out var otherU, out var along, out var half, out var lengths);
@@ -142,15 +188,31 @@ namespace MHK.AI
                 target = null;
                 return u;
             }
-            if (Mathf.Abs(otherU - myU) < half) FollowSpeed = Follow(o, gap, PassSafetyGap);
             var leftCost = Mathf.Abs(left - myU) + Mathf.Abs(left - u);
             var rightCost = Mathf.Abs(right - myU) + Mathf.Abs(right - u);
             side = !rightFree || (leftFree && leftCost < rightCost) ? -1f : 1f;
             target = o;
             lostTime = blockedTime = 0f;
             Engaged = true;
-            if (gap < (speed - o.Physics.ForwardSpeed) * UrgentSeconds) urgent = true;
+            MoveOut(o, otherU, half, gap, ref urgent);
             return side < 0f ? left : right;
+        }
+
+        // Still (partly) in the lane of kart o ahead: the lane change turns urgent when the normal one would not clear o in
+        // time, and the speed only drops by what even the urgent one cannot make up.
+        void MoveOut(Kart o, float otherU, float half, float gap, ref bool urgent)
+        {
+            var sideways = (half - Mathf.Abs(otherU - myU)) * width;
+            if (sideways <= 0f || o.Progress.Finished) return;
+            var ahead = Mathf.Max(0f, o.Physics.ForwardSpeed);
+            var closing = speed - ahead;
+            if (closing <= 0f) return;
+            var room = Mathf.Max(0f, gap - PassSafetyGap);
+            if ((sideways / cfg.aiLaneChangeSpeed + LaneLag) * closing <= room) return;
+            urgent = true;
+            var outTime = sideways / (cfg.aiLaneChangeSpeed * cfg.aiLaneUrgentFactor) + LaneLag;
+            if (outTime * closing <= room) return;
+            FollowSpeed = Mathf.Min(FollowSpeed, Mathf.Max(ahead + room / outTime, CrawlSpeed));
         }
 
         float Follow(Kart o, float gap, float keep)
@@ -208,12 +270,21 @@ namespace MHK.AI
             return pl - w >= left && pl + w <= right;
         }
 
-        // Lane of o (from its track progress, else from where it is seen), centre distance ahead along the road, the lane
-        // distance two karts keep with the side gap and their summed half lengths. False for karts not in the way.
+        // Karts this one has to keep clear of: not ghosts, not flattened karts and not karts it flattens on contact (two
+        // crushable karts flatten each other, so a crushable kart keeps clear of those too).
         bool Measure(Kart o, out float otherU, out float along, out float half, out float lengths)
         {
             otherU = along = half = lengths = 0f;
-            if (o == null || o == kart || o.Eliminated || !o.isActiveAndEnabled || o.Effects.Hidden || o.Effects.RunOverActive) return false;
+            if (o == null || o.Effects.Ghost || o.Effects.RunOverActive || (!selfCrushable && CrushOnKartContact.IsCrushable(o))) return false;
+            return Locate(o, out otherU, out along, out half, out lengths);
+        }
+
+        // Lane of o (from its track progress, else from where it is seen), centre distance ahead along the road, the lane
+        // distance two karts keep with the side gap and their summed half lengths. False for karts not on the road here.
+        bool Locate(Kart o, out float otherU, out float along, out float half, out float lengths)
+        {
+            otherU = along = half = lengths = 0f;
+            if (o == null || o == kart || o.Eliminated || !o.isActiveAndEnabled || o.Effects.Hidden) return false;
             var local = kart.transform.InverseTransformPoint(o.transform.position);
             if (Mathf.Abs(local.y) > AILanes.SameLevelHeight) return false;
             if (!line.TryLaneOf(o, out otherU, out along))
