@@ -1,7 +1,10 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One installed mod or asset pack row. Code sets mod-logo (or the fallback icon class), the texts, the toggle state (class on or off), the move tooltips and disables mod-up on the first row and mod-down on the last. A mod that is not loaded (another game version, or it failed to load) shows mod-problem with a one-line reason, its toggle disabled and, when its source repository is known and its author can fix it, Report (opens the repository's issues page). An item downloaded from a source (GitHub repository) shows its update state (mod-source), the bar while it downloads, Update while an update is available (class src-update on the row) and Remove (class src-managed), src-confirm on the row shows Keep Files and Delete instead of the buttons. -->
+    <!-- One installed mod or asset pack row. mod-drag is the reorder handle (DragReorder, disabled while the section has one row). Code sets mod-logo (or the fallback icon class), the texts and the toggle state (class on or off). A mod that is not loaded (another game version, or it failed to load) shows mod-problem with a one-line reason, its toggle disabled and, when its source repository is known and its author can fix it, Report (opens the repository's issues page). An item with a known source (GitHub repository, class src-linked) shows mod-github (opens the repository), once its source was checked (class src-managed) its update state (mod-source), the bar while it downloads, Update while an update is available (class src-update) and Remove, which asks first (ConfirmPrompt with Keep Files and Delete). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="mod-row">
+        <ui:Button name="mod-drag" class="mhk-button small secondary icon-only drag-handle mod-drag">
+            <ui:VisualElement class="icon i-drag_indicator" />
+        </ui:Button>
         <ui:VisualElement name="mod-logo" class="mod-logo" />
         <ui:VisualElement class="mod-info">
             <ui:Label name="mod-title" text="Moorhuhn Kart" class="mod-title" />
@@ -29,21 +32,11 @@
             <ui:Label text="Update" class="button-label" />
         </ui:Button>
         <ui:Button name="mod-toggle" text="Enabled" class="mhk-button small mod-toggle on" />
-        <ui:Button name="mod-up" class="mhk-button small secondary icon-only mod-move">
-            <ui:VisualElement class="icon i-arrow_upward" />
+        <ui:Button name="mod-github" class="mhk-button small secondary icon-only mod-move mod-github">
+            <ui:VisualElement class="icon i-github" />
         </ui:Button>
-        <ui:Button name="mod-down" class="mhk-button small secondary icon-only mod-move">
-            <ui:VisualElement class="icon i-arrow_downward" />
-        </ui:Button>
-        <ui:Button name="mod-remove" tooltip="Remove" class="mhk-button small secondary icon-only mod-move src-remove src-row-remove">
+        <ui:Button name="mod-remove" tooltip="Remove" class="mhk-button small icon-only danger mod-move src-remove src-row-remove">
             <ui:VisualElement class="icon i-delete" />
-        </ui:Button>
-        <ui:Button name="src-keep" tooltip="Stops updates. The files stay installed." class="mhk-button small secondary src-confirm-button">
-            <ui:Label text="Keep Files" class="button-label" />
-        </ui:Button>
-        <ui:Button name="src-delete" tooltip="Stops updates and deletes the installed files." class="mhk-button small src-confirm-button src-delete">
-            <ui:VisualElement class="icon i-delete" />
-            <ui:Label text="Delete" class="button-label" />
         </ui:Button>
     </ui:VisualElement>
 </ui:UXML>

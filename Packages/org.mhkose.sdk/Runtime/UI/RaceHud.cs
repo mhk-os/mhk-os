@@ -7,8 +7,8 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// In-race HUD (RaceHud.uxml): binds the HUD widgets to the race each frame and opens the race layers (touch
-    /// controls, pause menu, results).
+    /// In-race HUD (RaceHud.uxml): places the HUD widgets by the player's UI layout (<see cref="HudLayout"/>), binds them
+    /// to the race each frame and opens the race layers (touch controls, pause menu, results).
     /// </summary>
     public partial class RaceHud : UiScreen
     {
@@ -62,6 +62,7 @@ namespace MHK.UI
         VisualElement hud, overlay;
         HudSpeedometer speedometer;
         Minimap minimap;
+        HudElementSetup minimapSetup;
         PositionView position;
         LapPanel lapPanel;
         ItemSlot itemSlot;
@@ -114,6 +115,7 @@ namespace MHK.UI
             messages.Bind();
             timeTrial.Bind();
             hud.NoPick();
+            BindLayout();
 
             race.CountdownTick += OnCountdown;
             race.ResultsReady += ShowResults;
@@ -125,10 +127,17 @@ namespace MHK.UI
         void BindGauges(bool touchActive)
         {
             minimap = Q<Minimap>("minimap");
-            minimap.TouchLayout = touchActive;
+            minimap.TouchMode = touchActive;
             speedometer = Q<HudSpeedometer>("speedometer");
-            speedometer.TouchLayout = touchActive;
+            speedometer.TouchMode = touchActive;
             speedometer.SetSpeed(0);
+        }
+
+        void BindLayout()
+        {
+            var layout = GameRoot.Instance.Settings.uiLayout;
+            new HudLayout(hud).ApplyAll(layout);
+            minimapSetup = layout.Hud(HudElementType.Minimap);
         }
 
         void BindLayers(bool touchActive)
@@ -228,7 +237,7 @@ namespace MHK.UI
             // Opened after the countdown started (live reload): no countdown event will slide the widgets in.
             if (!widgetsShown && race.Phase is not (RacePhase.Loading or RacePhase.Intro)) ShowWidgets();
             if (replay != null && !replay.gameObject.activeSelf && ReplayRunning) SetLayer(replay, true);
-            minimap.Tick(GameRoot.Instance.Settings.minimapScale);
+            if (minimapSetup.Drawn) minimap.Tick(minimapSetup.scale);
             player = race.LocalPlayer;
             var dt = Time.unscaledDeltaTime;
             countdown.Tick(dt);

@@ -28,7 +28,7 @@
             <ui:Button name="ghost-export" tooltip="Export" class="mhk-button small secondary icon-only">
                 <ui:VisualElement class="icon i-upload" />
             </ui:Button>
-            <ui:Button name="ghost-delete" tooltip="Delete" class="mhk-button small secondary icon-only">
+            <ui:Button name="ghost-delete" tooltip="Delete" class="mhk-button small icon-only danger">
                 <ui:VisualElement class="icon i-delete" />
             </ui:Button>
         </ui:VisualElement>

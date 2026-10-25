@@ -18,8 +18,8 @@ namespace MHK.Editor.Build
     {
         /// <summary>Asset path of the temporary index.</summary>
         public const string IndexPath = "Assets/Resources/" + PackAssetIndex.GameResource + ".asset";
-        /// <summary>The shipped mod whose folder holds the player's loose files.</summary>
-        public const string LooseModId = "core";
+        /// <summary>The base content's folder (shipped like a mod) holds the player's loose files.</summary>
+        public const string LooseModId = MHK.Modding.ModLoader.CorePackId;
 
         static BuildRestoreJournal journal;
         static PlaceholderImportScope placeholders;

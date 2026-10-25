@@ -114,9 +114,9 @@ namespace MHK.Modding
         static bool TryRegister(ContentRegistry registry, ICollection<string> disabledPackIds, List<ContentPack> failed,
                                 List<(string packId, int remapped, List<string> dropped)> resolved)
         {
-            for (var i = available.Count - 1; i >= 0; i--)
+            for (var i = ordered.Count - 1; i >= 0; i--)
             {
-                var pack = available[i];
+                var pack = ordered[i];
                 if (!IsEnabled(pack, disabledPackIds) || problems.ContainsKey(pack.packId)) continue;
                 try
                 {
@@ -140,7 +140,7 @@ namespace MHK.Modding
                 }
                 catch (Exception e)
                 {
-                    if (available.Contains(root)) return Failed(root, e, failed);
+                    if (ordered.Contains(root)) return Failed(root, e, failed);
                     Debug.LogWarning($"[Mods] References of the game pack '{p.packId}' could not be resolved: {e}");
                 }
             }
@@ -156,9 +156,9 @@ namespace MHK.Modding
 
         static void LogRegistered(ICollection<string> disabledPackIds)
         {
-            for (var i = available.Count - 1; i >= 0; i--)
+            for (var i = ordered.Count - 1; i >= 0; i--)
             {
-                var pack = available[i];
+                var pack = ordered[i];
                 if (problems.ContainsKey(pack.packId)) continue;
                 if (!IsEnabled(pack, disabledPackIds))
                 {
@@ -166,7 +166,7 @@ namespace MHK.Modding
                     continue;
                 }
                 var commit = string.IsNullOrEmpty(pack.version) ? "" : $" (commit {pack.version})";
-                Debug.Log($"[Mods] Loaded pack '{pack.packId}'{commit}, load order {i + 1} of {available.Count} ({pack.TotalContentCount} definitions" +
+                Debug.Log($"[Mods] Loaded pack '{pack.packId}'{commit}, load order {i + 1} of {ordered.Count} ({pack.TotalContentCount} definitions" +
                           (pack.includes.Count > 0 ? $" in {pack.SelfAndIncluded().Count()} packs" : "") + ").");
             }
         }
@@ -175,8 +175,9 @@ namespace MHK.Modding
         static void Drop(ContentPack pack)
         {
             if (!bundleOf.Remove(pack, out var bundle)) return;
-            var index = available.IndexOf(pack);
-            if (index >= 0) available[index] = SafeStandIn(pack);
+            var index = ordered.IndexOf(pack);
+            if (index >= 0) ordered[index] = SafeStandIn(pack);
+            ListMods();
             if (!bundleOf.ContainsValue(bundle)) Unload(bundle);
             if (sceneBundleOf.Remove(pack, out var scenes))
             {

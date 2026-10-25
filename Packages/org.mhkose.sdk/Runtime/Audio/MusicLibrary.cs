@@ -11,7 +11,8 @@ namespace MHK.Audio
 {
     /// <summary>
     /// Every music file of the loaded packs and asset packs (<see cref="GameAssets.Paths"/> under Music/), grouped by
-    /// pack, and the player's playlists resolved against it: missing files are skipped, an empty result is the default.
+    /// pack, and the player's playlists resolved against it: missing files are skipped, an empty result is the default
+    /// unless the player emptied the playlist (then nothing plays).
     /// </summary>
     public static partial class MusicLibrary
     {
@@ -131,14 +132,14 @@ namespace MHK.Audio
             if (song != null && !list.Contains(song.path)) list.Add(song.path);
         }
 
-        /// <summary>The main menu playlist to play: the player's songs that exist, else <see cref="DefaultMenu"/>.</summary>
-        public static List<string> MenuSongs() => Resolve(Settings.menuMusic, DefaultMenu);
+        /// <summary>The main menu playlist to play: the player's songs that exist, none when the player emptied it, else <see cref="DefaultMenu"/>.</summary>
+        public static List<string> MenuSongs() => Resolve(Settings.menuMusic, Settings.menuMusicEmpty, DefaultMenu);
 
-        /// <summary>The playlist of <paramref name="track"/> to play: the player's songs that exist, else its own music.</summary>
+        /// <summary>The playlist of <paramref name="track"/> to play: the player's songs that exist, none when the player emptied it, else its own music.</summary>
         public static List<string> TrackSongs(TrackDefinition track)
         {
             var own = track != null ? TrackSettings(track.Id, false) : null;
-            return Resolve(own?.songs, () => DefaultFor(track));
+            return Resolve(own?.songs, own != null && own.empty, () => DefaultFor(track));
         }
 
         /// <summary>The player's playlist entry of the track <paramref name="trackId"/>, created when <paramref name="create"/> is set.</summary>
@@ -165,15 +166,16 @@ namespace MHK.Audio
             return true;
         }
 
-        static List<string> Resolve(List<string> own, Func<List<string>> fallback)
+        // An emptied playlist stays empty. A stored one whose songs are all gone (their pack was removed) plays the default.
+        static List<string> Resolve(List<string> own, bool emptied, Func<List<string>> fallback)
         {
             var list = new List<string>();
-            if (own != null)
-                foreach (var path in own)
-                {
-                    var song = Find(path);
-                    if (song != null) list.Add(song.path);
-                }
+            if (own == null || own.Count == 0) return emptied ? list : fallback();
+            foreach (var path in own)
+            {
+                var song = Find(path);
+                if (song != null) list.Add(song.path);
+            }
             return list.Count > 0 ? list : fallback();
         }
     }

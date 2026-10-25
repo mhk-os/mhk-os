@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// On-screen touch controls (TouchControls.uxml) built from the player's touch layout (<see cref="UserSettings.touchLayout"/>),
+    /// On-screen touch controls (TouchControls.uxml) built from the player's layout (<see cref="UserSettings.uiLayout"/>),
     /// multi-touch aware, writing <see cref="VirtualKartInput"/> for the configured player. Replays keep only pause and camera.
     /// </summary>
     public class TouchControls : RaceLayer
@@ -44,7 +44,7 @@ namespace MHK.UI
             var root = Q<VisualElement>("touch");
             root.Clear();
             var replay = Race.Session != null && Race.Session.IsReplay;
-            var layout = Settings.touchLayout.Controls;
+            var layout = Settings.uiLayout.Controls;
             for (var i = 0; i < layout.Count; i++)
             {
                 if (layout[i] == null || (replay && !InReplay(layout[i].type))) continue;

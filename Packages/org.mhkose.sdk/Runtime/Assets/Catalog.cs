@@ -35,7 +35,7 @@ namespace MHK.Assets
         }
 
         const string AssetsFolder = "Assets";
-        const string CorePackFolder = "core";
+        const string CorePackFolder = ModLoader.CorePackId;
 
         [AutoStaticsCleanup] static readonly List<Source> sources = new();
         [AutoStaticsCleanup] static readonly Dictionary<UnityEngine.Object, string> pathOf = new();
@@ -44,7 +44,7 @@ namespace MHK.Assets
 
         internal static IReadOnlyList<Source> Sources => sources;
 
-        /// <summary>Registers the player's index and the index of every enabled bundle-loaded mod.</summary>
+        /// <summary>Registers the player's index and the index of the base content and every enabled bundle-loaded mod.</summary>
         internal static void Register()
         {
             Clear();
@@ -52,7 +52,7 @@ namespace MHK.Assets
             var install = DataPaths.InstallRoot;
             if (game != null)
                 Add(game, install != null ? Path.Combine(install, DataPaths.ModsFolder, CorePackFolder, AssetsFolder) : null, null);
-            foreach (var pack in ModLoader.AvailablePacks)
+            foreach (var pack in ModLoader.OrderedPacks)
             {
                 var folder = ModLoader.FolderOf(pack);
                 if (pack.assetIndex != null && folder != null) Add(pack.assetIndex, Path.Combine(folder, AssetsFolder), ModLoader.BundleOf(pack));

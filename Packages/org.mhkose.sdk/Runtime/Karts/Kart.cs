@@ -102,6 +102,7 @@ namespace MHK.Karts
         float IKartView.VerticalScale => Effects.VerticalScale;
         float IKartView.Opacity => Effects.Opacity;
         bool IKartView.Burned => Effects.Burned;
+        Color IKartView.ModelTint => Effects.ModelTint;
         bool IKartView.Hidden => Effects.Hidden;
         bool IKartView.WheelsHidden => Effects.WheelsHidden;
         BodyBob IKartView.BodyBob => Effects.BodyBob;

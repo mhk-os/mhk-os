@@ -6,13 +6,14 @@ using UnityEngine.Rendering;
 namespace MHK.Karts
 {
     /// <summary>
-    /// Effect looks of a kart visual: the burnt tint, see-through opacity and hiding. Fading swaps the opaque MHK/Lit
-    /// materials of kart and driver (not effect attachments) for alpha-blended copies with depth writes on and no shadows.
+    /// Effect looks of a kart visual: the burnt or effect tint, see-through opacity and hiding. Fading swaps the opaque
+    /// MHK/Lit materials of kart and driver (not effect attachments) for alpha-blended copies with depth writes on and no
+    /// shadows.
     /// </summary>
     public sealed class KartSeeThrough
     {
         const float FadeSpeed = 3f;
-        const float BurnInRate = 6f, BurnOutRate = 0.8f;
+        const float TintInRate = 6f, TintOutRate = 0.8f;
         static readonly Color BurntTint = new(0.12f, 0.1f, 0.1f);
 
         struct FadedRenderer
@@ -32,10 +33,12 @@ namespace MHK.Karts
         // Opaque material to its alpha-blended copy, with the original colour to scale the alpha from.
         readonly Dictionary<Material, Material> fadeCopies = new();
         readonly Dictionary<Material, Color> fadeColours = new();
-        float burn;
+        // Tint shown now: Color.white blended towards tintColour by tintAmount.
+        Color tintColour = Color.white;
+        float tintAmount;
         bool hidden;
 
-        /// <summary>Looks of the visual below <paramref name="root"/>. Burning tints <paramref name="tinted"/>.</summary>
+        /// <summary>Looks of the visual below <paramref name="root"/>. Tints apply to <paramref name="tinted"/>.</summary>
         public KartSeeThrough(Transform root, IKartView view, Renderer[] tinted)
         {
             this.root = root;
@@ -46,14 +49,21 @@ namespace MHK.Karts
         /// <summary>Opacity drawn now (follows <see cref="IKartView.Opacity"/> at a fixed rate).</summary>
         public float ShownOpacity { get; private set; } = 1f;
 
-        /// <summary>Moves the burnt tint towards <paramref name="burned"/>. Back at 0 the renderers drop their property block.</summary>
-        public void UpdateBurn(bool burned, float dt)
+        /// <summary>
+        /// Moves the shown tint towards the burnt look while <paramref name="burned"/>, else towards <paramref name="tint"/>
+        /// (alpha = strength, 0 = none). A new colour shows at once, the strength fades. Back at 0 the renderers drop their
+        /// property block.
+        /// </summary>
+        public void UpdateTint(bool burned, Color tint, float dt)
         {
-            var target = burned ? 1f : 0f;
-            if (Mathf.Approximately(burn, target)) return;
-            burn = Mathf.MoveTowards(burn, target, dt * (burned ? BurnInRate : BurnOutRate));
-            var clear = burn <= 0f;
-            var tint = Color.Lerp(Color.white, BurntTint, burn);
+            var goal = burned ? BurntTint : tint;
+            var target = Mathf.Clamp01(goal.a);
+            var colour = target > 0f ? new Color(goal.r, goal.g, goal.b) : tintColour;
+            if (Mathf.Approximately(tintAmount, target) && colour == tintColour) return;
+            tintColour = colour;
+            tintAmount = Mathf.MoveTowards(tintAmount, target, dt * (target > tintAmount ? TintInRate : TintOutRate));
+            var clear = tintAmount <= 0f;
+            var shown = Color.Lerp(Color.white, tintColour, tintAmount);
             foreach (var r in tinted)
             {
                 if (r == null) continue;
@@ -63,7 +73,7 @@ namespace MHK.Karts
                     continue;
                 }
                 r.GetPropertyBlock(block);
-                block.SetColor(MHKLitIds.Tint, tint);
+                block.SetColor(MHKLitIds.Tint, shown);
                 r.SetPropertyBlock(block);
             }
         }

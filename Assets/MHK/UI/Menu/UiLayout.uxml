@@ -1,0 +1,87 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- UI Layout editor. Code scales ul-screen (the race screen: a track picture, the HUD with sample values, the touch controls when they are on) to fit ul-frame, draws the picked element's frame, handles and snap guides on ul-gizmo, fills ul-add-list with every element that is not on the screen and shows the picked element's settings (Width and Height: HUD elements, Size: touch controls, Dead zone: joystick and wheel). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="UI Layout" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body ul-body">
+            <ui:VisualElement name="ul-frame" focusable="true" class="ul-frame anim from-left">
+                <ui:VisualElement name="ul-screen" picking-mode="Ignore" class="ul-screen">
+                    <ui:VisualElement name="ul-backdrop" picking-mode="Ignore" class="ul-fill ul-backdrop" />
+                    <ui:VisualElement name="ul-hud" picking-mode="Ignore" class="ul-fill" />
+                    <ui:VisualElement name="ul-controls" picking-mode="Ignore" class="ul-fill" />
+                </ui:VisualElement>
+                <ui:VisualElement name="ul-gizmo" picking-mode="Ignore" class="ul-fill">
+                    <ui:VisualElement name="ul-guide-x" picking-mode="Ignore" class="ul-guide ul-guide-x" />
+                    <ui:VisualElement name="ul-guide-y" picking-mode="Ignore" class="ul-guide ul-guide-y" />
+                    <ui:VisualElement name="ul-box" picking-mode="Ignore" class="ul-box" style="left: 40px; top: 40px; width: 200px; height: 120px;" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="ul-side" class="panel ul-side anim from-right">
+                <ui:VisualElement name="ul-picked" class="ul-picked">
+                    <ui:VisualElement class="row ul-picked-head">
+                        <ui:Button name="ul-prev" tooltip="Previous element" class="mhk-button small icon-only secondary ul-step">
+                            <ui:VisualElement class="icon i-chevron_left" />
+                        </ui:Button>
+                        <ui:Label name="ul-picked-name" text="Lap" class="ul-caption ul-picked-name" />
+                        <ui:Button name="ul-next" tooltip="Next element" class="mhk-button small icon-only secondary ul-step">
+                            <ui:VisualElement class="icon i-chevron_right" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:Slider name="ul-scale-x" label="Width" low-value="0.5" high-value="2" value="1" />
+                    <ui:Slider name="ul-scale-y" label="Height" low-value="0.5" high-value="2" value="1" />
+                    <ui:Slider name="ul-size" label="Size" low-value="0.5" high-value="2" value="1" />
+                    <ui:Slider name="ul-opacity" label="Opacity" low-value="0" high-value="1" value="1" />
+                    <ui:Slider name="ul-dead-zone" label="Dead zone" low-value="0" high-value="0.6" value="0.15" tooltip="Share of the travel around the centre that counts as no input." />
+                    <ui:VisualElement class="row ul-picked-buttons">
+                        <ui:Button name="ul-visible" tooltip="Hidden elements keep their place but are not drawn in races. Hidden touch controls still work." class="mhk-button small secondary ul-visible">
+                            <ui:VisualElement name="ul-visible-icon" class="icon i-visibility" />
+                            <ui:Label name="ul-visible-label" text="Shown" class="button-label" />
+                        </ui:Button>
+                        <ui:Button name="ul-move" tooltip="Move the element with the direction keys" class="mhk-button small secondary">
+                            <ui:VisualElement class="icon i-open_with" />
+                            <ui:Label text="Move" class="button-label" />
+                        </ui:Button>
+                        <ui:Button name="ul-remove" tooltip="Remove" class="mhk-button small icon-only danger ul-remove">
+                            <ui:VisualElement class="icon i-delete" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Label text="Add" class="ul-caption ul-add-caption" />
+                <ui:Label name="ul-add-empty" text="Every element is on the screen." class="ul-empty" />
+                <ui:ScrollView name="ul-add-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll ul-add-scroll">
+                    <ui:VisualElement name="ul-add-list">
+                        <ui:Button class="mhk-button small secondary ul-add-row">
+                            <ui:VisualElement class="icon i-speed" />
+                            <ui:Label text="Speedometer" class="button-label" />
+                        </ui:Button>
+                        <ui:Button class="mhk-button small secondary ul-add-row">
+                            <ui:VisualElement class="icon i-joystick" />
+                            <ui:Label text="Joystick" class="button-label" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="reset" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-restart_alt" />
+                    <ui:Label text="Reset to defaults" class="button-label" />
+                </ui:Button>
+                <ui:Button name="save" class="mhk-button small">
+                    <ui:VisualElement class="icon i-check" />
+                    <ui:Label text="Save" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

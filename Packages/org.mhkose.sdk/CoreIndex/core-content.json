@@ -9,11 +9,6 @@
             "packId": "core",
             "root": "core",
             "builtin": false
-        },
-        {
-            "packId": "mhko",
-            "root": "core",
-            "builtin": false
         }
     ],
     "definitions": [
@@ -88,110 +83,6 @@
             "guid": "825c27127b7ed4f4cb7b710933a118ef",
             "fileId": 11400000,
             "displayName": "Vanish"
-        },
-        {
-            "id": "mhko.ghost_ride",
-            "type": "MHK.Modding.PowerupDefinition",
-            "pack": "mhko",
-            "guid": "4d12065b6a8b51b0a0b8e0741980fdcf",
-            "fileId": 11400000,
-            "displayName": "Ghost Ride"
-        },
-        {
-            "id": "mhko.buff.ghost_ride",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhko",
-            "guid": "45c955e709e051d0ab63ef74a7c2e740",
-            "fileId": 11400000,
-            "displayName": "Ghost ride"
-        },
-        {
-            "id": "mhko.leapfrog",
-            "type": "MHK.Modding.PowerupDefinition",
-            "pack": "mhko",
-            "guid": "c3a4fd3d92635ed58a3055400f3fa956",
-            "fileId": 11400000,
-            "displayName": "Leapfrog"
-        },
-        {
-            "id": "mhko.buff.leapfrog",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhko",
-            "guid": "41248b2463805db69231e154ad86464a",
-            "fileId": 11400000,
-            "displayName": "Leapfrog"
-        },
-        {
-            "id": "mhko.buff.leapfrog_landing",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhko",
-            "guid": "2baa975c06d954b0b493fc797e4513ad",
-            "fileId": 11400000,
-            "displayName": "Leapfrog landing boost"
-        },
-        {
-            "id": "mhko.silver_feather",
-            "type": "MHK.Modding.PowerupDefinition",
-            "pack": "mhko",
-            "guid": "963442bdc3965c09a941a2b4c8330e7b",
-            "fileId": 11400000,
-            "displayName": "Silver Feather"
-        },
-        {
-            "id": "mhko.buff.silver_feather",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhko",
-            "guid": "57890e036e3259ec9019e8a8d2af8a14",
-            "fileId": 11400000,
-            "displayName": "Silver feather"
-        },
-        {
-            "id": "mhko.pumpkin_grenade",
-            "type": "MHK.Modding.PowerupDefinition",
-            "pack": "mhko",
-            "guid": "17bb7a398480d4cb2bf99f85039e1c75",
-            "fileId": 11400000,
-            "displayName": "Pumpkin Grenade"
-        },
-        {
-            "id": "mhko.hit.pumpkin_splash",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhko",
-            "guid": "35d7ce787d20e43a39451b387e948326",
-            "fileId": 11400000,
-            "displayName": "Pumpkin splash"
-        },
-        {
-            "id": "mhko.molehill",
-            "type": "MHK.Modding.PowerupDefinition",
-            "pack": "mhko",
-            "guid": "e3211ea917d8e48a8addd5eac05a9024",
-            "fileId": 11400000,
-            "displayName": "Molehill"
-        },
-        {
-            "id": "mhko.buff.molehill",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhko",
-            "guid": "c77b203bcb74f42f7b75d02a4c8a54da",
-            "fileId": 11400000,
-            "displayName": "Digging"
-        },
-        {
-            "id": "mhko.hit.molehill",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhko",
-            "guid": "1407e4e3478804563bd67b154294fd03",
-            "fileId": 11400000,
-            "displayName": "Thrown by a molehill"
-        },
-        {
-            "id": "mhko.hit.shotdown",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhko",
-            "guid": "ee2e38aae90ce42429b5d16f02338bed",
-            "fileId": 11400000,
-            "displayName": "Shot down"
         }
     ]
 }

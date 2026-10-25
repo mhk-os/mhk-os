@@ -15,28 +15,27 @@ namespace MHK.Core
     [Serializable]
     public class UserSettings
     {
-        public const float MaxMinimapScale = 2f;
         const string DefaultSignature = "Player";
 
         public float masterVolume = 1f;
         public float musicVolume = 0.7f;
         public float sfxVolume = 1f;
-        [Tooltip("Main menu playlist (Music screen): virtual music paths in play order. Empty = every pack's menu music.")]
+        [Tooltip("Main menu playlist (Music screen): virtual music paths in play order. Empty = every pack's menu music, or silence when menuMusicEmpty is on.")]
         public List<string> menuMusic = new();
         [Tooltip("The main menu playlist plays in random order (a new order each round).")]
         public bool menuMusicShuffle = true;
+        [Tooltip("The player removed every song of the main menu playlist: the menu stays silent. Off with an empty menuMusic = every pack's menu music.")]
+        public bool menuMusicEmpty;
         [Tooltip("Track playlists (Music screen), one per track that has its own. A track without one plays its own music.")]
         public List<TrackMusic> trackMusic = new();
         public TouchControlsMode touchControls = TouchControlsMode.Auto;
-        [Tooltip("Places, sizes and opacity of the on-screen touch controls (Touch Layout screen).")]
-        public TouchLayoutSettings touchLayout = new();
+        [Tooltip("Race screen layout (UI Layout screen): places, sizes and visibility of the HUD elements and the touch controls.")]
+        public UiLayoutSettings uiLayout = new();
         public GraphicsOptions graphics = new();
         [Tooltip("False until the player confirmed the first-run graphics screen.")]
         public bool graphicsChosen;
         [Tooltip("The player continued without the built-in mods on the download screen. The title screen then offers the download.")]
         public bool baseModsSkipped;
-        [Tooltip("Race minimap size: 0 = hidden, 1 = default, up to MaxMinimapScale.")]
-        public float minimapScale = 1f;
         public List<string> disabledPacks = new();
         [Tooltip("Mod load order set in the Mods screen: pack ids, first = highest priority (its content replaces the same ids " +
                  "of the mods below). Mods not listed are placed by their ContentPack.loadOrder.")]

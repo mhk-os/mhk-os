@@ -282,6 +282,17 @@ namespace MHK.Ghosts
         public float VerticalScale => state.verticalScale;
         public float Opacity => Mathf.Min(state.opacity, baseOpacity) * fade;
         public bool Burned => state.Has(GhostFrameFlags.Burned);
+        /// <summary>Strongest tint of the replayed effects (<see cref="StatusEffectDefinition.modelTint"/>).</summary>
+        public Color ModelTint
+        {
+            get
+            {
+                var strongest = new Color(1, 1, 1, 0);
+                foreach (var e in effects)
+                    if (e.def.modelTint.a > strongest.a) strongest = e.def.modelTint;
+                return strongest;
+            }
+        }
         public bool Hidden => false;
         /// <summary>A replayed effect hides the wheels (<see cref="StatusEffectDefinition.hideWheels"/>).</summary>
         public bool WheelsHidden

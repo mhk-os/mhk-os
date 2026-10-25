@@ -164,6 +164,27 @@
 .mhk-button.icon-only { padding: 4px 12px 8px 12px; min-width: 58px; }
 .mhk-button.icon-only .icon { margin: 0; }
 
+/* Danger: delete, remove and the confirm button of ConfirmPrompt. Red at rest, lighter red with the accent ring when focused. */
+.mhk-button.danger, .mhk-button.danger:hover, .mhk-button.danger:focus { background-image: url("Textures/button_light.png"); -unity-background-image-tint-color: var(--mhk-bad-ink); color: var(--mhk-white); }
+.mhk-button.danger:hover, .mhk-button.danger:focus { -unity-background-image-tint-color: var(--mhk-bad); border-width: 3px; border-color: var(--mhk-accent); border-radius: 14px; }
+.mhk-button.danger:active { background-image: url("Textures/button_light.png"); -unity-background-image-tint-color: #8E2119; color: var(--mhk-white); }
+.mhk-button.danger .icon { -unity-background-image-tint-color: var(--mhk-white); }
+
+/* ConfirmPrompt: dimmed screen, glass panel with the message and the buttons (Cancel, an optional choice, the danger button). */
+.confirm-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; background-color: var(--mhk-scrim); opacity: 0; transition-property: opacity; transition-duration: 0.12s; }
+.confirm-overlay.shown { opacity: 1; }
+.panel.confirm-panel { min-width: 480px; max-width: 760px; align-items: center; padding: 26px 30px 18px 30px; scale: 0.94 0.94; transition-property: scale; transition-duration: 0.16s; transition-timing-function: ease-out-back; }
+.confirm-overlay.shown .confirm-panel { scale: 1 1; }
+.confirm-message { font-size: 24px; color: var(--mhk-gray-900); white-space: normal; -unity-text-align: middle-center; margin-bottom: 16px; }
+.confirm-buttons { flex-direction: row; justify-content: center; }
+.confirm-buttons .mhk-button { min-width: 170px; }
+
+/* DragReorder: the handle, the lifted row (pointer drag or picked up with Submit) and the gap it leaves while dragged. */
+.mhk-button.drag-handle { min-width: 44px; padding-left: 8px; padding-right: 8px; }
+.drag-lifted { scale: 1.02 1.02; background-color: var(--mhk-white); border-width: 2px; border-color: var(--mhk-accent); }
+.drag-placeholder { flex-shrink: 0; border-radius: 10px; border-width: 2px; border-color: var(--mhk-divider); background-color: var(--mhk-row); }
+.drag-active > * { transition-duration: 0s; }
+
 .header { height: 128px; flex-shrink: 0; align-items: center; justify-content: center; }
 .page-title {
     -unity-font-definition: var(--font-display);
@@ -428,6 +449,16 @@ TemplateContainer.sample-gold .badge-label, TemplateContainer.sample-silver .bad
 .i-location_on { background-image: url("Icons/location_on.png"); }
 .i-search_hands_free { background-image: url("Icons/search_hands_free.png"); }
 .i-videocam { background-image: url("Icons/videocam.png"); }
+.i-chat { background-image: url("Icons/chat.png"); }
+.i-compare_arrows { background-image: url("Icons/compare_arrows.png"); }
+.i-counter_3 { background-image: url("Icons/counter_3.png"); }
+.i-favorite { background-image: url("Icons/favorite.png"); }
+.i-inventory_2 { background-image: url("Icons/inventory_2.png"); }
+.i-map { background-image: url("Icons/map.png"); }
+.i-movie { background-image: url("Icons/movie.png"); }
+.i-open_with { background-image: url("Icons/open_with.png"); }
+.i-speed { background-image: url("Icons/speed.png"); }
+.i-visibility_off { background-image: url("Icons/visibility_off.png"); }
 .i-content_paste { background-image: url("Icons/content_paste.png"); }
 .i-sync { background-image: url("Icons/sync.png"); }
 .i-cloud_off { background-image: url("Icons/cloud_off.png"); }
@@ -436,3 +467,5 @@ TemplateContainer.sample-gold .badge-label, TemplateContainer.sample-silver .bad
 .i-close { background-image: url("Icons/close.png"); }
 .i-cloud_done { background-image: url("Icons/cloud_done.png"); }
 .i-cloud_download { background-image: url("Icons/cloud_download.png"); }
+.i-drag_indicator { background-image: url("Icons/drag_indicator.png"); }
+.i-github { background-image: url("Icons/github.png"); }

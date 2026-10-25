@@ -144,6 +144,9 @@ namespace MHK.Modding
         public Color screenOverlay = new(1, 1, 1, 0);
         [Tooltip("Makes the kart model burn/blacken (MHK2 shot-down look).")]
         public bool burnVisual;
+        [Tooltip("Tints kart and driver while active, multiplied onto their colours (MHK2 slime ball: green). Alpha is " +
+                 "the strength, 0 = none. Fades in and out like the burnt look, and burnVisual wins over it.")]
+        public Color modelTint = new(1, 1, 1, 0);
         [Tooltip("The kart model's wheels are not drawn while active (MHK2 x-field: the tyres are gone and the rims " +
                  "scrape along). Driving physics are unchanged.")]
         public bool hideWheels;

@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Touch controls. Code builds one TouchControlElement per control of the player's touch layout into touch (places, sizes and opacity from the layout, looks: touch-button rules in MHKHud.uss). -->
+    <!-- Touch controls. Code builds one TouchControlElement per control of the player's UI layout into touch (places, sizes and opacity from the layout, looks: touch-button rules in MHKHud.uss). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="touch" picking-mode="Ignore" class="touch-root" />
 </ui:UXML>

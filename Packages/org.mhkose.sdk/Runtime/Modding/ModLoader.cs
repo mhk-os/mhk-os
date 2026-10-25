@@ -10,10 +10,11 @@ namespace MHK.Modding
 {
     /// <summary>
     /// Discovers content packs and registers the enabled ones in load order: the game's own packs (built-in catalog,
-    /// always on, always lowest), then editor project packs and mods (folders, zips and <c>.mhkmod</c> files in the dev
-    /// mods folders, the user mods folder and <see cref="ShippedFolder"/>) from the bottom of the load order up, so a mod
-    /// higher in the order replaces definitions with the same id. A mod built for another mod API level, or whose files
-    /// or content fail to load or register, is left out for the session (<see cref="ProblemOf"/>), the others load as usual.
+    /// always on, always lowest), the game's base content <see cref="CorePackId"/> (shipped like a mod, always on, right
+    /// above them), then editor project packs and mods (folders, zips and <c>.mhkmod</c> files in the dev mods folders,
+    /// the user mods folder and <see cref="ShippedFolder"/>) from the bottom of the load order up, so a mod higher in
+    /// the order replaces definitions with the same id. A mod built for another mod API level, or whose files or content
+    /// fail to load or register, is left out for the session (<see cref="ProblemOf"/>), the others load as usual.
     /// </summary>
     public static partial class ModLoader
     {
@@ -21,9 +22,16 @@ namespace MHK.Modding
         public const string SceneBundleSuffix = ".scenes" + ModFileExtension;
         public const string BuiltinCatalogResource = "BuiltinContent";
 
+        /// <summary>
+        /// Pack id of the game's base content. It ships with the game in <see cref="ShippedFolder"/> like a mod, but it is
+        /// part of the game: always loaded below every mod, never disabled, reordered or listed in the Mods screen.
+        /// </summary>
+        public const string CorePackId = "core";
+
         static readonly List<AssetBundle> loadedBundles = new();
         static readonly List<UnityEngine.Object> standIns = new();
         static readonly HashSet<string> bundleScenes = new();
+        [AutoStaticsCleanup] static readonly List<ContentPack> ordered = new();
         [AutoStaticsCleanup] static readonly List<ContentPack> available = new();
 
         /// <summary>
@@ -41,10 +49,16 @@ namespace MHK.Modding
 
         /// <summary>
         /// Every mod found by the last <see cref="LoadAll"/>, enabled or disabled, in load order: first = highest priority
-        /// (the Mods screen). The game's own packs are not listed. A disabled, incompatible or failed bundled mod is a
-        /// stand-in that only carries its metadata and logo.
+        /// (the Mods screen). The game's own packs and <see cref="CorePackId"/> are not listed. A disabled, incompatible or
+        /// failed bundled mod is a stand-in that only carries its metadata and logo.
         /// </summary>
         public static IReadOnlyList<ContentPack> AvailablePacks => available;
+
+        /// <summary><see cref="AvailablePacks"/> and the base content below them: every pack loaded from the project or from files.</summary>
+        internal static IReadOnlyList<ContentPack> OrderedPacks => ordered;
+
+        /// <summary>Whether <paramref name="pack"/> is the game's base content (<see cref="CorePackId"/>), not a mod.</summary>
+        public static bool IsCore(ContentPack pack) => pack != null && string.Equals(pack.packId, CorePackId, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>Whether <paramref name="scenePath"/> comes from a loaded mod scene bundle (load it with SceneManager, not as a project scene).</summary>
         public static bool IsBundleScene(string scenePath) => bundleScenes.Contains(scenePath);
@@ -54,14 +68,15 @@ namespace MHK.Modding
         static void UnloadPreviousSession() => UnloadExternal();
 
         /// <summary>
-        /// Loads the game's own packs, then every mod not in <paramref name="disabledPackIds"/> into <paramref name="registry"/>,
-        /// in the load order <paramref name="order"/> (pack ids, first = highest, see <see cref="ModOrder"/>).
+        /// Loads the game's own packs and base content, then every mod not in <paramref name="disabledPackIds"/> into
+        /// <paramref name="registry"/>, in the load order <paramref name="order"/> (pack ids, first = highest, see
+        /// <see cref="ModOrder"/>). Both lists ignore <see cref="CorePackId"/>.
         /// </summary>
         public static void LoadAll(ContentRegistry registry, ICollection<string> disabledPackIds = null, IReadOnlyList<string> order = null)
         {
             ContentReferenceResolver.RestoreRecorded();
             DestroyStandIns();
-            available.Clear();
+            ordered.Clear();
             folderOf.Clear();
             bundleOf.Clear();
             sceneBundleOf.Clear();
@@ -71,7 +86,9 @@ namespace MHK.Modding
             AddProjectPacks(packs);
             var sceneBundles = new List<string>();
             AddExternalPacks(packs, sceneBundles, disabledPackIds);
-            available.AddRange(ModOrder.Sort(packs, order));
+            ordered.AddRange(ModOrder.Sort(packs.Where(p => !IsCore(p)).ToList(), order));
+            ordered.AddRange(packs.Where(IsCore));
+            ListMods();
             LoadSceneBundles(sceneBundles);
             RegisterMods(registry, disabledPackIds);
         }
@@ -97,7 +114,14 @@ namespace MHK.Modding
         public static void RestoreResolvedReferences() => ContentReferenceResolver.RestoreRecorded();
 
         static bool IsEnabled(ContentPack p, ICollection<string> disabledPackIds) =>
-            disabledPackIds == null || !disabledPackIds.Contains(p.packId);
+            disabledPackIds == null || IsCore(p) || !disabledPackIds.Contains(p.packId);
+
+        static void ListMods()
+        {
+            available.Clear();
+            foreach (var p in ordered)
+                if (!IsCore(p)) available.Add(p);
+        }
 
         static void RegisterBuiltin(ContentRegistry registry, bool log)
         {
@@ -273,9 +297,9 @@ namespace MHK.Modding
         // the load order down: a scene path a higher mod already provides is left to it. A mod whose scene bundle fails is dropped.
         static void LoadSceneBundles(List<string> files)
         {
-            for (var i = 0; i < available.Count; i++)
+            for (var i = 0; i < ordered.Count; i++)
             {
-                var pack = available[i];
+                var pack = ordered[i];
                 if (!folderOf.TryGetValue(pack, out var folder)) continue;
                 var file = files.Find(f => Path.GetDirectoryName(f) == folder &&
                                            string.Equals(Path.GetFileName(f), pack.packId + SceneBundleSuffix, StringComparison.OrdinalIgnoreCase));

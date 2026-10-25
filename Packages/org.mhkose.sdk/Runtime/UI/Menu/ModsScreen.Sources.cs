@@ -10,10 +10,10 @@ namespace MHK.UI
 {
     public partial class ModsScreen
     {
-        const string ConfirmClass = "src-confirm";
         const string NoActionClass = "src-no-action";
         const string UpdateClass = "src-update";
         const string SourceClass = "src-managed";
+        const string LinkedClass = "src-linked";
 
         [SerializeField, Tooltip("Row of a source not installed yet (Templates/SourceRow.uxml).")]
         VisualTreeAsset sourceRowTemplate;
@@ -27,6 +27,16 @@ namespace MHK.UI
         string downloadText = "Download", retryText = "Retry";
         [SerializeField, Tooltip("Tooltip of the remove buttons.")]
         string removeTip = "Remove";
+        [SerializeField, Tooltip("Question of Remove on a source not installed yet. {0} = title or repository.")]
+        string removeSourceQuestion = "Remove {0} from the list?";
+        [SerializeField, Tooltip("Question of Remove on an installed item. {0} = title.")]
+        string removeInstalledQuestion = "Remove {0}? Keep Files stops its updates and leaves it installed. Delete also deletes its files.";
+        [SerializeField, Tooltip("Button texts of the remove questions: remove from the list, keep the files, delete the files.")]
+        string removeText = "Remove", keepFilesText = "Keep Files", deleteFilesText = "Delete";
+        [SerializeField, Tooltip("Tooltip of the GitHub button. {0} = repository (owner/name).")]
+        string githubTip = "Opens {0} on GitHub";
+        [SerializeField, Tooltip("Page the GitHub button opens. {0} = repository (owner/name).")]
+        string repoUrlFormat = "https://github.com/{0}";
         [SerializeField, Tooltip("Tooltip of Update All while nothing in the section has an update.")]
         string nothingToUpdateTip = "Everything in this section is up to date.";
         [SerializeField, Tooltip("Tooltip of Update All. {0} = number of items with an update.")]
@@ -192,7 +202,8 @@ namespace MHK.UI
                 Click();
                 Install(repo);
             };
-            BindRemove(row, row.Q<Button>("src-remove"), repo);
+            BindGitHub(row.Q<Button>("src-github"), repo);
+            BindRemove(row.Q<Button>("src-remove"), repo);
         }
 
         void BindInstalledSource(VisualElement row, string packId)
@@ -204,29 +215,28 @@ namespace MHK.UI
                 Click();
                 Install(source.repo);
             };
-            BindRemove(row, row.Q<Button>("mod-remove"), source.repo);
+            BindGitHub(row.Q<Button>("mod-github"), source.repo);
+            row.AddToClassList(LinkedClass);
+            BindRemove(row.Q<Button>("mod-remove"), source.repo);
             sourceViews.Add((source.repo, row, true));
             ShowInstalled(row, source);
         }
 
-        void BindRemove(VisualElement row, Button remove, string repo)
+        void BindGitHub(Button button, string repo)
+        {
+            if (button == null) return;
+            button.tooltip = string.Format(githubTip, repo);
+            button.clicked += () =>
+            {
+                Click();
+                Application.OpenURL(string.Format(repoUrlFormat, repo));
+            };
+        }
+
+        void BindRemove(Button remove, string repo)
         {
             remove.tooltip = removeTip;
-            remove.clicked += () => AskRemove(row, repo);
-            row.Q<Button>("src-keep").clicked += () =>
-            {
-                Click();
-                RemoveSource(repo, false);
-            };
-            row.Q<Button>("src-delete").clicked += () =>
-            {
-                Click();
-                RemoveSource(repo, true);
-            };
-            row.RegisterCallback<FocusOutEvent>(e =>
-            {
-                if (e.relatedTarget is not VisualElement to || !row.Contains(to)) row.RemoveFromClassList(ConfirmClass);
-            });
+            remove.clicked += () => AskRemove(remove, repo);
         }
 
         ModSources.Source SourceOf(string packId)
@@ -295,17 +305,19 @@ namespace MHK.UI
             ShowTools();
         }
 
-        void AskRemove(VisualElement row, string repo)
+        // An installed item can keep its files (it stays installed without updates) or delete them.
+        void AskRemove(Button remove, string repo)
         {
             Click();
             var source = ModSources.Find(repo);
+            var title = string.IsNullOrEmpty(source?.title) ? repo : source.title;
             if (source == null || !source.installed)
             {
-                RemoveSource(repo, false);
+                ConfirmPrompt.Show(remove, string.Format(removeSourceQuestion, title), removeText, () => RemoveSource(repo, false));
                 return;
             }
-            row.AddToClassList(ConfirmClass);
-            FocusLater(row.Q<Button>("src-keep"));
+            ConfirmPrompt.Show(remove, string.Format(removeInstalledQuestion, title), deleteFilesText, () => RemoveSource(repo, true),
+                keepFilesText, () => RemoveSource(repo, false));
         }
 
         void RemoveSource(string repo, bool deleteFiles)

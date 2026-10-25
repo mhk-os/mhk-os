@@ -67,9 +67,9 @@ namespace MHK.UI
             fillLayer.MarkDirtyRepaint();
         }
 
-        /// <summary>Touch layout (<c>.touch</c>): smaller gauge, above the steering buttons.</summary>
+        /// <summary>Touch controls on (<c>.touch</c>): smaller gauge, above the steering buttons by default.</summary>
         [UxmlAttribute]
-        public bool TouchLayout
+        public bool TouchMode
         {
             get => touch;
             set
