@@ -1,7 +1,10 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One song (Music page). song-main plays it (the current song: pause and continue). Code sets the texts, .current on the song that plays (.paused while paused: play icon instead of the note), .alt every second row. The library list (.song-list-library) shows song-add, a playlist (.song-list-playlist) shows the game, the song-drag handle (DragReorder) and song-remove. Samples add sample-current / sample-alt on their Instance. -->
+    <!-- One song (Music page). song-main plays it (the current song: pause and continue). Code sets the texts, .current on the song that plays (.paused while paused: play icon instead of the note), .alt every second row. The library list (.song-list-library) shows song-add, a playlist (.song-list-playlist) shows the song-drag handle on the left (a plain focusable icon, DragReorder), the game and song-remove. Samples add sample-current / sample-alt on their Instance. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="song-row">
+        <ui:VisualElement name="song-drag" focusable="true" tooltip="Drag to move" class="drag-handle song-drag song-edit">
+            <ui:VisualElement class="icon i-drag_indicator" picking-mode="Ignore" />
+        </ui:VisualElement>
         <ui:Button name="song-main" class="song-main">
             <ui:VisualElement name="song-state" class="icon i-play_arrow song-state" picking-mode="Ignore" />
             <ui:Label name="song-title" text="Mhk2 Egypt Music" class="song-title" picking-mode="Ignore" />
@@ -11,9 +14,6 @@
         <ui:VisualElement class="row song-actions">
             <ui:Button name="song-add" tooltip="Add to the playlist" class="mhk-button small secondary icon-only song-add">
                 <ui:VisualElement class="icon i-add" />
-            </ui:Button>
-            <ui:Button name="song-drag" tooltip="Drag to move" class="mhk-button small secondary icon-only drag-handle song-edit">
-                <ui:VisualElement class="icon i-drag_indicator" />
             </ui:Button>
             <ui:Button name="song-remove" tooltip="Remove" class="mhk-button small icon-only danger song-edit">
                 <ui:VisualElement class="icon i-delete" />

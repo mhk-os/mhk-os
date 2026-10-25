@@ -1,13 +1,21 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One installed mod or asset pack row. mod-drag is the reorder handle (DragReorder, disabled while the section has one row). Code sets mod-logo (or the fallback icon class), the texts and the toggle state (class on or off). A mod that is not loaded (another game version, or it failed to load) shows mod-problem with a one-line reason, its toggle disabled and, when its source repository is known and its author can fix it, Report (opens the repository's issues page). An item with a known source (GitHub repository, class src-linked) shows mod-github (opens the repository), once its source was checked (class src-managed) its update state (mod-source), the bar while it downloads, Update while an update is available (class src-update) and Remove, which asks first (ConfirmPrompt with Keep Files and Delete). -->
+    <!-- One installed mod or asset pack row. mod-drag is the reorder handle (a plain focusable icon, DragReorder, disabled while the section has one row), mod-toggle the Enabled / Disabled switch (class on or off, the state as tooltip). Code sets mod-logo (or the fallback icon class) and the texts. A mod that is not loaded (another game version, or it failed to load) shows mod-problem with a one-line reason, its switch disabled and, when its source repository is known and its author can fix it, Report (opens the repository's issues page). An item with a known source (GitHub repository, class src-linked) shows mod-github after the title (opens the repository), once its source was checked (class src-managed) its update state (mod-source), the download bar (pause or resume, percent, bar) while it downloads, Update while an update is available (class src-update) and Remove, which asks first (ConfirmPrompt, Delete deletes the files). Samples add sample-on to preview the switch on. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="mod-row">
-        <ui:Button name="mod-drag" class="mhk-button small secondary icon-only drag-handle mod-drag">
-            <ui:VisualElement class="icon i-drag_indicator" />
+        <ui:VisualElement name="mod-drag" focusable="true" class="drag-handle mod-drag">
+            <ui:VisualElement class="icon i-drag_indicator" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Button name="mod-toggle" tooltip="Enabled" class="mhk-switch mod-toggle on">
+            <ui:VisualElement class="switch-knob" picking-mode="Ignore" />
         </ui:Button>
         <ui:VisualElement name="mod-logo" class="mod-logo" />
         <ui:VisualElement class="mod-info">
-            <ui:Label name="mod-title" text="Moorhuhn Kart" class="mod-title" />
+            <ui:VisualElement class="mod-title-row">
+                <ui:Label name="mod-title" text="Moorhuhn Kart" class="mod-title" />
+                <ui:Button name="mod-github" class="icon-link mod-github">
+                    <ui:VisualElement class="icon i-github" picking-mode="Ignore" />
+                </ui:Button>
+            </ui:VisualElement>
             <ui:Label name="mod-text" text="The base content pack required by the game." class="mod-text" />
             <ui:VisualElement name="mod-problem" class="src-state src-bad mod-problem" style="display: none;">
                 <ui:VisualElement class="icon i-error" />
@@ -18,8 +26,14 @@
                     <ui:VisualElement class="icon i-cloud_done" />
                     <ui:Label text="Up to date | 4b69b07" class="src-state-label" />
                 </ui:VisualElement>
-                <ui:VisualElement name="mod-bar" class="src-bar" style="display: none;">
-                    <ui:VisualElement class="src-bar-fill" style="width: 40%;" />
+                <ui:VisualElement name="mod-progress" class="src-progress" style="display: none;">
+                    <ui:Button name="mod-pause" tooltip="Pause" class="mhk-button small secondary icon-only src-pause">
+                        <ui:VisualElement class="icon i-pause" />
+                    </ui:Button>
+                    <ui:Label text="40 %" class="src-percent" />
+                    <ui:VisualElement class="src-bar">
+                        <ui:VisualElement class="src-bar-fill" style="width: 40%;" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
@@ -30,10 +44,6 @@
         <ui:Button name="mod-update" class="mhk-button small src-action src-row-update">
             <ui:VisualElement class="icon i-update" />
             <ui:Label text="Update" class="button-label" />
-        </ui:Button>
-        <ui:Button name="mod-toggle" text="Enabled" class="mhk-button small mod-toggle on" />
-        <ui:Button name="mod-github" class="mhk-button small secondary icon-only mod-move mod-github">
-            <ui:VisualElement class="icon i-github" />
         </ui:Button>
         <ui:Button name="mod-remove" tooltip="Remove" class="mhk-button small icon-only danger mod-move src-remove src-row-remove">
             <ui:VisualElement class="icon i-delete" />

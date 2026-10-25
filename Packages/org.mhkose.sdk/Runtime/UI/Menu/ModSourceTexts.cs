@@ -20,10 +20,6 @@ namespace MHK.UI
         public string upToDate = "Up to date";
         [Tooltip("State text of an installed mod with a newer compatible release.")]
         public string updateAvailable = "Update available";
-        [Tooltip("State text while downloading. {0} = percent.")]
-        public string downloading = "Downloading {0}";
-        [Tooltip("State text while the download is unpacked.")]
-        public string installing = "Installing";
         [Tooltip("State text when the newest release needs a newer game.")]
         public string needsNewerGame = "Needs a newer game";
         [Tooltip("Tooltip of the needs a newer game state.")]
@@ -52,29 +48,40 @@ namespace MHK.UI
         public string megabytesFormat = "{0} MB";
         [Tooltip("Download size below one megabyte, in kilobytes. {0} = size.")]
         public string kilobytesFormat = "{0} KB";
+        [Tooltip("Tooltips of the download bar's button: pause a running download, continue a paused one.")]
+        public string pauseTip = "Pause", resumeTip = "Resume";
 
-        static readonly string[] Icons =
-        {
-            "sync", "sync", "cloud_download", "cloud_done", "update", "download", "download", "warning", "warning", "cloud_off", "error", "warning"
-        };
-
-        static readonly string[] StateClasses =
-        {
-            "src-muted", "src-muted", "src-muted", "src-good", "src-accent", "src-accent", "src-accent", "src-bad", "src-muted", "src-bad", "src-bad", "src-bad"
-        };
+        static readonly string[] StateClasses = { "src-muted", "src-good", "src-accent", "src-bad" };
 
         /// <summary>Material Symbols icon name of <paramref name="state"/>.</summary>
-        public static string Icon(ModSources.State state) => Icons[(int)state];
+        public static string Icon(ModSources.State state) => state switch
+        {
+            ModSources.State.NotInstalled => "cloud_download",
+            ModSources.State.UpToDate => "cloud_done",
+            ModSources.State.UpdateAvailable => "update",
+            ModSources.State.Downloading or ModSources.State.Installing or ModSources.State.Paused => "download",
+            ModSources.State.NeedsNewerGame or ModSources.State.NoRelease or ModSources.State.NeedsModUpdate => "warning",
+            ModSources.State.Offline => "cloud_off",
+            ModSources.State.Error => "error",
+            _ => "sync"
+        };
 
-        /// <summary>One-line state text of <paramref name="source"/> (with the download percent while downloading).</summary>
+        static string StateClass(ModSources.State state) => state switch
+        {
+            ModSources.State.UpToDate => "src-good",
+            ModSources.State.UpdateAvailable or ModSources.State.Downloading or ModSources.State.Installing or ModSources.State.Paused => "src-accent",
+            ModSources.State.NeedsNewerGame or ModSources.State.Offline or ModSources.State.Error or ModSources.State.NeedsModUpdate => "src-bad",
+            _ => "src-muted"
+        };
+
+        /// <summary>One-line state text of <paramref name="source"/>. Empty while it downloads (the download bar shows it).</summary>
         public string State(ModSources.Source source) => source.state switch
         {
             ModSources.State.Checking => checking,
             ModSources.State.NotInstalled => notInstalled,
             ModSources.State.UpToDate => upToDate,
             ModSources.State.UpdateAvailable => updateAvailable,
-            ModSources.State.Downloading => string.Format(downloading, UiText.Percent(Mathf.Round(Progress(source) * 100f))),
-            ModSources.State.Installing => installing,
+            ModSources.State.Downloading or ModSources.State.Installing or ModSources.State.Paused => "",
             ModSources.State.NeedsNewerGame => needsNewerGame,
             ModSources.State.NeedsModUpdate => needsModUpdate,
             ModSources.State.NoRelease => noRelease,
@@ -121,27 +128,58 @@ namespace MHK.UI
         public static bool Busy(ModSources.Source source) =>
             source.state is ModSources.State.Downloading or ModSources.State.Installing;
 
+        /// <summary>True while <paramref name="source"/> downloads, installs or waits paused (its download bar shows).</summary>
+        public static bool InProgress(ModSources.Source source) => Busy(source) || source.state == ModSources.State.Paused;
+
         /// <summary>Sets the state icon, text, colour class and tooltip of <paramref name="source"/> on a state element (icon + label).</summary>
         public void ShowState(VisualElement stateElement, ModSources.Source source)
         {
             if (stateElement == null) return;
+            stateElement.SetVisible(!InProgress(source));
             stateElement.Q(className: "icon")?.SetIcon(Icon(source.state));
             var label = stateElement.Q<Label>();
             if (label != null) label.text = State(source);
             stateElement.tooltip = StateTip(source);
-            foreach (var c in StateClasses) stateElement.RemoveFromClassList(c);
-            stateElement.AddToClassList(StateClasses[(int)source.state]);
+            stateElement.SetExclusiveClass(Array.IndexOf(StateClasses, StateClass(source.state)), StateClasses);
         }
 
-        /// <summary>Sets the width of a progress bar fill (child with class <c>src-bar-fill</c>) and shows the bar while <paramref name="source"/> is busy.</summary>
-        public static void ShowProgress(VisualElement bar, ModSources.Source source)
+        /// <summary>
+        /// Shows the download bar (<c>src-progress</c>: pause button <c>src-pause</c>, percent <c>src-percent</c>, bar with
+        /// <c>src-bar-fill</c>) while <paramref name="source"/> downloads, installs or is paused, else hides it.
+        /// </summary>
+        public void ShowProgress(VisualElement progress, ModSources.Source source)
         {
-            if (bar == null) return;
-            var busy = Busy(source);
-            bar.SetVisible(busy);
-            if (!busy) return;
-            var fill = bar.Q(className: "src-bar-fill");
-            if (fill != null) fill.style.width = Length.Percent(source.state == ModSources.State.Installing ? 100f : Progress(source) * 100f);
+            if (progress == null) return;
+            var shown = InProgress(source);
+            progress.SetVisible(shown);
+            if (!shown) return;
+            var paused = source.state == ModSources.State.Paused;
+            var value = source.state == ModSources.State.Installing ? 1f : Progress(source);
+            var percent = progress.Q<Label>(className: "src-percent");
+            if (percent != null) percent.text = UiText.Percent(Mathf.Floor(value * 100f));
+            var fill = progress.Q(className: "src-bar-fill");
+            if (fill != null) fill.style.width = Length.Percent(value * 100f);
+            progress.tooltip = paused ? source.error : null;
+            var pause = progress.Q<Button>(className: "src-pause");
+            if (pause == null) return;
+            pause.Q(className: "icon")?.SetIcon(paused ? "play_arrow" : "pause");
+            pause.tooltip = paused ? resumeTip : pauseTip;
+            pause.SetEnabled(source.state != ModSources.State.Installing);
+        }
+
+        /// <summary>The download bar's button of <paramref name="repo"/> pauses a running download and resumes a paused one.</summary>
+        public static void BindPause(VisualElement progress, string repo, Action click)
+        {
+            var pause = progress?.Q<Button>(className: "src-pause");
+            if (pause == null) return;
+            pause.clicked += () =>
+            {
+                click?.Invoke();
+                var s = ModSources.Find(repo);
+                if (s == null) return;
+                if (s.state == ModSources.State.Paused) ModSources.Resume(repo);
+                else ModSources.Pause(repo);
+            };
         }
     }
 }

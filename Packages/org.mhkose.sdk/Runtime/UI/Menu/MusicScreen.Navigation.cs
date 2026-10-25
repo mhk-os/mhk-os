@@ -8,7 +8,7 @@ namespace MHK.UI
     {
         // Fixed moves between the two lists and down to the player bar, instead of the geometric pick (which may land
         // on the seek slider). Right leaves the library from its add button (or a row whose add is disabled), Left
-        // leaves the playlist from its play button, Down leaves either list from its last row.
+        // leaves the playlist from its drag handle on the left, Down leaves either list from its last row.
         void OnListNavigate(NavigationMoveEvent e, bool library)
         {
             if (e.target is not VisualElement from) return;
@@ -18,7 +18,7 @@ namespace MHK.UI
             var to = e.direction switch
             {
                 NavigationMoveEvent.Direction.Right when library && LeavesRight(from, row) => Nearest(playlistList, row, "song-main") ?? shuffle,
-                NavigationMoveEvent.Direction.Left when !library && from.name == "song-main" => LastLibraryFocus() ?? Nearest(songList, row, "song-add"),
+                NavigationMoveEvent.Direction.Left when !library && from.name == "song-drag" => LastLibraryFocus() ?? Nearest(songList, row, "song-add"),
                 NavigationMoveEvent.Direction.Down when IsLastRow(row, list) => playPause,
                 _ => null
             };

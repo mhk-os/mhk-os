@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Built-in mods download (first start, or the title screen's download button). Code fills base-list with one BaseModRow per built-in mod source, the overall line (base-total: icon, text, colour class) and its bar, and switches download between Download All and Retry. skip continues with the core game only. -->
+    <!-- Built-in mods download (first start, or the title screen's download button). Code fills base-list with one BaseModRow per built-in mod source, the overall line (base-total: icon, text, colour class) and its bar, and switches download between Download All and Retry. skip continues with the core game only (Continue Without), or after a download (Continue) loads the downloaded mods once. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="BaseModRow" src="/Assets/MHK/UI/Menu/Templates/BaseModRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
@@ -32,7 +32,7 @@
             <ui:VisualElement class="footer-left">
                 <ui:Button name="skip" tooltip="Starts with the core game only. The title screen offers the download later." class="mhk-button small secondary">
                     <ui:VisualElement class="icon i-arrow_forward" />
-                    <ui:Label text="Continue Without" class="button-label" />
+                    <ui:Label name="skip-label" text="Continue Without" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right">

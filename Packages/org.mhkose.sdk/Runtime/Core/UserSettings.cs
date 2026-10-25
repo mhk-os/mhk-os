@@ -49,8 +49,6 @@ namespace MHK.Core
         public List<string> modSources = new();
         [Tooltip("Built-in mod sources the player removed in the Mods screen: they stay removed until added again.")]
         public List<string> removedModSources = new();
-        [Tooltip("Install compatible updates of mods from mod sources automatically at game start.")]
-        public bool autoUpdateMods = true;
         public string lastCharacterId;
         [Tooltip("Race camera view. The Camera key (minus) cycles it in races.")]
         public CameraMode cameraMode = CameraMode.Close;

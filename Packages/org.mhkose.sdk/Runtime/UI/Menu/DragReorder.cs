@@ -7,11 +7,12 @@ using UnityEngine.UIElements.Experimental;
 namespace MHK.UI
 {
     /// <summary>
-    /// Reordering of a list's rows by their <c>::</c> handle (a Button named like the handle in each row, MHKTheme
-    /// <c>.drag-handle</c> with the <c>i-drag_indicator</c> icon). Pointer (mouse and touch): the row lifts and follows,
-    /// the other rows slide aside, the list scrolls near its edges and the row snaps into its gap on release. Gamepad and
-    /// keyboard: Submit on the handle picks the row up, Up and Down move it, Submit or Back put it down.
-    /// Only rows with a shown, enabled handle move, within the first and last such row.
+    /// Reordering of a list's rows by their <c>::</c> handle (a focusable element named like the handle in each row, MHKTheme
+    /// <c>.drag-handle</c> with the <c>i-drag_indicator</c> icon, on the left of the row). Pointer (mouse and touch): the row
+    /// lifts and follows, the other rows slide aside, the list scrolls near its edges and the row snaps into its gap on
+    /// release, the scroll view then settles inside its range with the row in view. Gamepad and keyboard: Submit on the
+    /// focused handle picks the row up, Up and Down move it, Submit or Back put it down.
+    /// Only rows with a shown, enabled handle move, anywhere from the first to the last such row.
     /// </summary>
     public sealed class DragReorder
     {
@@ -37,7 +38,7 @@ namespace MHK.UI
         bool snapping;
 
         /// <summary>
-        /// Lets the rows (direct children) of <paramref name="list"/> be reordered by their Button <paramref name="handleName"/>.
+        /// Lets the rows (direct children) of <paramref name="list"/> be reordered by their focusable element <paramref name="handleName"/>.
         /// <paramref name="onMoved"/>(from, to) runs once per drop that changed the order: the rows are already in the new order,
         /// apply it to the data as <c>item = data[from]; data.RemoveAt(from); data.Insert(to, item)</c> (refilling the list is fine,
         /// after a gamepad or keyboard move the handle of row <c>to</c> gets the focus on the next frame). <paramref name="scroll"/>
@@ -191,12 +192,15 @@ namespace MHK.UI
                 return;
             }
             SetRowY(Mathf.Clamp(list.WorldToLocal(pointer).y - grab, SlotTop(first), SlotTop(last)));
-            var centre = rowY + rowHeight * 0.5f;
-            var t = from;
-            for (var j = from + 1; j <= last; j++)
-                if (centre > (tops[j] + bottoms[j]) * 0.5f) t = j;
-            for (var j = from - 1; j >= first; j--)
-                if (centre < (tops[j] + bottoms[j]) * 0.5f) t = j;
+            var t = first;
+            var best = float.MaxValue;
+            for (var j = first; j <= last; j++)
+            {
+                var distance = Mathf.Abs(rowY - SlotTop(j));
+                if (distance >= best) continue;
+                best = distance;
+                t = j;
+            }
             if (t == target) return;
             target = t;
             for (var j = first; j <= last; j++)
@@ -227,7 +231,7 @@ namespace MHK.UI
             {
                 var view = scroll.contentViewport.worldBound;
                 var speed = Mathf.Clamp01((view.yMin + EdgeZone - pointer.y) / EdgeZone) - Mathf.Clamp01((pointer.y - view.yMax + EdgeZone) / EdgeZone);
-                if (speed != 0f) scroll.scrollOffset -= new Vector2(0f, speed * ScrollSpeed * TickMs / 1000f);
+                if (speed != 0f) ScrollTo(scroll.scrollOffset.y - speed * ScrollSpeed * TickMs / 1000f);
             }
             Place();
         }
@@ -272,6 +276,26 @@ namespace MHK.UI
             list.Insert(t, r);
             Click();
             if (f != t) onMoved(f, t);
+            Settle(t);
+        }
+
+        void ScrollTo(float y)
+        {
+            var max = Mathf.Max(0f, scroll.contentContainer.layout.height - scroll.contentViewport.layout.height);
+            var offset = scroll.scrollOffset;
+            var clamped = Mathf.Clamp(y, 0f, max);
+            if (!Mathf.Approximately(clamped, offset.y)) scroll.scrollOffset = new Vector2(offset.x, clamped);
+        }
+
+        // Once laid out (onMoved may refill the list): back inside the scroll range, with the dropped row in view.
+        void Settle(int index)
+        {
+            if (scroll == null) return;
+            list.schedule.Execute(() =>
+            {
+                if (index < list.childCount) scroll.ScrollTo(list[index]);
+                ScrollTo(scroll.scrollOffset.y);
+            }).ExecuteLater(UiAnim.FrameMs);
         }
 
         void Abort()
