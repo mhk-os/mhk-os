@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Mods and asset packs. Code fills the section chips (sections: Mods, Asset Packs) and mod-list with one ModRow per installed mod or asset pack of the chosen section, in load order (top wins), then one SourceRow per source (GitHub repository) of that section that is not installed yet. source-bar adds a source from a pasted link (error line below it) and holds Update All (this section). The section chips get a red dot (notify-dot) while their section has an update. Apply is disabled until something changed since the last load. The sample rows show an enabled entry, sample-off on a row's TemplateContainer previews a disabled one. -->
+    <!-- Mods and asset packs. Code fills the section chips (sections: Mods, Asset Packs) and mod-list with one ModRow per installed mod or asset pack of the chosen section, in load order (top wins), then one SourceRow per source (GitHub repository) of that section that is not installed yet. source-bar adds a source from a pasted link (error line below it) and holds Update All while this section has updates, else Check for Updates (every source, class checking while it runs). The section chips get a red dot (notify-dot) while their section has an update. Apply is disabled until something changed since the last load. The sample rows show an enabled entry, sample-off on a row's TemplateContainer previews a disabled one. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="ModRow" src="/Assets/MHK/UI/Menu/Templates/ModRow.uxml" />
@@ -38,6 +38,10 @@
                             <ui:Button name="update-all" class="mhk-button small src-tool">
                                 <ui:VisualElement class="icon i-update" />
                                 <ui:Label text="Update All" class="button-label" />
+                            </ui:Button>
+                            <ui:Button name="check-updates" class="mhk-button small secondary src-tool" style="display: none;">
+                                <ui:VisualElement class="icon i-sync" />
+                                <ui:Label name="check-updates-label" text="Check for Updates" class="button-label" />
                             </ui:Button>
                         </ui:VisualElement>
                     </ui:VisualElement>

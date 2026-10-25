@@ -40,16 +40,21 @@ namespace MHK.UI
         string repoUrlFormat = "https://github.com/{0}";
         [SerializeField, Tooltip("State of a downloaded item the content has not loaded yet, and its tooltip.")]
         string downloadedText = "Downloaded", downloadedTip = "Apply loads it.";
-        [SerializeField, Tooltip("Tooltip of Update All while nothing in the section has an update.")]
-        string nothingToUpdateTip = "Everything in this section is up to date.";
-        [SerializeField, Tooltip("Tooltip of Update All. {0} = number of items with an update.")]
+        [SerializeField, Tooltip("Check for Updates: its text, its text while the check runs, and its tooltip.")]
+        string checkText = "Check for Updates", checkingText = "Checking", checkTip = "Checks every mod and asset pack for a new release.";
+        [SerializeField, Tooltip("Error line when Check for Updates could not reach GitHub.")]
+        string checkOfflineText = "GitHub could not be reached. Check the internet connection.";
+        [SerializeField, Tooltip("Tooltip of Update All with several updates. {0} = number of items with an update.")]
         string updateAllTip = "Updates {0} items of this section.";
+        [SerializeField, Tooltip("Tooltip of Update All with a single update.")]
+        string updateOneTip = "Updates 1 item of this section.";
 
         readonly List<(string repo, VisualElement row, bool installedRow)> sourceViews = new();
         string shownSources;
         TextField sourceInput;
         VisualElement sourceError;
-        Button updateAll;
+        Button updateAll, checkUpdates;
+        bool checkRequested;
 
         /// <summary>Opens the Mods page at its Mods section (the download of the built-in mods and other mods).</summary>
         public static void OpenModsSection(MenuFlow flow)
@@ -69,6 +74,7 @@ namespace MHK.UI
             OnClick("source-paste", PasteSource);
             OnClick("source-add", AddSource);
             updateAll = OnClick("update-all", UpdateAll);
+            checkUpdates = OnClick("check-updates", CheckUpdates);
             ModSources.Changed += OnSourcesChanged;
             ModSources.RetryFailedChecks();
         }
@@ -80,7 +86,8 @@ namespace MHK.UI
             shownSources = null;
             sourceInput = null;
             sourceError = null;
-            updateAll = null;
+            updateAll = checkUpdates = null;
+            checkRequested = false;
         }
 
         ModSources.Kind SectionKind => section == Section.AssetPacks ? ModSources.Kind.AssetPack : ModSources.Kind.Mod;
@@ -93,14 +100,46 @@ namespace MHK.UI
             var count = 0;
             foreach (var s in ModSources.All)
                 if (Updatable(s)) count++;
-            updateAll.SetEnabled(count > 0);
-            updateAll.tooltip = count > 0 ? string.Format(updateAllTip, count) : nothingToUpdateTip;
+            var updates = count > 0;
+            var checking = ModSources.Checking;
+            var focused = updateAll.focusController?.focusedElement;
+            updateAll.SetVisible(updates);
+            checkUpdates.SetVisible(!updates);
+            if (focused == updateAll && !updates) FocusLater(checkUpdates);
+            else if (focused == checkUpdates && updates) FocusLater(updateAll);
+            updateAll.tooltip = count == 1 ? updateOneTip : string.Format(updateAllTip, count);
+            checkUpdates.SetText("check-updates-label", checking ? checkingText : checkText);
+            checkUpdates.EnableInClassList("checking", checking);
+            checkUpdates.tooltip = checking ? null : checkTip;
+            if (checkRequested && !checking) CheckFinished();
             ShowApply();
         }
 
+        // Stays focusable while the check runs (only looks disabled), so a gamepad keeps its place.
+        void CheckUpdates()
+        {
+            if (ModSources.Checking) return;
+            ShowSourceError(null);
+            checkRequested = ModSources.CheckAll();
+            ShowTools();
+        }
+
+        void CheckFinished()
+        {
+            checkRequested = false;
+            foreach (var s in ModSources.All)
+                if (s.state == ModSources.State.Offline)
+                {
+                    ShowSourceError(checkOfflineText);
+                    return;
+                }
+        }
+
+        Button ToolButton() => updateAll.resolvedStyle.display != DisplayStyle.None ? updateAll : checkUpdates;
+
         bool Updatable(ModSources.Source s) => InSection(s) && s.installed && s.state == ModSources.State.UpdateAvailable;
 
-        VisualElement FirstTool() => updateAll.enabledSelf ? updateAll : sourceInput;
+        VisualElement FirstTool() => ToolButton();
 
         void OnSourceKey(KeyDownEvent e)
         {
@@ -116,7 +155,7 @@ namespace MHK.UI
             var inTools = from.parent != null && from.parent.ClassListContains("src-tools");
             if (e.direction == NavigationMoveEvent.Direction.Up) Navigate(e, from, inTools ? sourceInput : SelectedChip());
             else if (e.direction == NavigationMoveEvent.Direction.Down)
-                Navigate(e, from, !inTools && updateAll.enabledSelf ? updateAll : list.childCount > 0 ? FirstRowButton() : null);
+                Navigate(e, from, !inTools ? ToolButton() : list.childCount > 0 ? FirstRowButton() : null);
         }
 
         void PasteSource()
@@ -346,7 +385,6 @@ namespace MHK.UI
             var repos = new List<string>();
             foreach (var s in ModSources.All)
                 if (Updatable(s)) repos.Add(s.repo);
-            updateAll.SetEnabled(false);
             foreach (var repo in repos) await ModInstalls.InstallAsync(repo);
         }
     }

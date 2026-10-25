@@ -210,6 +210,18 @@ namespace MHK.Modding
             return true;
         }
 
+        /// <summary>
+        /// Checks every listed source again (the Mods page's Check for Updates), also in the editor without the start
+        /// check. Ignored while a check runs. True when it started one, <see cref="Changed"/> reports its progress.
+        /// </summary>
+        public static bool CheckAll()
+        {
+            var root = GameRoot.Instance;
+            if (checking || root == null) return false;
+            CheckAllQuietlyAsync(false, InSession(root.destroyCancellationToken)).LogExceptionsAndForget();
+            return true;
+        }
+
         static bool Failed(Source s) => !s.busy && s.state is State.Unknown or State.Offline or State.Error;
 
         // onlyFailed: the retry of the sources whose start check failed.

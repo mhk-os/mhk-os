@@ -390,6 +390,7 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .src-tools { flex-direction: row; align-items: center; margin-top: 6px; }
 .src-tools .src-error { flex-grow: 1; flex-shrink: 1; margin-top: 0; }
 .mhk-button.src-tool { margin: 0 0 0 8px; }
+.mhk-button.src-tool.checking { opacity: 0.45; }
 .src-input .unity-base-text-field__input.unity-base-text-field__input--placeholder { color: var(--mhk-gray-400); }
 .src-add-bar { margin: 8px 0 6px 0; flex-shrink: 0; }
 .src-add { flex-direction: row; align-items: center; }
