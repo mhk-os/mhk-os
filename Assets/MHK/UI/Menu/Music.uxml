@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Music. Code fills song-list with the library: a music-group label per game, then one SongRow per song. The playlist side edits the main menu playlist or, on the Tracks tab (playlist-tabs, one Chip each), the playlist of the track picked in track-list (one TrackCard each, .selected on the picked one): playlist-title, the shuffle toggle (.selected while on), reset (back to the default playlist) and one SongRow per song in playlist-list. The player bar shows the song that plays (now-title, now-game), its position and length around the seek slider, and previous, play or pause, next. Preview class on page: preview-tracks (Tracks tab: the track strip shows). -->
+    <!-- Music. Code fills song-list with the library: a music-group label per game, then one SongRow per song. The playlist side edits the main menu playlist or, on the Tracks tab (playlist-tabs, one Chip each), the playlist of the track picked in track-list (one TrackCard each, .selected on the picked one): playlist-title, the shuffle toggle (.selected while on), reset (back to the default playlist) and one SongRow per song in playlist-list (playlist-empty instead when it has none). The player bar shows the song that plays (now-title, now-game), its position and length around the seek slider, and previous, play or pause, next. Preview class on page: preview-tracks (Tracks tab: the track strip shows). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="SongRow" src="/Assets/MHK/UI/Menu/Templates/SongRow.uxml" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
@@ -77,6 +77,7 @@
                                 </ui:Instance>
                             </ui:VisualElement>
                         </ui:ScrollView>
+                        <ui:Label name="playlist-empty" text="No songs. Nothing plays here." class="music-empty" />
                     </ui:VisualElement>
                 </ui:VisualElement>
                 <ui:VisualElement name="player" class="panel row music-player">

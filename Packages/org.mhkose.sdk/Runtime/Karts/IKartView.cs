@@ -43,6 +43,8 @@ namespace MHK.Karts
         /// <summary>1 = opaque. Lower draws the kart and driver see-through.</summary>
         float Opacity { get; }
         bool Burned { get; }
+        /// <summary>Tint of kart and driver (<see cref="Modding.StatusEffectDefinition.modelTint"/>), alpha 0 = none. <see cref="Burned"/> wins over it.</summary>
+        Color ModelTint { get; }
         /// <summary>Kart and driver are not drawn (vanish effects). Effect attachments stay visible.</summary>
         bool Hidden { get; }
         /// <summary>The kart model's wheels are not drawn (x-field).</summary>

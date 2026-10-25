@@ -16,32 +16,20 @@ namespace MHK.UI
             VisualElement focus = null;
             for (var i = 0; i < songs.Count; i++)
             {
-                var row = SpawnSong(playlistList, MusicLibrary.Find(songs[i]), i % 2 == 1);
+                var song = MusicLibrary.Find(songs[i]);
+                var row = SpawnSong(playlistList, song, i % 2 == 1);
                 if (row == null) break;
                 var index = i;
                 row.Q<Button>("song-main").clicked += () => PlayOrPause(key, songs, shuffled, index);
-                BindEdit(row.Q<Button>("song-up"), index > 0, () => Move(index, -1, "song-up"));
-                BindEdit(row.Q<Button>("song-down"), index < songs.Count - 1, () => Move(index, 1, "song-down"));
-                var remove = BindEdit(row.Q<Button>("song-remove"), songs.Count > 1, () => Remove(index));
-                if (songs.Count == 1) remove.tooltip = lastSongTip;
-                if (index != focusIndex) continue;
-                var wanted = row.Q<Button>(focusButton);
-                focus = wanted != null && wanted.enabledSelf ? wanted : row.Q<Button>("song-main");
+                var remove = row.Q<Button>("song-remove");
+                remove.clicked += () => AskRemove(remove, song, index);
+                if (index == focusIndex) focus = row.Q<Button>(focusButton) ?? row.Q<Button>("song-main");
             }
+            playlistScroll.SetVisible(songs.Count > 0);
+            SetVisible("playlist-empty", songs.Count == 0);
             ShowPlaylistState(songs);
             MarkCurrent(playlistList);
             FocusLater(focus);
-        }
-
-        Button BindEdit(Button button, bool enabled, Action edit)
-        {
-            button.SetEnabled(enabled);
-            button.clicked += () =>
-            {
-                Click();
-                edit();
-            };
-            return button;
         }
 
         void ShowPlaylistState(List<string> songs)
@@ -69,33 +57,49 @@ namespace MHK.UI
             Edit(songs =>
             {
                 if (!songs.Contains(path)) songs.Add(path);
-            }, null, -1);
+            });
             playlistScroll.schedule.Execute(() => playlistScroll.scrollOffset = new UnityEngine.Vector2(0f, float.MaxValue));
         }
 
-        void Move(int index, int step, string button) => Edit(songs =>
+        // DragReorder already shows the new order and focuses the moved row's handle after a gamepad move.
+        void MoveSong(int from, int to) => Edit(songs =>
         {
-            var to = index + step;
-            (songs[index], songs[to]) = (songs[to], songs[index]);
-        }, button, index + step);
+            var song = songs[from];
+            songs.RemoveAt(from);
+            songs.Insert(to, song);
+        });
 
-        void Remove(int index)
+        void AskRemove(Button from, MusicLibrary.Song song, int index)
         {
-            var left = PlaylistSongs().Count - 1;
-            Edit(songs => songs.RemoveAt(index), "song-main", Math.Min(index, left - 1));
+            Click();
+            ConfirmPrompt.Show(from, string.Format(removePromptFormat, song.title, playlistTitle.text), removeConfirm, () =>
+            {
+                var left = PlaylistSongs().Count - 1;
+                Edit(songs => songs.RemoveAt(index), "song-remove", Math.Min(index, left - 1));
+                if (left == 0) FocusLater(shuffle);
+            });
         }
 
-        // Edits the shown playlist and stores it (empty when it equals the default, so the default follows new packs).
-        void Edit(Action<List<string>> change, string focusButton, int focusIndex)
+        void Edit(Action<List<string>> change, string focusButton = null, int focusIndex = -1)
         {
             var songs = PlaylistSongs();
             change(songs);
-            var isDefault = MusicLibrary.SameSongs(songs, DefaultSongs());
-            var stored = showTracks ? MusicLibrary.TrackSettings(trackId, true).songs : Settings.menuMusic;
-            stored.Clear();
-            if (!isDefault) stored.AddRange(songs);
+            Store(songs);
             FillPlaylist(focusButton, focusIndex);
             FollowEdit();
+        }
+
+        // Nothing is stored when the playlist equals the default (so the default follows new packs). No song left is
+        // stored as emptied, which plays nothing instead of the default.
+        void Store(List<string> songs)
+        {
+            var keep = songs.Count > 0 && !MusicLibrary.SameSongs(songs, DefaultSongs());
+            var own = showTracks ? MusicLibrary.TrackSettings(trackId, true) : null;
+            var stored = own != null ? own.songs : Settings.menuMusic;
+            stored.Clear();
+            if (keep) stored.AddRange(songs);
+            if (own != null) own.empty = songs.Count == 0;
+            else Settings.menuMusicEmpty = songs.Count == 0;
         }
 
         void ToggleShuffle()
@@ -110,18 +114,21 @@ namespace MHK.UI
             FollowEdit();
         }
 
+        void AskReset() => ConfirmPrompt.Show(reset, string.Format(resetPromptFormat, playlistTitle.text), resetConfirm, ResetPlaylist);
+
         void ResetPlaylist()
         {
             if (showTracks)
             {
                 var own = MusicLibrary.TrackSettings(trackId, true);
                 own.songs.Clear();
-                own.shuffle = false;
+                own.shuffle = own.empty = false;
             }
             else
             {
                 Settings.menuMusic.Clear();
                 Settings.menuMusicShuffle = true;
+                Settings.menuMusicEmpty = false;
             }
             FillPlaylist(null, -1);
             FollowEdit();

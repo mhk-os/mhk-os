@@ -63,6 +63,8 @@ namespace MHK.UI
         string numpadPrefix = "Num ";
         [SerializeField, Tooltip("Seconds after a key was taken during which menu keys (Enter, Esc, arrows) are ignored.")]
         float menuKeyCooldown = 0.3f;
+        [SerializeField, Tooltip("Question of Reset to defaults, and its confirm button text.")]
+        string resetQuestion = "Reset every key to its default?", resetText = "Reset";
 
         sealed class Slot
         {
@@ -89,7 +91,7 @@ namespace MHK.UI
             actions.LoadBindingOverridesFromJson(Settings.keyBindings);
             FillRows(actions.FindActionMap(ActionMap, true));
             RefreshSlots();
-            OnClick("reset", ResetToDefaults);
+            OnClick("reset", () => ConfirmPrompt.Show(Q<Button>("reset"), resetQuestion, resetText, ResetToDefaults));
             RegisterCaptureGuards();
         }
 

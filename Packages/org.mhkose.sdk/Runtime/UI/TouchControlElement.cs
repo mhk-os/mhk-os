@@ -6,7 +6,7 @@ namespace MHK.UI
 {
     /// <summary>
     /// One on-screen touch control, placed and sized from its <see cref="TouchControlSetup"/>: a disc with an icon for a
-    /// button, a ring with a knob for the joystick, a turning wheel. Shared by the race touch layer and the Touch Layout screen.
+    /// button, a ring with a knob for the joystick, a turning wheel. Shared by the race touch layer and the UI Layout screen.
     /// </summary>
     public class TouchControlElement : VisualElement
     {
@@ -89,7 +89,7 @@ namespace MHK.UI
             style.right = Edge(!left, -s.offset.x - half);
             style.top = Edge(top, s.offset.y - half);
             style.bottom = Edge(!top, -s.offset.y - half);
-            style.opacity = Mathf.Max(Mathf.Clamp01(s.opacity), minOpacity);
+            style.opacity = Mathf.Max(s.ShownOpacity, minOpacity);
             SizeChild(icon, size * (s.type == TouchControlType.Wheel ? WheelIconShare : IconShare));
             SizeChild(knob, size * KnobShare);
         }

@@ -68,7 +68,7 @@
                     </ui:Instance>
                     <ui:Instance template="ResultRow">
                         <ui:AttributeOverrides element-name="badge-label" text="6" />
-                        <ui:AttributeOverrides element-name="name" text="Snowman" />
+                        <ui:AttributeOverrides element-name="name" text="Schneemann" />
                         <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_snowman.png" />
                         <ui:AttributeOverrides element-name="time" text="01:30.90" />
                         <ui:AttributeOverrides element-name="best" text="" />

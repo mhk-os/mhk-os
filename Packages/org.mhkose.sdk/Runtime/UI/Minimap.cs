@@ -13,8 +13,10 @@ namespace MHK.UI
     [UxmlElement]
     public partial class Minimap : VisualElement
     {
-        /// <summary>Minimap size setting below which the minimap is off.</summary>
-        public const float OffScale = 0.05f;
+        const int SampleNodes = -2, SamplePoints = 72;
+        const float SampleRadiusX = 120f, SampleRadiusY = 65f, SampleWaveX = 10f, SampleDent = 60f, SampleDentShift = 0.5f;
+        const float SampleWidth = 10f;
+        static readonly float[] SampleKarts = { 1.5f, 2.6f, 4.2f, 0.4f };
 
         // Largest map box at scale 1 and the space kept free above it, in reference-resolution (1920x1080) panel pixels.
         const float BaseWidth = 300f, BaseHeight = 220f, TopReserve = 260f, MinBoxHeight = 80f;
@@ -63,7 +65,8 @@ namespace MHK.UI
         float cos = 1f, sin;
         float minX, minY, maxX, maxY, medianWidth = DefaultWidth;
         float pxPerMetre, pad, strokePx, width, height, dotSize;
-        float appliedScale = -1f, appliedAvailable = -1f;
+        Vector2 appliedScale = -Vector2.one;
+        float appliedAvailable = -1f;
         bool shown = true;
 
         public Minimap()
@@ -100,9 +103,9 @@ namespace MHK.UI
             for (var i = 0; i < dots.Count; i++) dots[i].color = Color.clear;
         }
 
-        /// <summary>Touch layout (<c>.touch</c>): placed above the touch buttons, larger kart dots.</summary>
+        /// <summary>Touch controls on (<c>.touch</c>): placed above the touch buttons by default, larger kart dots.</summary>
         [UxmlAttribute]
-        public bool TouchLayout
+        public bool TouchMode
         {
             get => touch;
             set
@@ -110,18 +113,13 @@ namespace MHK.UI
                 if (touch == value) return;
                 touch = value;
                 EnableInClassList("touch", value);
-                appliedScale = -1f;
+                appliedScale = -Vector2.one;
             }
         }
 
-        /// <summary>Per-frame update. <paramref name="scale"/> is the user setting (below <see cref="OffScale"/> = off, 1 = default size).</summary>
-        public void Tick(float scale)
+        /// <summary>Per-frame update. <paramref name="scale"/> is the map box size per axis (UI layout, 1 = default size).</summary>
+        public void Tick(Vector2 scale)
         {
-            if (scale < OffScale)
-            {
-                SetShown(false);
-                return;
-            }
             var track = TrackRuntime.Current;
             if (track != source || CountNodes(track) != sourceNodes) Generate(track);
             if (lines.Count == 0)
@@ -130,12 +128,28 @@ namespace MHK.UI
                 return;
             }
             SetShown(true);
+            Fit(scale);
+            UpdateDots();
+        }
 
+        /// <summary>Per-frame update in the UI Layout screen: a sample track with a few karts, box size <paramref name="scale"/>.</summary>
+        public void TickSample(Vector2 scale)
+        {
+            if (source != null || sourceNodes != SampleNodes) GenerateSample();
+            SetShown(true);
+            Fit(scale);
+            for (var i = 0; i < SampleKarts.Length; i++)
+            {
+                var p = SamplePoint(SampleKarts[i]);
+                SetDot(i, new Vector3(p.x, 0f, p.y), i == SampleKarts.Length - 1 ? playerColor : opponentColor, dotSize);
+            }
+        }
+
+        void Fit(Vector2 scale)
+        {
             var available = parent != null ? parent.layout.height : float.NaN;
             if (float.IsNaN(available)) available = 0f;
-            if (!Mathf.Approximately(scale, appliedScale) || !Mathf.Approximately(available, appliedAvailable))
-                Relayout(scale, available);
-            UpdateDots();
+            if (scale != appliedScale || !Mathf.Approximately(available, appliedAvailable)) Relayout(scale, available);
         }
 
         void SetShown(bool value)
@@ -163,7 +177,7 @@ namespace MHK.UI
             source = track;
             sourceNodes = CountNodes(track);
             lines.Clear();
-            appliedScale = -1f;
+            appliedScale = -Vector2.one;
             if (track == null) return;
             AddPath(track.path);
             medianWidth = MedianWidth(track.path);
@@ -171,8 +185,27 @@ namespace MHK.UI
             if (alternates != null)
                 for (var i = 0; i < alternates.Count; i++)
                     if (Shows(alternates[i])) AddPath(alternates[i]);
-            if (lines.Count == 0) return;
+            if (lines.Count > 0) FitLines();
+        }
 
+        void GenerateSample()
+        {
+            source = null;
+            sourceNodes = SampleNodes;
+            lines.Clear();
+            appliedScale = -Vector2.one;
+            var points = new Vector2[SamplePoints];
+            for (var i = 0; i < SamplePoints; i++) points[i] = SamplePoint(i * 2f * Mathf.PI / SamplePoints);
+            lines.Add(new Line { points = points, closed = true });
+            medianWidth = SampleWidth;
+            FitLines();
+        }
+
+        static Vector2 SamplePoint(float t) => new(SampleRadiusX * Mathf.Cos(t) + SampleWaveX * Mathf.Cos(3f * t),
+            SampleRadiusY * Mathf.Sin(t) - SampleDent * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(t + SampleDentShift)), 8f));
+
+        void FitLines()
+        {
             ChooseRotation();
             for (var l = 0; l < lines.Count; l++)
             {
@@ -259,17 +292,18 @@ namespace MHK.UI
 
         Vector2 Rotate(Vector2 p) => new(p.x * cos - p.y * sin, p.x * sin + p.y * cos);
 
-        void Relayout(float scale, float available)
+        void Relayout(Vector2 scale, float available)
         {
             appliedScale = scale;
             appliedAvailable = available;
             var w = Mathf.Max(maxX - minX, 1f);
             var h = Mathf.Max(maxY - minY, 1f);
-            var boxW = BaseWidth * scale;
-            var boxH = BaseHeight * scale;
+            var boxW = BaseWidth * scale.x;
+            var boxH = BaseHeight * scale.y;
             if (available > 0f) boxH = Mathf.Min(boxH, Mathf.Max(MinBoxHeight, available - BottomAndFrame() - TopReserve));
-            var maxStroke = Mathf.Max(AbsoluteMinStrokePx, MaxStrokePx * scale);
-            var minStroke = Mathf.Max(AbsoluteMinStrokePx, MinStrokePx * scale);
+            var lineScale = Mathf.Min(scale.x, scale.y);
+            var maxStroke = Mathf.Max(AbsoluteMinStrokePx, MaxStrokePx * lineScale);
+            var minStroke = Mathf.Max(AbsoluteMinStrokePx, MinStrokePx * lineScale);
             pad = 0.5f * maxStroke + OutlinePx + ShadowPx + ShadowOffsetPx;
             pxPerMetre = Mathf.Max(MinPxPerMetre, Mathf.Min((boxW - 2f * pad) / w, (boxH - 2f * pad) / h));
             strokePx = Mathf.Clamp(medianWidth * pxPerMetre, minStroke, maxStroke);
@@ -277,7 +311,7 @@ namespace MHK.UI
             height = h * pxPerMetre + 2f * pad;
             map.style.width = width;
             map.style.height = height;
-            dotSize = Mathf.Max(MinDotPx, DotPx * Mathf.Sqrt(scale)) * (touch ? TouchDotFactor : 1f);
+            dotSize = Mathf.Max(MinDotPx, DotPx * Mathf.Sqrt(lineScale)) * (touch ? TouchDotFactor : 1f);
             trackLayer.MarkDirtyRepaint();
         }
 

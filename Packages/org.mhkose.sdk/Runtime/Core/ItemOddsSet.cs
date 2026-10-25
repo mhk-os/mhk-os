@@ -24,7 +24,7 @@ namespace MHK.Core
     [Serializable]
     public class ItemOddsSet
     {
-        /// <summary>Id of the family's top-level pack ("core", "tincan").</summary>
+        /// <summary>Id of the family's top-level pack ("mhk2", "tincan").</summary>
         public string family;
         /// <summary>Percent per powerup id. Ids of packs that are not loaded stay stored and are ignored.</summary>
         public List<PowerupOdds> odds = new();

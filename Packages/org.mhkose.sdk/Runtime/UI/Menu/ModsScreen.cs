@@ -11,9 +11,10 @@ namespace MHK.UI
 {
     /// <summary>
     /// Mods and asset packs (Mods.uxml), one section each: a row per installed mod or asset pack in load order (the top
-    /// one wins) with an Enabled / Disabled toggle and move up and down, then a row per source (GitHub repository) not
-    /// installed yet. Items from a source download and update here. Apply reloads content and asset packs and restarts
-    /// the menu, Reload does the same and comes back here (finds new mods and packs), Open Folder shows the section's folder.
+    /// one wins) with an Enabled / Disabled toggle and a drag handle to reorder (<see cref="DragReorder"/>), then a row per
+    /// source (GitHub repository) not installed yet. Items from a source download and update here. Apply reloads content and
+    /// asset packs and restarts the menu, Reload does the same and comes back here (finds new mods and packs), Open Folder
+    /// shows the section's folder.
     /// </summary>
     public partial class ModsScreen : MenuScreen
     {
@@ -61,10 +62,10 @@ namespace MHK.UI
         string modsReloadTip = "Looks for mods added to the mod folder. Also applies the changes above.";
         [SerializeField, Tooltip("Reload button tooltip in the Asset Packs section.")]
         string packsReloadTip = "Looks for asset packs added to the asset pack folder. Also applies the changes above.";
-        [SerializeField, Tooltip("Move up and down tooltips in the Mods section.")]
-        string modUpTip = "Move up. A mod higher in the list replaces content with the same id of the mods below.", modDownTip = "Move down";
-        [SerializeField, Tooltip("Move up and down tooltips in the Asset Packs section.")]
-        string packUpTip = "Move up. A pack higher in the list replaces the same files of the packs below.", packDownTip = "Move down";
+        [SerializeField, Tooltip("Drag handle tooltip in the Mods section.")]
+        string modMoveTip = "Load order. A mod higher in the list replaces content with the same id of the mods below.";
+        [SerializeField, Tooltip("Drag handle tooltip in the Asset Packs section.")]
+        string packMoveTip = "Load order. A pack higher in the list replaces the same files of the packs below.";
 
         [AutoStaticsCleanup] static Section section;
 
@@ -85,6 +86,7 @@ namespace MHK.UI
                 if (e.target is VisualElement v) scroll.ScrollTo(v);
             });
             list.RegisterCallback<NavigationMoveEvent>(OnListNavigate);
+            DragReorder.Attach(list, "mod-drag", OnRowMoved, scroll);
             sections.RegisterCallback<NavigationMoveEvent>(OnSectionsNavigate);
             ChipGroup.Fill(sections, chipTemplate, new[] { modsTab, packsTab }, (int)section, index =>
             {
@@ -108,7 +110,7 @@ namespace MHK.UI
             sections = null;
         }
 
-        // Up and down keep the column (toggle, move up, move down, ...) from row to row: a hidden or disabled button falls
+        // Up and down keep the column (drag handle, toggle, GitHub, ...) from row to row: a hidden or disabled button falls
         // back to the row's first one, up from the first row goes to the source tools. Below the last row MenuScreen takes over.
         void OnListNavigate(NavigationMoveEvent e)
         {
@@ -134,8 +136,7 @@ namespace MHK.UI
             var toggle = row.Q<Button>("mod-toggle");
             if (toggle == null || toggle.enabledSelf) return toggle ?? row.Q<Button>("src-action");
             if (row.ClassListContains("mod-reportable")) return row.Q<Button>("mod-report");
-            var down = row.Q<Button>("mod-down");
-            return down.enabledSelf ? down : toggle;
+            return RowButton(row, null);
         }
 
         // The row's button named like the one the focus comes from, else its first shown and enabled button.
@@ -185,7 +186,7 @@ namespace MHK.UI
                 var row = UiTree.Spawn<VisualElement>(rowTemplate, list);
                 if (row == null) break;
                 FillPackRow(row, mods[i]);
-                BindMove(row, i, mods.Count);
+                BindMove(row, mods.Count);
             }
         }
 
@@ -203,7 +204,7 @@ namespace MHK.UI
                 BindInstalledSource(row, p.id);
                 var toggle = row.Q<Button>("mod-toggle");
                 if (toggle != null) BindToggle(toggle, p.id, Settings.disabledAssetPacks);
-                BindMove(row, i, packs.Count);
+                BindMove(row, packs.Count);
             }
         }
 
@@ -319,37 +320,34 @@ namespace MHK.UI
             Show();
         }
 
-        void BindMove(VisualElement row, int index, int count)
+        void BindMove(VisualElement row, int count)
         {
-            var modsShown = section == Section.Mods;
-            var up = row.Q<Button>("mod-up");
-            var down = row.Q<Button>("mod-down");
-            if (up == null || down == null) return;
-            up.tooltip = modsShown ? modUpTip : packUpTip;
-            down.tooltip = modsShown ? modDownTip : packDownTip;
-            up.SetEnabled(index > 0);
-            down.SetEnabled(index < count - 1);
-            up.clicked += () => Move(index, index - 1, "mod-up", "mod-down");
-            down.clicked += () => Move(index, index + 1, "mod-down", "mod-up");
+            var handle = row.Q<Button>("mod-drag");
+            if (handle == null) return;
+            handle.tooltip = section == Section.Mods ? modMoveTip : packMoveTip;
+            handle.SetEnabled(count > 1);
         }
 
-        void Move(int from, int to, string focusName, string otherName)
+        // The rows are already in their new order (installed rows come first, so row and item indices match).
+        void OnRowMoved(int from, int to)
         {
-            Click();
             if (section == Section.Mods)
             {
-                (mods[from], mods[to]) = (mods[to], mods[from]);
+                Reorder(mods, from, to);
                 Settings.modOrder = ModOrder.ToSave(mods.ConvertAll(p => p.packId), Settings.modOrder);
             }
             else
             {
-                (packs[from], packs[to]) = (packs[to], packs[from]);
+                Reorder(packs, from, to);
                 Settings.assetPackOrder = ModOrder.ToSave(packs.ConvertAll(p => p.id), Settings.assetPackOrder);
             }
-            Fill(false);
-            if (to < 0 || to >= list.childCount) return;
-            var target = list[to].Q<Button>(focusName);
-            FocusLater(target != null && target.enabledSelf ? target : list[to].Q<Button>(otherName));
+        }
+
+        static void Reorder<T>(List<T> items, int from, int to)
+        {
+            var item = items[from];
+            items.RemoveAt(from);
+            items.Insert(to, item);
         }
 
         void Apply()

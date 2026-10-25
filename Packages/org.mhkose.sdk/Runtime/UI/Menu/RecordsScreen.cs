@@ -33,8 +33,10 @@ namespace MHK.UI
         string exportedFormat = "Exported: {0}";
         [SerializeField, Tooltip("Status when exporting failed.")]
         string exportFailedText = "Export failed (see the log).";
-        [SerializeField, Tooltip("Status after the first Delete press (the button stays armed).")]
-        string confirmDeleteQuestion = "Delete this ghost?";
+        [SerializeField, Tooltip("Question of Delete. {0} = the ghost's time.")]
+        string confirmDeleteQuestion = "Delete the ghost {0}?";
+        [SerializeField, Tooltip("Confirm button text of the delete question.")]
+        string deleteText = "Delete";
         [SerializeField, Tooltip("Status after deleting.")]
         string deletedText = "Ghost deleted.";
 
@@ -42,8 +44,7 @@ namespace MHK.UI
         Difficulty attemptClass;
         VisualElement ghostList, selectedRow;
         Label ghostsTitle, status;
-        Button play, armedDelete;
-        GhostEntry pendingDelete;
+        Button play;
 
         static SaveData Save => GameRoot.Instance.Save;
 
@@ -53,7 +54,6 @@ namespace MHK.UI
             ghostsTitle = Q<Label>("ghosts-title");
             status = Q<Label>("ghost-status");
             play = OnClick("play", Play, click: false);
-            pendingDelete = null;
             SetStatus("");
             BindPlayerName();
             OnClick("reload", () => ImportNow(true));
@@ -69,8 +69,7 @@ namespace MHK.UI
             GameRoot.Instance.SaveSettings();
             ghostList = selectedRow = null;
             ghostsTitle = status = null;
-            play = armedDelete = null;
-            pendingDelete = null;
+            play = null;
         }
 
         protected override void OnImported(int imported, int failed)
@@ -159,7 +158,6 @@ namespace MHK.UI
             row.AddToClassList("selected");
             if (trackId != shownTrackId) SetStatus("");
             shownTrackId = trackId;
-            DisarmDelete();
             FillGhosts();
         }
 
@@ -199,7 +197,8 @@ namespace MHK.UI
             delete.clicked += () =>
             {
                 Click();
-                Delete(entry, delete);
+                var time = row.Q<Label>("ghost-time")?.text;
+                ConfirmPrompt.Show(delete, string.Format(confirmDeleteQuestion, time), deleteText, () => Delete(entry));
             };
             return true;
         }
@@ -207,29 +206,12 @@ namespace MHK.UI
         static Difficulty ClassOf(GhostEntry e) =>
             (Difficulty)Mathf.Clamp(e.header.engineClass, 0, Mathf.Max(0, GameRoot.Instance.Config.difficulties.Length - 1));
 
-        void Delete(GhostEntry entry, Button button)
+        void Delete(GhostEntry entry)
         {
-            if (pendingDelete != entry)
-            {
-                DisarmDelete();
-                pendingDelete = entry;
-                armedDelete = button;
-                button.AddToClassList("armed");
-                SetStatus(confirmDeleteQuestion);
-                return;
-            }
             Store.Delete(entry);
-            DisarmDelete();
             SetStatus(deletedText);
             FillGhosts();
             FocusLater(selectedRow);
-        }
-
-        void DisarmDelete()
-        {
-            armedDelete?.RemoveFromClassList("armed");
-            armedDelete = null;
-            pendingDelete = null;
         }
 
         void Watch(GhostEntry entry)

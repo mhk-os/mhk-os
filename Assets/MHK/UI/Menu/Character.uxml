@@ -42,15 +42,15 @@
                             <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_pumpkin.png" />
                         </ui:Instance>
                         <ui:Instance template="PortraitCard">
-                            <ui:AttributeOverrides element-name="card-title" text="Snowman" />
+                            <ui:AttributeOverrides element-name="card-title" text="Schneemann" />
                             <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_snowman.png" />
                         </ui:Instance>
                         <ui:Instance template="PortraitCard">
-                            <ui:AttributeOverrides element-name="card-title" text="Turtle" />
+                            <ui:AttributeOverrides element-name="card-title" text="Kröt" />
                             <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/character_turtle.png" />
                         </ui:Instance>
                         <ui:Instance template="PortraitCard">
-                            <ui:AttributeOverrides element-name="card-title" text="Monkey" />
+                            <ui:AttributeOverrides element-name="card-title" text="Affe" />
                             <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3.affe_portrait.png" />
                         </ui:Instance>
                         <ui:Instance template="PortraitCard">
@@ -58,7 +58,7 @@
                             <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3.alien_portrait.png" />
                         </ui:Instance>
                         <ui:Instance template="PortraitCard">
-                            <ui:AttributeOverrides element-name="card-title" text="Death" />
+                            <ui:AttributeOverrides element-name="card-title" text="Tod" />
                             <ui:AttributeOverrides element-name="card-image" image="/Assets/MHK/UI/Samples/mhk3.tod_portrait.png" />
                         </ui:Instance>
                     </ui:VisualElement>

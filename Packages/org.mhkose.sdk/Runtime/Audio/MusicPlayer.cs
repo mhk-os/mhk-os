@@ -21,6 +21,7 @@ namespace MHK.Audio
         public const string TrackKeyPrefix = "track:";
         const float RestartThreshold = 3f;
         const float SeekEndMargin = 0.05f;
+        const float FadeOutSeconds = 1f;
 
         [AutoStaticsCleanup] static MusicPlayer instance;
 
@@ -31,9 +32,9 @@ namespace MHK.Audio
         readonly System.Random random = new();
         string key;
         int index = -1;
-        bool shuffle, paused, loading, started, heard;
+        bool shuffle, paused, loading, started, heard, fading;
         float pendingTime;
-        float clipVolume = 1f;
+        float clipVolume = 1f, fade = 1f;
         int failures, version;
         CancellationTokenSource loadCancel;
         Resume menuResume;
@@ -82,9 +83,11 @@ namespace MHK.Audio
         public static IReadOnlyList<string> Order => Instance.order;
         public static bool Paused => instance != null && instance.paused;
         /// <summary>Playback position of the current song in seconds.</summary>
-        public static float Time => instance != null && instance.source.clip != null && !instance.loading ? instance.source.time : 0f;
+        public static float Time => HasClip ? instance.source.time : 0f;
         /// <summary>Length of the current song in seconds, 0 while none is loaded.</summary>
-        public static float Length => instance != null && instance.source.clip != null && !instance.loading ? instance.source.clip.length : 0f;
+        public static float Length => HasClip ? instance.source.clip.length : 0f;
+
+        static bool HasClip => instance != null && instance.index >= 0 && instance.source.clip != null && !instance.loading;
 
         /// <summary>
         /// Plays the main menu playlist (<see cref="MusicLibrary.MenuSongs"/>) at <paramref name="volume"/>: keeps it
@@ -112,7 +115,7 @@ namespace MHK.Audio
             else p.Open(MenuKey, menu, shuffled, volume, null, 0, 0f);
         }
 
-        /// <summary>Plays the playlist of <paramref name="track"/> (<see cref="MusicLibrary.TrackSongs"/>) at the track's music volume.</summary>
+        /// <summary>Plays the playlist of <paramref name="track"/> (<see cref="MusicLibrary.TrackSongs"/>) at the track's music volume (an empty one fades the music out).</summary>
         public static void PlayTrack(TrackDefinition track)
         {
             if (track == null) return;
@@ -123,7 +126,7 @@ namespace MHK.Audio
         /// <summary>
         /// Plays <paramref name="playlist"/> under <paramref name="playlistKey"/> from song <paramref name="start"/> (an
         /// index into the playlist) at <paramref name="volume"/>. Without a start the playlist that already plays under
-        /// the same key keeps playing (an edited one from its current song).
+        /// the same key keeps playing (an edited one from its current song). An empty playlist fades the music out.
         /// </summary>
         public static void Play(string playlistKey, IReadOnlyList<string> playlist, bool shuffled, float volume, int start = -1)
         {
@@ -186,7 +189,7 @@ namespace MHK.Audio
         {
             if (key == MenuKey && playlistKey != MenuKey) Remember();
             if (playlistKey == MenuKey) menuResume = null;
-            Halt();
+            Halt(playlist.Count == 0);
             key = playlistKey;
             shuffle = shuffled;
             clipVolume = volume;
@@ -232,7 +235,7 @@ namespace MHK.Audio
             if (order.Count == 0)
             {
                 var keep = key;
-                Halt();
+                Halt(true);
                 key = keep;
                 return;
             }
@@ -255,18 +258,35 @@ namespace MHK.Audio
             menuResume.time = started ? source.time : pendingTime;
         }
 
-        void Halt()
+        // Stops at once, or lets a song that plays fade out (Update ends it).
+        void Halt(bool fadeOut = false)
         {
             loadCancel?.Cancel();
             loadCancel = null;
-            source.Stop();
-            source.clip = null;
+            fading = fadeOut && (fading || started && !paused && source.isPlaying);
+            if (!fading) EndClip();
             songs.Clear();
             order.Clear();
             index = -1;
             key = null;
             paused = loading = started = false;
             failures = 0;
+        }
+
+        void EndClip()
+        {
+            fading = false;
+            fade = 1f;
+            source.Stop();
+            source.clip = null;
+            ApplyVolume();
+        }
+
+        void FadeStep()
+        {
+            fade -= UnityEngine.Time.unscaledDeltaTime / FadeOutSeconds;
+            if (fade <= 0f) EndClip();
+            else ApplyVolume();
         }
 
         void Advance(int step)
@@ -294,7 +314,7 @@ namespace MHK.Audio
         void ApplyVolume()
         {
             var root = GameRoot.Instance;
-            source.volume = Mathf.Clamp01(clipVolume * root.Config.musicMixGain * root.Settings.musicVolume * root.Settings.masterVolume);
+            source.volume = fade * Mathf.Clamp01(clipVolume * root.Config.musicMixGain * root.Settings.musicVolume * root.Settings.masterVolume);
         }
 
         async void Load(float time)
@@ -305,6 +325,7 @@ namespace MHK.Audio
             var path = order[index];
             loading = true;
             started = false;
+            if (fading) EndClip();
             source.Stop();
             version++;
             AudioClip clip = null;
@@ -354,6 +375,7 @@ namespace MHK.Audio
         // A song has ended once it was heard playing and stopped (a streamed clip may start a few frames late).
         void Update()
         {
+            if (fading) FadeStep();
             if (index < 0 || loading || paused || !started || source.loop || AudioListener.pause) return;
             if (source.isPlaying) heard = true;
             else if (heard || source.clip.loadState == AudioDataLoadState.Failed) Advance(1);

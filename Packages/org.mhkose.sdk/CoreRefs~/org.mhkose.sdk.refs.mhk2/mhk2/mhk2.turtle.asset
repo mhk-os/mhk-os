@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: mhk2.turtle
   m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.CharacterDefinition
   id: mhk2.turtle
-  displayName: Turtle
+  displayName: Kröt
   sourceGame: 
   icon: {fileID: 0}
   hidden: 0

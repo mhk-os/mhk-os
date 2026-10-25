@@ -47,6 +47,8 @@ namespace MHK.UI
         float rowStep = 0.012f;
         [SerializeField, Tooltip("Entry animation delay of the first row, seconds.")]
         float rowFirst = 0.12f;
+        [SerializeField, Tooltip("Question of Defaults, and its confirm button text.")]
+        string resetQuestion = "Set the item odds back to the defaults?", resetText = "Reset";
 
         readonly List<PowerupOdds> odds = new();
         readonly List<PowerupOdds> defaults = new();
@@ -76,7 +78,7 @@ namespace MHK.UI
             list.RegisterCallback<NavigationMoveEvent>(OnNavigate);
             list.RegisterCallback<NavigationSubmitEvent>(OnSubmit);
             Q<VisualElement>("footer").RegisterCallback<NavigationMoveEvent>(OnFooterNavigate);
-            OnClick("reset", ResetToDefaults);
+            OnClick("reset", () => ConfirmPrompt.Show(Q<Button>("reset"), resetQuestion, resetText, ResetToDefaults));
             footerTarget = OnClick("all-off", AllOff);
             FocusTarget = rows.Count > 0 ? rows[0].element : null;
             Refresh();

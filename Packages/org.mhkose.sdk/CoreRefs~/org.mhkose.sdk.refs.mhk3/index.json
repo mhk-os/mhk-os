@@ -13,7 +13,7 @@
             "pack": "mhk3",
             "guid": "4c23a8112aca94d369c443ba67068593",
             "fileId": 11400000,
-            "displayName": "Monkey"
+            "displayName": "Affe"
         },
         {
             "id": "mhk3.alien",
@@ -29,7 +29,7 @@
             "pack": "mhk3",
             "guid": "4212362faf76d4830b1c872b3892f89b",
             "fileId": 11400000,
-            "displayName": "Death"
+            "displayName": "Tod"
         },
         {
             "id": "mhk3.stone_age",
@@ -286,6 +286,22 @@
             "guid": "82699a9f29abd486489b25ebd0bc9709",
             "fileId": 11400000,
             "displayName": "Light Blue Kart"
+        },
+        {
+            "id": "mhk3.ghost_ride",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhk3",
+            "guid": "4d12065b6a8b51b0a0b8e0741980fdcf",
+            "fileId": 11400000,
+            "displayName": "Ghost Ride"
+        },
+        {
+            "id": "mhk3.buff.ghost_ride",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk3",
+            "guid": "45c955e709e051d0ab63ef74a7c2e740",
+            "fileId": 11400000,
+            "displayName": "Ghost ride"
         }
     ]
 }

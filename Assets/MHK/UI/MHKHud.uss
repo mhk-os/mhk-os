@@ -9,10 +9,11 @@
  * here, code sets them inline at runtime. The preview-* classes, never added by code, show those states when added to
  * the root of RaceHud.uxml / Results.uxml in UI Builder (see the comment at the top of each UXML), and
  * TemplateContainer.sample-* give a row sample in Results.uxml the look code gives a cloned row (.gold, .me, ...).
- * .hud.intro hides the .hud-widget elements until the countdown starts (RaceHud removes it, they fly in).
+ * .hud.intro hides the .hud-widget elements until the countdown starts (RaceHud removes it, they fly in). Widgets that
+ * fill the HUD (.hud-fill) only carry that fly-in: HudLayout moves and scales the element inside (UI Layout screen).
  * .preview-item shows a bundled powerup icon by asset path, update it if that content moves. */
 
-.hud, .hud-overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.hud, .hud-overlay, .hud-fill { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 
 .hud-widget {
     transition-property: opacity, translate;
@@ -144,8 +145,8 @@
     margin: 0;
     white-space: nowrap;
 }
-.panel.hud-replay.hud-widget { position: absolute; left: 22px; top: 16px; padding: 10px 22px 14px 16px; align-items: center; display: none; background-color: var(--mhk-glass-dark-lite-fill); border-color: var(--mhk-glass-dark-rim); }
-.preview-replay .panel.hud-replay.hud-widget { display: flex; }
+.panel.hud-replay { position: absolute; left: 22px; top: 16px; padding: 10px 22px 14px 16px; align-items: center; display: none; background-color: var(--mhk-glass-dark-lite-fill); border-color: var(--mhk-glass-dark-rim); }
+.preview-replay .panel.hud-replay { display: flex; }
 .icon.hud-replay-icon { width: 40px; height: 40px; margin-right: 12px; -unity-background-image-tint-color: var(--mhk-white); }
 .hud-replay-caption {
     -unity-font-definition: var(--font-display);
@@ -275,7 +276,7 @@
 .hud-minimap-dot { position: absolute; left: 0; top: 0; border-radius: 50%; }
 
 .hud-countdown { position: absolute; left: 0; right: 0; top: 12%; height: 380px; align-items: center; justify-content: center; }
-.sunburst.hud-countdown-burst { left: 50%; top: -190px; width: 760px; height: 760px; margin-left: -380px; border-radius: 380px; opacity: 0; }
+.sunburst.hud-countdown-burst { left: 50%; top: 50%; width: 760px; height: 760px; margin-left: -380px; margin-top: -380px; border-radius: 380px; opacity: 0; }
 .hud-countdown-num {
     -unity-font-definition: var(--font-display);
     font-size: 250px;
@@ -376,22 +377,6 @@
 .hud-pause-title { margin-bottom: 22px; }
 .panel.hud-pause-panel { min-width: 560px; align-items: stretch; padding: 26px 34px 30px 34px; }
 .hud-pause-panel .mhk-button { margin: 5px 0; }
-.hud-pause-setting {
-    margin-top: 16px;
-    padding: 8px 14px;
-    border-radius: 12px;
-    background-color: var(--mhk-row);
-}
-.icon.hud-pause-setting-icon { width: 28px; height: 28px; margin-right: 10px; -unity-background-image-tint-color: var(--mhk-gray-600); }
-.hud-pause-slider { flex-grow: 1; margin: 0; }
-.hud-pause-slider .unity-base-slider__label { min-width: 170px; }
-.hud-pause-value {
-    width: 64px;
-    -unity-font-definition: var(--font-bold);
-    font-size: 21px;
-    color: var(--mhk-gray-900);
-    -unity-text-align: middle-right;
-}
 
 /* Replay controls (Replay.uxml): a dark glass bar at the bottom centre between the speedometer and the minimap. The bar
  * fades out and drops a little (.replay-hidden) after a few seconds without input. Fill and knob are placed in percent. */
@@ -567,11 +552,11 @@ TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
     -unity-text-align: middle-center;
 }
 
-/* Touch controls. The default layout (TouchLayoutSettings) ends the steering buttons 190px and the right-hand buttons
+/* Touch controls. The default layout (UiLayoutSettings) ends the steering buttons 190px and the right-hand buttons
  * 330px above the bottom edge, so with touch controls (.touch on the speedometer and the minimap) those two move above
- * them (Minimap fits its height between its bottom offset and the lap text). Keep them in step. Code places and sizes
- * every control inline. Buttons are dark glass discs with a white rim (throttle and item white), pressed ones take the
- * accent. Joystick and wheel keep their glass and show the accent on the rim, the knob and the wheel. */
+ * them by default (Minimap fits its height between its bottom offset and the lap text). Keep them in step. Code places
+ * and sizes every control inline. Buttons are dark glass discs with a white rim (throttle and item white), pressed ones
+ * take the accent. Joystick and wheel keep their glass and show the accent on the rim, the knob and the wheel. */
 .hud-speedo.touch { left: 34px; bottom: 204px; width: 190px; height: 190px; }
 .hud-minimap.touch { right: 24px; bottom: 350px; }
 .touch-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }

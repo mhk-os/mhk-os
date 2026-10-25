@@ -540,6 +540,8 @@ MonoBehaviour:
   repeatMs: {x: 400, y: 70}
   rowStep: 0.012
   rowFirst: 0.12
+  resetQuestion: Set the item odds back to the defaults?
+  resetText: Reset
 --- !u!1931382934 &674734893
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -1056,6 +1058,7 @@ GameObject:
   - component: {fileID: 1200802805}
   - component: {fileID: 1200802804}
   - component: {fileID: 1200802807}
+  - component: {fileID: 1200802808}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: Untagged
@@ -1160,6 +1163,50 @@ MonoBehaviour:
   spinDegreesPerSecond: 14
   turntableBase: {x: 0, y: -0.55, z: -1.15}
   turntableExtent: {x: 3.2, y: 2.4}
+--- !u!114 &1200802808
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1200802803}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
 --- !u!1 &1206494616
 GameObject:
   m_ObjectHideFlags: 0
@@ -1218,6 +1265,8 @@ MonoBehaviour:
     installing: Installing
     needsNewerGame: Needs a newer game
     needsNewerGameTip: The newest release was made for a newer version of the game. Update the game to get it.
+    needsModUpdate: Made for an older game
+    needsModUpdateTip: The newest release was made for an older version of the game. Ask its author for an update.
     noRelease: No release
     noReleaseTip: The repository has no mod release yet.
     offline: Offline
@@ -1227,6 +1276,7 @@ MonoBehaviour:
     latestFormat: Latest {0}
     separator: ' | '
     megabytesFormat: '{0} MB'
+    kilobytesFormat: '{0} KB'
   installedText: Installed
   readyFormat: '{0} mods | {1}'
   readyNoSizeFormat: '{0} mods'
@@ -1237,6 +1287,9 @@ MonoBehaviour:
   unavailableLine: No downloads available yet.
   downloadAllText: Download All
   retryText: Retry
+  rowDownloadText: Download
+  rowRetryText: Retry
+  rowInstalledText: Installed
   rowStep: 0.06
   rowFirst: 0.12
 --- !u!1931382934 &1206494619
@@ -1309,7 +1362,7 @@ GameObject:
   - component: {fileID: 1212095897}
   - component: {fileID: 1212095896}
   m_Layer: 0
-  m_Name: TouchLayout
+  m_Name: UiLayout
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1357,9 +1410,32 @@ MonoBehaviour:
   - Horn
   - Joystick
   - Steering Wheel
+  hudNames:
+  - Race Position
+  - Item Slot
+  - Lap
+  - Time
+  - Best Lap
+  - Split Time
+  - Health
+  - Speedometer
+  - Minimap
+  - Replay Info
+  - Countdown
+  - Final Lap
+  - Wrong Way
+  - Messages
   hudMock: {fileID: 9197481963319205126, guid: 82ef2a7f402b44b829782a6d850830a1, type: 3}
   hiddenOpacity: 0.3
   wheelScaleStep: 0.05
+  keyStep: 8
+  snapDistance: 8
+  removeFormat: Remove {0} from the race screen?
+  removeLabel: Remove
+  resetMessage: Put every element back to its default place and size?
+  resetLabel: Reset
+  shownText: Shown
+  hiddenText: Hidden
 --- !u!1931382934 &1212095897
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -1637,6 +1713,7 @@ MonoBehaviour:
   exportedFormat: 'Exported: {0}'
   exportFailedText: Export failed (see the log).
   confirmDeleteQuestion: Delete this ghost?
+  deleteText: Delete
   deletedText: Ghost deleted.
 --- !u!1931382934 &1515517136
 PanelRenderer:
@@ -2147,6 +2224,8 @@ MonoBehaviour:
   emptyText: "\u2014"
   numpadPrefix: 'Num '
   menuKeyCooldown: 0.3
+  resetQuestion: Reset every key to its default?
+  resetText: Reset
 --- !u!1931382934 &1807325509
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -2374,6 +2453,8 @@ MonoBehaviour:
     installing: Installing
     needsNewerGame: Needs a newer game
     needsNewerGameTip: The newest release was made for a newer version of the game. Update the game to get it.
+    needsModUpdate: Made for an older game
+    needsModUpdateTip: The newest release was made for an older version of the game. Ask its author for an update.
     noRelease: No release
     noReleaseTip: The repository has no mod release yet.
     offline: Offline
@@ -2383,11 +2464,19 @@ MonoBehaviour:
     latestFormat: Latest {0}
     separator: ' | '
     megabytesFormat: '{0} MB'
+    kilobytesFormat: '{0} KB'
   sourcePlaceholder: github.com/owner/repository
   clipboardEmpty: The clipboard is empty.
   downloadText: Download
   retryText: Retry
   removeTip: Remove
+  removeSourceQuestion: Remove {0} from the list?
+  removeInstalledQuestion: Remove {0}? Keep Files stops its updates and leaves it installed. Delete also deletes its files.
+  removeText: Remove
+  keepFilesText: Keep Files
+  deleteFilesText: Delete
+  githubTip: Opens {0} on GitHub
+  repoUrlFormat: https://github.com/{0}
   nothingToUpdateTip: Everything in this section is up to date.
   updateAllTip: Updates {0} items of this section.
   chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
@@ -2399,6 +2488,11 @@ MonoBehaviour:
   disabledText: Disabled
   missingKartsTip: '{0} drivers have no kart. Enable the pack with their karts.'
   replacedTip: '{0} of its definitions are replaced by mods above it.'
+  needsModUpdateText: Made for an older game version. Ask its author for an update.
+  needsNewerGameText: Made for a newer game version. Update the game.
+  loadFailedText: Could not be loaded. {0}
+  reportTip: Opens the issues page of {0} in the browser to ask its author for an update.
+  issuesUrlFormat: https://github.com/{0}/issues
   modsTab: Mods
   packsTab: Asset Packs
   modsEmpty: No mods found.
@@ -2407,10 +2501,8 @@ MonoBehaviour:
   packsFolderText: Open Asset Pack Folder
   modsReloadTip: Looks for mods added to the mod folder. Also applies the changes above.
   packsReloadTip: Looks for asset packs added to the asset pack folder. Also applies the changes above.
-  modUpTip: Move up. A mod higher in the list replaces content with the same id of the mods below.
-  modDownTip: Move down
-  packUpTip: Move up. A pack higher in the list replaces the same files of the packs below.
-  packDownTip: Move down
+  modMoveTip: Load order. A mod higher in the list replaces content with the same id of the mods below.
+  packMoveTip: Load order. A pack higher in the list replaces the same files of the packs below.
 --- !u!1931382934 &1952376595
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -2571,11 +2663,14 @@ MonoBehaviour:
   variantFormat: ' | {0}'
   addTipFormat: Add to {0}
   alreadyAddedFormat: Already in {0}
-  lastSongTip: A playlist keeps at least one song.
+  removePromptFormat: Remove {0} from {1}?
+  removeConfirm: Remove
   shuffleOnTip: 'Shuffle: on'
   shuffleOffTip: 'Shuffle: off'
   resetTip: Back to the default playlist
   isDefaultTip: This is the default playlist.
+  resetPromptFormat: Reset {0} to the default playlist?
+  resetConfirm: Reset
   pauseTip: Pause
   playTip: Play
 --- !u!1931382934 &2021217553

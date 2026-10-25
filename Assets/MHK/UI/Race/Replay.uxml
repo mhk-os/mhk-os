@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Replay controls (ReplayControls). Code replaces the sample speed chips and lap marks, moves fill and knob, swaps the play icon (i-pause while playing), adds pressed to slow while it is held and .replay-hidden to bar after a few seconds without input. Touch layout: class touch on replay (no camera button, the touch controls have one). -->
+    <!-- Replay controls (ReplayControls). Code replaces the sample speed chips and lap marks, moves fill and knob, swaps the play icon (i-pause while playing), adds pressed to slow while it is held and .replay-hidden to bar after a few seconds without input. Touch controls on: class touch on replay (no camera button, the touch controls have one). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="replay" picking-mode="Ignore" class="replay-root">
         <ui:VisualElement name="bar" class="panel replay-bar">

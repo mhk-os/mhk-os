@@ -110,12 +110,12 @@
                             <ui:VisualElement class="fact-row">
                                 <ui:VisualElement class="icon i-timer" />
                                 <ui:Label text="Best lap" class="fact-caption" />
-                                <ui:Label name="info-best-lap" text="00:30.10 | Death" class="fact-value" />
+                                <ui:Label name="info-best-lap" text="00:30.10 | Tod" class="fact-value" />
                             </ui:VisualElement>
                             <ui:VisualElement class="fact-row">
                                 <ui:VisualElement class="icon i-emoji_events" />
                                 <ui:Label text="Best race" class="fact-caption" />
-                                <ui:Label name="info-best-race" text="01:53.46 | Death" class="fact-value" />
+                                <ui:Label name="info-best-race" text="01:53.46 | Tod" class="fact-value" />
                             </ui:VisualElement>
                         </ui:VisualElement>
                     </ui:VisualElement>

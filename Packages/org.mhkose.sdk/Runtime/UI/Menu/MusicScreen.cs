@@ -11,8 +11,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Music (Music.uxml): every song by game with a player (play, pause, seek, previous, next), and the editors of the
-    /// main menu playlist and of each track's playlist (add, remove, reorder, shuffle, back to the default). Leaving the
-    /// page continues the main menu playlist.
+    /// main menu playlist and of each track's playlist (add, remove, drag to reorder, shuffle, back to the default). An
+    /// emptied playlist plays nothing. Leaving the page continues the main menu playlist.
     /// </summary>
     public partial class MusicScreen : MenuScreen
     {
@@ -36,8 +36,10 @@ namespace MHK.UI
         string addTipFormat = "Add to {0}";
         [SerializeField, Tooltip("Tooltip of the add button of a song that is already in the playlist. {0} = playlist title.")]
         string alreadyAddedFormat = "Already in {0}";
-        [SerializeField, Tooltip("Tooltip of Remove on the only song of a playlist.")]
-        string lastSongTip = "A playlist keeps at least one song.";
+        [SerializeField, Tooltip("Question before a song leaves the playlist. {0} = song title, {1} = playlist title.")]
+        string removePromptFormat = "Remove {0} from {1}?";
+        [SerializeField, Tooltip("Confirm button of the remove question.")]
+        string removeConfirm = "Remove";
         [SerializeField, Tooltip("Tooltip of the shuffle button while it is on.")]
         string shuffleOnTip = "Shuffle: on";
         [SerializeField, Tooltip("Tooltip of the shuffle button while it is off.")]
@@ -46,6 +48,10 @@ namespace MHK.UI
         string resetTip = "Back to the default playlist";
         [SerializeField, Tooltip("Tooltip of the reset button while the playlist is the default one.")]
         string isDefaultTip = "This is the default playlist.";
+        [SerializeField, Tooltip("Question before the reset button replaces the player's playlist. {0} = playlist title.")]
+        string resetPromptFormat = "Reset {0} to the default playlist?";
+        [SerializeField, Tooltip("Confirm button of the reset question.")]
+        string resetConfirm = "Reset";
         [SerializeField, Tooltip("Tooltip of the play button while music plays.")]
         string pauseTip = "Pause";
         [SerializeField, Tooltip("Tooltip of the play button while the music is paused or stopped.")]
@@ -78,10 +84,11 @@ namespace MHK.UI
             playlistTitle = Q<Label>("playlist-title");
             playlistScroll = Q<ScrollView>("playlist-scroll");
             shuffle = OnClick("shuffle", ToggleShuffle);
-            reset = OnClick("reset", ResetPlaylist);
+            reset = OnClick("reset", AskReset);
             KeepRowsInView(Q<ScrollView>("song-scroll"), songList);
             KeepRowsInView(playlistScroll, playlistList);
             KeepRowsInView(Q<ScrollView>("track-scroll"), trackList);
+            DragReorder.Attach(playlistList, "song-drag", MoveSong, playlistScroll);
             songList.RegisterCallback<NavigationMoveEvent>(e => OnListNavigate(e, true));
             playlistList.RegisterCallback<NavigationMoveEvent>(e => OnListNavigate(e, false));
             songList.RegisterCallback<FocusInEvent>(RememberListFocus);
@@ -278,7 +285,7 @@ namespace MHK.UI
         {
             get
             {
-                if (!showTracks) return Settings.menuMusic.Count == 0 && Settings.menuMusicShuffle;
+                if (!showTracks) return Settings.menuMusic.Count == 0 && !Settings.menuMusicEmpty && Settings.menuMusicShuffle;
                 var own = MusicLibrary.TrackSettings(trackId, false);
                 return own == null || own.IsDefault;
             }

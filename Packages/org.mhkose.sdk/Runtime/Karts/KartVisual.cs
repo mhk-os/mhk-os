@@ -225,7 +225,7 @@ namespace MHK.Karts
             UpdateShownSteering(dt);
             UpdateBodyPose(dt);
             PoseWheels(dt);
-            seeThrough.UpdateBurn(view.Burned, dt);
+            seeThrough.UpdateTint(view.Burned, view.ModelTint, dt);
             seeThrough.UpdateFade(view.Opacity, dt);
             seeThrough.UpdateHidden(view.Hidden);
             wheelVisibility.Update(view.WheelsHidden && !view.RaceOver);

@@ -332,7 +332,6 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .ghost-list-records .ghost-driver { margin: 0 8px 0 6px; }
 .ghost-list-records .driver-icon { width: 34px; height: 34px; }
 .ghost-list-records .ghost-class { min-width: 56px; font-size: 20px; }
-.ghost-actions .mhk-button.armed { background-image: url("Textures/button_accent.png"); color: var(--mhk-gray-900); }
 .ghost-empty { margin: 18px 0; display: none; font-size: 18px; color: var(--mhk-gray-500); -unity-text-align: middle-center; }
 .ghosts-panel .ghost-empty { flex-grow: 1; }
 .preview-empty .ghost-empty { display: flex; }
@@ -350,6 +349,10 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .mod-logo.mod-logo-fallback { -unity-background-image-tint-color: var(--mhk-gray-500); }
 .mhk-button.mod-move { margin-left: 8px; }
 .mhk-button.mod-move:disabled { opacity: 0.3; }
+.mhk-button.mod-drag { margin: 0 10px 0 -4px; }
+.mod-drag-space { width: 44px; flex-shrink: 0; margin: 0 10px 0 -4px; }
+.mhk-button.mod-github { visibility: hidden; }
+.mod-row.src-linked .mhk-button.mod-github { visibility: visible; }
 .mod-logo.src-logo { width: 56px; height: 56px; }
 .src-status { flex-direction: row; align-items: center; margin-top: 4px; }
 .src-state { flex-direction: row; align-items: center; flex-shrink: 0; }
@@ -367,26 +370,18 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .src-bar-fill { height: 100%; border-radius: 6px; background-color: var(--mhk-accent); }
 .mhk-button.src-action { min-width: 160px; margin-left: 8px; }
 .src-row.src-no-action .mhk-button.src-action { display: none; }
-.mhk-button.src-confirm-button { display: none; margin-left: 8px; }
-.mod-row.src-confirm .mhk-button.src-confirm-button { display: flex; }
-.mod-row.src-confirm .mhk-button.src-remove, .mod-row.src-confirm .mhk-button.src-action, .mod-row.src-confirm .mhk-button.mod-toggle, .mod-row.src-confirm .mhk-button.mod-move { display: none; }
 .mhk-button.src-row-update { display: none; }
 .mhk-button.src-row-remove { visibility: hidden; }
 .mod-row.src-update .mhk-button.src-row-update { display: flex; margin: 0 8px 0 0; }
 .mod-row.src-managed .mhk-button.src-row-remove { visibility: visible; }
-.mod-row.src-confirm.src-update .mhk-button.src-row-update, .mod-row.src-confirm.src-managed .mhk-button.src-row-remove { display: none; }
 .src-state.mod-problem { flex-shrink: 1; margin-top: 4px; }
 .src-state.mod-problem .src-state-label { flex-shrink: 1; white-space: normal; }
 .mhk-button.mod-report { display: none; margin: 0 8px 0 0; }
 .mod-row.mod-reportable .mhk-button.mod-report { display: flex; }
-.mod-row.src-confirm .mhk-button.mod-report { display: none; }
 .src-tools { flex-direction: row; align-items: center; margin-top: 6px; }
 .src-tools .src-error { flex-grow: 1; flex-shrink: 1; margin-top: 0; }
 .mhk-button.src-tool { margin: 0 0 0 8px; }
 .src-input .unity-base-text-field__input.unity-base-text-field__input--placeholder { color: var(--mhk-gray-400); }
-.mhk-button.src-delete, .mhk-button.src-delete:hover, .mhk-button.src-delete:focus { background-image: url("Textures/button_light.png"); color: var(--mhk-white); -unity-background-image-tint-color: var(--mhk-bad-ink); }
-.mhk-button.src-delete .icon { -unity-background-image-tint-color: var(--mhk-white); }
-.mhk-button.src-delete:hover, .mhk-button.src-delete:focus { border-width: 3px; border-color: var(--mhk-accent); border-radius: 14px; }
 .src-add-bar { margin: 8px 0 6px 0; flex-shrink: 0; }
 .src-add { flex-direction: row; align-items: center; }
 .src-input { flex-grow: 1; flex-shrink: 1; margin: 0; }
@@ -440,22 +435,39 @@ TemplateContainer.sample-shared .odds-tag { display: flex; }
 .odds-row.zero .odds-name, .odds-row.zero .odds-value, TemplateContainer.sample-zero .odds-name, TemplateContainer.sample-zero .odds-value { color: var(--mhk-gray-400); }
 .odds-row.zero .odds-icon, TemplateContainer.sample-zero .odds-icon { opacity: 0.4; }
 
-/* Touch Layout: tl-screen is the race screen at full UI size, scaled down (inline) to fit tl-frame. */
-.page-body.tl-body { align-items: stretch; }
-.tl-frame { flex-grow: 1; flex-shrink: 1; }
-.tl-screen { position: absolute; transform-origin: left top; overflow: hidden; border-radius: 16px; background-color: var(--mhk-gray-900); }
-.tl-fill { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
-.tl-backdrop { -unity-background-scale-mode: scale-and-crop; }
-.panel.tl-side { width: 400px; flex-shrink: 0; margin-left: 18px; padding: 14px 18px 18px 18px; }
-.tl-caption { -unity-font-definition: var(--font-display); font-size: 24px; color: var(--mhk-gray-900); margin: 4px 4px 6px 4px; }
-.tl-palette { flex-direction: row; flex-wrap: wrap; }
-.mhk-button.small.icon-only.tl-add { width: 80px; min-height: 64px; margin: 4px; }
-.mhk-button.tl-add .icon { width: 36px; height: 36px; }
-.tl-picked { margin-top: 18px; }
-.tl-picked .unity-slider { margin: 6px 4px; min-height: 40px; }
-.tl-picked .unity-slider .unity-label { min-width: 120px; }
-.mhk-button.tl-remove { align-self: flex-start; margin-top: 12px; }
-.touch-button.tl-picked-control, .touch-button.accent.tl-picked-control { border-width: 6px; border-color: var(--mhk-accent); }
+/* UI Layout: ul-screen is the race screen at full UI size, scaled down (inline) to fit ul-frame. ul-gizmo lies over it at
+ * the frame's size, so the picked element's frame (ul-box), its handles (ul-handle, placed by code) and the snap guides keep
+ * their size. ul-frame takes the focus for moving with the direction keys (thicker frame). */
+.page-body.ul-body { align-items: stretch; }
+.ul-frame { flex-grow: 1; flex-shrink: 1; }
+.ul-screen { position: absolute; transform-origin: left top; overflow: hidden; border-radius: 16px; background-color: var(--mhk-gray-900); }
+.ul-fill { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.ul-backdrop { -unity-background-scale-mode: scale-and-crop; }
+.ul-box { position: absolute; border-width: 2px; border-color: var(--mhk-accent); border-radius: 4px; }
+.ul-frame:focus .ul-box { border-width: 4px; }
+.ul-handle {
+    position: absolute; width: 18px; height: 18px; margin-left: -9px; margin-top: -9px;
+    border-radius: 4px; border-width: 2px; border-color: var(--mhk-gray-900); background-color: var(--mhk-accent);
+}
+.ul-handle:hover, .ul-handle.dragged { scale: 1.25 1.25; background-color: var(--mhk-white); }
+.ul-guide { position: absolute; background-color: var(--mhk-accent); display: none; }
+.ul-guide-x { width: 2px; margin-left: -1px; }
+.ul-guide-y { height: 2px; margin-top: -1px; }
+.panel.ul-side { width: 420px; flex-shrink: 0; margin-left: 18px; padding: 14px 18px 18px 18px; }
+.ul-caption { -unity-font-definition: var(--font-display); font-size: 24px; color: var(--mhk-gray-900); margin: 4px 4px 6px 4px; }
+.ul-picked-head { align-items: center; }
+.ul-picked-name { flex-grow: 1; flex-shrink: 1; margin: 0 8px; -unity-text-align: middle-center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mhk-button.small.icon-only.ul-step { min-width: 56px; margin: 0; }
+.ul-picked .unity-slider { margin: 6px 4px; min-height: 40px; }
+.ul-picked .unity-slider .unity-label { min-width: 120px; }
+.ul-picked-buttons { margin-top: 10px; align-items: center; }
+.ul-picked-buttons .mhk-button { margin: 0 8px 0 0; }
+.mhk-button.ul-visible { min-width: 150px; }
+.ul-picked-buttons .mhk-button.ul-remove { margin: 0 0 0 auto; }
+.ul-add-caption { margin-top: 20px; }
+.mhk-button.small.ul-add-row { margin: 3px 0; justify-content: flex-start; }
+.mhk-button.ul-add-row .icon { margin-right: 12px; }
+.ul-empty { display: none; margin: 18px 0; font-size: 18px; color: var(--mhk-gray-500); -unity-text-align: middle-center; }
 
 /* Music: library and playlist side by side above the player bar. The track strip shows on the Tracks tab only. */
 .music-main { flex-direction: column; }
@@ -502,7 +514,7 @@ TemplateContainer.sample-shared .odds-tag { display: flex; }
 .panel.music-player { flex-shrink: 0; margin-top: 14px; padding: 10px 22px; }
 .mhk-button.icon-only.music-play { min-width: 76px; min-height: 60px; margin: 0 6px; }
 .music-now { width: 340px; flex-shrink: 1; margin: 0 18px 0 14px; }
-.music-now-title { -unity-font-definition: var(--font-bold); font-size: 22px; color: var(--mhk-gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.music-now-game { font-size: 15px; color: var(--mhk-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-now-title { min-height: 35px; -unity-font-definition: var(--font-bold); font-size: 22px; color: var(--mhk-gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.music-now-game { min-height: 27px; font-size: 15px; color: var(--mhk-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .music-time { width: 76px; flex-shrink: 0; -unity-font-definition: var(--font-bold); font-size: 20px; color: var(--mhk-gray-800); -unity-text-align: middle-center; }
 .music-seek { flex-grow: 1; flex-shrink: 1; margin: 0 8px; min-height: 40px; }

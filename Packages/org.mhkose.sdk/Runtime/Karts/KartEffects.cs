@@ -62,6 +62,8 @@ namespace MHK.Karts
         public float DamageDealtMultiplier => Modifiers.damageDealt;
         public float DamageTakenMultiplier => Modifiers.damageTaken;
         public bool Burned => Modifiers.burned;
+        /// <summary>Strongest <see cref="StatusEffectDefinition.modelTint"/> of the active effects, alpha 0 = none.</summary>
+        public Color ModelTint => Modifiers.modelTint;
         /// <summary>An effect with <see cref="StatusEffectDefinition.hideWheels"/> is active: the model's wheels are not drawn.</summary>
         public bool WheelsHidden => Modifiers.wheelsHidden;
         /// <summary>Strongest body bob of the active effects (<see cref="StatusEffectDefinition.bodyBob"/>), null when none bobs.</summary>

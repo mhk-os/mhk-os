@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: mhk2.snowman
   m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.CharacterDefinition
   id: mhk2.snowman
-  displayName: Snowman
+  displayName: Schneemann
   sourceGame: 
   icon: {fileID: 0}
   hidden: 0

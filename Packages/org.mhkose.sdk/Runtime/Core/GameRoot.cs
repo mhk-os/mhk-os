@@ -84,6 +84,7 @@ namespace MHK.Core
         {
             Settings = JsonStore.Load<UserSettings>(SettingsFile);
             Settings.graphics.Upgrade();
+            if (Settings.uiLayout.NeedsUpgrade) Settings.uiLayout.Upgrade(JsonStore.Load<UiLayoutSettings.Legacy>(SettingsFile));
             commandLineGraphics.Apply(Settings);
             ScreenSetup.ApplyAtStartup(Settings.graphics);
             Save = JsonStore.Load<SaveData>(SaveFile);

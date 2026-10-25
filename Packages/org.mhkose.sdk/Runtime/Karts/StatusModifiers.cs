@@ -15,6 +15,8 @@ namespace MHK.Karts
         public bool controlsLocked, steeringInverted, shielded, burned, frozen, forceThrottle, throttleBlocked, itemUseBlocked;
         public bool ghost, runOver, hidden, wheelsHidden;
         public Color screenOverlay;
+        /// <summary>Strongest <see cref="StatusEffectDefinition.modelTint"/> of the active effects, alpha 0 = none.</summary>
+        public Color modelTint;
         /// <summary>
         /// An effect speeds the kart up (max speed or acceleration multiplier above 1, or a forward impulse), whatever its
         /// speed gate. Arms <see cref="KartPhysicsProfile.boostOverspeedDecay"/>.
@@ -26,6 +28,7 @@ namespace MHK.Karts
         {
             acceleration = 1f, maxSpeed = 1f, steering = 1f, grip = 1f, scale = 1f, gravity = 1f, opacity = 1f,
             verticalScale = 1f, damageDealt = 1f, damageTaken = 1f, screenOverlay = new Color(0, 0, 0, 0),
+            modelTint = new Color(1, 1, 1, 0),
         };
 
         /// <summary>
@@ -53,6 +56,7 @@ namespace MHK.Karts
             steeringInverted |= d.invertSteering;
             shielded |= d.blocksHostileEffects;
             burned |= d.burnVisual;
+            if (d.modelTint.a > modelTint.a) modelTint = d.modelTint;
             wheelsHidden |= d.hideWheels;
             frozen |= d.freezeKart;
             forceThrottle |= d.forceThrottle;

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: mhk3.affe
   m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.CharacterDefinition
   id: mhk3.affe
-  displayName: Monkey
+  displayName: Affe
   sourceGame: 
   icon: {fileID: 0}
   hidden: 0
