@@ -2483,8 +2483,14 @@ MonoBehaviour:
   deleteFilesText: Delete
   githubTip: Opens {0} on GitHub
   repoUrlFormat: https://github.com/{0}
-  nothingToUpdateTip: Everything in this section is up to date.
+  downloadedText: Downloaded
+  downloadedTip: Apply loads it.
+  checkText: Check for Updates
+  checkingText: Checking
+  checkTip: Checks every mod and asset pack for a new release.
+  checkOfflineText: GitHub could not be reached. Check the internet connection.
   updateAllTip: Updates {0} items of this section.
+  updateOneTip: Updates 1 item of this section.
   chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
   rowTemplate: {fileID: 9197481963319205126, guid: 6b1fa202fa46141f4a4f2dba73272b25, type: 3}
   rowStep: 0.06
