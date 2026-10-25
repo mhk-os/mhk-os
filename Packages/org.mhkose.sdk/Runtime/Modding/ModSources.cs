@@ -8,14 +8,19 @@ using UnityEngine;
 namespace MHK.Modding
 {
     /// <summary>
-    /// Mod sources: GitHub repositories whose releases the game installs and keeps up to date, mods (a <c>mod.json</c>
+    /// Mod sources: GitHub repositories whose releases the player installs and updates by hand, mods (a <c>mod.json</c>
     /// asset plus one zip per platform) into the user Mods folder and asset packs (one zip with pack.json, optionally a
-    /// pack.json asset) into the asset pack folder. The base game mods, TINcan Race and the Music Pack are built-in sources.
+    /// pack.json asset) into the asset pack folder. Every source is checked once at game start. Downloads can be paused
+    /// and resumed and never reload content. The base game mods, TINcan Race and the Music Pack are built-in sources.
     /// </summary>
     public static partial class ModSources
     {
-        /// <summary>What the last check found. NeedsNewerGame and NeedsModUpdate: no release has this game's mod API level (<see cref="ModSdk.ApiLevel"/>), the newest is newer or older.</summary>
-        public enum State { Unknown, Checking, NotInstalled, UpToDate, UpdateAvailable, Downloading, Installing, NeedsNewerGame, NoRelease, Offline, Error, NeedsModUpdate }
+        /// <summary>
+        /// What the last check found or what runs. NeedsNewerGame and NeedsModUpdate: no release has this game's mod API
+        /// level (<see cref="ModSdk.ApiLevel"/>), the newest is newer or older. Paused: a download stopped (by <see cref="Pause"/>
+        /// or a lost connection) with its bytes kept, <see cref="InstallAsync"/> or <see cref="Resume"/> continues it.
+        /// </summary>
+        public enum State { Unknown, Checking, NotInstalled, UpToDate, UpdateAvailable, Downloading, Installing, NeedsNewerGame, NoRelease, Offline, Error, NeedsModUpdate, Paused }
 
         /// <summary>What a source publishes, Unknown until the first check of an added source finds out.</summary>
         public enum Kind { Unknown, Mod, AssetPack }
@@ -35,18 +40,18 @@ namespace MHK.Modding
             /// for asset packs the pack.json commit or else the release tag. <see cref="error"/> is a one-line reason (Offline, Error, NoRelease, NeedsNewerGame, NeedsModUpdate).
             /// </summary>
             public string installedCommit, latestCommit, error;
-            /// <summary>Size of the chosen release's zip and the bytes downloaded so far (while Downloading).</summary>
+            /// <summary>Size of the chosen release's zip and the bytes downloaded so far (while Downloading or Paused).</summary>
             public long downloadBytes, downloadedBytes;
             /// <summary>A copy of the pack is installed (a loaded or disabled mod or asset pack, or a folder the game installed).</summary>
             public bool installed;
-            /// <summary>The installed copy came from this source (its folder has source.json): automatic updates apply. False for manual installs.</summary>
+            /// <summary>The installed copy came from this source (its folder has source.json). False for manual installs.</summary>
             public bool managed;
 
             internal Release latest;
             internal bool newestNeedsNewerGame, newestNeedsModUpdate, busy;
             internal int installedSdkBuild;
             internal string installedTag;
-            internal float checkedAt = float.NegativeInfinity;
+            internal CancellationTokenSource pause;
 
             /// <summary>A built-in mod (a base game or TINcan Race), the ones the first start download offers. Built-in asset packs are only listed.</summary>
             public bool BaseMod => builtIn && kind == Kind.Mod;
@@ -67,13 +72,13 @@ namespace MHK.Modding
         };
 
         [AutoStaticsCleanup] static List<Source> sources;
-        [AutoStaticsCleanup] static bool checking, startupCheckRunning;
+        [AutoStaticsCleanup] static bool checking, retried, pendingChanges;
         [AutoStaticsCleanup] static float lastChanged;
 
         /// <summary>State or progress of a source changed, a source was added or removed (main thread).</summary>
         public static event Action Changed;
 
-        /// <summary>Editor only: whether the automatic start-of-game check and update run (MHK ▸ Modding toggle). Set by the editor.</summary>
+        /// <summary>Editor only: whether play mode checks the mod sources at start (MHK ▸ Modding toggle). Set by the editor.</summary>
         [NoAutoStaticsCleanup] public static Func<bool> EditorAutomatic { get; set; }
 
         /// <summary>Editor only: another GitHub API base URL from the editor preferences, empty for GitHub. Set by the editor.</summary>
@@ -82,7 +87,7 @@ namespace MHK.Modding
         /// <summary>Every source in list order: the built-in ones the player kept, then the added ones.</summary>
         public static IReadOnlyList<Source> All => sources ??= LoadSources();
 
-        /// <summary>Whether the automatic check and update run at game start: always in players, in the editor only with the MHK ▸ Modding toggle.</summary>
+        /// <summary>Whether the sources are checked at game start: always in players, in the editor only with the MHK ▸ Modding toggle.</summary>
         public static bool Enabled
         {
             get
@@ -95,18 +100,30 @@ namespace MHK.Modding
             }
         }
 
-        /// <summary>Install compatible updates at game start (<see cref="UserSettings.autoUpdateMods"/>, default on).</summary>
-        public static bool AutoUpdate
+        /// <summary>A check of every source runs (the start check or <see cref="RetryFailedChecks"/>).</summary>
+        public static bool Checking => checking;
+
+        /// <summary>A download or install runs (paused ones do not count).</summary>
+        public static bool AnyDownloading
         {
-            get => Settings == null || Settings.autoUpdateMods;
-            set
+            get
             {
-                if (Settings == null || Settings.autoUpdateMods == value) return;
-                Settings.autoUpdateMods = value;
-                Save();
-                RaiseChanged();
+                foreach (var s in All)
+                    if (s.state is State.Downloading or State.Installing) return true;
+                return false;
             }
         }
+
+        /// <summary>An installed source of <paramref name="kind"/> has an update (UpdateAvailable, or its update download is Paused).</summary>
+        public static bool HasUpdates(Kind kind)
+        {
+            foreach (var s in All)
+                if (s.kind == kind && s.installed && s.state is State.UpdateAvailable or State.Paused) return true;
+            return false;
+        }
+
+        /// <summary>An install, update or deletion finished since the last content load: the Mods page's Apply loads it.</summary>
+        public static bool PendingChanges => pendingChanges;
 
         /// <summary>A built-in mod in the list has no installed pack with its id (enabled or disabled).</summary>
         public static bool BaseGamesMissing
@@ -151,13 +168,13 @@ namespace MHK.Modding
             sources = LoadSources();
             RaiseChanged();
             var root = GameRoot.Instance;
-            if (root != null) CheckQuietlyAsync(Find(repo), null, false, InSession(root.destroyCancellationToken)).LogExceptionsAndForget();
+            if (root != null) CheckQuietlyAsync(Find(repo), null, InSession(root.destroyCancellationToken)).LogExceptionsAndForget();
             return true;
         }
 
         /// <summary>
-        /// Removes <paramref name="repo"/> from the list (a built-in one stays removed until added again). With
-        /// <paramref name="deleteInstalledMod"/> its installed mod folder is deleted too: reload content afterwards.
+        /// Removes <paramref name="repo"/> from the list (a built-in one stays removed until added again) and drops its
+        /// paused download. With <paramref name="deleteInstalledMod"/> its installed folder is deleted too (<see cref="PendingChanges"/>).
         /// </summary>
         public static void Remove(string repo, bool deleteInstalledMod)
         {
@@ -169,43 +186,61 @@ namespace MHK.Modding
             }
             else RemoveIgnoreCase(Settings?.modSources, source.repo);
             Save();
+            source.pause?.Cancel();
+            DeletePartial(source.repo);
             if (deleteInstalledMod) DeleteInstalled(source);
             sources.Remove(source);
             RaiseChanged();
         }
 
-        /// <summary>Checks every source on GitHub for a compatible release (sources being installed are skipped). A running check is joined.</summary>
-        public static Awaitable CheckAsync(CancellationToken ct) => CheckAllAsync(false, InSession(ct));
-
-        // allowCached: a source whose last successful check is younger than GameConfig.modCheckIntervalMinutes is judged
-        // from its cached releases list without a request (the start-of-game check).
-        static async Awaitable CheckAllAsync(bool allowCached, CancellationToken ct)
+        /// <summary>
+        /// Checks again, once per game run, the sources whose start check failed or did not run (Unknown, Offline, Error):
+        /// the Mods page calls it when it opens. Only when <see cref="Enabled"/> and no check runs. True when it started one.
+        /// </summary>
+        public static bool RetryFailedChecks()
         {
-            if (checking)
-            {
-                while (checking) await Awaitable.NextFrameAsync(ct);
-                return;
-            }
+            var root = GameRoot.Instance;
+            if (retried || checking || !Enabled || root == null) return false;
+            var failed = false;
+            foreach (var s in All)
+                failed |= Failed(s);
+            if (!failed) return false;
+            retried = true;
+            CheckAllQuietlyAsync(true, InSession(root.destroyCancellationToken)).LogExceptionsAndForget();
+            return true;
+        }
+
+        static bool Failed(Source s) => !s.busy && s.state is State.Unknown or State.Offline or State.Error;
+
+        // onlyFailed: the retry of the sources whose start check failed.
+        static async Awaitable CheckAllQuietlyAsync(bool onlyFailed, CancellationToken ct)
+        {
+            if (checking) return;
             checking = true;
+            RaiseChanged();
             try
             {
                 var running = new int[1];
                 foreach (var s in All)
-                    if (!s.busy) CheckQuietlyAsync(s, running, allowCached, ct).LogExceptionsAndForget();
+                    if (!s.busy && (!onlyFailed || Failed(s))) CheckQuietlyAsync(s, running, ct).LogExceptionsAndForget();
                 while (running[0] > 0) await Awaitable.NextFrameAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
             }
             finally
             {
                 checking = false;
+                RaiseChanged();
             }
         }
 
-        static async Awaitable CheckQuietlyAsync(Source s, int[] running, bool allowCached, CancellationToken ct)
+        static async Awaitable CheckQuietlyAsync(Source s, int[] running, CancellationToken ct)
         {
             if (running != null) running[0]++;
             try
             {
-                await CheckAsync(s, ct, allowCached);
+                await CheckAsync(s, ct);
             }
             catch (OperationCanceledException)
             {
@@ -217,18 +252,49 @@ namespace MHK.Modding
         }
 
         /// <summary>
-        /// Downloads and installs the latest compatible release of <paramref name="repo"/> (checked again first when the
-        /// last check is older than a minute). True when installed: the caller reloads content (<see cref="SceneFlow.ReloadContent"/>).
+        /// Downloads (continuing a paused download of the same release) and installs the release the start check chose
+        /// for <paramref name="repo"/> (a source without one is checked first). Never reloads content: true when installed,
+        /// the new copy loads at the next content load (<see cref="PendingChanges"/>). False when it failed or was paused.
         /// </summary>
         public static async Awaitable<bool> InstallAsync(string repo, CancellationToken ct)
         {
             var s = Find(repo);
             if (s == null || s.busy || !Application.isPlaying) return false;
             ct = InSession(ct);
-            if (s.latest == null || Time.realtimeSinceStartup - s.checkedAt > RecheckSeconds) await CheckAsync(s, ct);
+            if (s.latest == null) await CheckAsync(s, ct);
             ct.ThrowIfCancellationRequested();
             if (s.latest == null || s.busy) return false;
             return await InstallLatestAsync(s, ct);
+        }
+
+        /// <summary>Pauses the running download of <paramref name="repo"/>: its bytes stay in the cache (state Paused). True when one was paused.</summary>
+        public static bool Pause(string repo)
+        {
+            var s = Find(repo);
+            if (s == null || s.state != State.Downloading || s.pause == null) return false;
+            s.pause.Cancel();
+            return true;
+        }
+
+        /// <summary>Starts <see cref="InstallAsync"/> for <paramref name="repo"/> in the background (continues a paused download). True when it started.</summary>
+        public static bool Resume(string repo)
+        {
+            var s = Find(repo);
+            var root = GameRoot.Instance;
+            if (s == null || s.busy || root == null || !Application.isPlaying) return false;
+            InstallQuietlyAsync(repo, root.destroyCancellationToken).LogExceptionsAndForget();
+            return true;
+        }
+
+        static async Awaitable InstallQuietlyAsync(string repo, CancellationToken ct)
+        {
+            try
+            {
+                await InstallAsync(repo, ct);
+            }
+            catch (OperationCanceledException)
+            {
+            }
         }
 
         // With domain reload off, a check or download still awaiting when play mode ends would otherwise go on in the
@@ -249,82 +315,15 @@ namespace MHK.Modding
         static CancellationToken InSession(CancellationToken ct) => CancellationTokenSource.CreateLinkedTokenSource(ct, session.Token).Token;
 
         /// <summary>
-        /// Game start (called by <see cref="GameRoot"/> once mods are loaded): removes downloads a closed game left behind
-        /// and, when <see cref="Enabled"/>, starts the once-per-start check of every source.
+        /// Game start (called by <see cref="GameRoot"/> once mods are loaded): removes downloads of sources no longer listed
+        /// and, when <see cref="Enabled"/>, starts the one check of every source and of the game (<see cref="GameUpdate"/>).
         /// </summary>
         internal static void Startup(CancellationToken ct)
         {
-            ClearDownloads();
+            PruneDownloads();
             if (!Enabled) return;
-            startupCheckRunning = true;
-            StartupCheckAsync(InSession(ct)).LogExceptionsAndForget();
-        }
-
-        static async Awaitable StartupCheckAsync(CancellationToken ct)
-        {
-            try
-            {
-                await CheckAllAsync(true, ct);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            finally
-            {
-                startupCheckRunning = false;
-            }
-        }
-
-        /// <summary>The start-of-game check still runs.</summary>
-        internal static bool StartupCheckRunning => startupCheckRunning;
-
-        /// <summary>Automatic updates are on and the check found updates of mods or asset packs this game installed (never manual installs).</summary>
-        internal static bool AutoUpdatesDue
-        {
-            get
-            {
-                if (!Enabled || !AutoUpdate) return false;
-                foreach (var s in All)
-                    if (IsDue(s, Kind.Unknown)) return true;
-                return false;
-            }
-        }
-
-        // An update of an install this game made (source.json), of kind (Unknown = any kind).
-        static bool IsDue(Source s, Kind kind) =>
-            s.state == State.UpdateAvailable && s.managed && s.latest != null && !s.busy && (kind == Kind.Unknown || s.kind == kind);
-
-        /// <summary>
-        /// Installs the update of every installed source of <paramref name="kind"/> that has one (installs this game made,
-        /// manual installs are left alone). Returns how many got installed: the caller reloads content (<see cref="SceneFlow.ReloadContent"/>).
-        /// </summary>
-        public static Awaitable<int> UpdateAllAsync(Kind kind, CancellationToken ct) => InstallDueAsync(kind, null, InSession(ct));
-
-        /// <summary>Installs every due automatic update of both kinds, reporting the share of bytes done 0..1. Returns how many got installed.</summary>
-        internal static Awaitable<int> InstallAutoUpdatesAsync(Action<float> progress, CancellationToken ct) => InstallDueAsync(Kind.Unknown, progress, InSession(ct));
-
-        static async Awaitable<int> InstallDueAsync(Kind kind, Action<float> progress, CancellationToken ct)
-        {
-            var due = new List<Source>();
-            long total = 0, done = 0;
-            foreach (var s in All)
-                if (IsDue(s, kind))
-                {
-                    due.Add(s);
-                    total += Math.Max(1, s.downloadBytes);
-                }
-            var installed = 0;
-            foreach (var s in due)
-            {
-                var size = Math.Max(1, s.downloadBytes);
-                var start = done;
-                using (OnChanged(() => progress?.Invoke((float)(start + Math.Min(size, s.downloadedBytes)) / total)))
-                    if (await InstallLatestAsync(s, ct)) installed++;
-                done += size;
-                progress?.Invoke((float)done / total);
-            }
-            Debug.Log($"[ModSources] Updates ({(kind == Kind.Unknown ? "automatic" : kind.ToString())}): {installed} of {due.Count} installed.");
-            return installed;
+            CheckAllQuietlyAsync(false, InSession(ct)).LogExceptionsAndForget();
+            GameUpdate.Check(InSession(ct));
         }
 
         static UserSettings Settings
@@ -399,19 +398,6 @@ namespace MHK.Modding
             if (progressOnly && Time.realtimeSinceStartup - lastChanged < ProgressSeconds) return;
             lastChanged = Time.realtimeSinceStartup;
             Changed?.Invoke();
-        }
-
-        static IDisposable OnChanged(Action action)
-        {
-            Changed += action;
-            return new Unsubscribe(action);
-        }
-
-        sealed class Unsubscribe : IDisposable
-        {
-            readonly Action action;
-            public Unsubscribe(Action action) => this.action = action;
-            public void Dispose() => Changed -= action;
         }
     }
 }

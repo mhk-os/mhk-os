@@ -342,17 +342,15 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .mod-info { flex-grow: 1; flex-shrink: 1; }
 .mod-title { -unity-font-definition: var(--font-display); font-size: 24px; color: var(--mhk-gray-900); }
 .mod-text { font-size: 16px; white-space: normal; color: var(--mhk-gray-600); }
-.mhk-button.mod-toggle { min-width: 150px; background-image: url("Textures/button_light.png"); color: var(--mhk-white); -unity-background-image-tint-color: var(--mhk-good-ink); }
-.mhk-button.mod-toggle.off, TemplateContainer.sample-off .mhk-button.mod-toggle { -unity-background-image-tint-color: var(--mhk-bad-ink); }
-.mhk-button.mod-toggle:hover, .mhk-button.mod-toggle:focus { background-image: url("Textures/button_light.png"); color: var(--mhk-white); border-width: 3px; border-color: var(--mhk-accent); border-radius: 14px; }
 .mods-empty { display: none; margin: 18px 0; -unity-text-align: middle-center; color: var(--mhk-gray-500); }
 .mod-logo.mod-logo-fallback { -unity-background-image-tint-color: var(--mhk-gray-500); }
 .mhk-button.mod-move { margin-left: 8px; }
 .mhk-button.mod-move:disabled { opacity: 0.3; }
-.mhk-button.mod-drag { margin: 0 10px 0 -4px; }
-.mod-drag-space { width: 44px; flex-shrink: 0; margin: 0 10px 0 -4px; }
-.mhk-button.mod-github { visibility: hidden; }
-.mod-row.src-linked .mhk-button.mod-github { visibility: visible; }
+.mod-title-row { flex-direction: row; align-items: center; }
+.mod-title-row .mod-title { flex-shrink: 1; }
+.icon-link.mod-github { display: none; }
+.mod-row.src-linked .icon-link.mod-github { display: flex; }
+.switch-space { width: 72px; flex-shrink: 0; margin-right: 14px; }
 .mod-logo.src-logo { width: 56px; height: 56px; }
 .src-status { flex-direction: row; align-items: center; margin-top: 4px; }
 .src-state { flex-direction: row; align-items: center; flex-shrink: 0; }
@@ -368,6 +366,17 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .src-state.src-bad .src-state-label { color: var(--mhk-bad-ink); }
 .src-bar { flex-grow: 1; max-width: 360px; height: 12px; margin-left: 12px; border-radius: 6px; background-color: var(--mhk-row-hover); overflow: hidden; }
 .src-bar-fill { height: 100%; border-radius: 6px; background-color: var(--mhk-accent); }
+.src-progress { flex-direction: row; align-items: center; flex-grow: 1; }
+.mhk-button.small.icon-only.src-pause { min-width: 44px; min-height: 36px; padding: 2px 8px 4px 8px; margin: 0; }
+.mhk-button.small.icon-only.src-pause .icon { width: 20px; height: 20px; }
+.src-percent { min-width: 54px; margin: 0 0 0 8px; padding: 0; font-size: 16px; color: #9A5A00; -unity-text-align: middle-right; }
+.src-progress .src-bar { margin-left: 8px; }
+.notify-dot { position: absolute; top: -5px; right: -5px; width: 16px; height: 16px; border-radius: 8px; border-width: 2px; border-color: var(--mhk-white); background-color: var(--mhk-bad); display: none; }
+.notify-dot.on { display: flex; }
+.notify-dot.downloading { background-color: #2F7DE1; }
+.chip.notify-update { background-image: url("Icons/dot.png"); background-size: 12px 12px; background-repeat: no-repeat no-repeat; background-position-x: right 4px; background-position-y: top 3px; -unity-background-image-tint-color: var(--mhk-bad); }
+.page-footer .mhk-button.small.title-update { margin-left: 18px; font-size: 20px; min-height: 44px; padding: 2px 18px 6px 18px; }
+.page-footer .mhk-button.small.title-update .icon { width: 24px; height: 24px; margin-right: 8px; }
 .mhk-button.src-action { min-width: 160px; margin-left: 8px; }
 .src-row.src-no-action .mhk-button.src-action { display: none; }
 .mhk-button.src-row-update { display: none; }
@@ -391,8 +400,6 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .src-error { flex-direction: row; align-items: center; }
 .src-error .icon { width: 22px; height: 22px; margin-right: 6px; -unity-background-image-tint-color: var(--mhk-bad-ink); }
 .src-error-label { font-size: 17px; padding: 0; margin: 0; color: var(--mhk-bad-ink); }
-.mhk-button.mod-toggle.src-auto { min-width: 0; }
-.mhk-button.mod-toggle.src-auto .icon { -unity-background-image-tint-color: var(--mhk-white); }
 .list-panel.base-panel { max-width: 900px; }
 .base-size { min-width: 100px; font-size: 18px; color: var(--mhk-gray-600); -unity-text-align: middle-right; }
 .base-total-row { flex-direction: row; align-items: center; flex-shrink: 0; margin-top: 10px; padding: 6px 12px; }
@@ -500,6 +507,7 @@ TemplateContainer.sample-shared .odds-tag { display: flex; }
 .song-actions { flex-shrink: 0; margin-left: 4px; }
 .song-list-library .song-edit, .song-list-playlist .song-add { display: none; }
 .song-actions .mhk-button.small.icon-only { min-height: 40px; margin: 2px; }
+.drag-handle.song-drag { height: 44px; margin: 0 0 0 2px; }
 .tabs.music-tabs { margin-bottom: 6px; }
 .music-track-scroll { display: none; flex-shrink: 0; margin-bottom: 4px; }
 .preview-tracks .music-track-scroll { display: flex; }

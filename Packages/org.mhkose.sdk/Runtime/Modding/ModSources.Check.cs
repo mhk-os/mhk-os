@@ -12,40 +12,30 @@ namespace MHK.Modding
     {
         /// <summary>The release description every mod release carries, kept in the installed mod folder too.</summary>
         public const string ManifestFile = "mod.json";
-        /// <summary>Repository and release tag of a mod this game installed. Folders without it are manual installs and never updated automatically.</summary>
+        /// <summary>Repository and release tag of a mod or asset pack this game installed. Folders without it are manual installs.</summary>
         public const string SourceFile = "source.json";
 
-        const float RecheckSeconds = 60f;
         const float ProgressSeconds = 0.1f;
         const int MaxErrorLength = 120;
-
-        static TimeSpan CheckInterval
-        {
-            get
-            {
-                var root = GameRoot.Instance;
-                return TimeSpan.FromMinutes(root != null && root.Config != null ? root.Config.modCheckIntervalMinutes : 60f);
-            }
-        }
 
         /// <summary>A compatible release: its zip for this platform, mod.json of a mod, pack.json (when published) of an asset pack.</summary>
         internal sealed class Release
         {
             public Kind kind;
-            public string tag, commit, manifestJson, zipUrl;
+            public string tag, commit, manifestJson, zipUrl, zipName;
             public ModManifest manifest;
             public PackManifest pack;
             public long zipId, zipSize;
         }
 
         /// <summary>A check or install failed: the state to show and a one-line reason.</summary>
-        sealed class SourceException : Exception
+        internal sealed class SourceException : Exception
         {
             public readonly State state;
             public SourceException(State state, string message) : base(message) => this.state = state;
         }
 
-        static async Awaitable CheckAsync(Source s, CancellationToken ct, bool allowCached = false)
+        static async Awaitable CheckAsync(Source s, CancellationToken ct)
         {
             if (s == null || s.busy) return;
             s.busy = true;
@@ -53,18 +43,13 @@ namespace MHK.Modding
             try
             {
                 var cache = RepoCache.Load(s.repo);
-                var cached = allowCached && cache.IsFresh(CheckInterval);
-                if (cached && cache.missing) throw NotFound();
-                var releases = cached ? ParseReleases(cache.body) : await FetchReleasesAsync(s.repo, cache, ct);
-                if (!cached) cache.checkedUtc = DateTime.UtcNow.Ticks;
+                var releases = await FetchReleasesAsync(s.repo, cache, ct);
                 await ChooseAsync(s, releases, cache, ct);
                 cache.Remember(s);
                 cache.Save(s.repo);
-                s.checkedAt = Time.realtimeSinceStartup;
                 RefreshInstalled(s);
                 SetEvaluated(s);
-                Debug.Log($"[ModSources] {s.repo}: {s.state}, installed {s.installedCommit ?? "none"}, latest {s.latestCommit ?? "none"}" +
-                          (cached ? " (cached, checked within the interval)." : "."));
+                Debug.Log($"[ModSources] {s.repo}: {s.state}, installed {s.installedCommit ?? "none"}, latest {s.latestCommit ?? "none"}.");
             }
             catch (SourceException e)
             {
@@ -123,7 +108,7 @@ namespace MHK.Modding
                 s.latest = new Release
                 {
                     kind = Kind.Mod, tag = rel.tag_name, commit = manifest.commit, manifest = manifest, manifestJson = json,
-                    zipUrl = zip.browser_download_url, zipId = zip.id, zipSize = zip.size,
+                    zipUrl = zip.browser_download_url, zipName = zip.name, zipId = zip.id, zipSize = zip.size,
                 };
             }
             cache.manifests.RemoveAll(m => !keep.Contains(m.assetId));
@@ -140,18 +125,22 @@ namespace MHK.Modding
             if (description != null) s.description = description;
         }
 
+        // A kept partial download of the release to install makes the source Paused.
         static State Evaluate(Source s)
         {
             if (s.latest == null)
                 return s.newestNeedsNewerGame ? State.NeedsNewerGame : s.newestNeedsModUpdate ? State.NeedsModUpdate : State.NoRelease;
+            var current = s.installed && IsInstalled(s, s.latest);
+            if (!current && PartialBytes(s) > 0) return State.Paused;
             if (!s.installed) return State.NotInstalled;
-            if (!IsInstalled(s, s.latest)) return State.UpdateAvailable;
+            if (!current) return State.UpdateAvailable;
             return s.newestNeedsNewerGame ? State.NeedsNewerGame : State.UpToDate;
         }
 
         static void SetEvaluated(Source s)
         {
             var state = Evaluate(s);
+            s.downloadedBytes = state == State.Paused ? PartialBytes(s) : 0;
             SetState(s, state, state switch
             {
                 State.NoRelease => "No release for this platform yet.",

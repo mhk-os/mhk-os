@@ -1,34 +1,22 @@
 using System;
 using MHK.Core;
 using MHK.Modding;
-using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 
 namespace MHK.UI
 {
     /// <summary>
-    /// Mod source checks and downloads started from the menu. They keep running when their screen closes, the content
-    /// reload that loads the new mods waits until the last download finished (<see cref="ReloadIfPending"/>).
+    /// Mod and asset pack downloads started from the menu. They keep running when their screen closes and never reload
+    /// content: the Mods page's Apply (or the first start screen's Continue) loads them (<see cref="ModSources.PendingChanges"/>).
     /// </summary>
-    public static partial class ModInstalls
+    public static class ModInstalls
     {
-        [AutoStaticsCleanup] static int running;
-        [AutoStaticsCleanup] static bool reloadPending;
-
-        /// <summary>True while a download started here runs.</summary>
-        public static bool Running => running > 0;
-
-        /// <summary>Installed or deleted mods wait for a content reload and no download runs.</summary>
-        public static bool ReloadPending => reloadPending && running == 0;
-
-        /// <summary>Installs the latest compatible release of <paramref name="repo"/>. False when it failed (the source's state tells why).</summary>
+        /// <summary>Installs the latest compatible release of <paramref name="repo"/>. False when it failed or was paused (the source's state tells which).</summary>
         public static async Awaitable<bool> InstallAsync(string repo)
         {
-            running++;
-            var installed = false;
             try
             {
-                installed = await ModSources.InstallAsync(repo, GameRoot.Instance.destroyCancellationToken);
+                return await ModSources.InstallAsync(repo, GameRoot.Instance.destroyCancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -37,40 +25,14 @@ namespace MHK.UI
             {
                 Debug.LogException(e);
             }
-            finally
-            {
-                running--;
-            }
-            reloadPending |= installed;
-            return installed;
+            return false;
         }
 
-        /// <summary>Content changed on disk outside a download (a deleted mod): the next <see cref="ReloadIfPending"/> reloads.</summary>
-        public static void MarkChanged() => reloadPending = true;
-
-        /// <summary>Reloads content (<see cref="SceneFlow.ReloadContent"/>) when <see cref="ReloadPending"/>. True when it started.</summary>
-        public static bool ReloadIfPending()
+        /// <summary>Saves the settings and reloads content behind the loading screen (<see cref="SceneFlow.ReloadContent"/>).</summary>
+        public static void ReloadContent()
         {
-            if (!ReloadPending || SceneFlow.Busy) return false;
-            reloadPending = false;
+            GameRoot.Instance.SaveSettings();
             SceneFlow.ReloadContent();
-            return true;
-        }
-
-        /// <summary>Checks every source for updates in the background.</summary>
-        public static async void Check()
-        {
-            try
-            {
-                await ModSources.CheckAsync(GameRoot.Instance.destroyCancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (Exception e)
-            {
-                Debug.LogException(e);
-            }
         }
     }
 }

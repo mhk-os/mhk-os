@@ -1,28 +1,37 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One mod source (a GitHub repository) not installed yet. The space on the left lines it up with the rows' reorder handles. Code sets the title, the details line (repository | installed | latest commit), the state (icon, text, colour class src-good, src-accent, src-bad or src-muted, tooltip), the progress bar fill width while downloading, the action button (Download or Retry, hidden otherwise), the GitHub button's tooltip and Remove, which asks first (ConfirmPrompt). -->
+    <!-- One mod source (a GitHub repository) not installed yet. The spaces on the left line it up with the installed rows' handle and switch. Code sets the title (src-github after it opens the repository, tooltip names it), the details line (repository | installed | latest commit), the state (icon, text, colour class src-good, src-accent, src-bad or src-muted, tooltip), the download bar while it downloads or is paused (pause or resume, percent, bar, the state hides meanwhile), the action button (Download or Retry, hidden otherwise) and Remove, which asks first (ConfirmPrompt). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="mod-row src-row src-linked">
-        <ui:VisualElement class="mod-drag-space" />
+        <ui:VisualElement class="drag-space" />
+        <ui:VisualElement class="switch-space" />
         <ui:VisualElement name="src-logo" class="mod-logo mod-logo-fallback src-logo i-extension" />
         <ui:VisualElement class="mod-info">
-            <ui:Label name="src-title" text="TINcan Race" class="mod-title" />
+            <ui:VisualElement class="mod-title-row">
+                <ui:Label name="src-title" text="TINcan Race" class="mod-title" />
+                <ui:Button name="src-github" class="icon-link mod-github">
+                    <ui:VisualElement class="icon i-github" picking-mode="Ignore" />
+                </ui:Button>
+            </ui:VisualElement>
             <ui:Label name="src-details" text="mhk-os/tincan-mod | Installed 4b69b07 | Latest 9c1d2e3" class="mod-text" />
             <ui:VisualElement class="src-status">
                 <ui:VisualElement name="src-state" class="src-state src-accent">
                     <ui:VisualElement class="icon i-update" />
                     <ui:Label text="Update available" class="src-state-label" />
                 </ui:VisualElement>
-                <ui:VisualElement name="src-bar" class="src-bar" style="display: none;">
-                    <ui:VisualElement class="src-bar-fill" style="width: 40%;" />
+                <ui:VisualElement name="src-progress" class="src-progress" style="display: none;">
+                    <ui:Button name="src-pause" tooltip="Pause" class="mhk-button small secondary icon-only src-pause">
+                        <ui:VisualElement class="icon i-pause" />
+                    </ui:Button>
+                    <ui:Label text="40 %" class="src-percent" />
+                    <ui:VisualElement class="src-bar">
+                        <ui:VisualElement class="src-bar-fill" style="width: 40%;" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:Button name="src-action" class="mhk-button small src-action">
             <ui:VisualElement class="icon i-download" />
             <ui:Label name="src-action-label" text="Update" class="button-label" />
-        </ui:Button>
-        <ui:Button name="src-github" class="mhk-button small secondary icon-only mod-move mod-github">
-            <ui:VisualElement class="icon i-github" />
         </ui:Button>
         <ui:Button name="src-remove" tooltip="Remove" class="mhk-button small icon-only danger mod-move src-remove">
             <ui:VisualElement class="icon i-delete" />

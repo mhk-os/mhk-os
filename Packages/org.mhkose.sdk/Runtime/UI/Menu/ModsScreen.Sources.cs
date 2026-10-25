@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using MHK.Assets;
 using MHK.Core;
 using MHK.Modding;
 using UnityEngine;
@@ -30,13 +31,15 @@ namespace MHK.UI
         [SerializeField, Tooltip("Question of Remove on a source not installed yet. {0} = title or repository.")]
         string removeSourceQuestion = "Remove {0} from the list?";
         [SerializeField, Tooltip("Question of Remove on an installed item. {0} = title.")]
-        string removeInstalledQuestion = "Remove {0}? Keep Files stops its updates and leaves it installed. Delete also deletes its files.";
-        [SerializeField, Tooltip("Button texts of the remove questions: remove from the list, keep the files, delete the files.")]
-        string removeText = "Remove", keepFilesText = "Keep Files", deleteFilesText = "Delete";
-        [SerializeField, Tooltip("Tooltip of the GitHub button. {0} = repository (owner/name).")]
+        string removeInstalledQuestion = "Remove {0}? Its files are deleted.";
+        [SerializeField, Tooltip("Confirm texts of the remove questions: a source not installed yet (leaves the list), an installed item (deletes its files).")]
+        string removeText = "Remove", deleteFilesText = "Delete";
+        [SerializeField, Tooltip("Tooltip of the GitHub link after the title. {0} = repository (owner/name).")]
         string githubTip = "Opens {0} on GitHub";
         [SerializeField, Tooltip("Page the GitHub button opens. {0} = repository (owner/name).")]
         string repoUrlFormat = "https://github.com/{0}";
+        [SerializeField, Tooltip("State of a downloaded item the content has not loaded yet, and its tooltip.")]
+        string downloadedText = "Downloaded", downloadedTip = "Apply loads it.";
         [SerializeField, Tooltip("Tooltip of Update All while nothing in the section has an update.")]
         string nothingToUpdateTip = "Everything in this section is up to date.";
         [SerializeField, Tooltip("Tooltip of Update All. {0} = number of items with an update.")]
@@ -46,7 +49,7 @@ namespace MHK.UI
         string shownSources;
         TextField sourceInput;
         VisualElement sourceError;
-        Button autoUpdate, updateAll;
+        Button updateAll;
 
         /// <summary>Opens the Mods page at its Mods section (the download of the built-in mods and other mods).</summary>
         public static void OpenModsSection(MenuFlow flow)
@@ -65,17 +68,9 @@ namespace MHK.UI
             Q<VisualElement>("source-bar").RegisterCallback<NavigationMoveEvent>(OnSourceBarNavigate);
             OnClick("source-paste", PasteSource);
             OnClick("source-add", AddSource);
-            OnClick("check-updates", ModInstalls.Check);
             updateAll = OnClick("update-all", UpdateAll);
-            autoUpdate = OnClick("auto-update", () =>
-            {
-                ModSources.AutoUpdate = !ModSources.AutoUpdate;
-                GameRoot.Instance.SaveSettings();
-                ShowAutoUpdate();
-            });
-            ShowAutoUpdate();
             ModSources.Changed += OnSourcesChanged;
-            if (ModSources.Enabled && NeedsCheck()) ModInstalls.Check();
+            ModSources.RetryFailedChecks();
         }
 
         void UnbindSources()
@@ -85,16 +80,7 @@ namespace MHK.UI
             shownSources = null;
             sourceInput = null;
             sourceError = null;
-            autoUpdate = null;
             updateAll = null;
-        }
-
-        // Only when nothing was checked yet: the start of the game checks (throttled), the button always does.
-        static bool NeedsCheck()
-        {
-            foreach (var s in ModSources.All)
-                if (s.state != ModSources.State.Unknown) return false;
-            return ModSources.All.Count > 0;
         }
 
         ModSources.Kind SectionKind => section == Section.AssetPacks ? ModSources.Kind.AssetPack : ModSources.Kind.Mod;
@@ -102,26 +88,19 @@ namespace MHK.UI
         // A source belongs to the shown section, or to both while its kind is unknown (before its first check).
         bool InSection(ModSources.Source s) => s.kind == SectionKind || s.kind == ModSources.Kind.Unknown;
 
-        void ShowAutoUpdate()
-        {
-            var on = ModSources.AutoUpdate;
-            autoUpdate.EnableInClassList("on", on);
-            autoUpdate.EnableInClassList("off", !on);
-            autoUpdate.Q("auto-update-icon")?.SetIcon(on ? "check" : "close");
-        }
-
         void ShowTools()
         {
             var count = 0;
             foreach (var s in ModSources.All)
                 if (Updatable(s)) count++;
-            updateAll.SetEnabled(count > 0 && !ModInstalls.Running);
+            updateAll.SetEnabled(count > 0);
             updateAll.tooltip = count > 0 ? string.Format(updateAllTip, count) : nothingToUpdateTip;
+            ShowApply();
         }
 
         bool Updatable(ModSources.Source s) => InSection(s) && s.installed && s.state == ModSources.State.UpdateAvailable;
 
-        VisualElement FirstTool() => updateAll.enabledSelf ? updateAll : Q<Button>("check-updates");
+        VisualElement FirstTool() => updateAll.enabledSelf ? updateAll : sourceInput;
 
         void OnSourceKey(KeyDownEvent e)
         {
@@ -137,7 +116,7 @@ namespace MHK.UI
             var inTools = from.parent != null && from.parent.ClassListContains("src-tools");
             if (e.direction == NavigationMoveEvent.Direction.Up) Navigate(e, from, inTools ? sourceInput : SelectedChip());
             else if (e.direction == NavigationMoveEvent.Direction.Down)
-                Navigate(e, from, !inTools ? FirstTool() : list.childCount > 0 ? FirstRowButton() : null);
+                Navigate(e, from, !inTools && updateAll.enabledSelf ? updateAll : list.childCount > 0 ? FirstRowButton() : null);
         }
 
         void PasteSource()
@@ -177,7 +156,7 @@ namespace MHK.UI
         {
             foreach (var source in ModSources.All)
             {
-                if (source.installed || !InSection(source)) continue;
+                if ((source.installed && Loaded(source)) || !InSection(source)) continue;
                 var row = UiTree.Spawn<VisualElement>(sourceRowTemplate, list);
                 if (row == null) break;
                 BindSourceRow(row, source.repo);
@@ -195,6 +174,20 @@ namespace MHK.UI
             return key.ToString();
         }
 
+        // Installed by the last content load. A download since then shows as a source row until Apply loads it.
+        static bool Loaded(ModSources.Source s)
+        {
+            if (s.kind == ModSources.Kind.AssetPack)
+            {
+                foreach (var p in AssetPacks.Available)
+                    if (string.Equals(p.id, s.packId, StringComparison.OrdinalIgnoreCase)) return true;
+                return false;
+            }
+            foreach (var p in ModLoader.AvailablePacks)
+                if (string.Equals(p.packId, s.packId, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         void BindSourceRow(VisualElement row, string repo)
         {
             row.Q<Button>("src-action").clicked += () =>
@@ -203,6 +196,7 @@ namespace MHK.UI
                 Install(repo);
             };
             BindGitHub(row.Q<Button>("src-github"), repo);
+            ModSourceTexts.BindPause(row.Q("src-progress"), repo, Click);
             BindRemove(row.Q<Button>("src-remove"), repo);
         }
 
@@ -218,6 +212,7 @@ namespace MHK.UI
             BindGitHub(row.Q<Button>("mod-github"), source.repo);
             row.AddToClassList(LinkedClass);
             BindRemove(row.Q<Button>("mod-remove"), source.repo);
+            ModSourceTexts.BindPause(row.Q("mod-progress"), source.repo, Click);
             sourceViews.Add((source.repo, row, true));
             ShowInstalled(row, source);
         }
@@ -254,17 +249,31 @@ namespace MHK.UI
             var details = sourceTexts.Details(source);
             var size = sourceTexts.Size(source.downloadBytes);
             row.SetText("src-details", size != null ? details + sourceTexts.separator + size : details);
-            sourceTexts.ShowState(row.Q("src-state"), source);
-            ModSourceTexts.ShowProgress(row.Q("src-bar"), source);
-            var retry = source.state is ModSources.State.Offline or ModSources.State.Error;
+            var state = row.Q("src-state");
+            sourceTexts.ShowState(state, source);
+            if (source.installed && !ModSourceTexts.InProgress(source)) ShowDownloaded(state);
+            sourceTexts.ShowProgress(row.Q("src-progress"), source);
+            var retry = !source.installed && source.state is ModSources.State.Offline or ModSources.State.Error;
             var action = row.Q<Button>("src-action");
             var remove = row.Q<Button>("src-remove");
-            var shown = retry || source.state is ModSources.State.NotInstalled or ModSources.State.Unknown;
-            if (!shown && action.focusController?.focusedElement == action) remove.Focus();
+            var shown = retry || (!source.installed && source.state is ModSources.State.NotInstalled or ModSources.State.Unknown);
+            if (!shown && action.focusController?.focusedElement == action)
+                (ModSourceTexts.InProgress(source) ? row.Q<Button>("src-pause") : remove).Focus();
             row.EnableInClassList(NoActionClass, !shown);
             row.SetText("src-action-label", retry ? retryText : downloadText);
             action.Q(className: "icon")?.SetIcon(retry ? "replay" : "download");
             remove.SetEnabled(!ModSourceTexts.Busy(source));
+        }
+
+        void ShowDownloaded(VisualElement state)
+        {
+            state.SetText(null, downloadedText);
+            state.Q(className: "icon")?.SetIcon("cloud_done");
+            state.RemoveFromClassList("src-muted");
+            state.RemoveFromClassList("src-accent");
+            state.RemoveFromClassList("src-bad");
+            state.AddToClassList("src-good");
+            state.tooltip = downloadedTip;
         }
 
         // An installed item from a source, once a check told its state: the state with the installed commit, Update and Remove.
@@ -274,13 +283,14 @@ namespace MHK.UI
             row.Q("mod-status").SetVisible(known);
             var state = row.Q("mod-source");
             sourceTexts.ShowState(state, source);
-            if (!string.IsNullOrEmpty(source.installedCommit) && !ModSourceTexts.Busy(source))
+            if (!string.IsNullOrEmpty(source.installedCommit) && !ModSourceTexts.InProgress(source))
                 state.SetText(null, sourceTexts.State(source) + sourceTexts.separator + source.installedCommit);
             state.tooltip = sourceTexts.StateTip(source) ?? source.repo;
-            ModSourceTexts.ShowProgress(row.Q("mod-bar"), source);
+            sourceTexts.ShowProgress(row.Q("mod-progress"), source);
             var update = row.Q<Button>("mod-update");
             var updatable = source.state == ModSources.State.UpdateAvailable;
-            if (!updatable && update.focusController?.focusedElement == update) row.Q<Button>("mod-toggle")?.Focus();
+            if (!updatable && update.focusController?.focusedElement == update)
+                (ModSourceTexts.InProgress(source) ? row.Q<Button>("mod-pause") : row.Q<Button>("mod-toggle"))?.Focus();
             row.EnableInClassList(UpdateClass, updatable);
             row.EnableInClassList(SourceClass, known);
             update.tooltip = sourceTexts.Details(source);
@@ -305,31 +315,21 @@ namespace MHK.UI
             ShowTools();
         }
 
-        // An installed item can keep its files (it stays installed without updates) or delete them.
+        // A source not installed yet only leaves the list, an installed item is deleted with its files.
         void AskRemove(Button remove, string repo)
         {
             Click();
             var source = ModSources.Find(repo);
             var title = string.IsNullOrEmpty(source?.title) ? repo : source.title;
-            if (source == null || !source.installed)
-            {
-                ConfirmPrompt.Show(remove, string.Format(removeSourceQuestion, title), removeText, () => RemoveSource(repo, false));
-                return;
-            }
-            ConfirmPrompt.Show(remove, string.Format(removeInstalledQuestion, title), deleteFilesText, () => RemoveSource(repo, true),
-                keepFilesText, () => RemoveSource(repo, false));
+            var installed = source != null && source.installed;
+            ConfirmPrompt.Show(remove, string.Format(installed ? removeInstalledQuestion : removeSourceQuestion, title),
+                installed ? deleteFilesText : removeText, () => RemoveSource(repo, installed));
         }
 
         void RemoveSource(string repo, bool deleteFiles)
         {
             ModSources.Remove(repo, deleteFiles);
             GameRoot.Instance.SaveSettings();
-            if (deleteFiles)
-            {
-                ModInstalls.MarkChanged();
-                ReloadWhenDone();
-                return;
-            }
             Fill(false);
             FocusLater(list.childCount > 0 ? FirstRowButton() : sourceInput);
         }
@@ -339,7 +339,6 @@ namespace MHK.UI
             var install = ModInstalls.InstallAsync(repo);
             ShowTools();
             await install;
-            if (this != null) ReloadWhenDone();
         }
 
         async void UpdateAll()
@@ -349,16 +348,6 @@ namespace MHK.UI
                 if (Updatable(s)) repos.Add(s.repo);
             updateAll.SetEnabled(false);
             foreach (var repo in repos) await ModInstalls.InstallAsync(repo);
-            if (this != null) ReloadWhenDone();
-        }
-
-        // Comes back here after the reload. Closed meanwhile: the title screen reloads (ModInstalls.ReloadIfPending).
-        void ReloadWhenDone()
-        {
-            if (!ModInstalls.ReloadPending || !IsBound || Flow.Current != this) return;
-            GameRoot.Instance.SaveSettings();
-            MenuFlow.OpenOnStart = typeof(ModsScreen);
-            ModInstalls.ReloadIfPending();
         }
     }
 }

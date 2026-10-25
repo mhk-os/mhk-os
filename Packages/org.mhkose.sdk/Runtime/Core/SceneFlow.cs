@@ -18,10 +18,8 @@ namespace MHK.Core
         public const string MainMenu = "MainMenu";
         public const string Race = "Race";
 
-        // Shares of Progress: the Race scene itself (the track and the karts take the rest) and the mod downloads of an
-        // automatic update (the content reload takes the rest).
+        // Share of Progress taken by the Race scene itself, the track and the karts take the rest.
         const float RaceSceneShare = 0.1f;
-        const float ModUpdateShare = 0.8f;
         const float CoverGraceSeconds = 1f;
         // AsyncOperation.progress stops here while the scene waits for activation.
         const float SceneLoadPhaseEnd = 0.9f;
@@ -66,15 +64,7 @@ namespace MHK.Core
         /// Mods screen Apply: behind the loading screen unloads every scene, reloads mods and content
         /// (<see cref="GameRoot.ReloadContent"/>) and starts the main menu again at its title screen.
         /// </summary>
-        public static void ReloadContent() => StartReload(false);
-
-        /// <summary>
-        /// Game start with automatic mod updates due: behind the loading screen (its bar shows the downloads) installs
-        /// them, then reloads content like <see cref="ReloadContent"/>.
-        /// </summary>
-        public static void InstallModUpdates() => StartReload(true);
-
-        static void StartReload(bool installUpdates)
+        public static void ReloadContent()
         {
             if (Busy)
             {
@@ -82,10 +72,10 @@ namespace MHK.Core
                 return;
             }
             var root = GameRoot.Instance;
-            ReloadAsync(root, installUpdates, root.destroyCancellationToken).LogExceptionsAndForget();
+            ReloadAsync(root, root.destroyCancellationToken).LogExceptionsAndForget();
         }
 
-        static async Awaitable ReloadAsync(GameRoot root, bool installUpdates, CancellationToken ct)
+        static async Awaitable ReloadAsync(GameRoot root, CancellationToken ct)
         {
             Busy = true;
             Progress = 0f;
@@ -93,14 +83,13 @@ namespace MHK.Core
             try
             {
                 await CoverScreenAsync(screen, null, null, ct);
-                if (installUpdates) await ModSources.InstallAutoUpdatesAsync(p => Progress = ModUpdateShare * p, ct);
                 var timer = new SceneLoadTimer();
                 await UnloadScenesAsync(ct);
                 root.Session = null;
                 Audio.MusicPlayer.Stop();
                 root.ReloadContent();
                 await Assets.GameAssets.WaitReadyAsync(ct);
-                var loaded = await LoadSceneAsync(MainMenu, Progress, 1f - Progress, timer, ct);
+                var loaded = await LoadSceneAsync(MainMenu, 1f, timer, ct);
                 await SettleAsync(timer, ct);
                 Progress = 1f;
                 if (loaded) Debug.Log(timer.Report("Content reload"));
@@ -143,7 +132,7 @@ namespace MHK.Core
                 var timer = new SceneLoadTimer();
                 await Assets.GameAssets.WaitReadyAsync(ct);
                 var sceneShare = race ? RaceSceneShare : 1f;
-                var loaded = await LoadSceneAsync(scene, 0f, sceneShare, timer, ct);
+                var loaded = await LoadSceneAsync(scene, sceneShare, timer, ct);
                 var manager = loaded && race ? RaceManager.Current : null;
                 if (manager != null) await WaitForRaceAsync(manager, sceneShare, timer, ct);
                 else await SettleAsync(timer, ct);
@@ -166,12 +155,12 @@ namespace MHK.Core
             while (!screen.Covering && Time.realtimeSinceStartup < giveUp) await Awaitable.NextFrameAsync(ct);
         }
 
-        static async Awaitable<bool> LoadSceneAsync(string scene, float from, float sceneShare, SceneLoadTimer timer, CancellationToken ct)
+        static async Awaitable<bool> LoadSceneAsync(string scene, float sceneShare, SceneLoadTimer timer, CancellationToken ct)
         {
             var op = SceneManager.LoadSceneAsync(scene);
             while (op != null && !op.isDone)
             {
-                Progress = from + sceneShare * Mathf.Clamp01(op.progress / SceneLoadPhaseEnd);
+                Progress = sceneShare * Mathf.Clamp01(op.progress / SceneLoadPhaseEnd);
                 await Awaitable.NextFrameAsync(ct);
                 timer.Frame();
             }

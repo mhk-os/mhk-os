@@ -3,18 +3,13 @@ using UnityEngine;
 
 namespace MHK.Core
 {
-    /// <summary>
-    /// First scene: initialises <see cref="GameRoot"/>, then opens the menu (after installing automatic mod updates when
-    /// the start-of-game check finds some in time) or a command-line quick race (<c>-race</c>, <c>-mode</c>, <c>-opponents</c>).
-    /// </summary>
+    /// <summary>First scene: initialises <see cref="GameRoot"/>, then opens the menu or a command-line quick race (<c>-race</c>, <c>-mode</c>, <c>-opponents</c>).</summary>
     public class BootLoader : MonoBehaviour
     {
         [Tooltip("Scene opened after booting (unless the command line starts a race).")]
         [SerializeField] string nextScene = SceneFlow.MainMenu;
         [Tooltip("Shortest time (s, real time) the boot scene stays up.")]
         [SerializeField] float minimumSeconds = 0.5f;
-        [Tooltip("Longest time (s, real time) the start waits for the mod update check. Updates found later show in the Mods screen.")]
-        [SerializeField] float modCheckSeconds = 4f;
 
         async Awaitable Start()
         {
@@ -22,12 +17,7 @@ namespace MHK.Core
             var t = Time.realtimeSinceStartup;
             var root = GameRoot.Instance;
             while (Time.realtimeSinceStartup - t < minimumSeconds) await Awaitable.NextFrameAsync(destroyCancellationToken);
-            if (TryStartQuickRace(root)) return;
-            var giveUp = Time.realtimeSinceStartup + modCheckSeconds;
-            while (Modding.ModSources.StartupCheckRunning && Time.realtimeSinceStartup < giveUp)
-                await Awaitable.NextFrameAsync(destroyCancellationToken);
-            if (Modding.ModSources.AutoUpdatesDue) SceneFlow.InstallModUpdates();
-            else SceneFlow.Load(nextScene);
+            if (!TryStartQuickRace(root)) SceneFlow.Load(nextScene);
         }
 
         static bool TryStartQuickRace(GameRoot root)

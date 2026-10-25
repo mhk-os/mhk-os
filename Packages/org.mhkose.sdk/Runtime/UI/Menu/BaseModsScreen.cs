@@ -10,8 +10,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Built-in mods download (BaseMods.uxml): after the graphics first run screen while built-in mods are missing, and
-    /// from the title screen. Each row downloads its mod, Download All the missing ones one after the other. Once every
-    /// mod is installed content reloads.
+    /// from the title screen. Each row downloads (pauses, resumes) its mod, Download All the missing ones one after the
+    /// other. Downloads never reload: Continue loads what was downloaded once.
     /// </summary>
     public partial class BaseModsScreen : MenuScreen
     {
@@ -37,8 +37,13 @@ namespace MHK.UI
         string unavailableLine = "No downloads available yet.";
         [SerializeField, Tooltip("Download button texts: before the first try and after a failed one.")]
         string downloadAllText = "Download All", retryText = "Retry";
-        [SerializeField, Tooltip("Row button texts: before the download, after a failed one, once installed. While it downloads it shows the percent.")]
+        [SerializeField, Tooltip("Row button texts: before the download, after a failed one, once installed. It hides while the mod downloads.")]
         string rowDownloadText = "Download", rowRetryText = "Retry", rowInstalledText = "Installed";
+        [SerializeField, Tooltip("Footer button texts: before anything was downloaded (core game only) and after a download (loads the mods).")]
+        string continueWithoutText = "Continue Without", continueText = "Continue";
+        [SerializeField, Tooltip("Footer button tooltips: before anything was downloaded and after a download.")]
+        string continueWithoutTip = "Starts with the core game only. The title screen offers the download later.",
+            continueTip = "Loads the downloaded mods.";
         [SerializeField, Tooltip("Seconds between the rows' entry animations.")]
         float rowStep = 0.06f;
         [SerializeField, Tooltip("Entry animation delay of the first row, seconds.")]
@@ -72,14 +77,14 @@ namespace MHK.UI
                     Click();
                     DownloadOne(repo);
                 };
+                ModSourceTexts.BindPause(row.Q("base-progress"), repo, Click);
             }
             UiAnim.Stagger(list, rowStep, rowFirst, "from-left");
             list.RegisterCallback<NavigationMoveEvent>(OnRowsNavigate);
             download = OnClick("download", DownloadAll);
-            OnClick("skip", Skip);
+            OnClick("skip", Continue);
             FocusTarget = download;
             ModSources.Changed += Refresh;
-            if (!downloading && NothingChecked()) ModInstalls.Check();
             Refresh();
         }
 
@@ -91,7 +96,8 @@ namespace MHK.UI
             download = null;
         }
 
-        // Up and down go to the nearest enabled row button. Nothing above the first, below the last MenuScreen goes to the footer.
+        // Up and down go to the nearest row with a usable button (the same one when it can). Nothing above the first, below
+        // the last MenuScreen goes to the footer.
         void OnRowsNavigate(NavigationMoveEvent e)
         {
             var up = e.direction == NavigationMoveEvent.Direction.Up;
@@ -101,8 +107,8 @@ namespace MHK.UI
                 if (rows[i].row.Contains(from)) index = i;
             for (var i = index + (up ? -1 : 1); i >= 0 && i < rows.Count; i += up ? -1 : 1)
             {
-                var to = rows[i].row.Q<Button>("base-action");
-                if (to == null || !to.enabledSelf) continue;
+                var to = RowButton(rows[i].row, from.name);
+                if (to == null) continue;
                 to.Focus();
                 e.StopPropagation();
                 from.focusController?.IgnoreEvent(e);
@@ -113,17 +119,19 @@ namespace MHK.UI
             from.focusController?.IgnoreEvent(e);
         }
 
+        static Button RowButton(VisualElement row, string name)
+        {
+            var same = row.Q<Button>(name);
+            return same != null && Usable(same) ? same : row.Query<Button>().Where(Usable).First();
+        }
+
+        static bool Usable(Button b) =>
+            b.enabledInHierarchy && b.resolvedStyle.display != DisplayStyle.None && b.resolvedStyle.visibility == Visibility.Visible;
+
         static bool Needed(ModSources.Source s) => s.BaseMod && !s.installed && !ModSourceTexts.Busy(s) && Downloadable(s);
 
         static bool Downloadable(ModSources.Source s) =>
             s.state is not (ModSources.State.NoRelease or ModSources.State.NeedsNewerGame or ModSources.State.NeedsModUpdate);
-
-        static bool NothingChecked()
-        {
-            foreach (var s in ModSources.All)
-                if (s.BaseMod && s.state != ModSources.State.Unknown) return false;
-            return true;
-        }
 
         async void DownloadAll()
         {
@@ -147,7 +155,7 @@ namespace MHK.UI
 
         async void DownloadOne(string repo)
         {
-            if (rowDownloads.Contains(repo) || ModSources.Find(repo) is not { } s || s.installed || ModSourceTexts.Busy(s)) return;
+            if (rowDownloads.Contains(repo) || ModSources.Find(repo) is not { } s || s.installed || ModSourceTexts.InProgress(s)) return;
             rowDownloads.Add(repo);
             tried.Add(repo);
             Refresh();
@@ -158,8 +166,7 @@ namespace MHK.UI
 
         void AfterDownload()
         {
-            if (!downloading && rowDownloads.Count == 0 && !MissingDownloadable()) Finish();
-            else if (this != null && IsBound) Refresh();
+            if (this != null && IsBound) Refresh();
         }
 
         static bool MissingDownloadable()
@@ -169,7 +176,6 @@ namespace MHK.UI
             return false;
         }
 
-        // A download of a built-in mod failed (its row offers Retry, its state tooltip tells why).
         static bool Failed(bool offlineOnly)
         {
             foreach (var s in ModSources.All)
@@ -180,19 +186,17 @@ namespace MHK.UI
         static bool FailedDownload(ModSources.Source s) =>
             !s.installed && tried.Contains(s.repo) && s.state is ModSources.State.Offline or ModSources.State.Error;
 
-        // Every missing mod installed: forget an earlier skip and load them (back at the title screen).
-        static void Finish()
+        // Remembers a skip while mods are still missing (the title screen then offers the download) and loads what was
+        // downloaded. Downloads still running go on, the Mods page's Apply loads them.
+        void Continue()
         {
-            GameRoot.Instance.Settings.baseModsSkipped = false;
-            GameRoot.Instance.SaveSettings();
-            ModInstalls.ReloadIfPending();
-        }
-
-        void Skip()
-        {
-            Settings.baseModsSkipped = true;
-            GameRoot.Instance.SaveSettings();
-            if (!ModInstalls.ReloadIfPending()) Flow.ShowTitle();
+            Settings.baseModsSkipped = MissingDownloadable();
+            if (ModSources.PendingChanges) ModInstalls.ReloadContent();
+            else
+            {
+                GameRoot.Instance.SaveSettings();
+                Flow.ShowTitle();
+            }
         }
 
         void Refresh()
@@ -220,12 +224,16 @@ namespace MHK.UI
             var retry = Failed(false) && !downloading;
             download.SetText("download-label", retry ? retryText : downloadAllText);
             download.Q("download-icon")?.SetIcon(retry ? "replay" : "download");
+            var skip = Q<Button>("skip");
+            var loads = ModSources.PendingChanges;
+            skip.SetText("skip-label", loads ? continueText : continueWithoutText);
+            skip.tooltip = loads ? continueTip : continueWithoutTip;
         }
 
         void ShowRow(VisualElement row, ModSources.Source s)
         {
             row.SetText("base-title", string.IsNullOrEmpty(s.title) ? s.repo : s.title);
-            var present = s.installed && !ModSourceTexts.Busy(s);
+            var present = s.installed && !ModSourceTexts.InProgress(s);
             var state = row.Q("base-state");
             texts.ShowState(state, s);
             if (present)
@@ -235,25 +243,34 @@ namespace MHK.UI
                 state.SetExclusiveClass(Array.IndexOf(Tones, "src-good"), Tones);
                 state.tooltip = null;
             }
-            ModSourceTexts.ShowProgress(row.Q("base-bar"), s);
+            texts.ShowProgress(row.Q("base-progress"), s);
+            if (!s.installed && rowDownloads.Contains(s.repo)) row.Q("base-progress").SetVisible(true);
             row.SetText("base-size", present ? "" : texts.Size(s.downloadBytes) ?? "");
             ShowRowAction(row.Q<Button>("base-action"), s, present);
         }
 
         void ShowRowAction(Button action, ModSources.Source s, bool present)
         {
-            var busy = !present && (ModSourceTexts.Busy(s) || rowDownloads.Contains(s.repo));
+            var busy = !present && (ModSourceTexts.InProgress(s) || rowDownloads.Contains(s.repo));
             var retry = !busy && FailedDownload(s);
             string text = rowDownloadText, icon = "download";
             if (present) (text, icon) = (rowInstalledText, "check");
-            else if (busy) text = UiText.Percent(Mathf.Round(ModSourceTexts.Progress(s) * 100f));
             else if (retry) (text, icon) = (rowRetryText, "replay");
             action.SetText("base-action-label", text);
             action.Q("base-action-icon")?.SetIcon(icon);
             var enabled = !present && !busy && Downloadable(s);
-            action.tooltip = enabled || present || busy ? null : texts.StateTip(s);
-            if (!enabled && action.focusController?.focusedElement == action) FocusLater(download.enabledSelf ? download : Q<Button>("skip"));
+            action.tooltip = enabled || present ? null : texts.StateTip(s);
+            action.style.visibility = busy ? Visibility.Hidden : Visibility.Visible;
+            if ((!enabled || busy) && action.focusController?.focusedElement == action) FocusLater(FocusAfter(action, busy));
             action.SetEnabled(enabled);
+        }
+
+        // A row button that goes away hands the focus to the row's pause button while it downloads, else to the footer.
+        VisualElement FocusAfter(Button action, bool busy)
+        {
+            var pause = busy ? action.parent?.Q<Button>(className: "src-pause") : null;
+            if (pause != null) return pause;
+            return download.enabledSelf ? download : Q<Button>("skip");
         }
 
         void ShowTotal(int needed, int unavailable, long bytes)

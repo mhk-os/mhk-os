@@ -64,7 +64,7 @@ namespace MHK.Modding
                 s.latest = new Release
                 {
                     kind = Kind.AssetPack, tag = rel.tag_name, commit = pack?.commit ?? rel.tag_name, pack = pack, manifestJson = json,
-                    zipUrl = zip.browser_download_url, zipId = zip.id, zipSize = zip.size,
+                    zipUrl = zip.browser_download_url, zipName = zip.name, zipId = zip.id, zipSize = zip.size,
                 };
                 cache.manifests.RemoveAll(m => asset == null || m.assetId != asset.id);
                 return;

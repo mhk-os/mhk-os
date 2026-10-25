@@ -20,12 +20,6 @@ namespace MHK.Core
         [Tooltip("Loading screen (Prefabs/UI/LoadingScreen): spawned once under the GameRoot, SceneFlow shows it while scenes load.")]
         public UI.LoadingScreen loadingScreen;
 
-        [Header("Mod updates")]
-        [Tooltip("The start-of-game check asks GitHub about a mod source only when its last successful check is older " +
-                 "than this (minutes), otherwise it uses the cached releases (GitHub allows 60 requests per hour, answers " +
-                 "for unchanged lists count too). Check for updates in the Mods screen and adding a source always ask.")]
-        public float modCheckIntervalMinutes = 60f;
-
         [Header("Branding")]
         [Tooltip("The game's own logo on the title and loading screens (Branding/GameLogo, made by " +
                  "mhk-work/tools/gen_logo.py). Pack logos only show in the mods list. Empty: the title screen shows " +

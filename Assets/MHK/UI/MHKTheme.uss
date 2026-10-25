@@ -170,7 +170,7 @@
 .mhk-button.danger:active { background-image: url("Textures/button_light.png"); -unity-background-image-tint-color: #8E2119; color: var(--mhk-white); }
 .mhk-button.danger .icon { -unity-background-image-tint-color: var(--mhk-white); }
 
-/* ConfirmPrompt: dimmed screen, glass panel with the message and the buttons (Cancel, an optional choice, the danger button). */
+/* ConfirmPrompt: dimmed screen, glass panel with the message and the buttons (Cancel, then the danger button). */
 .confirm-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; align-items: center; justify-content: center; background-color: var(--mhk-scrim); opacity: 0; transition-property: opacity; transition-duration: 0.12s; }
 .confirm-overlay.shown { opacity: 1; }
 .panel.confirm-panel { min-width: 480px; max-width: 760px; align-items: center; padding: 26px 30px 18px 30px; scale: 0.94 0.94; transition-property: scale; transition-duration: 0.16s; transition-timing-function: ease-out-back; }
@@ -179,11 +179,39 @@
 .confirm-buttons { flex-direction: row; justify-content: center; }
 .confirm-buttons .mhk-button { min-width: 170px; }
 
-/* DragReorder: the handle, the lifted row (pointer drag or picked up with Submit) and the gap it leaves while dragged. */
-.mhk-button.drag-handle { min-width: 44px; padding-left: 8px; padding-right: 8px; }
+/* DragReorder: the handle (a plain :: icon on the left of a row, focusable for gamepad and keyboard: Submit picks the row
+ * up), the lifted row (pointer drag or carried) and the gap it leaves while dragged. */
+.drag-handle { width: 52px; height: 52px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 12px; margin: 0 8px 0 -6px; transition-property: background-color; transition-duration: 0.1s; }
+.drag-handle .icon { width: 36px; height: 36px; margin: 0; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.drag-handle:hover { background-color: var(--mhk-row-hover); }
+.drag-handle:hover .icon { -unity-background-image-tint-color: var(--mhk-gray-800); }
+.drag-handle:focus { background-color: var(--mhk-accent-soft); }
+.drag-handle:focus .icon, .drag-lifted .drag-handle .icon { -unity-background-image-tint-color: var(--mhk-accent-deep); }
+.drag-handle:disabled { opacity: 0.3; }
+.drag-handle:disabled:hover { background-color: transparent; }
+.drag-handle:disabled:hover .icon { -unity-background-image-tint-color: var(--mhk-gray-500); }
+.drag-space { width: 52px; flex-shrink: 0; margin: 0 8px 0 -6px; }
 .drag-lifted { scale: 1.02 1.02; background-color: var(--mhk-white); border-width: 2px; border-color: var(--mhk-accent); }
 .drag-placeholder { flex-shrink: 0; border-radius: 10px; border-width: 2px; border-color: var(--mhk-divider); background-color: var(--mhk-row); }
 .drag-active > * { transition-duration: 0s; }
+
+/* Switch pill (a Button with .mhk-switch and a .switch-knob child): green with the knob right when .on, red otherwise. */
+.mhk-switch, .mhk-switch:hover, .mhk-switch:active { width: 72px; height: 40px; flex-shrink: 0; padding: 0; margin: 0 14px 0 0; border-radius: 20px; border-width: 3px; border-color: transparent; background-image: none; background-color: var(--mhk-bad-ink); transition-property: background-color, border-color; transition-duration: 0.15s; }
+.mhk-switch.on, .mhk-switch.on:hover, .mhk-switch.on:active, TemplateContainer.sample-on .mhk-switch { background-color: var(--mhk-good-ink); }
+.mhk-switch:hover { border-color: var(--mhk-white-70); }
+.mhk-switch:focus { border-color: var(--mhk-accent); }
+.mhk-switch:disabled { opacity: 0.4; }
+.mhk-switch:disabled:hover { border-color: transparent; }
+.switch-knob { position: absolute; left: 3px; top: 3px; width: 28px; height: 28px; border-radius: 14px; background-color: var(--mhk-white); transition-property: translate; transition-duration: 0.15s; transition-timing-function: ease-out; }
+.mhk-switch.on .switch-knob, TemplateContainer.sample-on .switch-knob { translate: 32px 0; }
+
+/* Icon link: a small plain icon Button (no plate) that opens a page, for example the GitHub mark after a title. */
+.icon-link, .icon-link:hover, .icon-link:active { width: 32px; height: 32px; flex-shrink: 0; padding: 0; margin: 0 0 0 8px; border-width: 0; border-radius: 8px; background-image: none; background-color: transparent; align-items: center; justify-content: center; }
+.icon-link .icon { width: 22px; height: 22px; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.icon-link:hover { background-color: var(--mhk-row-hover); }
+.icon-link:hover .icon { -unity-background-image-tint-color: var(--mhk-gray-900); }
+.icon-link:focus { background-color: var(--mhk-accent-soft); }
+.icon-link:focus .icon { -unity-background-image-tint-color: var(--mhk-accent-deep); }
 
 .header { height: 128px; flex-shrink: 0; align-items: center; justify-content: center; }
 .page-title {
@@ -258,6 +286,19 @@
 .chip.selected, TemplateContainer.sample-selected > .chip { background-color: var(--mhk-accent); color: var(--mhk-gray-900); }
 .chip.selected:hover, .chip.selected:focus { border-color: var(--mhk-gray-900); }
 .mhk-button.selected:hover, .mhk-button.selected:focus { background-image: url("Textures/button_accent_focus.png"); color: var(--mhk-gray-900); }
+/* Disabled controls keep their resting look under the pointer (no hover background, no lift). */
+.mhk-button:disabled:hover { background-image: url("Textures/button_light.png"); color: var(--mhk-gray-900); scale: 1 1; translate: 0 0; }
+.mhk-button.secondary:disabled:hover { background-image: url("Textures/button_soft.png"); color: var(--mhk-gray-700); }
+.mhk-button.setting-value:disabled:hover, .mhk-button.ctl-key:disabled:hover { background-image: url("Textures/button_soft.png"); color: var(--mhk-gray-900); }
+.mhk-button.setting-value:disabled:hover .setting-arrow .icon { -unity-background-image-tint-color: var(--mhk-gray-500); }
+.mhk-button.go:disabled:hover { background-image: url("Textures/button_dark.png"); color: var(--mhk-white); }
+.mhk-button.selected:disabled:hover { background-image: url("Textures/button_accent.png"); color: var(--mhk-gray-900); }
+.mhk-button.danger:disabled:hover { -unity-background-image-tint-color: var(--mhk-bad-ink); color: var(--mhk-white); border-width: 0; }
+.mhk-button:disabled:hover .icon { -unity-background-image-tint-color: var(--mhk-gray-700); }
+.mhk-button.go:disabled:hover .icon, .mhk-button.danger:disabled:hover .icon { -unity-background-image-tint-color: var(--mhk-white); }
+.mhk-button.selected:disabled:hover .icon { -unity-background-image-tint-color: var(--mhk-gray-900); }
+.chip:disabled:hover { background-color: transparent; color: var(--mhk-gray-600); scale: 1 1; }
+.chip.selected:disabled:hover { background-color: var(--mhk-accent); color: var(--mhk-gray-900); border-color: transparent; }
 
 /* Card frames (mui_card*.png) keep a 10 px transparent margin for the shadow and the focus glow: the visible card is
  * 20 px smaller than the element, the -3 px margins leave 14 px between visible cards. Content sits inside the 16 px
@@ -286,6 +327,8 @@
 }
 .card.selected, TemplateContainer.sample-selected > .card { background-image: url("Textures/mui_card_selected.png"); }
 .card.selected:hover, .card.selected:focus { background-image: url("Textures/mui_card_focus.png"); }
+.card:disabled:hover { background-image: url("Textures/mui_card.png"); scale: 1 1; translate: 0 0; }
+.card.selected:disabled:hover { background-image: url("Textures/mui_card_selected.png"); }
 .card-image {
     flex-grow: 1; width: 100%;
     border-radius: 8px;

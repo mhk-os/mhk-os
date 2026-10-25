@@ -6,9 +6,9 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// The menu's confirmation prompt: a message on a glass panel over a dimmed screen with Cancel (focused first), an
-    /// optional middle choice and the red confirm button. Left and Right walk the buttons, Back, Escape or a tap outside
-    /// cancel. Closing gives the focus back to the element that opened it (when it is still shown), then runs the choice.
+    /// The menu's confirmation prompt: a message on a glass panel over a dimmed screen with Cancel (focused first) and the
+    /// red confirm button. Left and Right walk the buttons, Back, Escape or a tap outside cancel. Closing gives the focus
+    /// back to the element that opened it (when it is still shown), then runs the choice.
     /// </summary>
     public sealed class ConfirmPrompt
     {
@@ -29,30 +29,18 @@ namespace MHK.UI
         /// <summary>The red confirm button (for a tooltip).</summary>
         public Button ConfirmButton { get; }
 
-        /// <summary>The middle choice of <see cref="Show(VisualElement, string, string, Action, string, Action, Action)"/>, else null.</summary>
-        public Button AltButton { get; }
-
         /// <summary>
         /// Asks <paramref name="message"/> over the screen of <paramref name="from"/>. <paramref name="confirmLabel"/> is the
         /// red button's text (Delete, Reset, ...), <paramref name="onConfirm"/> runs when it is chosen, <paramref name="onCancel"/>
         /// on Cancel, Back or a tap outside. Null when <paramref name="from"/> is not shown.
         /// </summary>
-        public static ConfirmPrompt Show(VisualElement from, string message, string confirmLabel, Action onConfirm, Action onCancel = null) =>
-            Show(from, message, confirmLabel, onConfirm, null, null, onCancel);
-
-        /// <summary>
-        /// <see cref="Show(VisualElement, string, string, Action, Action)"/> with a middle choice <paramref name="altLabel"/>
-        /// (a secondary button between Cancel and the confirm button) running <paramref name="onAlt"/>.
-        /// </summary>
-        public static ConfirmPrompt Show(VisualElement from, string message, string confirmLabel, Action onConfirm,
-            string altLabel, Action onAlt, Action onCancel = null)
+        public static ConfirmPrompt Show(VisualElement from, string message, string confirmLabel, Action onConfirm, Action onCancel = null)
         {
             var host = ScreenOf(from);
-            return host == null ? null : new ConfirmPrompt(from, host, message, confirmLabel, onConfirm, altLabel, onAlt, onCancel);
+            return host == null ? null : new ConfirmPrompt(from, host, message, confirmLabel, onConfirm, onCancel);
         }
 
-        ConfirmPrompt(VisualElement from, VisualElement host, string message, string confirmLabel, Action onConfirm,
-            string altLabel, Action onAlt, Action onCancel)
+        ConfirmPrompt(VisualElement from, VisualElement host, string message, string confirmLabel, Action onConfirm, Action onCancel)
         {
             this.from = from;
             this.host = host;
@@ -70,7 +58,6 @@ namespace MHK.UI
             panel.Add(row);
             overlay.Add(panel);
             var cancel = AddButton(row, CancelText, "secondary", onCancel);
-            if (altLabel != null) AltButton = AddButton(row, altLabel, "secondary", onAlt);
             ConfirmButton = AddButton(row, confirmLabel, "danger", onConfirm);
             Register();
             host.Add(overlay);

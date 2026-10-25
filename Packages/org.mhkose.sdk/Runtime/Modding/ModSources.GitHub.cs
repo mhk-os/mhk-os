@@ -20,7 +20,7 @@ namespace MHK.Modding
 
         [AutoStaticsCleanup] static DateTime rateLimitedUntil;
 
-        static string ApiBase
+        internal static string ApiBase
         {
             get
             {
@@ -61,28 +61,25 @@ namespace MHK.Modding
             }
         }
 
-        // The releases list costs one of the 60 requests per hour only when it changed: an unchanged list answers 304
-        // to the ETag of the last answer, which is kept with the list in the repository's cache file.
-        static async Awaitable<GitHubRelease[]> FetchReleasesAsync(string repo, RepoCache cache, CancellationToken ct)
+        static async Awaitable<GitHubRelease[]> FetchReleasesAsync(string repo, RepoCache cache, CancellationToken ct) =>
+            ParseReleases(await FetchAsync($"{ApiBase}/repos/{repo}/releases?per_page={ReleasesPerPage}", cache, ct));
+
+        /// <summary>
+        /// The body of the API answer at <paramref name="url"/>. A request costs one of the 60 per hour, an unchanged answer
+        /// comes back as 304 to the ETag of the last one, kept with its body in <paramref name="cache"/>.
+        /// </summary>
+        internal static async Awaitable<string> FetchAsync(string url, RepoCache cache, CancellationToken ct)
         {
             if (DateTime.UtcNow < rateLimitedUntil) throw RateLimited();
-            using var r = Request($"{ApiBase}/repos/{repo}/releases?per_page={ReleasesPerPage}", true);
+            using var r = Request(url, true);
             var cached = !string.IsNullOrEmpty(cache.etag) && !string.IsNullOrEmpty(cache.body);
             if (cached) r.SetRequestHeader("If-None-Match", cache.etag);
             await SendAsync(r, null, ct);
-            if (cached && r.responseCode == 304) return ParseReleases(cache.body);
-            cache.missing = r.responseCode == 404;
-            if (cache.missing)
-            {
-                cache.checkedUtc = DateTime.UtcNow.Ticks;
-                cache.Save(repo);
-            }
+            if (cached && r.responseCode == 304) return cache.body;
             ThrowOnFailure(r);
-            var body = r.downloadHandler.text;
-            var releases = ParseReleases(body);
             cache.etag = r.GetResponseHeader("ETag");
-            cache.body = body;
-            return releases;
+            cache.body = r.downloadHandler.text;
+            return cache.body;
         }
 
         static GitHubRelease[] ParseReleases(string body)
@@ -171,28 +168,18 @@ namespace MHK.Modding
         }
 
         [Serializable]
-        sealed class CachedManifest
+        internal sealed class CachedManifest
         {
             public long assetId;
             public string json;
         }
 
-        /// <summary>What the last check of a repository fetched: ETag and body of the releases list, mod.json files by asset id, pack texts.</summary>
+        /// <summary>What the last check of a repository fetched: ETag and body of the API answer, mod.json files by asset id, pack texts.</summary>
         [Serializable]
-        sealed class RepoCache
+        internal sealed class RepoCache
         {
             public string etag, body, packId, title, description;
             public Kind kind;
-            /// <summary>UTC ticks of the last answered releases request (a list, or 404 with <see cref="missing"/>).</summary>
-            public long checkedUtc;
-            public bool missing;
-
-            public bool IsFresh(TimeSpan interval)
-            {
-                var age = DateTime.UtcNow - new DateTime(checkedUtc, DateTimeKind.Utc);
-                return (missing || !string.IsNullOrEmpty(body)) && checkedUtc > 0 && age >= TimeSpan.Zero && age < interval;
-            }
-
             public List<CachedManifest> manifests = new();
 
             static string PathOf(string repo) => Path.Combine(DataPaths.Root, "Cache", "ModSources", repo.Replace('/', '_') + ".json");

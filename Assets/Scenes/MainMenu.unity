@@ -1261,8 +1261,6 @@ MonoBehaviour:
     notInstalled: Not installed
     upToDate: Up to date
     updateAvailable: Update available
-    downloading: Downloading {0}
-    installing: Installing
     needsNewerGame: Needs a newer game
     needsNewerGameTip: The newest release was made for a newer version of the game. Update the game to get it.
     needsModUpdate: Made for an older game
@@ -1277,6 +1275,8 @@ MonoBehaviour:
     separator: ' | '
     megabytesFormat: '{0} MB'
     kilobytesFormat: '{0} KB'
+    pauseTip: Pause
+    resumeTip: Resume
   installedText: Installed
   readyFormat: '{0} mods | {1}'
   readyNoSizeFormat: '{0} mods'
@@ -1290,6 +1290,10 @@ MonoBehaviour:
   rowDownloadText: Download
   rowRetryText: Retry
   rowInstalledText: Installed
+  continueWithoutText: Continue Without
+  continueText: Continue
+  continueWithoutTip: Starts with the core game only. The title screen offers the download later.
+  continueTip: Loads the downloaded mods.
   rowStep: 0.06
   rowFirst: 0.12
 --- !u!1931382934 &1206494619
@@ -2442,6 +2446,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: MHK.Runtime::MHK.UI.ModsScreen
   showcaseVisible: 0
   allowBack: 1
+  discardQuestion: Leave without applying? Your changes to enabled and disabled mods are discarded.
+  discardText: Discard
+  nothingToApplyTip: Nothing changed since the mods were loaded.
   sourceRowTemplate: {fileID: 9197481963319205126, guid: 287d3f23660944fc993ffd1709838824, type: 3}
   sourceTexts:
     unknown: Not checked
@@ -2449,8 +2456,6 @@ MonoBehaviour:
     notInstalled: Not installed
     upToDate: Up to date
     updateAvailable: Update available
-    downloading: Downloading {0}
-    installing: Installing
     needsNewerGame: Needs a newer game
     needsNewerGameTip: The newest release was made for a newer version of the game. Update the game to get it.
     needsModUpdate: Made for an older game
@@ -2465,15 +2470,16 @@ MonoBehaviour:
     separator: ' | '
     megabytesFormat: '{0} MB'
     kilobytesFormat: '{0} KB'
+    pauseTip: Pause
+    resumeTip: Resume
   sourcePlaceholder: github.com/owner/repository
   clipboardEmpty: The clipboard is empty.
   downloadText: Download
   retryText: Retry
   removeTip: Remove
   removeSourceQuestion: Remove {0} from the list?
-  removeInstalledQuestion: Remove {0}? Keep Files stops its updates and leaves it installed. Delete also deletes its files.
+  removeInstalledQuestion: Remove {0}? Its files are deleted.
   removeText: Remove
-  keepFilesText: Keep Files
   deleteFilesText: Delete
   githubTip: Opens {0} on GitHub
   repoUrlFormat: https://github.com/{0}

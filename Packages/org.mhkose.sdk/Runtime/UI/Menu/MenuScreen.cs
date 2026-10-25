@@ -41,7 +41,7 @@ namespace MHK.UI
             if (!allowBack) back?.RemoveFromHierarchy();
             else
             {
-                if (back != null) back.clicked += Flow.Back;
+                if (back != null) back.clicked += GoBack;
                 Root.RegisterCallback<NavigationCancelEvent>(OnCancel);
             }
             footer = Root.Q(className: "page-footer");
@@ -58,7 +58,10 @@ namespace MHK.UI
             lastBodyFocus = null;
         }
 
-        void OnCancel(NavigationCancelEvent e) => Flow.Back();
+        void OnCancel(NavigationCancelEvent e) => GoBack();
+
+        /// <summary>The Back button and the cancel action: returns to the previous screen. A screen may ask first.</summary>
+        protected virtual void GoBack() => Flow.Back();
 
         void OnFocusIn(FocusInEvent e)
         {

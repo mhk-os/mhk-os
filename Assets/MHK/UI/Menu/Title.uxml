@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing, quit is hidden on mobile (desktop-only) and in WebGL builds. -->
+    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing and nothing downloads, the dot on mods (notify-dot: class on, red for an update, downloading blue while something downloads), game-update next to the version when a newer game release exists, quit is hidden on mobile (desktop-only) and in WebGL builds. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="page" class="title-page">
         <ui:VisualElement class="title-body">
@@ -38,6 +38,7 @@
                             <ui:Button name="mods" class="mhk-button small secondary">
                                 <ui:VisualElement class="icon i-extension"/>
                                 <ui:Label text="Mods" class="button-label"/>
+                                <ui:VisualElement name="mods-dot" class="notify-dot" picking-mode="Ignore"/>
                             </ui:Button>
                             <ui:Button name="options" class="mhk-button small secondary">
                                 <ui:VisualElement class="icon i-settings"/>
@@ -62,6 +63,10 @@
             <ui:VisualElement class="checker-strip"/>
             <ui:VisualElement class="footer-left">
                 <ui:Label name="version" text="Build 1" class="muted"/>
+                <ui:Button name="game-update" tooltip="Opens the release page of the new game version." class="mhk-button small go title-update" style="display: none;">
+                    <ui:VisualElement class="icon i-download"/>
+                    <ui:Label text="Update available!" class="button-label"/>
+                </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right"/>
         </ui:VisualElement>

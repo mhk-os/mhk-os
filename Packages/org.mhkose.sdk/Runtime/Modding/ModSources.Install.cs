@@ -10,16 +10,16 @@ namespace MHK.Modding
 {
     public static partial class ModSources
     {
-        const float StallSeconds = 30f;
         const string StagingSuffix = ".staging", OldSuffix = ".old", PendingSuffix = ".pending", RemoveSuffix = ".remove";
 
         static string ModsFolder => ModLoader.UserFolder;
         static string PacksFolder => DataPaths.AssetPacks;
-        static string DownloadFolder => Path.Combine(DataPaths.Root, "Cache", "ModDownloads");
         static string RootOf(Kind kind) => kind == Kind.AssetPack ? PacksFolder : ModsFolder;
         static string InstalledFolder(string root, string packId) => Path.Combine(root, packId);
         static string HiddenFolder(string root, string packId, string suffix) => Path.Combine(root, "." + packId + suffix);
 
+        // A pause (Pause, or a connection lost while downloading) keeps the partial file, the next install continues it.
+        // Once the download is complete the partial file goes, whether the install works or not.
         static async Awaitable<bool> InstallLatestAsync(Source s, CancellationToken ct)
         {
             var release = s.latest;
@@ -27,10 +27,15 @@ namespace MHK.Modding
             var root = RootOf(release.kind);
             var stagingId = StagingId(s, release);
             s.busy = true;
-            string zip = null;
+            using var pause = new CancellationTokenSource();
+            using var download = CancellationTokenSource.CreateLinkedTokenSource(ct, pause.Token);
+            s.pause = pause;
+            var downloaded = false;
             try
             {
-                zip = await DownloadAsync(s, release, stagingId, ct);
+                var zip = await DownloadAsync(s, release, download.Token);
+                downloaded = true;
+                s.pause = null;
                 SetState(s, State.Installing, null);
                 var (folder, id) = await StageAsync(s.repo, release, zip, HiddenFolder(root, stagingId, StagingSuffix), ct);
                 var pending = Replace(root, id, folder);
@@ -38,6 +43,14 @@ namespace MHK.Modding
                           (pending ? $"as {HiddenFolder(root, id, PendingSuffix)}, it replaces the loaded copy at the next content reload." : $"into {InstalledFolder(root, id)}."));
                 Installed(s, id);
                 return true;
+            }
+            catch (OperationCanceledException) when (pause.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                return Paused(s, release, null);
+            }
+            catch (SourceException e) when (!downloaded && e.state == State.Offline)
+            {
+                return Paused(s, release, e.Message);
             }
             catch (SourceException e)
             {
@@ -59,10 +72,18 @@ namespace MHK.Modding
             finally
             {
                 s.busy = false;
-                s.downloadedBytes = 0;
-                DeleteQuietly(zip);
+                s.pause = null;
+                if (downloaded) DeletePartial(s.repo);
                 DeleteFolderQuietly(HiddenFolder(root, stagingId, StagingSuffix));
             }
+        }
+
+        static bool Paused(Source s, Release release, string reason)
+        {
+            Debug.Log($"[ModSources] Download of {s.repo} {release.tag} paused at {s.downloadedBytes} of {s.downloadBytes} bytes" +
+                      (reason != null ? $" ({reason})." : "."));
+            SetState(s, State.Paused, reason);
+            return false;
         }
 
         static void Installed(Source s, string id)
@@ -74,46 +95,9 @@ namespace MHK.Modding
                 cache.Remember(s);
                 cache.Save(s.repo);
             }
+            pendingChanges = true;
             RefreshInstalled(s);
             SetEvaluated(s);
-        }
-
-        // No overall timeout (mods are hundreds of MB): a download that receives nothing for StallSeconds is given up.
-        static async Awaitable<string> DownloadAsync(Source s, Release release, string stagingId, CancellationToken ct)
-        {
-            Directory.CreateDirectory(DownloadFolder);
-            var path = Path.Combine(DownloadFolder, stagingId + "-" + release.zipId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".zip");
-            s.downloadBytes = release.zipSize;
-            s.downloadedBytes = 0;
-            SetState(s, State.Downloading, null);
-            using var r = Request(release.zipUrl, false);
-            r.timeout = 0;
-            r.downloadHandler = new DownloadHandlerFile(path) { removeFileOnAbort = true };
-            var lastBytes = 0UL;
-            var lastProgress = Time.realtimeSinceStartup;
-            var stalled = false;
-            await SendAsync(r, () =>
-            {
-                if (r.downloadedBytes != lastBytes)
-                {
-                    lastBytes = r.downloadedBytes;
-                    lastProgress = Time.realtimeSinceStartup;
-                    s.downloadedBytes = (long)lastBytes;
-                    RaiseChanged(true);
-                }
-                else if (!stalled && Time.realtimeSinceStartup - lastProgress > StallSeconds)
-                {
-                    stalled = true;
-                    r.Abort();
-                }
-            }, ct);
-            if (stalled) throw new SourceException(State.Offline, "The download stopped.");
-            ThrowOnFailure(r);
-            var size = File.Exists(path) ? new FileInfo(path).Length : 0;
-            if (release.zipSize > 0 && size != release.zipSize) throw new SourceException(State.Error, "The download is incomplete.");
-            s.downloadedBytes = size;
-            RaiseChanged();
-            return path;
         }
 
         // Extraction runs on a worker thread. The result is the folder that becomes <root>/<id> and that id.
@@ -255,12 +239,13 @@ namespace MHK.Modding
         /// <summary>Mods and asset packs were (re)loaded (called by <see cref="GameRoot"/>): installed copies and the states that depend on them are read again.</summary>
         internal static void ContentLoaded()
         {
+            pendingChanges = false;
             if (sources == null) return;
             foreach (var s in sources)
             {
                 if (s.busy) continue;
                 RefreshInstalled(s);
-                if (s.state is State.NotInstalled or State.UpToDate or State.UpdateAvailable or State.NeedsNewerGame or State.NeedsModUpdate) SetEvaluated(s);
+                if (s.state is State.NotInstalled or State.UpToDate or State.UpdateAvailable or State.NeedsNewerGame or State.NeedsModUpdate or State.Paused) SetEvaluated(s);
             }
             RaiseChanged();
         }
@@ -304,10 +289,9 @@ namespace MHK.Modding
                 File.WriteAllText(HiddenFolder(root, s.packId, RemoveSuffix), s.repo);
                 Debug.Log($"[ModSources] {folder} is in use: it is deleted at the next content reload.");
             }
+            pendingChanges = true;
             RefreshInstalled(s);
         }
-
-        static void ClearDownloads() => DeleteFolderQuietly(DownloadFolder);
 
         static bool SamePath(string a, string b) => string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.Ordinal);
 

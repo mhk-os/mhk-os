@@ -11,8 +11,9 @@ namespace MHK.UI
 {
     /// <summary>
     /// Mods and asset packs (Mods.uxml), one section each: a row per installed mod or asset pack in load order (the top
-    /// one wins) with an Enabled / Disabled toggle and a drag handle to reorder (<see cref="DragReorder"/>), then a row per
-    /// source (GitHub repository) not installed yet. Items from a source download and update here. Apply reloads content and
+    /// one wins) with an Enabled / Disabled switch and a drag handle to reorder (<see cref="DragReorder"/>), then a row per
+    /// source (GitHub repository) not installed yet. Items from a source download and update here without reloading. Apply
+    /// (enabled once something changed since the last load) reloads content and
     /// asset packs and restarts the menu, Reload does the same and comes back here (finds new mods and packs), Open Folder
     /// shows the section's folder.
     /// </summary>
@@ -32,11 +33,11 @@ namespace MHK.UI
         float rowFirst = 0.12f;
         [SerializeField, Tooltip("Title line of a pack built with a commit. {0} = title, {1} = commit. A pack without one shows only its title.")]
         string titleFormat = "{0} | {1}";
-        [SerializeField, Tooltip("Toggle text of an enabled mod or asset pack.")]
+        [SerializeField, Tooltip("Switch tooltip of an enabled mod or asset pack.")]
         string enabledText = "Enabled";
-        [SerializeField, Tooltip("Toggle text of a disabled mod or asset pack.")]
+        [SerializeField, Tooltip("Switch tooltip of a disabled mod or asset pack.")]
         string disabledText = "Disabled";
-        [SerializeField, Tooltip("Toggle tooltip of a loaded pack whose drivers have no loaded kart. {0} = number of drivers.")]
+        [SerializeField, Tooltip("Added to the switch tooltip of a loaded pack whose drivers have no loaded kart. {0} = number of drivers.")]
         string missingKartsTip = "{0} drivers have no kart. Enable the pack with their karts.";
         [SerializeField, Tooltip("Tooltip of a loaded mod whose definitions are replaced by mods above it. {0} = number of definitions.")]
         string replacedTip = "{0} of its definitions are replaced by mods above it.";
@@ -97,7 +98,7 @@ namespace MHK.UI
             BindSources();
             Fill(true);
             FocusTarget = list.childCount > 0 ? FirstButton(list[0]) : sourceInput;
-            OnClick("apply", Apply);
+            BindApply();
             OnClick("open-mods", () => GhostUi.Reveal(section == Section.AssetPacks ? AssetPacks.UserFolder : ModLoader.UserFolder));
             OnClick("reload", Reload);
         }
@@ -106,16 +107,17 @@ namespace MHK.UI
         {
             base.Unbind();
             UnbindSources();
+            UnbindApply();
             list = null;
             sections = null;
         }
 
-        // Up and down keep the column (drag handle, toggle, GitHub, ...) from row to row: a hidden or disabled button falls
+        // Up and down keep the column (drag handle, switch, Update, ...) from row to row: a hidden or disabled one falls
         // back to the row's first one, up from the first row goes to the source tools. Below the last row MenuScreen takes over.
         void OnListNavigate(NavigationMoveEvent e)
         {
             var up = e.direction == NavigationMoveEvent.Direction.Up;
-            if ((!up && e.direction != NavigationMoveEvent.Direction.Down) || e.target is not Button from) return;
+            if ((!up && e.direction != NavigationMoveEvent.Direction.Down) || e.target is not VisualElement { focusable: true } from) return;
             VisualElement row = from;
             while (row.parent != null && row.parent != list) row = row.parent;
             var next = list.IndexOf(row) + (up ? -1 : 1);
@@ -131,7 +133,7 @@ namespace MHK.UI
 
         VisualElement FirstRowButton() => list.childCount > 0 ? RowButton(list[0], null) : null;
 
-        static Button FirstButton(VisualElement row)
+        static VisualElement FirstButton(VisualElement row)
         {
             var toggle = row.Q<Button>("mod-toggle");
             if (toggle == null || toggle.enabledSelf) return toggle ?? row.Q<Button>("src-action");
@@ -139,16 +141,16 @@ namespace MHK.UI
             return RowButton(row, null);
         }
 
-        // The row's button named like the one the focus comes from, else its first shown and enabled button.
-        static Button RowButton(VisualElement row, string name)
+        // The row's element named like the one the focus comes from, else its first shown and enabled focusable element.
+        static VisualElement RowButton(VisualElement row, string name)
         {
-            var same = name != null ? row.Q<Button>(name) : null;
+            var same = name != null ? row.Q(name) : null;
             if (same != null && Navigable(same)) return same;
-            return row.Query<Button>().Where(Navigable).First();
+            return row.Query<VisualElement>().Where(Navigable).First();
         }
 
-        static bool Navigable(Button b) =>
-            b.enabledInHierarchy && b.resolvedStyle.display != DisplayStyle.None && b.resolvedStyle.visibility == Visibility.Visible;
+        static bool Navigable(VisualElement v) =>
+            v.canGrabFocus && v.resolvedStyle.display != DisplayStyle.None && v.resolvedStyle.visibility == Visibility.Visible;
 
         VisualElement SelectedChip() => sections.Q(className: "selected") ?? (sections.childCount > 0 ? sections[0] : null);
 
@@ -236,9 +238,8 @@ namespace MHK.UI
             if (replaced > 0) row.tooltip = string.Format(replacedTip, replaced);
             var toggle = row.Q<Button>("mod-toggle");
             if (toggle == null) return;
-            BindToggle(toggle, pack.packId, Settings.disabledPacks);
             var withoutKart = DriversWithoutKart(pack);
-            if (withoutKart > 0) toggle.tooltip = string.Format(missingKartsTip, withoutKart);
+            BindToggle(toggle, pack.packId, Settings.disabledPacks, withoutKart > 0 ? string.Format(missingKartsTip, withoutKart) : null);
             ShowProblem(row, toggle, pack);
         }
 
@@ -303,12 +304,14 @@ namespace MHK.UI
             return count;
         }
 
-        void BindToggle(Button toggle, string id, List<string> disabled)
+        // The switch's state is its tooltip, a note (drivers without kart) follows it.
+        void BindToggle(Button toggle, string id, List<string> disabled, string note = null)
         {
             void Show()
             {
                 var enabled = !disabled.Contains(id);
-                toggle.text = enabled ? enabledText : disabledText;
+                var state = enabled ? enabledText : disabledText;
+                toggle.tooltip = note == null ? state : state + UiText.Separator + note;
                 toggle.EnableInClassList("on", enabled);
                 toggle.EnableInClassList("off", !enabled);
             }
@@ -316,13 +319,14 @@ namespace MHK.UI
             {
                 if (!disabled.Remove(id)) disabled.Add(id);
                 Show();
+                ShowApply();
             };
             Show();
         }
 
         void BindMove(VisualElement row, int count)
         {
-            var handle = row.Q<Button>("mod-drag");
+            var handle = row.Q("mod-drag");
             if (handle == null) return;
             handle.tooltip = section == Section.Mods ? modMoveTip : packMoveTip;
             handle.SetEnabled(count > 1);
@@ -341,6 +345,7 @@ namespace MHK.UI
                 Reorder(packs, from, to);
                 Settings.assetPackOrder = ModOrder.ToSave(packs.ConvertAll(p => p.id), Settings.assetPackOrder);
             }
+            ShowApply();
         }
 
         static void Reorder<T>(List<T> items, int from, int to)
@@ -350,16 +355,5 @@ namespace MHK.UI
             items.Insert(to, item);
         }
 
-        void Apply()
-        {
-            GameRoot.Instance.SaveSettings();
-            SceneFlow.ReloadContent();
-        }
-
-        void Reload()
-        {
-            MenuFlow.OpenOnStart = typeof(ModsScreen);
-            Apply();
-        }
     }
 }
