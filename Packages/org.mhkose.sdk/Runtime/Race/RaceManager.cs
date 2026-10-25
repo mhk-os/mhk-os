@@ -62,6 +62,11 @@ namespace MHK.Race
         public bool ClockRunning { get; private set; }
         /// <summary>Physics steps since GO.</summary>
         public int RaceTicks { get; private set; }
+        /// <summary>
+        /// Seconds left until GO while the intro and the countdown run (scaled frame time, so only visuals may follow
+        /// it), held at their whole length while the track loads, 0 from GO. The <see cref="RaceClock"/> before GO.
+        /// </summary>
+        public float SecondsToGo { get; private set; }
         public ChaseCamera ChaseCamera => chaseCamera;
         public Transform KartsRoot => kartsRoot;
         /// <summary>Menu background race (<see cref="RunAsAttract"/>): no music, no intro, nobody to pause it.</summary>
@@ -151,6 +156,7 @@ namespace MHK.Race
                 yield break;
             }
             Laps = LapsFor(Session, Track);
+            SecondsToGo = IntroSeconds + GameRoot.Instance.Config.countdownSeconds;
 
             var loadStart = Time.realtimeSinceStartup;
             yield return LoadTrack();
@@ -240,26 +246,29 @@ namespace MHK.Race
             return session.lapsFromTrack ? track.defaultLaps : session.laps;
         }
 
-        /// <summary>Computer driver of this race's difficulty and track AI settings.</summary>
-        public AIKartDriver CreateAiDriver(int targetRank, int seed)
-        {
-            var cfg = GameRoot.Instance.Config;
-            return new AIKartDriver(Difficulty, Track.GetAi((int)Session.difficulty, cfg.defaultTrackAi), targetRank, seed);
-        }
+        /// <summary>Computer driver of this race's engine class.</summary>
+        public AIKartDriver CreateAiDriver(int seed) => new(Difficulty, seed);
 
         /// <summary>Lets the computer drive <paramref name="kart"/> (autopilot after the line, benchmarks).</summary>
-        public void HandToAi(Kart kart, int seed) => kart.Driver = CreateAiDriver(0, seed);
+        public void HandToAi(Kart kart, int seed) => kart.Driver = CreateAiDriver(seed);
 
         // The loading screen fades out (it waits for this phase) while the camera orbits the player's kart.
         IEnumerator RunIntro()
         {
             Phase = RacePhase.Intro;
-            if (chaseCamera == null || IsAttract) yield break;
+            if (IntroSeconds <= 0f) yield break;
             chaseCamera.CurrentMode = ChaseCamera.Mode.Orbit;
-            yield return new WaitForSeconds(IntroOrbitSeconds);
+            var countdown = GameRoot.Instance.Config.countdownSeconds;
+            for (var left = IntroSeconds; left > 0f; left -= Time.deltaTime)
+            {
+                SecondsToGo = left + countdown;
+                yield return null;
+            }
             chaseCamera.CurrentMode = ChaseCamera.Mode.Chase;
             chaseCamera.SnapToTarget();
         }
+
+        float IntroSeconds => chaseCamera == null || IsAttract ? 0f : IntroOrbitSeconds;
 
         IEnumerator RunCountdown()
         {
@@ -269,9 +278,11 @@ namespace MHK.Race
             var countdown = cfg.countdownSeconds;
             var lastTick = int.MaxValue;
             powerStart.Clear();
+            SecondsToGo = countdown;
             while (countdown > 0f)
             {
                 countdown -= Time.deltaTime;
+                SecondsToGo = Mathf.Max(0f, countdown);
                 // MHK2: beeps when trunc(T + 1) changes to 3, 2, 1 and GO at 0.
                 var tick = Mathf.FloorToInt(countdown + 1f);
                 if (tick != lastTick && tick > 0 && tick <= MaxCountdownTick)
@@ -290,6 +301,7 @@ namespace MHK.Race
             Phase = RacePhase.Racing;
             RaceTicks = 0;
             ClockRunning = true;
+            SecondsToGo = 0f;
             var cfg = GameRoot.Instance.Config;
             foreach (var k in karts)
             {
@@ -349,9 +361,23 @@ namespace MHK.Race
             foreach (var d in humanDrivers)
             {
                 if (!d.Pause.WasPressedThisFrame()) continue;
-                SetPaused(!Paused);
+                if (PauseKeyHandler == null || !PauseKeyHandler()) SetPaused(!Paused);
                 break;
             }
+        }
+
+        /// <summary>
+        /// Gets the Pause key before it toggles the pause and returns true when it took the press (the pause menu's
+        /// options use it as Back, so the race stays paused while they are open).
+        /// </summary>
+        public Func<bool> PauseKeyHandler { get; set; }
+
+        /// <summary>Applies settings the pause menu's options changed mid-race: key rebinds and the camera view.</summary>
+        public void ApplySettings()
+        {
+            foreach (var d in humanDrivers) d.ReloadBindings();
+            var view = GameRoot.Instance.Settings.cameraMode;
+            if (chaseCamera != null && chaseCamera.View != view) chaseCamera.SetView(view);
         }
 
         public void SetPaused(bool paused)

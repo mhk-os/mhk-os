@@ -51,6 +51,7 @@ namespace MHK.Editor.Modding.Import
             var zones = ImportHierarchy.CreateChild(root, "Zones");
             TrackZoneBuilder.BuildZones(c, zones);
             var path = TrackPathBuilder.Build(c, root, runtime);
+            TrackBridgeBuilder.Build(c, root, visual, runtime);
             runtime.groundMask = ~NonGroundLayers;
             TrackZoneBuilder.BuildBoostPads(c, zones, path);
             var slots = BuildStartGrid(c, root, runtime);

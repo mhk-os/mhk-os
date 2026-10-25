@@ -1,6 +1,7 @@
 using MHK.Core;
 using MHK.Karts;
 using MHK.Modding;
+using MHK.Powerups;
 using MHK.Race;
 using UnityEngine;
 
@@ -9,7 +10,8 @@ namespace MHK.AI
     /// <summary>
     /// Computer driver modelled on MHK2's ComputerCarController. It follows a racing line, plans lanes and braking, recovers
     /// when stuck and presses the player's keys through <see cref="AIKeys"/>, with item use delegated to <see cref="AIItemBrain"/>.
-    /// In a battle it leaves the racing line for battle goals (<see cref="AIBattleDriving"/>).
+    /// In a battle it races the track the same way in the direction <see cref="AIBattleDriving"/> picks and leaves the
+    /// racing line to hunt opponents, roam arenas and turn around.
     /// </summary>
     public sealed class AIKartDriver : IKartDriver
     {
@@ -19,15 +21,13 @@ namespace MHK.AI
         const float SlowScanInterval = 0.2f, FastScanInterval = 0.06f, MinScanRange = 10f;
         const float FeelerWidthShare = 1.15f, MinFeelerRadius = 0.4f, MaxFeelerRadius = 1.1f;
         const float MinKartHalfWidth = 0.3f, DefaultKartHalfWidth = 0.8f;
-        const float MinSteerAhead = 3f;
+        const float MinSteerAhead = 3f, StuckAimAhead = 8f;
         const float CoastBrakeSpeed = 1f, CoastBrake = 0.2f;
         const float WallStopMargin = 2.5f, SqueezeSpeed = 3f;
         const float BrakeRampSpeed = 5f, HardBrakeExcess = 1.5f, LightBrake = 0.3f;
         const float YieldBrakeSpeed = 4f, YieldBrake = 0.6f;
 
         readonly DifficultySettings difficulty;
-        readonly TrackAiSettings levelAi;
-        readonly float rankFactor;
         readonly AIBlackboard board = new();
         readonly AIKeys keys = new();
         readonly AIItemBrain items;
@@ -38,25 +38,24 @@ namespace MHK.AI
         readonly AICornerPlanner corners;
         readonly AIStuckRecovery stuck;
         float scanTimer;
-        bool gapAhead;
         float halfWidth;
         int obstacleMask;
         float roadShift;
         readonly int battleSeed;
         AIBattleDriving battle;
 
-        /// <summary>Item box station this driver heads for in a battle, -1 for none (other drivers pick different ones).</summary>
-        internal int BattleStation => battle != null ? battle.Station : -1;
+        /// <summary>Item box this driver roams to in a battle arena, null for none (other drivers pick different ones).</summary>
+        internal ItemBox BattleBox => battle?.Box;
+        /// <summary>Opponent this driver hunts in a battle, null for none (other drivers spread over different targets).</summary>
+        internal Kart BattleTarget => battle?.Target;
 
         /// <summary>
-        /// A driver aiming for <paramref name="targetRank"/> on a track with <paramref name="levelAi"/> settings.
-        /// <paramref name="seed"/> (the racer index) keeps the drivers of one race apart.
+        /// A driver of the engine class <paramref name="difficulty"/>. <paramref name="seed"/> (the racer index) keeps the
+        /// drivers of one race apart.
         /// </summary>
-        public AIKartDriver(DifficultySettings difficulty, TrackAiSettings levelAi, int targetRank, int seed)
+        public AIKartDriver(DifficultySettings difficulty, int seed)
         {
             this.difficulty = difficulty;
-            this.levelAi = levelAi ?? new TrackAiSettings();
-            rankFactor = RankFactor(this.levelAi, targetRank);
             // Mixed with the global random state so every race brings new item timing, rolls and wobble.
             var rng = new System.Random(unchecked(seed * AIRolls.KeyPrime + SeedSalt) ^ Random.Range(int.MinValue, int.MaxValue));
             var noiseSeed = rng.NextFloat() * NoiseSeedRange;
@@ -93,6 +92,13 @@ namespace MHK.AI
             // MHK2 speed constants are in original m/s: times s for the scaled karts (KartPhysics.SpeedScale).
             var s = kart.Physics.SpeedScale;
             EnsureKartMetrics(kart, track);
+            EnsureBattle(cfg);
+            if (battle != null)
+            {
+                battle.Think(kart, track, line, cfg, dt);
+                line.Direction = battle.Direction;
+                board.direction = battle.Direction;
+            }
             FollowLine(kart, track, speed, cfg);
             if (kart.Progress.Finished)
             {
@@ -100,12 +106,12 @@ namespace MHK.AI
                 input.brake = speed > CoastBrakeSpeed * s ? CoastBrake : 0f;
                 return;
             }
-            EnsureBattle(cfg);
-            if (battle != null) stuck.SetBattleAim(battle.SteerPoint, battle.ForwardSafe);
-            if (stuck.Tick(kart, dt, cfg, ref input)) return;
             if (battle != null)
+                stuck.SetBattleAim(battle.Navigating ? battle.SteerPoint : line.Point(StuckAimAhead, AILanes.Centre), !battle.Navigating || battle.ForwardSafe);
+            if (stuck.Tick(kart, dt, cfg, ref input)) return;
+            if (battle != null && battle.Navigating)
             {
-                battle.Drive(kart, track, steering, FeelerRadius, cfg, dt, ref input);
+                battle.Drive(kart, track, line, steering, FeelerRadius, cfg, dt, ref input);
                 items.Tick(kart, ref input, dt, cfg);
                 return;
             }
@@ -114,11 +120,10 @@ namespace MHK.AI
             ScanIfDue(kart, speed, steerAhead, dt, cfg);
             var clear = lanes.Plan(kart, speed, Kart.All.Count > 1 ? FreeSpeed(kart, speed, s, cfg) : 0f, dt, roadShift, cfg);
             steering.Steer(kart, Mathf.Max(MinSteerAhead, steerAhead * feelers.AheadScale), lanes.Lane, cfg, dt, ref input);
-            var throttle = SpeedCapThrottle(kart, speed);
-            // Run-up to a jump: full throttle. The level speed factors leave too little take-off speed at the original 2 g.
-            if (gapAhead) throttle = 1f;
+            // Always full throttle (no speed cap below the player's): only bends, walls and blocked karts ahead brake.
+            var throttle = 1f;
             ApplyBrakes(speed, BrakeSpeed(kart, speed, s, clear, cfg), s, ref input, ref throttle);
-            input.throttle = Mathf.Clamp01(throttle);
+            input.throttle = throttle;
             items.Tick(kart, ref input, dt, cfg);
         }
 
@@ -138,14 +143,13 @@ namespace MHK.AI
             var race = RaceManager.Current;
             if (race == null || !race.IsBattle) return;
             var arena = race.Track != null && race.Track.layout == TrackLayout.Arena;
-            battle = new AIBattleDriving(difficulty, cfg.GetBattleAi(race.Session.difficulty), levelAi, arena, board, battleSeed);
+            battle = new AIBattleDriving(difficulty, cfg.GetBattleAi(race.Session.difficulty), arena, board, battleSeed);
         }
 
         void FollowLine(Kart kart, TrackRuntime track, float speed, GameConfig cfg)
         {
-            var race = RaceManager.Current;
             var routeReach = Mathf.Max(MinRouteReach, speed * speed / (2f * Mathf.Max(1f, cfg.aiPlanBraking)) + RouteReachMargin);
-            line.Tick(kart, track, routeReach, race == null || !race.IsBattle, cfg);
+            line.Tick(kart, track, routeReach, battle == null || battle.FollowsRoutes, cfg);
             board.route = line.Route;
             roadShift = line.RoadShift(0f);
             corners.Refresh(kart, difficulty, cfg);
@@ -158,30 +162,11 @@ namespace MHK.AI
             scanTimer = Mathf.Lerp(SlowScanInterval, FastScanInterval, difficulty.aiPrecision);
             var range = Mathf.Clamp(Mathf.Abs(speed) * cfg.aiObstacleLookSeconds, MinScanRange, Mathf.Max(MinScanRange, cfg.aiLookAheadRange));
             feelers.Scan(kart.transform, range, steerAhead, lanes.Lane, FeelerRadius, obstacleMask, cfg.aiPushableMass);
-            gapAhead = line.GapWithin(cfg.gapRunUp);
         }
 
-        // MHK2's level speed factor, rubber-banded by the distance to the human, times the rank and engine-class factors.
-        // With keys it is a speed cap: full throttle below that share of the kart's top speed, none above.
-        float SpeedCapThrottle(Kart kart, float speed)
-        {
-            var factor = RubberBand(kart) * rankFactor * difficulty.aiSpeedFactor;
-            return factor >= 1f || speed < factor * kart.NormalTopSpeed ? 1f : 0f;
-        }
-
+        // Speed without traffic: the kart's top speed, or less for a bend ahead.
         float FreeSpeed(Kart kart, float speed, float s, GameConfig cfg) =>
-            Mathf.Min(Mathf.Min(RubberBand(kart) * rankFactor * difficulty.aiSpeedFactor, 1f) * kart.NormalTopSpeed,
-                corners.CornerSpeed(kart, speed, s, lanes.Lane, cfg));
-
-        float RubberBand(Kart kart)
-        {
-            var f = levelAi.normalSpeedFactor;
-            var gap = AIKartQueries.DistanceToHuman(kart);
-            if (float.IsNaN(gap)) return f;
-            if (gap > 0f)
-                return f + (levelAi.leadingSpeedFactor - levelAi.normalSpeedFactor) * Mathf.Min(gap / Mathf.Max(1f, levelAi.leadingDistance), 1f);
-            return f + (levelAi.trailingSpeedFactor - levelAi.normalSpeedFactor) * Mathf.Min(-gap / Mathf.Max(1f, levelAi.trailingDistance), 1f);
-        }
+            Mathf.Min(kart.NormalTopSpeed, corners.CornerSpeed(kart, speed, s, lanes.Lane, cfg));
 
         float BrakeSpeed(Kart kart, float speed, float s, float clear, GameConfig cfg)
         {
@@ -203,13 +188,6 @@ namespace MHK.AI
             if (!board.yieldRequested) return;
             throttle = 0f;
             input.brake = Mathf.Max(input.brake, speed > YieldBrakeSpeed * s ? YieldBrake : 0f);
-        }
-
-        static float RankFactor(TrackAiSettings ai, int targetRank)
-        {
-            var ranks = ai.rankFactors;
-            var f = ranks != null && ranks.Length > 0 ? ranks[Mathf.Clamp(targetRank, 0, ranks.Length - 1)] : 1f;
-            return float.IsNaN(f) || f <= 0f ? 1f : f;
         }
 
         static float KartHalfWidthOf(Kart kart) =>

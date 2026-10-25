@@ -58,7 +58,7 @@ namespace MHK.Race
             kart.Progress.Begin(TrackRuntime, Laps);
             kart.Progress.FinishedRace += OnRacerFinished;
             kart.ControlsEnabled = false;
-            kart.Driver = setup.isHuman ? CreatePlayerDriver(Mathf.Max(0, setup.playerIndex)) : CreateAiDriver(setup.aiTargetRank, slot);
+            kart.Driver = setup.isHuman ? CreatePlayerDriver(Mathf.Max(0, setup.playerIndex)) : CreateAiDriver(slot);
             return kart;
         }
 

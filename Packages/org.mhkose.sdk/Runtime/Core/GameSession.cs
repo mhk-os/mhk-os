@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MHK.Modding;
 
 namespace MHK.Core
@@ -24,8 +23,6 @@ namespace MHK.Core
         /// <summary>Championship points (persist across races of a cup).</summary>
         public int points;
         public float totalTime;
-        /// <summary>AI only: target rank index for the whole championship (MHK2 GameParams+0x218).</summary>
-        public int aiTargetRank;
     }
 
     /// <summary>Everything the Race scene needs to know about the next race(s). Created by the menus, kept by <see cref="GameRoot"/>.</summary>
@@ -66,10 +63,6 @@ namespace MHK.Core
         {
             foreach (var r in racers) { r.points = 0; r.totalTime = 0; }
             raceIndex = 0;
-            // Each AI gets a distinct random target rank for the whole championship.
-            var ais = racers.Where(r => !r.isHuman).ToList();
-            var ranks = Enumerable.Range(0, ais.Count).OrderBy(_ => UnityEngine.Random.value).ToList();
-            for (var i = 0; i < ais.Count; i++) ais[i].aiTargetRank = ranks[i];
         }
 
         /// <summary>Builds a default session (first character vs. AI on the first track) for direct play-mode testing.</summary>

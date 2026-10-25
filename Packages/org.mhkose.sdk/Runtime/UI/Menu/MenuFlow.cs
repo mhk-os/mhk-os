@@ -10,7 +10,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Main menu owner: its child screens (exactly one active), the back history, the player's choices
-    /// (<see cref="Selection"/>), menu music and the 3D showcase.
+    /// (<see cref="Selection"/>), menu music and the 3D showcase. As an overlay it hosts menu screens over another
+    /// scene instead (the race pause menu's options): <see cref="Open{T}"/> shows one, Back from it closes the overlay.
     /// </summary>
     [DefaultExecutionOrder(-50)]
     public partial class MenuFlow : MonoBehaviour
@@ -29,12 +30,18 @@ namespace MHK.UI
         public MenuScreen firstRunScreen;
         [SerializeField, Tooltip("Flat ambient light while the menu is shown (matches the backdrop picture).")]
         Color ambientLight = new(0.86f, 0.74f, 0.66f);
+        [SerializeField, Tooltip("Hosts menu screens over another scene (the race pause menu's options): no menu music, lighting, " +
+                                 "showcase or start screen. Back from the first opened screen closes the overlay.")]
+        bool overlay;
 
         readonly Stack<MenuScreen> history = new();
 
         public MenuScreen Current { get; private set; }
         public MenuSelection Selection { get; } = new();
         public float MenuMusicVolume => menuMusicVolume;
+
+        /// <summary>Overlay: the overlay closed (Back from its first screen, or <see cref="Close"/>).</summary>
+        public event Action Closed;
 
         /// <summary>
         /// Screen type the next menu start opens on top of the title screen (Back returns to the title), cleared once
@@ -53,6 +60,7 @@ namespace MHK.UI
         void Start()
         {
             if (clickSound == null) clickSound = ContentPack.Find(Content.Packs, p => p.uiClick);
+            if (overlay) return;
             MusicPlayer.PlayMenu(menuMusicVolume);
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = ambientLight;
@@ -96,14 +104,37 @@ namespace MHK.UI
 
         public void Show<T>(bool push = true) where T : MenuScreen => Show(Get<T>(), push);
 
-        /// <summary>Returns to the previous screen (saving the settings), if there is one.</summary>
+        /// <summary>Returns to the previous screen (saving the settings), if there is one. In an overlay the first screen closes it.</summary>
         public void Back()
         {
-            if (history.Count == 0) return;
+            if (history.Count == 0 && !(overlay && Current != null)) return;
             Click();
             GameRoot.Instance.SaveSettings();
+            if (history.Count == 0)
+            {
+                Close();
+                return;
+            }
             if (Current is CharacterScreen) Selection.trackFixed = false;
             Show(history.Pop(), false);
+        }
+
+        /// <summary>Overlay: opens <typeparamref name="T"/> as its first screen (Back from it closes the overlay).</summary>
+        public void Open<T>() where T : MenuScreen
+        {
+            ClearHistory();
+            Show<T>(false);
+        }
+
+        /// <summary>Overlay: closes the open screen (and the ones below it) without saving.</summary>
+        public void Close()
+        {
+            if (Current == null) return;
+            ClearHistory();
+            var last = Current;
+            Current = null;
+            last.gameObject.SetActive(false);
+            Closed?.Invoke();
         }
 
         /// <summary>Clears the history (and a fixed track) and opens the title screen.</summary>

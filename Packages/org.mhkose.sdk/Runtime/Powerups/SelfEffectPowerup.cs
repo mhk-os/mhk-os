@@ -12,7 +12,7 @@ namespace MHK.Powerups
 
         protected override void OnLaunch()
         {
-            foreach (var e in effects) Owner.Effects.Apply(e, Owner);
+            foreach (var e in effects) Owner.Effects.Apply(e, Owner, -1f, Usage);
             if (destroyImmediately) Destroy(gameObject);
         }
     }

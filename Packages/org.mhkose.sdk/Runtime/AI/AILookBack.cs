@@ -80,7 +80,7 @@ namespace MHK.AI
             plantCheckTimer -= dt;
             if (plantCheckTimer > 0f) return false;
             plantCheckTimer = PlantCheckInterval;
-            var d = kart.Progress.PathDistance + Mathf.Max(0f, kart.Physics.ForwardSpeed) * (Warning + PlantLookLead);
+            var d = kart.Progress.PathDistance + board.direction * Mathf.Max(0f, kart.Physics.ForwardSpeed) * (Warning + PlantLookLead);
             if (!AIKartQueries.NarrowRoad(kart, board.route, d)) return false;
             Start(PlantLookDuration, true);
             return true;

@@ -81,7 +81,7 @@ namespace MHK.Powerups
             if (catchEffect == null) return;
             var centre = transform.position;
             var k = Nearest(centre);
-            if (k == null || !KartReactions.Apply(k, catchEffect, Owner)) return;
+            if (k == null || !KartReactions.Apply(k, catchEffect, Owner, -1f, Usage)) return;
             victim = k;
             held.Add(k);
             var p = k.Physics.Body.position;

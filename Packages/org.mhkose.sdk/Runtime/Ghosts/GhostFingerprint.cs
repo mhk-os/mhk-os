@@ -25,7 +25,7 @@ namespace MHK.Ghosts
             AddTrackDefinition(b, track);
             if (runtime == null) return b.Finish();
             AddTrackRuntime(b, runtime);
-            foreach (var root in runtime.gameObject.scene.GetRootGameObjects()) AddSceneRoot(b, root);
+            foreach (var root in runtime.gameObject.scene.GetRootGameObjects()) AddSceneRoot(b, root, runtime);
             return b.Finish();
         }
 
@@ -62,8 +62,8 @@ namespace MHK.Ghosts
             foreach (var alt in runtime.alternatePaths) AddPath(b, alt);
         }
 
-        // Per scene root, in this order: colliders, surfaces, zones, hazards, animated props.
-        static void AddSceneRoot(FingerprintBuilder b, GameObject root)
+        // Per scene root, in this order: colliders, surfaces, zones, hazards, animated props, collapsing bridges.
+        static void AddSceneRoot(FingerprintBuilder b, GameObject root, TrackRuntime runtime)
         {
             foreach (var c in root.GetComponentsInChildren<Collider>(true))
                 if (c.enabled && c.gameObject.activeInHierarchy) AddCollider(b, c);
@@ -71,6 +71,7 @@ namespace MHK.Ghosts
             foreach (var z in root.GetComponentsInChildren<TrackZone>(true)) AddZone(b, z);
             foreach (var h in root.GetComponentsInChildren<TrackHazard>(true)) AddHazard(b, h);
             foreach (var p in root.GetComponentsInChildren<PropAnimator>(true)) AddProp(b, p);
+            foreach (var c in root.GetComponentsInChildren<CollapsingBridge>(true)) AddBridge(b, c, runtime);
         }
 
         static void AddRaceRules(FingerprintBuilder b, GameConfig cfg)

@@ -1,16 +1,19 @@
 using MHK.Core;
 using MHK.Karts;
 using MHK.Modding;
+using MHK.Race;
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 
 namespace MHK.Powerups
 {
     /// <summary>
     /// Holds the kart's current powerup and fires it on input. Items with several charges wait
-    /// <see cref="PowerupDefinition.useCooldown"/> between uses. Fire presses during the wait do nothing.
+    /// <see cref="PowerupDefinition.useCooldown"/> between uses. Fire presses during the wait do nothing. Each use gets
+    /// its own <see cref="PowerupContext.usage"/> id.
     /// </summary>
     [RequireComponent(typeof(Kart))]
-    public class PowerupInventory : MonoBehaviour
+    public partial class PowerupInventory : MonoBehaviour
     {
         public PowerupDefinition Held { get; private set; }
         public int Charges { get; private set; }
@@ -33,6 +36,8 @@ namespace MHK.Powerups
         GameObject heldVisual;
         float heldHiddenUntil;
 
+        [AutoStaticsCleanup] static int lastUsage;
+
         static GameConfig Config => GameRoot.Instance.Config;
 
         void Awake() => kart = GetComponent<Kart>();
@@ -44,12 +49,22 @@ namespace MHK.Powerups
             DestroyHeldVisual();
             Held = def;
             Received++;
-            Charges = Mathf.Max(1, def.charges);
+            Charges = Mathf.Max(1, ChargesOf(def));
             cooldownUntil = 0f;
             heldHiddenUntil = 0f;
             rollTimer = Config.itemRouletteSeconds;
             if (rollTimer <= 0f) ShowHeld();
         }
+
+        // Battles may give fewer charges (PowerupDefinition.battleCharges, MHK Extra hammer: 1 instead of 3).
+        static int ChargesOf(PowerupDefinition def)
+        {
+            var race = Race.RaceManager.Current;
+            return def.battleCharges > 0 && race != null && race.IsBattle ? def.battleCharges : def.charges;
+        }
+
+        // Never 0 (= no use): wraps to 1 after int.MaxValue uses.
+        static int NextUsage() => lastUsage = lastUsage == int.MaxValue ? 1 : lastUsage + 1;
 
         /// <summary>Drops the held item without using it.</summary>
         public void Clear()
@@ -113,7 +128,7 @@ namespace MHK.Powerups
             var def = Held;
             if (Config.usingItemCancelsBuffs) kart.Effects.EndExclusiveBuffs();
             if (def.usePrefab != null)
-                PowerupFx.SpawnAndLaunch(def.usePrefab, transform.position, transform.rotation, new PowerupContext(kart, def, backwards));
+                PowerupFx.SpawnAndLaunch(def.usePrefab, transform.position, transform.rotation, new PowerupContext(kart, def, backwards, NextUsage()));
             else Debug.LogWarning($"[Powerups] '{def.Id}' has no use prefab.");
             Audio.AudioManager.PlaySfx(def.useSound, transform.position);
             Charges--;

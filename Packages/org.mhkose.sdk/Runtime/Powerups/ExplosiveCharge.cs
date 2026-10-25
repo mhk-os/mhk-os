@@ -139,9 +139,9 @@ namespace MHK.Powerups
             var dist = flat.magnitude;
             if (dist <= hitRadius)
             {
-                KartReactions.Apply(k, hitEffect, Owner);
+                KartReactions.Apply(k, hitEffect, Owner, -1f, Usage);
             }
-            else if (dist <= splashRadius && KartReactions.Apply(k, splashEffect, Owner))
+            else if (dist <= splashRadius && KartReactions.Apply(k, splashEffect, Owner, -1f, Usage))
             {
                 var fade = 1f - Mathf.InverseLerp(hitRadius, splashRadius, dist);
                 var away = dist > MinPushDistance ? flat / dist : Vector3.zero;

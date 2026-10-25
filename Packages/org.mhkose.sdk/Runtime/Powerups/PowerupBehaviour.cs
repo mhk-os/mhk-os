@@ -10,12 +10,18 @@ namespace MHK.Powerups
         public readonly Kart owner;
         public readonly PowerupDefinition definition;
         public readonly bool backwards;
+        /// <summary>
+        /// Id of this single use (one charge) of the item, shared by everything it spawns (bursts, scattered hazards,
+        /// explosions): a kart loses health once per use however often it is hit (<see cref="Kart.TakeDamage"/>). 0 = none.
+        /// </summary>
+        public readonly int usage;
 
-        public PowerupContext(Kart owner, PowerupDefinition definition, bool backwards)
+        public PowerupContext(Kart owner, PowerupDefinition definition, bool backwards, int usage)
         {
             this.owner = owner;
             this.definition = definition;
             this.backwards = backwards;
+            this.usage = usage;
         }
     }
 
@@ -74,8 +80,11 @@ namespace MHK.Powerups
         /// <summary>The kart exists, races and is not a ghost, so items can hit it.</summary>
         protected static bool IsTangible(Kart k) => k != null && !k.Eliminated && !k.Effects.Ghost;
 
-        /// <summary>Applies <paramref name="effect"/> from the owner. True when it landed or there is no effect.</summary>
-        protected bool HitKart(Kart k, StatusEffectDefinition effect) => effect == null || KartReactions.Apply(k, effect, Owner);
+        /// <summary>Applies <paramref name="effect"/> from the owner as this item's use. True when it landed or there is no effect.</summary>
+        protected bool HitKart(Kart k, StatusEffectDefinition effect) => effect == null || KartReactions.Apply(k, effect, Owner, -1f, Usage);
+
+        /// <summary>This item's use (<see cref="PowerupContext.usage"/>): pass it to <see cref="KartReactions.Apply"/> hits.</summary>
+        protected int Usage => Context.usage;
 
         /// <summary>The owner's speed (m/s) along the unit vector <paramref name="direction"/>.</summary>
         protected float OwnerSpeedAlong(Vector3 direction) => Vector3.Dot(Owner.Physics.Body.linearVelocity, direction);

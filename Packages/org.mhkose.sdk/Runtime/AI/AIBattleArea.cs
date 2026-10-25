@@ -24,9 +24,20 @@ namespace MHK.AI
         /// drive onto. Offroad it must also be flatter than <paramref name="minNormalY"/> (hillsides karts cannot climb).
         /// <paramref name="hints"/> speed up the projections onto the lines between calls.
         /// </summary>
-        public static bool Safe(TrackRuntime track, Vector3 p, float fromY, float leash, float minNormalY, Hints hints, out float groundY)
+        public static bool Safe(TrackRuntime track, Vector3 p, float fromY, float leash, float minNormalY, Hints hints, out float groundY) =>
+            Safe(track, p, fromY, leash, leash, minNormalY, hints, out groundY, out _);
+
+        /// <summary>
+        /// <see cref="Safe(TrackRuntime, Vector3, float, float, float, Hints, out float)"/>, where ground of a paved
+        /// <see cref="TrackSurface"/> (one that is not offroad, such as a square beside the line) may lie up to
+        /// <paramref name="pavedLeash"/> beyond the road edges. Also tells how far (m) the ground lies beyond them
+        /// (<see cref="BeyondRoad"/>; +infinity when there is no ground).
+        /// </summary>
+        public static bool Safe(TrackRuntime track, Vector3 p, float fromY, float leash, float pavedLeash, float minNormalY, Hints hints,
+            out float groundY, out float beyond)
         {
             groundY = fromY;
+            beyond = float.PositiveInfinity;
             if (!AIRoadProbe.Ground(p, fromY, track.ObstacleMask, out var hit)) return false;
             groundY = hit.point.y;
             if (hit.normal.y < AIObstacleClassifier.SteepNormalY) return false;
@@ -35,8 +46,9 @@ namespace MHK.AI
             var surface = TrackSurface.Of(hit.collider);
             if (surface != null && (surface.kind.IsUnsafeGround() || surface.kind == SurfaceKind.Water)) return false;
             if (InKillZone(hit.point)) return false;
-            var beyond = BeyondRoad(track, hit.point, hints);
-            return beyond <= leash && (beyond <= 0f || hit.normal.y >= minNormalY);
+            beyond = BeyondRoad(track, hit.point, hints);
+            var reach = surface != null && !surface.offroad ? Mathf.Max(leash, pavedLeash) : leash;
+            return beyond <= reach && (beyond <= 0f || hit.normal.y >= minNormalY);
         }
 
         /// <summary>Lowest ground normal y offroad ground may have in a battle (<see cref="Core.GameConfig.aiBattleMaxSlope"/>).</summary>

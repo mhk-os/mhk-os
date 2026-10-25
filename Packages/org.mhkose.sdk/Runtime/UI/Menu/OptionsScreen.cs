@@ -5,8 +5,9 @@ using Application = UnityEngine.Device.Application;
 namespace MHK.UI
 {
     /// <summary>
-    /// Options (Options.uxml): volumes, race camera, touch controls. The UI layout row opens the
+    /// Options (Options.uxml): volumes, race camera, touch controls, auto-accelerate. The UI layout row opens the
     /// <see cref="UiLayoutScreen"/>, the graphics row the <see cref="GraphicsScreen"/>, the controls row (desktop only) the <see cref="ControlsScreen"/>.
+    /// The race's pause menu opens the same screens in an overlay <see cref="MenuFlow"/> (<see cref="PauseMenu"/>).
     /// </summary>
     public class OptionsScreen : MenuScreen
     {
@@ -25,6 +26,7 @@ namespace MHK.UI
             BindSlider("effects-volume", s.sfxVolume, v => s.sfxVolume = v);
             BindChoice("camera", () => s.cameraMode, v => s.cameraMode = v, CameraModeName);
             BindChoice("touch-controls", () => s.touchControls, v => s.touchControls = v, click: false);
+            BindChoice("auto-accelerate", () => s.autoAccelerate, v => s.autoAccelerate = v, click: false);
             BindLink("ui-layout", s.uiLayout.custom ? customKeysText : defaultKeysText, () => Flow.Show<UiLayoutScreen>());
             BindLink("graphics", s.graphics.preset.ToString(), () => Flow.Show<GraphicsScreen>());
             if (Application.isMobilePlatform) SetVisible("controls", false);

@@ -170,8 +170,31 @@ namespace MHK.UI
         void SetLayer(RaceLayer layer, bool open)
         {
             if (layer == null) return;
-            if (open) layer.Race = race;
+            if (open)
+            {
+                layer.Race = race;
+                layer.Hud = this;
+            }
             if (layer.gameObject.activeSelf != open) layer.gameObject.SetActive(open);
+        }
+
+        /// <summary>
+        /// Applies settings changed mid-race (the pause menu's options), which <see cref="Bind"/> otherwise reads once:
+        /// touch controls on or off and the UI layout of the HUD and the touch controls.
+        /// </summary>
+        public void ApplySettings()
+        {
+            if (!IsBound || hud.panel == null) return;
+            var touchActive = GameRoot.Instance.Settings.TouchControlsActive;
+            hud.EnableInClassList("touch", touchActive);
+            minimap.TouchMode = touchActive;
+            speedometer.TouchMode = touchActive;
+            BindLayout();
+            var showTouch = touchActive && !resultsShown;
+            // Open touch controls rebuild from the (maybe changed) control layout.
+            if (showTouch && touch != null && touch.gameObject.activeSelf) touch.Rebuild();
+            else SetLayer(touch, showTouch);
+            if (replay != null && replay.gameObject.activeSelf) replay.RefreshTouchMode();
         }
 
         void ShowWidgets()

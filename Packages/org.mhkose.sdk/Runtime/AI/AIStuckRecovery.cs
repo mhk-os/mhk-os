@@ -34,13 +34,18 @@ namespace MHK.AI
         bool battle, battlePushSafe;
         Vector3 battleAim;
         float roamed;
+        // Battle: reverse manoeuvres since the kart last roamed aiStuckMinProgress. Every second one steers the other
+        // way, so a kart wedged offroad (a wall ahead, a slope or a prop beside it) does not repeat the same failed turn.
+        int battleStreak;
 
         public AIStuckRecovery(AIRouteFollower line) => this.line = line;
 
         /// <summary>
-        /// Battle: the kart roams off the racing line, so progress is the way it drives (no race distance or off-route
-        /// watch, no respawn after the reverse manoeuvre), and reversing turns its nose towards <paramref name="aim"/>.
-        /// A reverse that does not move the kart is followed by pushing forward when <paramref name="forwardSafe"/>.
+        /// Battle: the kart drives the track both ways and leaves the racing line, so progress is the way it drives (no
+        /// race distance or off-route watch, no respawn after the reverse manoeuvre), and reversing turns its nose towards
+        /// <paramref name="aim"/> (the racing line ahead in its direction, or its goal off the line). A reverse that does
+        /// not move the kart is followed by pushing forward when <paramref name="forwardSafe"/>. A kart that keeps getting
+        /// stuck without roaming on alternates the side it turns to.
         /// </summary>
         public void SetBattleAim(Vector3 aim, bool forwardSafe)
         {
@@ -84,6 +89,7 @@ namespace MHK.AI
                 if (windowDistance < StallDistance)
                 {
                     reverseDistance = 0f;
+                    if (battle) battleStreak++;
                     ResetWindow(Mode.Reverse);
                 }
                 else ResetWindow(Mode.Watch);
@@ -97,7 +103,7 @@ namespace MHK.AI
             input.brake = 1f;
             input.throttle = 0f;
             var local = kart.transform.InverseTransformPoint(battle ? battleAim : line.Point(ReverseTargetAhead, AILanes.Centre));
-            input.steer = local.x > 0 ? -1f : 1f;
+            input.steer = (local.x > 0 ? -1f : 1f) * BattleSide;
             if (timer >= ReverseTime) ResetWindow(reverseDistance > MinReverse ? Mode.DriveOff : battle && battlePushSafe ? Mode.PushForward : Mode.Watch);
             return true;
         }
@@ -106,10 +112,13 @@ namespace MHK.AI
         {
             input.brake = 0f;
             input.throttle = 1f;
-            input.steer = kart.transform.InverseTransformPoint(battleAim).x > 0 ? 1f : -1f;
+            input.steer = (kart.transform.InverseTransformPoint(battleAim).x > 0 ? 1f : -1f) * BattleSide;
             if (timer >= ReverseTime) ResetWindow(Mode.DriveOff);
             return true;
         }
+
+        // -1 on every second reverse manoeuvre of a battle streak, else 1.
+        float BattleSide => battle && battleStreak % 2 == 0 && battleStreak > 0 ? -1f : 1f;
 
         bool CheckDriveOff(Kart kart)
         {
@@ -167,6 +176,7 @@ namespace MHK.AI
             {
                 roamed = 0f;
                 progressTimer = 0f;
+                battleStreak = 0;
             }
             else progressTimer += dt;
             if (mode != Mode.Watch || progressTimer < cfg.stuckRespawnSeconds) return false;
@@ -174,6 +184,7 @@ namespace MHK.AI
             ResetWindow(Mode.Watch);
             progressTimer = 0f;
             roamed = 0f;
+            battleStreak = 0;
             return true;
         }
     }

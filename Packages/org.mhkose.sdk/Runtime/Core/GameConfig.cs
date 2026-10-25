@@ -162,16 +162,9 @@ namespace MHK.Core
         [Header("Difficulty")]
         public DifficultySettings[] difficulties =
         {
-            new() { label = "50cc", engineClassFactor = 1.1f, topSpeedKmh = 85f, aiSpeedFactor = 1.05f, aiPrecision = 0.55f },
-            new() { label = "100cc", engineClassFactor = 1.3f, topSpeedKmh = 95f, aiSpeedFactor = 1.0f, aiPrecision = 0.75f },
-            new() { label = "150cc", engineClassFactor = 1.5f, topSpeedKmh = 105f, aiSpeedFactor = 1.12f, aiPrecision = 0.95f },
-        };
-        [Tooltip("AI tuning per engine class of tracks without their own (TrackDefinition.aiSettings).")]
-        public TrackAiSettings[] defaultTrackAi =
-        {
-            new() { leadingDistance = 300, leadingSpeedFactor = 0.65f, normalSpeedFactor = 0.75f, trailingDistance = 250, trailingSpeedFactor = 0.9f, rankFactors = new[] { 1f, 0.95f, 0.9f, 0.85f, 0.8f, 0.75f } },
-            new(),
-            new() { leadingDistance = 150, leadingSpeedFactor = 0.8f, normalSpeedFactor = 0.92f, trailingDistance = 100, trailingSpeedFactor = 1f, rankFactors = new[] { 1f, 1f, 1f, 0.95f, 0.95f, 0.95f } },
+            new() { label = "50cc", engineClassFactor = 1.1f, topSpeedKmh = 85f, aiPrecision = 0.55f },
+            new() { label = "100cc", engineClassFactor = 1.3f, topSpeedKmh = 95f, aiPrecision = 0.75f },
+            new() { label = "150cc", engineClassFactor = 1.5f, topSpeedKmh = 105f, aiPrecision = 0.95f },
         };
 
         [Header("AI recovery")]
@@ -244,7 +237,8 @@ namespace MHK.Core
         public float aiLaneUrgentFactor = 2.5f;
         [Tooltip("Computer drivers pick a passing side for a slower or blocking kart ahead this many seconds before they " +
                  "would reach it (at their closing speed, within aiLookAheadRange), on the side with free road and no " +
-                 "wall, trap or other kart in the way. With no side free they lift or brake to its speed.")]
+                 "wall, trap or other kart in the way, and drive past it at full speed. Only with no side free do they " +
+                 "lift or brake to its speed. Karts they can drive through (ghosts, flattened or shrunk karts) are not passed.")]
         public float aiPassLookSeconds = 2.5f;
         [Tooltip("Side gap (m) computer drivers keep between their kart and a kart they pass or drive beside. They cut back " +
                  "in only once they are clear ahead of the kart they passed.")]
@@ -265,45 +259,31 @@ namespace MHK.Core
         [Tooltip("Battle skill of computer drivers per engine class (50cc, 100cc, 150cc).")]
         public BattleAiSettings[] battleAi =
         {
-            new() { decisionInterval = 0.8f, aggression = 0.35f, fleeHealth = 0.15f, threatAwareness = 0.3f, aimLead = 0.3f },
-            new() { decisionInterval = 0.5f, aggression = 0.6f, fleeHealth = 0.25f, threatAwareness = 0.6f, aimLead = 0.65f },
-            new() { decisionInterval = 0.3f, aggression = 0.85f, fleeHealth = 0.3f, threatAwareness = 0.9f, aimLead = 1f },
+            new() { decisionInterval = 0.8f, huntRange = 35f, ramRange = 8f, aggression = 0.35f, aimLead = 0.3f },
+            new() { decisionInterval = 0.5f, huntRange = 45f, ramRange = 12f, aggression = 0.6f, aimLead = 0.65f },
+            new() { decisionInterval = 0.3f, huntRange = 55f, ramRange = 15f, aggression = 0.85f, aimLead = 1f },
         };
-        [Tooltip("On circuits computer drivers in a battle roam up to this far (m) beyond the road edges of the racing " +
-                 "line and its alternative routes, offroad included, but never onto walls, fall zones, deadly ground, water " +
-                 "or below the kill height.")]
+        [Tooltip("On circuits computer drivers hunting an opponent in a battle roam up to this far (m) beyond the road " +
+                 "edges of the racing line and its alternative routes, offroad included, but never onto walls, fall zones, " +
+                 "deadly ground, water or below the kill height.")]
         public float aiBattleOffroadLeash = 8f;
         [Tooltip("The same reach (m) beyond the road edges of an arena's line, whose floor is wider than its line.")]
         public float aiBattleArenaLeash = 40f;
         [Tooltip("Distance (m) computer drivers in a battle check ahead for walls, solid props and unsafe ground in each " +
-                 "direction they consider.")]
+                 "direction they consider while they hunt, roam an arena or turn around.")]
         public float aiBattleLookRange = 22f;
-        [Tooltip("Battle goals closer than this (m) are driven to across the ground, farther ones along the racing line " +
-                 "(forwards or backwards, whichever is shorter), goals on an alternative route along that route. Arenas " +
+        [Tooltip("Opponents closer than this (m) are hunted across the ground, farther ones along the racing line " +
+                 "(forwards or backwards, whichever is shorter), ones on an alternative route along that route. Arenas " +
                  "are always crossed directly.")]
         public float aiBattleDirectRange = 45f;
-        [Tooltip("Distance (m) of the spots computer drivers wander to between goals and escape to from threats.")]
+        [Tooltip("In arenas computer drivers without an item box to drive to roam to open spots between this distance (m) " +
+                 "and twice it ahead of them.")]
         public float aiBattleWanderRadius = 30f;
-        [Tooltip("Opponents with an attacking item closer than this (m) and aiming at a kart are a threat it may avoid.")]
-        public float aiBattleThreatRange = 30f;
         [Tooltip("Share of the top speed computer drivers in a battle slow to for turns sharper than about 60 degrees.")]
         [Range(0.1f, 1f)] public float aiBattleTurnSpeedShare = 0.5f;
         [Tooltip("Steepest offroad ground (degrees) computer drivers in a battle drive onto. Steeper hillsides beside the " +
                  "road are left alone (karts cannot climb them), the road of the racing line is always allowed.")]
         [Range(5f, 50f)] public float aiBattleMaxSlope = 20f;
-        [Tooltip("Item boxes of a battle track form stations whose centres are at least this far apart (m). Computer " +
-                 "drivers without an item and no free box close by head for a station, not simply the nearest box.")]
-        [Min(1f)] public float aiBattleStationSpacing = 40f;
-        [Tooltip("Chance that a computer driver picks its next item box station ahead along the track, else behind it (the " +
-                 "first one is always ahead). It skips the station it just used and stations other computer drivers already " +
-                 "head for.")]
-        [Range(0f, 1f)] public float aiBattleStationAheadChance = 0.5f;
-        [Tooltip("Distance (m) at which a station is picked half as often as one right next to the kart. The chance falls " +
-                 "with the square of the distance: far stations are rare, but not impossible.")]
-        [Min(1f)] public float aiBattleStationDistanceScale = 60f;
-        [Tooltip("Computer drivers in a battle without an item take any free item box (normal or special) this close (m, " +
-                 "plus a cost for turning towards it) on their way, before heading for a station.")]
-        [Min(0f)] public float aiBattleBoxGrabRange = 30f;
         [Tooltip("Computer drivers in a battle use an item at the latest after holding it this long (s), so their hands " +
                  "are free for the next item box.")]
         [Min(1f)] public float aiBattleItemMaxHoldSeconds = 15f;

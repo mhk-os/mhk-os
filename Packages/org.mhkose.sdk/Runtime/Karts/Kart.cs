@@ -127,6 +127,11 @@ namespace MHK.Karts
         KartInput input;
         bool respawnRequested;
         float respawnCooldown;
+        // Powerup uses (PowerupContext.usage) that already cost this kart health, the oldest overwritten first. Ids only
+        // grow, so a slot never matches a newer use; 32 covers every use still able to hit (hazards lying around included).
+        const int DamagedUsageMemory = 32;
+        readonly int[] damagedUsages = new int[DamagedUsageMemory];
+        int nextDamagedUsage;
 
         void Awake()
         {
@@ -157,6 +162,8 @@ namespace MHK.Karts
             KartDef = kartDef;
             name = $"Kart {racerIndex} ({(character != null ? character.DisplayName : null)})";
             Health = GameRoot.Instance.Config.maxHealth;
+            Array.Clear(damagedUsages, 0, DamagedUsageMemory);
+            nextDamagedUsage = 0;
             Physics.Profile = physicsProfile;
             Visual = KartVisual.Build(this, character, kartDef);
         }
@@ -199,6 +206,7 @@ namespace MHK.Karts
             if (TrackRuntime.IsBelowKillHeight(transform.position)) respawnRequested = true;
             if (Physics.IsGrounded) ReactToSurface(Physics.Surface);
             if (track != null && Falling(track)) TouchDropGeometry();
+            if (CollapsingBridge.IsDownAt(Physics.Body.position)) TouchDropGeometry();
             if (effective.respawn && ControlsEnabled && !Effects.HasRespawnPending) respawnRequested = true;
             if (Eliminated) respawnRequested = false;
             if (respawnRequested && respawnCooldown <= 0f) RespawnBehind(GameRoot.Instance.Config.respawnBackDistance);
@@ -215,15 +223,28 @@ namespace MHK.Karts
 
         /// <summary>
         /// Thunder damage formula: base × attacker's dealt multiplier (quad 4, hammer 2) × own taken multiplier
-        /// (hammer 0.5), rounded down.
+        /// (hammer 0.5), rounded down. <paramref name="usage"/> is the powerup use the hit comes from
+        /// (<see cref="Powerups.PowerupContext.usage"/>, 0 = none): each use costs this kart health once, so its further
+        /// hits (more soap bubbles, the jammer field again, other bananas of the same rain) do not.
         /// </summary>
-        public void TakeDamage(int baseDamage, Kart attacker)
+        public void TakeDamage(int baseDamage, Kart attacker, int usage = 0)
         {
-            if (Eliminated || baseDamage <= 0 || Progress.Finished) return;
+            if (Eliminated || baseDamage <= 0 || Progress.Finished || DamagedBy(usage)) return;
             var dealt = attacker != null ? attacker.Effects.DamageDealtMultiplier : 1f;
             var dmg = Mathf.FloorToInt(baseDamage * dealt * Effects.DamageTakenMultiplier);
             if (dmg <= 0) return;
             Health = Mathf.Clamp(Health - dmg, 0, GameRoot.Instance.Config.maxHealth);
+            if (usage == 0) return;
+            damagedUsages[nextDamagedUsage] = usage;
+            nextDamagedUsage = (nextDamagedUsage + 1) % DamagedUsageMemory;
+        }
+
+        bool DamagedBy(int usage)
+        {
+            if (usage == 0) return false;
+            for (var i = 0; i < DamagedUsageMemory; i++)
+                if (damagedUsages[i] == usage) return true;
+            return false;
         }
 
         public void Heal(int amount)
@@ -290,7 +311,7 @@ namespace MHK.Karts
             Physics.Teleport(pose.position + Vector3.up * cfg.respawnDropHeight, pose.rotation);
             Progress.ResetProjection();
             Effects.ClearAll();
-            Effects.ProtectedUntil = Time.time + cfg.respawnProtectionSeconds;
+            Effects.ProtectedUntilTick = RaceClock.Ticks + Mathf.CeilToInt(cfg.respawnProtectionSeconds / RaceClock.Step);
             respawnCooldown = RespawnCooldownSeconds;
             respawnRequested = false;
             Respawned?.Invoke(this);

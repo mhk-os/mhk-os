@@ -53,13 +53,13 @@ namespace MHK.AI
             AIItemKind.HomingMissile => HomingMissileWorth(kart, heldTime),
             AIItemKind.HomingShot => HomingShotWorth(kart, item),
             AIItemKind.StraightShot or AIItemKind.GroundShot or AIItemKind.Ball => AimShot(kart, item, heldTime),
-            AIItemKind.Lob => LobWillLand(kart, item),
+            AIItemKind.Lob => LobWillLand(kart, item, board.direction),
             AIItemKind.Melee or AIItemKind.Area => AIKartQueries.CountAround(kart, item.Reach * MeleeReachShare) > 0,
             AIItemKind.Targeted => TargetedWorth(kart, item),
             // Dropped behind after a look back. Throwable traps also go in front of a kart ahead.
             AIItemKind.Trap => item.ForwardThrowRange > 0f && ThrowLandsBeforeKart(kart, item),
             AIItemKind.Self => SelfWorth(kart, item, heldTime, steer),
-            AIItemKind.Dig => DigClear(kart, item),
+            AIItemKind.Dig => DigClear(kart, item, board.direction),
             _ => false,
         };
 
@@ -154,8 +154,9 @@ namespace MHK.AI
             return distance / speed;
         }
 
-        // The puddle stays: an unprotected kart ahead must still be short of it when it lands, and drive into it.
-        static bool LobWillLand(Kart kart, AIItemProfile item)
+        // The puddle stays: an unprotected kart ahead (in the kart's direction along the track) must still be short of it
+        // when it lands, and drive into it.
+        static bool LobWillLand(Kart kart, AIItemProfile item, int direction)
         {
             var path = AIKartQueries.MainPath();
             if (path == null) return false;
@@ -168,7 +169,7 @@ namespace MHK.AI
             {
                 var o = karts[i];
                 if (!AIKartQueries.IsOpponent(kart, o) || o.Effects.IsProtected) continue;
-                var gap = path.Delta(myD, o.Progress.PathDistance);
+                var gap = direction * path.Delta(myD, o.Progress.PathDistance);
                 if (gap <= 0f) continue;
                 var atLanding = gap + (o.Physics.ForwardSpeed - mySpeed) * flight;
                 if (atLanding > landing - LobWindowFar && atLanding < landing - LobWindowNear) return true;
@@ -215,7 +216,7 @@ namespace MHK.AI
             if (item.Protects) return ProtectionWorth(kart, item, leading, heldTime, steer);
             if (!item.Boosts) return true;
             if (leading && heldTime < BoostHoldTime && AIKartQueries.ClosestBehind(kart, BoostThreatDistance) == null) return false;
-            return AIKartQueries.OnStraight(kart, steer);
+            return AIKartQueries.OnStraight(kart, steer, board.direction);
         }
 
         bool ProtectionWorth(Kart kart, AIItemProfile item, bool leading, float heldTime, float steer)
@@ -224,12 +225,12 @@ namespace MHK.AI
             // Kept for the homing missile (used when it is imminent), which always goes for the leader.
             if (difficulty.aiDefendMissile && (missile.Incoming != null || (leading && heldTime < LeaderHoldTime))) return false;
             if (item.Rams) return AIKartQueries.CountAhead(kart, RamRange, RamHalfWidth) > 0;
-            if (item.Boosts) return AIKartQueries.OnStraight(kart, steer);
+            if (item.Boosts) return AIKartQueries.OnStraight(kart, steer, board.direction);
             return AIKartQueries.CountAround(kart, ShieldRadius) > 0 || heldTime > ShieldHoldTime;
         }
 
-        /// <summary>The kart is grounded and the first part of the dig ahead crosses no gap.</summary>
-        public static bool DigClear(Kart kart, AIItemProfile item)
+        /// <summary>The kart is grounded and the first part of the dig ahead (in <paramref name="direction"/> along the track) crosses no gap.</summary>
+        public static bool DigClear(Kart kart, AIItemProfile item, int direction)
         {
             if (!kart.Physics.IsGrounded) return false;
             var track = TrackRuntime.Current;
@@ -238,7 +239,7 @@ namespace MHK.AI
             var d = kart.Progress.PathDistance;
             var reach = Mathf.Max(MinDigCheck, item.Reach * DigCheckShare);
             for (var x = DigSampleStep; x <= reach; x += DigSampleStep)
-                if (TrackGaps.IsGap(track, path, d + x)) return false;
+                if (TrackGaps.IsGap(track, path, d + direction * x)) return false;
             return true;
         }
     }

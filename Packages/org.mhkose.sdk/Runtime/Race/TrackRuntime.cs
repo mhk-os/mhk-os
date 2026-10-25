@@ -102,6 +102,14 @@ namespace MHK.Race
             return path.WrapDistance(joinStart[index] + joinSpan[index] * t);
         }
 
+        /// <summary>
+        /// Alternative route <paramref name="index"/> is cut at or beyond <paramref name="fromDistance"/> (route metres):
+        /// a <see cref="CollapsingBridge"/> on it has been set off. Computer drivers do not take it, respawns that would
+        /// have to cross it go to the main line.
+        /// </summary>
+        public bool IsRouteCut(int index, float fromDistance = 0f) =>
+            index >= 0 && index < alternatePaths.Count && CollapsingBridge.CutsRoute(alternatePaths[index], fromDistance);
+
         /// <summary>Drops the cached route junctions (after editing paths in the editor).</summary>
         public void InvalidateJoins() => joinStart = null;
 

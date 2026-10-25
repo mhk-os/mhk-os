@@ -178,15 +178,18 @@ namespace MHK.AI
             return false;
         }
 
-        /// <summary>Grounded with the wheel nearly straight and the main line straight for the next 40 m.</summary>
-        public static bool OnStraight(Kart kart, float steer)
+        /// <summary>
+        /// Grounded with the wheel nearly straight and the main line straight for the next 40 m in <paramref name="direction"/>
+        /// (1 along the track, -1 against it).
+        /// </summary>
+        public static bool OnStraight(Kart kart, float steer, int direction)
         {
             if (!kart.Physics.IsGrounded || Mathf.Abs(steer) > StraightMaxSteer) return false;
             var path = MainPath();
             if (path == null) return true;
             var d = kart.Progress.PathDistance;
-            var a = path.GetTangent(d + StraightFrom, StraightSmoothing);
-            var b = path.GetTangent(d + StraightTo, StraightSmoothing);
+            var a = path.GetTangent(d + direction * StraightFrom, StraightSmoothing);
+            var b = path.GetTangent(d + direction * StraightTo, StraightSmoothing);
             return Vector3.Angle(new Vector3(a.x, 0f, a.z), new Vector3(b.x, 0f, b.z)) < StraightMaxAngle;
         }
 

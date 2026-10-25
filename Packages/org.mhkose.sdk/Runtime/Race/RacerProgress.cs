@@ -189,11 +189,14 @@ namespace MHK.Race
             WrongWay = wrongWayTimer > Core.GameRoot.Instance.Config.wrongWaySeconds;
         }
 
+        static bool InBattle => RaceManager.Current != null && RaceManager.Current.IsBattle;
+
         void UpdateSafePoint(TrackPath line)
         {
             var width = line != null ? line.GetWidth(branchDistance) : track.path.GetWidth(PathDistance);
             OffRouteDistance = Mathf.Max(0f, routeScore - 0.5f * width);
-            if (kart == null || !kart.Physics.IsGrounded || !(LateralOffset < width * SafeLateralWidths) || WrongWay) return;
+            // Battles have no wrong way (karts drive both directions): respawns there come back where the kart last was.
+            if (kart == null || !kart.Physics.IsGrounded || !(LateralOffset < width * SafeLateralWidths) || (WrongWay && !InBattle)) return;
             LastSafeDistance = PathDistance;
             safeBranch = branch;
             safeBranchDistance = branchDistance;
@@ -438,6 +441,8 @@ namespace MHK.Race
             lineDistance = distance;
             if (safeBranch < 0 || safeBranch >= alts.Count || alts[safeBranch] == null) return;
             var d = safeBranchDistance + (distance - LastSafeDistance);
+            // A collapsed bridge ahead on the route: the main-line equivalent instead.
+            if (d >= 0f && track.IsRouteCut(safeBranch, d)) return;
             if (d >= 0f) line = alts[safeBranch];
             lineDistance = d >= 0f ? d : track.BranchJoinStart(safeBranch) + d;
         }

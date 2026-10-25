@@ -129,7 +129,7 @@ namespace MHK.Powerups
 
         void Swallow(Kart k)
         {
-            KartReactions.Apply(k, effect, Owner);
+            KartReactions.Apply(k, effect, Owner, -1f, Usage);
             closing = 0f;
             Effects.EffectLoopSound.Stop(ref loop);
         }

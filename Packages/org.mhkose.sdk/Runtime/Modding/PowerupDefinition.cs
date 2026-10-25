@@ -14,6 +14,9 @@ namespace MHK.Modding
                  "item (hammer swing, spike-strip drop) start from the same point.")]
         public HeldMount heldMount = HeldMount.Top;
         [Min(1)] public int charges = 1;
+        [Tooltip("Charges in battles instead of charges, 0 = the same as charges (MHK Extra hammer: 1 instead of 3, so " +
+                 "its swings cannot be chained to drain health).")]
+        [Min(0)] public int battleCharges;
         [Tooltip("Seconds after a use before the next charge of this item can be used (0 = none). Pressing fire " +
                  "earlier does nothing, the HUD shows the item dimmed meanwhile.")]
         [Min(0)] public float useCooldown;
