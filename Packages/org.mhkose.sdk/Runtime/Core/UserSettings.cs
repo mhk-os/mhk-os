@@ -66,6 +66,9 @@ namespace MHK.Core
         [Tooltip("Own single race and battle item odds, one set per item family of the track (Powerups screen). A family " +
                  "without a set uses the default odds.")]
         public List<ItemOddsSet> itemOdds = new();
+        [Tooltip("Game server (Account screen, advanced): tls://host:port, tcp://host:port (local network only) or host[:port]. " +
+                 "Empty = the built-in server. The -server command-line option wins over it.")]
+        public string onlineServer = "";
 
         /// <summary>The player's own item odds for tracks of the family <paramref name="family"/> (top-level pack id), null = default odds.</summary>
         public ItemOddsSet ItemOddsFor(string family)

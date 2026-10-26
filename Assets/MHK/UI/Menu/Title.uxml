@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing and nothing downloads, the dot on mods (notify-dot: class on, red for an update, downloading blue while something downloads), game-update next to the version when a newer game release exists, quit is hidden on mobile (desktop-only) and in WebGL builds. -->
+    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing and nothing downloads, the dot on mods (notify-dot: class on, red for an update, downloading blue while something downloads), game-update next to the version when a newer game release exists, quit is hidden on mobile (desktop-only) and in WebGL builds. account (footer) opens the Account page; its label is the online username, or Log in. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="page" class="title-page">
         <ui:VisualElement class="title-body">
@@ -68,7 +68,12 @@
                     <ui:Label text="Update available!" class="button-label"/>
                 </ui:Button>
             </ui:VisualElement>
-            <ui:VisualElement class="footer-right"/>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="account" tooltip="Your online account: log in, register, country." class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-account_circle"/>
+                    <ui:Label name="account-label" text="Log in" class="button-label"/>
+                </ui:Button>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

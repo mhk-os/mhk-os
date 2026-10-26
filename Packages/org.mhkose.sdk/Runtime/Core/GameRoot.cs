@@ -103,6 +103,7 @@ namespace MHK.Core
         void CreateChildServices()
         {
             if (!TryGetComponent<Audio.AudioManager>(out _)) gameObject.AddComponent<Audio.AudioManager>();
+            if (!TryGetComponent<Online.OnlineService>(out _)) gameObject.AddComponent<Online.OnlineService>();
             if (Config.loadingScreen == null) return;
             LoadingScreen = Instantiate(Config.loadingScreen, transform);
             LoadingScreen.gameObject.SetActive(false);

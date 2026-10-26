@@ -512,3 +512,9 @@ TemplateContainer.sample-gold .badge-label, TemplateContainer.sample-silver .bad
 .i-cloud_download { background-image: url("Icons/cloud_download.png"); }
 .i-drag_indicator { background-image: url("Icons/drag_indicator.png"); }
 .i-github { background-image: url("Icons/github.png"); }
+.i-account_circle { background-image: url("Icons/account_circle.png"); }
+.i-login { background-image: url("Icons/login.png"); }
+.i-logout { background-image: url("Icons/logout.png"); }
+.i-person_add { background-image: url("Icons/person_add.png"); }
+.i-shield_person { background-image: url("Icons/shield_person.png"); }
+.i-dns { background-image: url("Icons/dns.png"); }
