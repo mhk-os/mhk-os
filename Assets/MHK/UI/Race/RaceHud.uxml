@@ -8,7 +8,16 @@
         <ui:VisualElement name="overlay" class="hud-overlay bleed" />
         <ui:VisualElement name="ghost-tags" class="hud-ghost-tags bleed">
             <ui:VisualElement class="hud-ghost-anchor" style="translate: 1010px 560px;">
-                <ui:Label text="Your best" class="hud-ghost-tag" />
+                <ui:VisualElement class="hud-ghost-box">
+                    <ui:Label text="Speed above the kart's limit" class="hud-ghost-flag-text" />
+                    <ui:VisualElement class="hud-ghost-tag">
+                        <ui:Label text="Your best" class="hud-ghost-name" />
+                        <ui:VisualElement class="hud-ghost-badge">
+                            <ui:VisualElement class="icon i-warning hud-ghost-badge-icon" />
+                            <ui:Label text="1" class="hud-ghost-badge-count" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="top-left" class="row hud-topleft hud-widget hud-from-left">

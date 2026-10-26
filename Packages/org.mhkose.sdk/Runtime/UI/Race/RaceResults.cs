@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using MHK.Core;
 using MHK.Ghosts;
+using MHK.Online;
 using MHK.Race;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -71,6 +73,16 @@ namespace MHK.UI
         string exportedFormat = "Exported: {0}";
         [SerializeField, Tooltip("Note when exporting failed.")]
         string exportFailedText = "Export failed (see the log).";
+        [SerializeField, Tooltip("Upload line while a new record uploads to the leaderboards.")]
+        string uploadingText = "Uploading your record...";
+        [SerializeField, Tooltip("Upload line once uploaded ({0} = rank on the online leaderboard).")]
+        string uploadedFormat = "Uploaded: rank #{0} online.";
+        [SerializeField, Tooltip("Upload line once uploaded when the server ranks another run of the account higher.")]
+        string uploadedText = "Uploaded to the online leaderboard.";
+        [SerializeField, Tooltip("Upload line when the upload failed ({0} = reason).")]
+        string uploadFailedFormat = "Upload failed: {0}";
+        [SerializeField, Tooltip("Upload line of a new record while no account is logged in.")]
+        string loginHintText = "Log in on the Account screen to post your records online.";
 
         [Header("Timing (seconds)")]
         [SerializeField, Tooltip("Delay before the first result row enters.")]
@@ -89,6 +101,8 @@ namespace MHK.UI
         static readonly string[] MedalClasses = { "gold", "silver", "bronze" };
 
         VisualElement staggered;
+        // Bumped on every unbind, so an upload finishing later leaves a closed screen alone.
+        int bindVersion;
 
         protected override void Bind()
         {
@@ -109,7 +123,11 @@ namespace MHK.UI
 
         protected override void AfterBind() => UiAnim.Stagger(staggered, rowsStep, rowsFirstDelay, "from-left");
 
-        protected override void Unbind() => staggered = null;
+        protected override void Unbind()
+        {
+            staggered = null;
+            bindVersion++;
+        }
 
         void BindHeader(RaceManager race, GameSession session, bool champ, bool battle)
         {
@@ -215,12 +233,13 @@ namespace MHK.UI
             note.text = NoteText(replay, saved, run, entry, classLabel);
             note.tooltip = replay && entry != null && !entry.IsCurrent ? otherVersionTip : "";
             BindGhostButtons(watch, export, note, entry, replay);
+            BindUpload(replay, saved);
             return laps;
         }
 
         void BindTimeTrialHeader(bool replay, GhostHeader run, string classLabel)
         {
-            Q<Label>("info").text = replay && run != null ? string.Format(replayInfoFormat, run.playerName, run.engineClassLabel)
+            Q<Label>("info").text = replay && run != null ? string.Format(replayInfoFormat, PlayerName(run), run.engineClassLabel)
                 : string.Format(timeTrialInfoFormat, classLabel);
             Q<Label>("race-again-label").text = replay ? watchAgainText : retryText;
         }
@@ -230,8 +249,11 @@ namespace MHK.UI
             var deltaHead = Q<Label>("tt-head-delta");
             deltaHead.SetVisible(reference != null);
             if (reference == null) return;
-            deltaHead.text = tt.Reference.Entry != null && tt.Reference.Entry.kind == GhostKind.Best ? vsBestText : string.Format(vsGhostFormat, reference.playerName);
+            deltaHead.text = tt.Reference.Entry != null && tt.Reference.Entry.kind == GhostKind.Best ? vsBestText : string.Format(vsGhostFormat, PlayerName(reference));
         }
+
+        // A downloaded ghost shows its uploader's account name; the name inside the file is not trusted.
+        static string PlayerName(GhostHeader h) => OnlineGhostCache.TryGet(h.id, out var online) ? online.username : h.playerName;
 
         VisualElement FillLapRows(GhostHeader run, GhostHeader reference)
         {
@@ -258,6 +280,33 @@ namespace MHK.UI
             Q<Label>("tt-record-label").text = saved.previousBest > 0f && run != null
                 ? string.Format(newRecordFormat, UiText.SignedSeconds(run.finishTime - saved.previousBest))
                 : newRecordText;
+        }
+
+        // Status of the automatic upload of a new record, followed until it ends.
+        void BindUpload(bool replay, GhostSaveResult saved)
+        {
+            var label = Q<Label>("tt-upload");
+            label.text = "";
+            var newRecord = !replay && saved != null && saved.newRecord && saved.entry != null;
+            if (newRecord && OnlineTimeTrials.TryGetAutoUpload(saved.entry.Id, out var upload))
+            {
+                label.text = upload.IsCompleted ? UploadText(upload.Result) : uploadingText;
+                if (!upload.IsCompleted) ShowUploadWhenDone(label, upload, bindVersion);
+            }
+            else if (newRecord && Settings.autoUploadBests && !OnlineService.IsLoggedIn) label.text = loginHintText;
+            label.SetVisible(label.text.Length > 0);
+        }
+
+        async void ShowUploadWhenDone(Label label, Task<OnlineResult<UploadResult>> upload, int version)
+        {
+            var r = await upload;
+            if (version == bindVersion && label.panel != null) label.text = UploadText(r);
+        }
+
+        string UploadText(OnlineResult<UploadResult> r)
+        {
+            if (r.Ok) return r.value.run.rank > 0 ? string.Format(uploadedFormat, r.value.run.rank) : uploadedText;
+            return r.result.status == Status.NotLoggedIn ? loginHintText : string.Format(uploadFailedFormat, r.result.message);
         }
 
         string NoteText(bool replay, GhostSaveResult saved, GhostHeader run, GhostEntry entry, string classLabel)

@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using MHK.Cameras;
 using MHK.Core;
 using MHK.Karts;
@@ -14,10 +16,18 @@ namespace MHK.Ghosts
     /// </summary>
     public class TimeTrialRun : MonoBehaviour
     {
+        // Rigs spawned per frame while the race loads: as many as fit this time, so the loading screen keeps moving.
+        const float SpawnBudgetSeconds = 0.008f;
+        // A detailed ghost keeps its detail until another one is this much nearer (distance factor), so ghosts at the
+        // edge of the nearest few do not swap every frame.
+        const float DetailKeepFactor = 0.8f;
+
         RaceManager race;
         GhostRecorder recorder;
         readonly List<GhostPlayer> ghosts = new();
         int lapsSeen;
+        float[] detailScores;
+        bool[] detailed;
 
         /// <summary>Ghosts in this race: raced ones (reference first), or the watched one in a replay.</summary>
         public IReadOnlyList<GhostPlayer> Ghosts => ghosts;
@@ -34,10 +44,19 @@ namespace MHK.Ghosts
         public GhostSaveResult Saved { get; private set; }
         /// <summary>The player crossed a lap line: lap (1-based), delta to the reference ghost (s, NaN without one).</summary>
         public event Action<int, float> Split;
+        /// <summary>Every ghost of this race is spawned (<see cref="Ghosts"/> is complete; also in replays).</summary>
+        public bool GhostsLoaded { get; private set; }
+        /// <summary>Raised once when <see cref="GhostsLoaded"/> becomes true.</summary>
+        public event Action GhostsReady;
+        /// <summary>Share of the ghosts loaded and spawned (0..1) until <see cref="GhostsLoaded"/>.</summary>
+        public float LoadProgress { get; private set; }
 
         static IGhostStore Store => GhostStores.Current;
 
-        /// <summary>While the race loads: fingerprint, ghosts, recorder (replay: the watched ghost as the camera target).</summary>
+        /// <summary>
+        /// While the race loads: fingerprint, recorder and the ghosts (replay: the watched ghost as the camera target).
+        /// Raced ghosts load over the next frames: the race waits for <see cref="GhostsLoaded"/>.
+        /// </summary>
         public void Load(RaceManager raceManager)
         {
             race = raceManager;
@@ -48,12 +67,18 @@ namespace MHK.Ghosts
             if (IsReplay)
             {
                 LoadReplay(root);
+                MarkGhostsLoaded();
                 return;
             }
-            SpawnGhosts(PickGhosts(), root);
-            Reference = ghosts.Count > 0 ? ghosts[0] : null;
             if (race.LocalPlayer != null) recorder = GhostRecorder.Attach(race.LocalPlayer, race);
-            Debug.Log($"[TimeTrial] {race.Track.Id}: {ghosts.Count} ghost(s), track hash {TrackHash}.");
+            StartCoroutine(LoadGhosts(PickGhosts(), root));
+        }
+
+        void MarkGhostsLoaded()
+        {
+            LoadProgress = 1f;
+            GhostsLoaded = true;
+            GhostsReady?.Invoke();
         }
 
         void ComputeTrackHash()
@@ -87,33 +112,61 @@ namespace MHK.Ghosts
             camera.SnapToTarget();
         }
 
+        // Own best first, then the session's ghosts in the order picked; a downloaded one counts like a stored one.
         List<GhostEntry> PickGhosts()
         {
             var session = race.Session;
             var max = Mathf.Max(1, GameRoot.Instance.Config.maxGhosts);
             var picked = new List<GhostEntry>();
+            var ids = new HashSet<string>();
             if (session.raceOwnBest)
             {
                 var best = Store.Best(race.Track.Id, session.difficulty);
-                if (best != null) picked.Add(best);
+                if (best != null && ids.Add(best.Id)) picked.Add(best);
             }
             foreach (var id in session.ghostIds)
             {
                 if (picked.Count >= max) break;
-                if (picked.Exists(e => e.Id == id)) continue;
+                if (string.IsNullOrEmpty(id) || ids.Contains(id)) continue;
                 var entry = Store.Find(id);
-                if (entry != null && entry.header.trackId == race.Track.Id) picked.Add(entry);
+                if (entry != null && entry.header.trackId == race.Track.Id && ids.Add(entry.Id)) picked.Add(entry);
             }
             return picked;
         }
 
-        void SpawnGhosts(List<GhostEntry> picked, Transform root)
+        // The files decode in parallel on worker threads (GhostFile uses no Unity API); the rigs spawn in pick order on
+        // the main thread, spread over frames.
+        IEnumerator LoadGhosts(List<GhostEntry> picked, Transform root)
         {
-            foreach (var entry in picked)
+            var started = Time.realtimeSinceStartup;
+            var store = Store;
+            var loads = new Task<GhostData>[picked.Count];
+            for (var i = 0; i < picked.Count; i++)
             {
-                var data = Store.Load(entry);
-                if (data != null) ghosts.Add(GhostPlayer.Spawn(data, entry, root, race, false));
+                var entry = picked[i];
+                loads[i] = Task.Run(() => store.Load(entry));
             }
+            var frameStart = Time.realtimeSinceStartup;
+            for (var i = 0; i < picked.Count; i++)
+            {
+                while (!loads[i].IsCompleted)
+                {
+                    yield return null;
+                    frameStart = Time.realtimeSinceStartup;
+                }
+                if (loads[i].IsFaulted) Debug.LogWarning($"[TimeTrial] Could not load ghost {picked[i].Id}: {loads[i].Exception?.GetBaseException().Message}");
+                var data = loads[i].Status == TaskStatus.RanToCompletion ? loads[i].Result : null;
+                if (data != null) ghosts.Add(GhostPlayer.Spawn(data, picked[i], root, race, false));
+                LoadProgress = (i + 1f) / picked.Count;
+                if (i + 1 < picked.Count && Time.realtimeSinceStartup - frameStart > SpawnBudgetSeconds)
+                {
+                    yield return null;
+                    frameStart = Time.realtimeSinceStartup;
+                }
+            }
+            Reference = ghosts.Count > 0 ? ghosts[0] : null;
+            Debug.Log($"[TimeTrial] {race.Track.Id}: {ghosts.Count} ghost(s) in {Time.realtimeSinceStartup - started:0.00} s, track hash {TrackHash}.");
+            MarkGhostsLoaded();
         }
 
         /// <summary>At GO: the recording starts (tick 0).</summary>
@@ -127,6 +180,39 @@ namespace MHK.Ghosts
             if (race == null) return;
             if (IsReplay) UpdateReplayCamera();
             else if (race.LocalPlayer != null) CheckSplit(race.LocalPlayer);
+        }
+
+        // After the ghosts moved: the nearest few to the camera (plus the reference and a watched ghost) are shown in full.
+        void LateUpdate()
+        {
+            if (race == null || !GhostsLoaded || ghosts.Count == 0) return;
+            var count = ghosts.Count;
+            var budget = Mathf.Max(1, GameRoot.Instance.Config.ghostDetailCount);
+            var cam = race.RaceCamera;
+            if (detailed == null || detailed.Length != count)
+            {
+                detailed = new bool[count];
+                detailScores = new float[count];
+            }
+            var eye = cam != null ? cam.transform.position : Vector3.zero;
+            for (var i = 0; i < count; i++)
+            {
+                var g = ghosts[i];
+                detailed[i] = g == Reference || g == Spectated || cam == null;
+                detailScores[i] = g.isActiveAndEnabled
+                    ? (g.transform.position - eye).sqrMagnitude * (g.Detailed ? DetailKeepFactor * DetailKeepFactor : 1f)
+                    : float.PositiveInfinity;
+            }
+            for (var n = 0; n < budget; n++)
+            {
+                var nearest = -1;
+                for (var i = 0; i < count; i++)
+                    if (!detailed[i] && detailScores[i] < float.PositiveInfinity && (nearest < 0 || detailScores[i] < detailScores[nearest]))
+                        nearest = i;
+                if (nearest < 0) break;
+                detailed[nearest] = true;
+            }
+            for (var i = 0; i < count; i++) ghosts[i].SetDetailed(detailed[i]);
         }
 
         void UpdateReplayCamera()
@@ -195,7 +281,8 @@ namespace MHK.Ghosts
                 id = Guid.NewGuid().ToString("N"),
                 gameBuild = BuildInfo.Commit,
                 simVersion = SimulationVersion.Current,
-                playerName = settings.SignatureName,
+                // The account name once logged in: the server lists runs under it, the file should not disagree.
+                playerName = MHK.Online.OnlineService.Username ?? settings.SignatureName,
                 playerId = settings.EnsurePlayerId(),
                 dateUtcTicks = DateTime.UtcNow.Ticks,
                 trackId = track.Id,
@@ -220,6 +307,7 @@ namespace MHK.Ghosts
             try
             {
                 Saved = Store.SaveRun(Run);
+                if (Saved.newRecord) MHK.Online.OnlineTimeTrials.AutoUploadBest(Saved.entry);
                 Debug.Log($"[TimeTrial] Run {UI.UiText.Clock(Run.header.finishTime)} stored ({Saved.entry?.kind}, " +
                           $"new record: {Saved.newRecord}, {Run.frames.Length} ticks).");
             }

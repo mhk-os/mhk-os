@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Ghost picker (time trial, after the kart). Code fills the track name, the engine class chips (classes), ghost-list (one GhostRow per stored ghost of the track and class, fastest first, the personal best picked, picked rows get .selected) and the count. Preview class on page: preview-empty (no ghosts for the class: the centred empty line instead of the list). -->
+    <!-- Ghost picker (time trial, after the kart). Code fills the track name, the engine class chips (classes), ghost-list (one GhostRow per stored ghost of the track and class plus the leaderboard downloads picked on the track records page, fastest first; the personal best picked, or exactly the ghosts picked on the track records page; picked rows get .selected) and the count. Preview class on page: preview-empty (no ghosts for the class: the centred empty line instead of the list). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="GhostRow" src="/Assets/MHK/UI/Menu/Templates/GhostRow.uxml" />

@@ -131,11 +131,13 @@
 .hud-ghost-tags { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: none; }
 .preview-time-trial .hud-ghost-tags { display: flex; }
 /* Ghost name tags: RaceHud moves each zero-size anchor to the point above a ghost's driver with translate (no layout
- * pass per frame). The tag inside centres itself above that point with its own percentage translate. */
+ * pass per frame). The box inside centres itself above that point with its own percentage translate: the latest
+ * problem the ghost validation found (for a few seconds) over the plate with the name and the warning badge. */
 .hud-ghost-anchor { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.hud-ghost-box { position: absolute; translate: -50% -100%; align-items: center; }
 .hud-ghost-tag {
-    position: absolute;
-    translate: -50% -100%;
+    flex-direction: row;
+    align-items: center;
     -unity-font-definition: var(--font-bold);
     font-size: 18px;
     color: var(--mhk-white);
@@ -143,6 +145,20 @@
     border-radius: 9px;
     padding: 1px 10px 2px 10px;
     margin: 0;
+    white-space: nowrap;
+}
+.hud-ghost-name { padding: 0; margin: 0; }
+.hud-ghost-badge { flex-direction: row; align-items: center; margin-left: 8px; }
+.icon.hud-ghost-badge-icon { width: 18px; height: 18px; margin-right: 2px; -unity-background-image-tint-color: var(--mhk-bad); }
+.hud-ghost-badge-count { padding: 0; margin: 0; color: var(--mhk-bad); }
+.hud-ghost-flag-text {
+    -unity-font-definition: var(--font-bold);
+    font-size: 15px;
+    color: var(--mhk-white);
+    background-color: var(--mhk-bad-ink);
+    border-radius: 7px;
+    padding: 1px 8px 2px 8px;
+    margin: 0 0 3px 0;
     white-space: nowrap;
 }
 .panel.hud-replay { position: absolute; left: 22px; top: 16px; padding: 10px 22px 14px 16px; align-items: center; display: none; background-color: var(--mhk-glass-dark-lite-fill); border-color: var(--mhk-glass-dark-rim); }

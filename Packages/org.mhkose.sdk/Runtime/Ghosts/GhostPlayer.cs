@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using MHK.Core;
 using MHK.Karts;
 using MHK.Modding;
+using MHK.Online;
 using MHK.Race;
 using Unity.Profiling;
 using UnityEngine;
@@ -36,6 +37,16 @@ namespace MHK.Ghosts
         public float ShownTime { get; private set; }
         /// <summary>Past its finish line.</summary>
         public bool Finished => ShownTime >= Data.header.finishTime;
+        /// <summary>
+        /// Name to show: the uploader's account name for a downloaded ghost (the file's own player name is not trusted),
+        /// else the recorded player name.
+        /// </summary>
+        public string DisplayName { get; private set; }
+        /// <summary>
+        /// Shown in full: animated, with its replayed actions and effect visuals (and a name tag). With many ghosts only
+        /// those nearest the camera are (<see cref="TimeTrialRun"/>); the others still drive, fade and tint.
+        /// </summary>
+        public bool Detailed { get; private set; } = true;
 
         /// <summary>Lap it is on (1..laps), from its lap times.</summary>
         public int Lap
@@ -50,6 +61,24 @@ namespace MHK.Ghosts
             }
         }
 
+        /// <summary>Problems the ghost validation found in this run so far (its name tag shows them).</summary>
+        public int FlagCount { get; private set; }
+        /// <summary>Text of the latest problem, null before the first.</summary>
+        public string LastFlag { get; private set; }
+        /// <summary><see cref="Time.unscaledTime"/> of the latest problem.</summary>
+        public float LastFlagTime { get; private set; } = float.NegativeInfinity;
+        /// <summary>Raised by <see cref="Flag"/>.</summary>
+        public event System.Action<GhostPlayer> Flagged;
+
+        /// <summary>Marks a problem the validation found at the ghost's current time (<paramref name="message"/> for the player).</summary>
+        public void Flag(string message)
+        {
+            FlagCount++;
+            LastFlag = message;
+            LastFlagTime = Time.unscaledTime;
+            Flagged?.Invoke(this);
+        }
+
         /// <summary>
         /// Creates a ghost under <paramref name="parent"/> with its character and kart from the content (falling back to
         /// the first character and its kart when they are not installed), placed at its first tick.
@@ -58,11 +87,13 @@ namespace MHK.Ghosts
         {
             var root = GameRoot.Instance;
             var cfg = root.Config;
-            var go = new GameObject($"Ghost ({data.header.playerName}, {UI.UiText.Clock(data.header.finishTime)})");
+            var go = new GameObject("Ghost");
             go.transform.SetParent(parent, false);
             var ghost = go.AddComponent<GhostPlayer>();
             ghost.race = race;
             ghost.Data = data;
+            ghost.DisplayName = NameOf(data.header);
+            go.name = $"Ghost ({ghost.DisplayName}, {UI.UiText.Clock(data.header.finishTime)})";
             ghost.Entry = entry;
             ghost.Spectated = spectated;
             ghost.baseOpacity = spectated ? 1f : cfg.ghostOpacity;
@@ -101,6 +132,36 @@ namespace MHK.Ghosts
             blip.size = spectated ? 1f : cfg.ghostMinimapSize;
         }
 
+        static string NameOf(GhostHeader h) =>
+            OnlineGhostCache.TryGet(h.id, out var info) && !string.IsNullOrEmpty(info.username) ? info.username : h.playerName;
+
+        /// <summary>
+        /// Shows the ghost in full or reduced (<see cref="Detailed"/>). Back in full it catches up: the effect visuals and
+        /// the action playing at its time, as a replay seek would show them.
+        /// </summary>
+        public void SetDetailed(bool detailed)
+        {
+            if (detailed == Detailed) return;
+            Detailed = detailed;
+            if (visual != null) visual.SetAnimated(detailed);
+            if (!detailed)
+            {
+                for (var i = 0; i < effects.Count; i++)
+                {
+                    if (effects[i].vfx == null) continue;
+                    Destroy(effects[i].vfx);
+                    effects[i] = (effects[i].def, null);
+                }
+                return;
+            }
+            for (var i = 0; i < effects.Count; i++)
+                if (effects[i].vfx == null) effects[i] = (effects[i].def, SpawnEffectVisual(effects[i].def));
+            if (visual == null) return;
+            visual.SnapRecordedPose();
+            RestoreAction(visual.DriverAnimator);
+            RestoreAction(visual.KartAnimator);
+        }
+
         // Model prefabs and effect visuals may carry colliders and bodies: a ghost touches nothing.
         static void StripPhysics(GameObject go)
         {
@@ -133,18 +194,19 @@ namespace MHK.Ghosts
             while (nextEvent < events.Count && events[nextEvent].time <= ShownTime) Play(events[nextEvent++]);
         }
 
+        // A reduced ghost keeps its effects (tint, hidden wheels, body bob) but skips the animation and effect visuals.
         void Play(in GhostEvent e)
         {
             switch (e.kind)
             {
                 case GhostEventKind.Action:
-                    visual.PlayRecordedAction(e.role, e.hold);
+                    if (Detailed) visual.PlayRecordedAction(e.role, e.hold);
                     break;
                 case GhostEventKind.Release:
-                    visual.ReleaseRecordedAction(e.role);
+                    if (Detailed) visual.ReleaseRecordedAction(e.role);
                     break;
                 case GhostEventKind.Snap:
-                    visual.SnapRecordedPose();
+                    if (Detailed) visual.SnapRecordedPose();
                     break;
                 case GhostEventKind.EffectApplied:
                     ApplyEffect(GhostEffectLookup.Find(e.effectId));
@@ -161,15 +223,17 @@ namespace MHK.Ghosts
             if (def.refreshOnReapply)
                 foreach (var e in effects)
                     if (e.def == def) return;
-            GameObject vfx = null;
-            if (def.attachedVfxPrefab != null)
-            {
-                vfx = Instantiate(def.attachedVfxPrefab, def.attachToVisual && visual != null ? visual.Body : transform);
-                StripPhysics(vfx);
-                // Ghosts are silent.
-                foreach (var a in vfx.GetComponentsInChildren<AudioSource>(true)) a.enabled = false;
-            }
-            effects.Add((def, vfx));
+            effects.Add((def, Detailed ? SpawnEffectVisual(def) : null));
+        }
+
+        GameObject SpawnEffectVisual(StatusEffectDefinition def)
+        {
+            if (def.attachedVfxPrefab == null) return null;
+            var vfx = Instantiate(def.attachedVfxPrefab, def.attachToVisual && visual != null ? visual.Body : transform);
+            StripPhysics(vfx);
+            // Ghosts are silent.
+            foreach (var a in vfx.GetComponentsInChildren<AudioSource>(true)) a.enabled = false;
+            return vfx;
         }
 
         void EndEffect(StatusEffectDefinition def)

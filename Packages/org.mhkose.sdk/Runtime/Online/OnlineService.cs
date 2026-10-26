@@ -38,6 +38,23 @@ namespace MHK.Online
         public static OnlineResult Failed(string message) => new(null, message);
     }
 
+    /// <summary>Outcome of an online operation with an answer: <see cref="value"/> is set when <see cref="Ok"/>.</summary>
+    public readonly struct OnlineResult<T>
+    {
+        public readonly OnlineResult result;
+        public readonly T value;
+
+        public OnlineResult(OnlineResult result, T value = default)
+        {
+            this.result = result;
+            this.value = value;
+        }
+
+        public bool Ok => result.Ok;
+
+        public static implicit operator OnlineResult<T>(OnlineResult failure) => new(failure);
+    }
+
     /// <summary>
     /// The game's link to the online server: the one place other code goes through. A component of <see cref="GameRoot"/>
     /// with a static API (like the audio manager). It connects lazily (<see cref="Connect"/>: the Account screen, or a

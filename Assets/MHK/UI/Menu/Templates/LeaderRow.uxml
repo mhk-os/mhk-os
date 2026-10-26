@@ -1,0 +1,45 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- One online run (leaderboard of the track records page, flagged runs of the reports page). Code sets the texts, the driver portrait and kart icon, and classes: .selected (picked to race: check mark), .mine (the player's own run: highlighted, the You badge), .hidden-run (hidden by a moderator: dimmed, the Hidden badge), .flagged (lb-flags shows the count), .mismatch (lb-mismatch shows), .alt (every second row). lb-main toggles the pick (or, on the reports page with .lb-list-reports on the list, shows the run's details); lb-watch downloads and replays. Moderators (.lb-list-mod on the list) also get lb-hide (hide / unhide the run) and lb-account (disable / enable the account). Samples add sample-selected / sample-mine / sample-hidden / sample-flagged / sample-mismatch on their Instance. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="lb-row">
+        <ui:Button name="lb-main" class="lb-main">
+            <ui:VisualElement name="lb-check" class="ghost-check lb-check">
+                <ui:VisualElement class="icon i-check" />
+            </ui:VisualElement>
+            <ui:Label name="lb-rank" text="1" class="lb-rank" />
+            <ui:Label name="lb-country" text="DE" tooltip="Germany" class="lb-country" />
+            <ui:VisualElement class="lb-who">
+                <ui:VisualElement class="lb-name-row">
+                    <ui:Label name="lb-name" text="SmokeRacer" class="lb-name" />
+                    <ui:Label name="lb-you" text="You" class="lb-tag lb-you" />
+                </ui:VisualElement>
+                <ui:Label name="lb-sub" text="Moorhuhn | Red Kart" class="lb-sub" />
+            </ui:VisualElement>
+            <ui:VisualElement class="driver-icons lb-driver">
+                <mhk:ContentImage name="driver-portrait" tooltip="Moorhuhn" class="driver-icon driver-portrait" image="/Assets/MHK/UI/Samples/character_moorhuhn.png" />
+                <mhk:ContentImage name="driver-kart" tooltip="Red Kart" class="driver-icon driver-kart" image="/Assets/MHK/UI/Samples/mhk2.kart_icon.png" />
+            </ui:VisualElement>
+            <ui:Label name="lb-time" text="03:21.40" class="lb-time" />
+            <ui:Label name="lb-lap" text="01:05.12" class="lb-lap" />
+            <ui:VisualElement class="lb-badges">
+                <ui:VisualElement name="lb-flags" tooltip="Reported by 2 players" class="lb-tag lb-flags">
+                    <ui:VisualElement class="icon i-flag" />
+                    <ui:Label name="lb-flags-count" text="2" class="lb-tag-label" />
+                </ui:VisualElement>
+                <ui:VisualElement name="lb-mismatch" tooltip="Kart setup differs from most players&apos; (other physics settings)." class="icon i-warning lb-mismatch" />
+                <ui:Label name="lb-hidden" text="Hidden" class="lb-tag lb-hidden" />
+            </ui:VisualElement>
+        </ui:Button>
+        <ui:VisualElement name="lb-actions" class="row lb-actions">
+            <ui:Button name="lb-watch" tooltip="Watch" class="mhk-button small secondary icon-only">
+                <ui:VisualElement class="icon i-visibility" />
+            </ui:Button>
+            <ui:Button name="lb-hide" tooltip="Hide this run" class="mhk-button small secondary icon-only lb-mod-action">
+                <ui:VisualElement name="lb-hide-icon" class="icon i-visibility_off" />
+            </ui:Button>
+            <ui:Button name="lb-account" tooltip="Account: disable or enable" class="mhk-button small secondary icon-only lb-mod-action">
+                <ui:VisualElement class="icon i-account_circle" />
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

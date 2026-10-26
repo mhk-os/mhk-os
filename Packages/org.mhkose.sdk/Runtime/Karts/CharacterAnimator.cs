@@ -43,6 +43,8 @@ namespace MHK.Karts
         IReadOnlyList<CharacterAnimBinding> animations;
         PlayableGraph graph;
         AnimationMixerPlayable mixer;
+        Animator target;
+        AnimatorCullingMode awakeCulling;
         Layer current, previous;
         float fade = 1f, fadeDuration;
         bool paused;
@@ -65,11 +67,14 @@ namespace MHK.Karts
         public bool ActionActive => actionActive;
         /// <summary>Role of the playing action (None without one).</summary>
         public CharacterAnimRole ActionRole => actionActive ? actionRole : None;
+        /// <summary>Not evaluated (<see cref="SetDormant"/>).</summary>
+        public bool Dormant { get; private set; }
 
         /// <summary>Starts the graph on <paramref name="animator"/> playing clips from <paramref name="clips"/> by role.</summary>
         public void Setup(IReadOnlyList<CharacterAnimBinding> clips, Animator animator)
         {
             animations = clips;
+            target = animator;
             CaptureRestPose(animator.transform);
             graph = PlayableGraph.Create($"{name}.CharacterAnimator");
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
@@ -79,6 +84,26 @@ namespace MHK.Karts
             graph.Play();
             StartLocomotion();
             ApplyTimes();
+        }
+
+        /// <summary>
+        /// Stops evaluating the graph (the pose freezes, clips do not advance) and culls the animator, for a model too far
+        /// away to watch (many time-trial ghosts). Waking resumes where it stopped; <see cref="Snap"/> and
+        /// <see cref="PlayAction"/> bring it up to date.
+        /// </summary>
+        public void SetDormant(bool dormant)
+        {
+            if (!graph.IsValid() || dormant == Dormant) return;
+            Dormant = dormant;
+            if (dormant)
+            {
+                awakeCulling = target.cullingMode;
+                target.cullingMode = AnimatorCullingMode.CullCompletely;
+                graph.Stop();
+                return;
+            }
+            target.cullingMode = awakeCulling;
+            graph.Play();
         }
 
         /// <summary>
@@ -220,7 +245,7 @@ namespace MHK.Karts
 
         void Update()
         {
-            if (!graph.IsValid() || paused) return;
+            if (!graph.IsValid() || paused || Dormant) return;
             var dt = Time.deltaTime;
             if (fade < 1f)
             {

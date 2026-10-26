@@ -69,6 +69,8 @@ namespace MHK.Core
         [Tooltip("Game server (Account screen, advanced): tls://host:port, tcp://host:port (local network only) or host[:port]. " +
                  "Empty = the built-in server. The -server command-line option wins over it.")]
         public string onlineServer = "";
+        [Tooltip("Upload a new time-trial personal best to the leaderboards right after the race while logged in (Records screen).")]
+        public bool autoUploadBests = true;
 
         /// <summary>The player's own item odds for tracks of the family <paramref name="family"/> (top-level pack id), null = default odds.</summary>
         public ItemOddsSet ItemOddsFor(string family)

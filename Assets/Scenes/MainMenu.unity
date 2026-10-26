@@ -276,6 +276,7 @@ MonoBehaviour:
   lastTip: Last run
   savedTip: Your earlier best, kept from another version
   importedTip: Imported
+  onlineTip: Downloaded from the leaderboard
   otherVersionTip: Other version. It can be raced but never counts as a record.
   chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
   rowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
@@ -446,6 +447,165 @@ PanelRenderer:
   serializedVersion: 1
   m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
   sourceAsset: {fileID: 9197481963319205126, guid: 512c4699bd6fc4a1889de4f1e8894cdd, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
+--- !u!1 &460173361
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 460173362}
+  - component: {fileID: 460173364}
+  - component: {fileID: 460173363}
+  m_Layer: 0
+  m_Name: TrackRecords
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &460173362
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 460173361}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &460173363
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 460173361}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17158685221d145ecb0724a1efbf563a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.TrackRecordsScreen
+  showcaseVisible: 0
+  allowBack: 1
+  bestTip: Your best
+  lastTip: Last run
+  savedTip: Your earlier best, kept from another version
+  importedTip: Imported
+  onlineTip: Downloaded from the leaderboard
+  otherVersionTip: Other version. It can be raced but never counts as a record.
+  pageSize: 25
+  currentBoardFormat: This version | {0} players
+  archivedBoardFormat: Archived | sim {1} | {2} | {0} players
+  noBoardText: No board yet
+  loadingBoardText: Loading...
+  worldText: World
+  myContinentFormat: 'My continent: {0}'
+  myCountryFormat: 'My country: {0}'
+  anyKartText: Any kart
+  anyDriverText: Any driver
+  searchPlaceholder: Search player
+  loadingText: Loading the leaderboard...
+  noRunsText: Nobody has uploaded a run in this class yet.
+  noMatchText: No runs match the filters.
+  offlineFormat: The server can't be reached. {0}
+  rangeFormat: '{0}-{1} of {2}'
+  chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
+  ghostRowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
+  leaderRowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
+  narrowWidth: 1560
+  localTab: Your ghosts
+  globalTab: Leaderboard
+  countFormat: '{0} of {1} ghosts'
+  fullTipFormat: Up to {0} ghosts can be raced.
+  localRecordsFormat: Best lap {0} | Best race {1} (all classes)
+  arenaTip: Time trials run on circuits only.
+  importedCountFormat: 'Ghosts imported: {0}'
+  unreadableFormat: 'Unreadable files: {0}'
+  nothingNewText: No new ghosts.
+  exportedFormat: 'Exported: {0}'
+  exportFailedText: Export failed (see the log).
+  confirmDeleteQuestion: Delete the ghost {0}?
+  deleteText: Delete
+  deletedText: Ghost deleted.
+  uploadTip: Upload to the leaderboard
+  loginToUploadTip: Log in to upload your ghosts
+  uploadingTip: Uploading...
+  loginToUploadText: Log in to upload your ghosts to the leaderboards.
+  uploadedRankFormat: '#{0}'
+  uploadedRankTip: 'On the leaderboard: rank {0}'
+  uploadedSlowerTip: Uploaded. Your best on this board is faster.
+  uploadedHiddenTip: Uploaded, but hidden by a moderator.
+  uploadedFormat: 'Uploaded: rank {0} on the leaderboard.'
+  duplicateText: This ghost was already uploaded.
+  uploadedSlowerText: Uploaded. Your best on this board stays faster.
+  downloadingFormat: 'Downloading ghosts: {0} of {1}'
+  downloadFailedFormat: '{0} ghost(s) could not be downloaded: {1}'
+  unreadableDownloadText: The downloaded ghost could not be read.
+--- !u!1931382934 &460173364
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 460173361}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: 18a2d1a951c5644c3a6860c6a0597f49, type: 3}
   m_ParentUI: {fileID: 0}
   m_WorldSpaceSizeMode: 1
   m_WorldSpaceWidth: 1920
@@ -1499,6 +1659,134 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!1 &1232056120
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1232056121}
+  - component: {fileID: 1232056123}
+  - component: {fileID: 1232056122}
+  m_Layer: 0
+  m_Name: FlaggedRuns
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1232056121
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232056120}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1232056122
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232056120}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4440ae4afac8a4ab3a44f7c562f46f84, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.FlaggedRunsScreen
+  showcaseVisible: 0
+  allowBack: 1
+  chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
+  rowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
+  pageSize: 25
+  visibleTab: Visible
+  hiddenTab: With hidden
+  rowSubFormat: '{0} | {1} | {2} | {3}'
+  loadingText: Loading...
+  noneText: No reported runs. All quiet.
+  notModeratorText: Only moderators see reports.
+  offlineFormat: The server can't be reached. {0}
+  rangeFormat: '{0}-{1} of {2}'
+  runTitleFormat: '{0} | {1}'
+  runSubFormat: '{0} | {1} | uploaded {2} | {3} flag(s)'
+  reportHeadFormat: '{0} at {1} | {2} | {3}'
+  ignoredSuffix: ' (ignored: reporter not trusted)'
+  noReportsText: No reports.
+  accountLineFormat: '{0} | joined {1} | last login {2}'
+  accountStatsFormat: '{0} runs ({1} hidden) | {2} cheat kicks'
+  disabledFormat: 'Disabled: {0}'
+  hideText: Hide run
+  unhideText: Unhide run
+  disableText: Disable account
+  enableText: Enable account
+--- !u!1931382934 &1232056123
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232056120}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: 88e4c61aca7344e88b199f33dc4a7a93, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
 --- !u!1 &1327142891
 GameObject:
   m_ObjectHideFlags: 0
@@ -1545,6 +1833,8 @@ Transform:
   - {fileID: 1952376593}
   - {fileID: 2021217551}
   - {fileID: 1515517134}
+  - {fileID: 460173362}
+  - {fileID: 1232056121}
   - {fileID: 165399298}
   - {fileID: 1459417795}
   m_Father: {fileID: 0}
@@ -1833,18 +2123,23 @@ MonoBehaviour:
   lastTip: Last run
   savedTip: Your earlier best, kept from another version
   importedTip: Imported
+  onlineTip: Downloaded from the leaderboard
   otherVersionTip: Other version. It can be raced but never counts as a record.
   rowTemplate: {fileID: 9197481963319205126, guid: 10e70e9f187004644a062f2d2ff69e72, type: 3}
-  ghostRowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
-  arenaTip: Time trials run on circuits only.
   importedCountFormat: 'Ghosts imported: {0}'
   unreadableFormat: 'Unreadable files: {0}'
   nothingNewText: No new ghosts.
-  exportedFormat: 'Exported: {0}'
-  exportFailedText: Export failed (see the log).
-  confirmDeleteQuestion: Delete this ghost?
-  deleteText: Delete
-  deletedText: Ghost deleted.
+  noGhostsText: No ghosts stored yet.
+  oneGhostText: 1 ghost stored
+  ghostsFormat: '{0} ghosts stored'
+  offText: Off
+  onText: On
+  autoUploadTip: Uploads every new personal best of a time trial to the leaderboard while you are logged in.
+  onlineFormat: Uploading as {0}.
+  loggedOutAutoText: Log in so new bests reach the leaderboards.
+  loggedOutText: Log in to upload your records. Leaderboards work without.
+  loginText: Log in
+  accountText: Account
 --- !u!1931382934 &1515517136
 PanelRenderer:
   m_ObjectHideFlags: 0

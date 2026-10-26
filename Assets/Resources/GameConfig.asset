@@ -54,7 +54,8 @@ MonoBehaviour:
   ramConeDegrees: 45
   eliminationGraceSeconds: 3
   ghostOpacity: 0.45
-  maxGhosts: 3
+  maxGhosts: 50
+  ghostDetailCount: 8
   ghostTailSeconds: 3
   ghostTagDistance: 80
   ghostMinimapColor: {r: 0.75, g: 0.92, b: 1, a: 0.95}

@@ -63,6 +63,34 @@ namespace MHK.Online
         public const ushort Logout = 19;
         /// <summary><see cref="SetCountryRequest"/> → <see cref="Account"/>.</summary>
         public const ushort SetCountry = 20;
+
+        /// <summary><see cref="IdRequest"/> (run, reason) → empty. Moderators only, like every type up to 127.</summary>
+        public const ushort ModHideRun = 64;
+        /// <summary><see cref="IdRequest"/> (run) → empty.</summary>
+        public const ushort ModUnhideRun = 65;
+        /// <summary><see cref="IdRequest"/> (account, reason) → empty. Revokes the account's sessions.</summary>
+        public const ushort ModDisableAccount = 66;
+        /// <summary><see cref="IdRequest"/> (account) → empty.</summary>
+        public const ushort ModEnableAccount = 67;
+        /// <summary><see cref="ModListFlaggedRequest"/> → total, runs.</summary>
+        public const ushort ModListFlagged = 68;
+        /// <summary><see cref="IdRequest"/> (run) → list of <see cref="RunReport"/>.</summary>
+        public const ushort ModRunReports = 69;
+        /// <summary><see cref="IdRequest"/> (account) → <see cref="ModAccountInfo"/>.</summary>
+        public const ushort ModGetAccount = 70;
+
+        /// <summary><see cref="ListBoardsRequest"/> → list of <see cref="BoardInfo"/>.</summary>
+        public const ushort ListBoards = 128;
+        /// <summary><see cref="GetLeaderboardRequest"/> → <see cref="LeaderboardPage"/>.</summary>
+        public const ushort GetLeaderboard = 129;
+        /// <summary><see cref="UploadRunRequest"/> → <see cref="UploadResult"/>.</summary>
+        public const ushort UploadRun = 130;
+        /// <summary><see cref="IdRequest"/> (run) → <see cref="DownloadRunResponse"/>.</summary>
+        public const ushort DownloadRun = 131;
+        /// <summary><see cref="ReportRunRequest"/> → flags u32.</summary>
+        public const ushort ReportRun = 132;
+        /// <summary>trackId string → list of <see cref="RunEntry"/> (the account's runs on the track).</summary>
+        public const ushort MyRuns = 133;
     }
 
     /// <summary>Push types: their own numbering in the ranges of <see cref="MessageType"/>.</summary>

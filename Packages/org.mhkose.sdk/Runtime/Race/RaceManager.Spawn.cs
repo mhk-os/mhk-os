@@ -25,7 +25,7 @@ namespace MHK.Race
                 var kart = SpawnKart(i, order[i], cfg);
                 if (order[i].isHuman && player == null) player = kart;
                 spawned.Add(kart);
-                LoadProgress = TrackLoadShare + (1f - TrackLoadShare) * (i + 1) / count;
+                LoadProgress = TrackLoadShare + (KartsLoadedProgress - TrackLoadShare) * (i + 1) / count;
             }
             karts.AddRange(spawned);
             LocalPlayer = player != null ? player : karts.Count > 0 ? karts[0] : null;

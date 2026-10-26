@@ -1,8 +1,8 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Records. Code fills rec-list with one row per loaded track and per track of a mod that is not loaded but has a record (.missing), and for the focused track (.selected) the side panel: its name, its stored time-trial ghosts (one GhostRow each, all engine classes, with Watch / Export / Delete) and the status line (shown after an import, export or delete). Play starts a time trial on the focused track (disabled with a tooltip when no mod has it). Ghosts in the import folder are taken in when the page opens and when the game gets the focus back, Reload does it at once. Preview class on page: preview-empty (the track has no ghosts: the empty line instead of the list). -->
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- Records. Code fills rec-list with one row per loaded track and per track of a mod that is not loaded but has a record (.missing). Clicking or submitting a row (or Open) opens that track's records page (ghosts, leaderboard, racing picked ghosts). The side panel shows the focused track (.selected): picture, name, game, its best ghost per engine class (rec-classes, one rec-class-line each), the ghost count, the player's name for new ghosts, Upload new bests (auto-upload: On / Off) and the account line (rec-account-label with rec-account: Log in or Account) and the status line (after an import). Reports (moderators only) opens the flagged runs. Ghosts in the import folder are taken in when the page opens and when the game gets the focus back, Reload does it at once. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="RecordRow" src="/Assets/MHK/UI/Menu/Templates/RecordRow.uxml" />
-    <ui:Template name="GhostRow" src="/Assets/MHK/UI/Menu/Templates/GhostRow.uxml" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
             <ui:Label name="title" text="Records" class="page-title" />
@@ -58,21 +58,34 @@
                             </ui:VisualElement>
                         </ui:ScrollView>
                     </ui:VisualElement>
-                    <ui:VisualElement name="ghosts-side" class="panel records-ghosts">
-                        <ui:TextField name="player-name" label="Your name" value="Player" max-length="24" class="records-name" />
+                    <ui:VisualElement name="records-side" class="panel records-ghosts records-side">
+                        <mhk:ContentImage name="rec-picture" class="rec-picture" image="/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png" />
                         <ui:Label name="ghosts-title" text="Scribble Blocks" class="records-ghosts-title" />
-                        <ui:ScrollView name="ghost-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="ghost-scroll">
-                            <ui:VisualElement name="ghost-list" class="ghost-list ghost-list-records">
-                                <ui:Instance template="GhostRow">
-                                    <ui:AttributeOverrides element-name="ghost-time" text="03:21.40" />
-                                </ui:Instance>
-                                <ui:Instance template="GhostRow" class="sample-last">
-                                    <ui:AttributeOverrides element-name="ghost-time" text="03:23.76" />
-                                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_hank.png" />
-                                </ui:Instance>
+                        <ui:Label name="rec-side-game" text="Moorhuhn Kart Extra" class="rec-side-game" />
+                        <ui:VisualElement name="rec-classes" class="rec-classes">
+                            <ui:VisualElement class="rec-class-line">
+                                <ui:Label text="100cc" class="rec-class-name" />
+                                <ui:Label text="03:21.40" class="rec-class-time" />
                             </ui:VisualElement>
-                        </ui:ScrollView>
-                        <ui:Label name="ghost-empty" text="No ghosts for this track yet." class="ghost-empty" />
+                            <ui:VisualElement class="rec-class-line">
+                                <ui:Label text="150cc" class="rec-class-name" />
+                                <ui:Label text="--:--.--" class="rec-class-time empty" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:Label name="rec-ghost-count" text="4 ghosts stored" class="rec-side-note" />
+                        <ui:TextField name="player-name" label="Your name" value="Player" max-length="24" class="records-name" />
+                        <ui:Instance template="SettingRow" name="auto-upload" class="setting-row rec-setting">
+                            <ui:AttributeOverrides element-name="setting-label" text="Upload new bests" />
+                            <ui:AttributeOverrides element-name="setting-value-label" text="On" />
+                        </ui:Instance>
+                        <ui:VisualElement class="rec-account-row">
+                            <ui:VisualElement name="rec-account-icon" class="icon i-cloud_off rec-account-icon" />
+                            <ui:Label name="rec-account-label" text="Log in to put your records on the leaderboards." class="rec-account-label" />
+                            <ui:Button name="rec-account" class="mhk-button small secondary">
+                                <ui:VisualElement name="rec-account-button-icon" class="icon i-login" />
+                                <ui:Label name="rec-account-button-label" text="Log in" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
                         <ui:Label name="ghost-status" text="Ghosts imported: 2" class="records-status" />
                     </ui:VisualElement>
                 </ui:VisualElement>
@@ -87,6 +100,10 @@
                 </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right">
+                <ui:Button name="reports" class="mhk-button small secondary trk-reports">
+                    <ui:VisualElement class="icon i-shield_person" />
+                    <ui:Label text="Reports" class="button-label" />
+                </ui:Button>
                 <ui:Button name="open-import" class="mhk-button small secondary desktop-only">
                     <ui:VisualElement class="icon i-folder_open" />
                     <ui:Label text="Import folder" class="button-label" />
@@ -95,9 +112,9 @@
                     <ui:VisualElement class="icon i-replay" />
                     <ui:Label text="Reload" class="button-label" />
                 </ui:Button>
-                <ui:Button name="play" class="mhk-button go">
-                    <ui:VisualElement class="icon i-play_arrow" />
-                    <ui:Label text="Play" class="button-label" />
+                <ui:Button name="open" class="mhk-button go">
+                    <ui:VisualElement class="icon i-leaderboard" />
+                    <ui:Label text="Open" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>

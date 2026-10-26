@@ -3,6 +3,7 @@ using System.Linq;
 using MHK.Core;
 using MHK.Ghosts;
 using MHK.Modding;
+using MHK.Online;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -10,54 +11,61 @@ namespace MHK.UI
 {
     /// <summary>
     /// Records (Records.uxml): best lap and best race of every track with the driver and kart that set them (also of
-    /// mods that are not loaded), the focused track's time-trial ghosts with Watch / Export / Delete, the player's name
-    /// written into new ghosts, and Play: a time trial on the focused track through the driver, kart and ghost choice.
+    /// mods that are not loaded). The side panel sums up the focused track (its best ghost per engine class) and holds the
+    /// player's name written into new ghosts, the automatic upload of new bests and the online account. Clicking or
+    /// submitting a track (or Open) opens its records page (<see cref="TrackRecordsScreen"/>: ghosts, leaderboard, races
+    /// against picked ghosts). Moderators get Reports (<see cref="FlaggedRunsScreen"/>).
     /// </summary>
     public class RecordsScreen : GhostListScreen
     {
         [SerializeField, Tooltip("Track row (Templates/RecordRow.uxml).")]
         VisualTreeAsset rowTemplate;
-        [SerializeField, Tooltip("Ghost row (Templates/GhostRow.uxml).")]
-        VisualTreeAsset ghostRowTemplate;
 
         [Header("Texts")]
-        [SerializeField, Tooltip("Tooltip of Play on a track of a circuit-less layout (battle arena).")]
-        string arenaTip = "Time trials run on circuits only.";
         [SerializeField, Tooltip("Status after an import ({0} = ghosts taken in).")]
         string importedCountFormat = "Ghosts imported: {0}";
         [SerializeField, Tooltip("Status part for import files that could not be read ({0} = files).")]
         string unreadableFormat = "Unreadable files: {0}";
         [SerializeField, Tooltip("Status after Reload found nothing new.")]
         string nothingNewText = "No new ghosts.";
-        [SerializeField, Tooltip("Status after exporting ({0} = file).")]
-        string exportedFormat = "Exported: {0}";
-        [SerializeField, Tooltip("Status when exporting failed.")]
-        string exportFailedText = "Export failed (see the log).";
-        [SerializeField, Tooltip("Question of Delete. {0} = the ghost's time.")]
-        string confirmDeleteQuestion = "Delete the ghost {0}?";
-        [SerializeField, Tooltip("Confirm button text of the delete question.")]
-        string deleteText = "Delete";
-        [SerializeField, Tooltip("Status after deleting.")]
-        string deletedText = "Ghost deleted.";
+        [SerializeField, Tooltip("Ghost count of the focused track: none, one, several ({0} = count).")]
+        string noGhostsText = "No ghosts stored yet.", oneGhostText = "1 ghost stored", ghostsFormat = "{0} ghosts stored";
+        [SerializeField, Tooltip("Values of Upload new bests.")]
+        string offText = "Off", onText = "On";
+        [SerializeField, Tooltip("Tooltip of Upload new bests.")]
+        string autoUploadTip = "Uploads every new personal best of a time trial to the leaderboard while you are logged in.";
+        [SerializeField, Tooltip("Account line: logged in ({0} = name), logged out (with auto upload on, off).")]
+        string onlineFormat = "Uploading as {0}.", loggedOutAutoText = "Log in so new bests reach the leaderboards.",
+            loggedOutText = "Log in to upload your records. Leaderboards work without.";
+        [SerializeField, Tooltip("Account button: logged out, logged in.")]
+        string loginText = "Log in", accountText = "Account";
 
         string shownTrackId;
-        Difficulty attemptClass;
-        VisualElement ghostList, selectedRow;
-        Label ghostsTitle, status;
-        Button play;
+        VisualElement selectedRow;
+        Label status;
+        Button open;
+        SettingChoice autoUpload;
 
         static SaveData Save => GameRoot.Instance.Save;
 
         protected override void Bind()
         {
-            ghostList = Q<VisualElement>("ghost-list");
-            ghostsTitle = Q<Label>("ghosts-title");
             status = Q<Label>("ghost-status");
-            play = OnClick("play", Play, click: false);
+            open = OnClick("open", OpenTrack, click: false);
             SetStatus("");
             BindPlayerName();
+            autoUpload = BindChoice("auto-upload", () => 2, () => Settings.autoUploadBests ? 1 : 0, i => i == 1 ? onText : offText,
+                i =>
+                {
+                    Settings.autoUploadBests = i == 1;
+                    ShowAccount();
+                }, _ => autoUploadTip);
+            OnClick("rec-account", () => Flow.Show<AccountScreen>());
+            OnClick("reports", () => Flow.Show<FlaggedRunsScreen>());
             OnClick("reload", () => ImportNow(true));
             OnClick("open-import", () => GhostUi.Reveal(GhostUi.ImportFolder));
+            OnlineService.Changed += ShowAccount;
+            ShowAccount();
             FocusTarget = FillTracks();
             StartAutoImport();
         }
@@ -66,19 +74,21 @@ namespace MHK.UI
         {
             base.Unbind();
             StopAutoImport();
+            OnlineService.Changed -= ShowAccount;
             GameRoot.Instance.SaveSettings();
-            ghostList = selectedRow = null;
-            ghostsTitle = status = null;
-            play = null;
+            selectedRow = null;
+            status = null;
+            open = null;
+            autoUpload = null;
         }
 
         protected override void OnImported(int imported, int failed)
         {
-            if (ghostList == null) return;
+            if (status == null) return;
             var text = imported + failed == 0 ? nothingNewText : string.Format(importedCountFormat, imported);
             if (failed > 0) text += UiText.Separator + string.Format(unreadableFormat, failed);
             SetStatus(text);
-            FillGhosts();
+            ShowSummary();
         }
 
         void SetStatus(string text)
@@ -93,6 +103,21 @@ namespace MHK.UI
             nameField.SetValueWithoutNotify(Settings.playerName);
             nameField.textEdition.placeholder = Settings.SignatureName;
             nameField.RegisterValueChangedCallback(e => Settings.playerName = e.newValue);
+        }
+
+        void ShowAccount()
+        {
+            if (status == null) return;
+            var account = OnlineService.Account;
+            var row = Root.Q(className: "rec-account-row");
+            row.EnableInClassList("online", account != null);
+            Q<VisualElement>("rec-account-icon").SetIcon(account != null ? "cloud_done" : "cloud_off");
+            Q<Label>("rec-account-label").text = account != null ? string.Format(onlineFormat, account.username)
+                : Settings.autoUploadBests ? loggedOutAutoText : loggedOutText;
+            Q<Label>("rec-account-button-label").text = account != null ? accountText : loginText;
+            Q<VisualElement>("rec-account-button-icon").SetIcon(account != null ? "account_circle" : "login");
+            SetVisible("reports", OnlineService.IsModerator);
+            autoUpload?.Refresh();
         }
 
         VisualElement FillTracks()
@@ -116,7 +141,7 @@ namespace MHK.UI
             }
             if (shown != null) ShowTrack(shownTrackId, shown);
             else if (first != null) ShowTrack(firstId, first);
-            else UpdatePlay();
+            else open.SetEnabled(false);
             return shown ?? first;
         }
 
@@ -147,7 +172,9 @@ namespace MHK.UI
             SetTime(row.Q("rec-race-cell"), rec?.bestRace ?? 0f, rec?.bestRaceCharacter, rec?.bestRaceKart);
             row.RegisterCallback<FocusInEvent>(_ => ShowTrack(trackId, row));
             row.RegisterCallback<PointerDownEvent>(_ => row.Focus());
-            row.RegisterCallback<NavigationSubmitEvent>(_ => Play());
+            // A click or tap opens the track (the pointer down focused it first); so does submit.
+            row.RegisterCallback<ClickEvent>(_ => OpenTrack());
+            row.RegisterCallback<NavigationSubmitEvent>(_ => OpenTrack());
             return row;
         }
 
@@ -158,89 +185,50 @@ namespace MHK.UI
             row.AddToClassList("selected");
             if (trackId != shownTrackId) SetStatus("");
             shownTrackId = trackId;
-            FillGhosts();
+            open.SetEnabled(true);
+            ShowSummary();
         }
 
-        void FillGhosts()
+        // The focused track's picture and its best stored ghost per engine class.
+        void ShowSummary()
         {
-            if (ghostList == null || shownTrackId == null) return;
-            ghostsTitle.text = ContentDisplay.TrackName(shownTrackId);
-            ghostList.Clear();
-            var entries = Store.List(shownTrackId).OrderBy(e => e.header.engineClass).ThenBy(e => e.header.finishTime).ToList();
-            foreach (var entry in entries)
-                if (!SpawnGhostRow(entry)) break;
-            ShowEmptyState(entries.Count == 0);
-            var best = entries.Where(e => e.kind == GhostKind.Best && e.IsCurrent).OrderBy(e => e.header.finishTime).FirstOrDefault();
-            attemptClass = best != null ? ClassOf(best) : Selection.difficulty;
-            UpdatePlay();
-        }
-
-        bool SpawnGhostRow(GhostEntry entry)
-        {
-            var row = UiTree.Spawn<VisualElement>(ghostRowTemplate, ghostList);
-            if (row == null) return false;
-            FillGhostRow(row, entry);
-            var main = row.Q<Button>("ghost-main");
-            var watch = row.Q<Button>("ghost-watch");
-            var delete = row.Q<Button>("ghost-delete");
-            var loaded = Content.Get<TrackDefinition>(entry.header.trackId) != null;
-            watch.SetEnabled(loaded);
-            if (!loaded) watch.tooltip = ContentDisplay.MissingTrackText;
-            main.RegisterCallback<FocusInEvent>(_ => attemptClass = ClassOf(entry));
-            main.clicked += () => Watch(entry);
-            watch.clicked += () => Watch(entry);
-            row.Q<Button>("ghost-export").clicked += () =>
-            {
-                Click();
-                SetStatus(GhostUi.ExportStatus(entry, exportedFormat, exportFailedText));
-            };
-            delete.clicked += () =>
-            {
-                Click();
-                var time = row.Q<Label>("ghost-time")?.text;
-                ConfirmPrompt.Show(delete, string.Format(confirmDeleteQuestion, time), deleteText, () => Delete(entry));
-            };
-            return true;
-        }
-
-        static Difficulty ClassOf(GhostEntry e) =>
-            (Difficulty)Mathf.Clamp(e.header.engineClass, 0, Mathf.Max(0, GameRoot.Instance.Config.difficulties.Length - 1));
-
-        void Delete(GhostEntry entry)
-        {
-            Store.Delete(entry);
-            SetStatus(deletedText);
-            FillGhosts();
-            FocusLater(selectedRow);
-        }
-
-        void Watch(GhostEntry entry)
-        {
-            if (SceneFlow.Busy || Content.Get<TrackDefinition>(entry.header.trackId) == null) return;
-            Click();
-            SceneFlow.StartSession(TimeTrialRun.ReplaySession(entry));
-        }
-
-        void UpdatePlay()
-        {
-            if (play == null) return;
+            if (status == null || shownTrackId == null) return;
             var track = Content.Get<TrackDefinition>(shownTrackId);
-            var circuit = track != null && track.layout == TrackLayout.Circuit;
-            play.SetEnabled(circuit);
-            play.tooltip = track == null ? ContentDisplay.MissingTrackText : circuit ? "" : arenaTip;
+            Q<VisualElement>("rec-picture").SetImage(track != null ? track.Picture : null);
+            Q<Label>("ghosts-title").text = ContentDisplay.TrackName(shownTrackId);
+            Q<Label>("rec-side-game").text = ContentDisplay.TrackGame(shownTrackId);
+            var entries = Store.List(shownTrackId);
+            var classes = Q<VisualElement>("rec-classes");
+            classes.Clear();
+            var difficulties = GameRoot.Instance.Config.difficulties;
+            for (var c = 0; c < difficulties.Length; c++)
+            {
+                var best = entries.Where(e => e.header.engineClass == c && e.kind == GhostKind.Best && e.IsCurrent)
+                    .OrderBy(e => e.header.finishTime).FirstOrDefault();
+                var line = new VisualElement();
+                line.AddToClassList("rec-class-line");
+                var name = new Label(difficulties[c].label);
+                name.AddToClassList("rec-class-name");
+                var time = new Label(best != null ? UiText.Clock(best.header.finishTime) : UiText.NoClock);
+                time.AddToClassList("rec-class-time");
+                time.EnableInClassList("empty", best == null);
+                line.Add(name);
+                line.Add(time);
+                classes.Add(line);
+            }
+            Q<Label>("rec-ghost-count").text = entries.Count switch
+            {
+                0 => noGhostsText,
+                1 => oneGhostText,
+                _ => string.Format(ghostsFormat, entries.Count),
+            };
         }
 
-        // A record attempt: a time trial on the shown track in the class of the focused or fastest best ghost.
-        void Play()
+        void OpenTrack()
         {
-            var track = Content.Get<TrackDefinition>(shownTrackId);
-            if (track == null || track.layout != TrackLayout.Circuit || SceneFlow.Busy) return;
+            if (shownTrackId == null) return;
             Click();
-            Selection.mode = GameMode.TimeTrial;
-            Selection.track = track;
-            Selection.difficulty = attemptClass;
-            Selection.trackFixed = true;
-            Flow.Show<CharacterScreen>();
+            Flow.Get<TrackRecordsScreen>().Open(shownTrackId);
         }
 
         static void SetTime(VisualElement cell, float seconds, string characterId, string kartId)

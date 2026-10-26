@@ -151,6 +151,11 @@ namespace MHK.Core
 
         void OnApplicationQuit() => quitting = true;
 
+        // In the editor OnApplicationQuit runs when play mode stops, which can be after the statics cleanup; without a
+        // domain reload the flag would then survive into the next play session and keep Instance null.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetQuitting() => quitting = false;
+
         void OnDestroy()
         {
             if (instance != this) return;

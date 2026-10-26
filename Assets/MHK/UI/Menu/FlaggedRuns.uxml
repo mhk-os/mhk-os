@@ -1,0 +1,111 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- Moderators: runs other players reported, most flags first. Toolbar: the hidden-runs chips (filter: Visible / With hidden) and the count. List (fr-list, LeaderRow with .lb-list-reports .lb-list-mod: track, class and driver in lb-sub, flags, Hidden; Watch, Hide / Unhide, Account) with the pager, or fr-state (loading, none, offline with fr-retry). The focused run's details on the side (fr-detail, fr-detail-empty before one is chosen): who and where, its reports (fr-reports: reporter, reason, ghost time, detail, date, ignored ones dimmed with .ignored) and the uploader's account (fr-account: country, dates, runs, hidden runs, cheat kicks, disabled state and reason) with Hide / Unhide and Disable / Enable. Preview classes on page: preview-state, preview-no-detail. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="LeaderRow" src="/Assets/MHK/UI/Menu/Templates/LeaderRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Reports" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement class="trk-columns">
+                    <ui:VisualElement name="fr-panel" class="panel fr-list-panel">
+                        <ui:VisualElement class="trk-section-head">
+                            <ui:Label text="Flagged runs" class="trk-section-title" />
+                            <ui:VisualElement name="filter" class="tabs fr-filter">
+                                <ui:Instance template="Chip" class="sample-selected">
+                                    <ui:AttributeOverrides element-name="chip" text="Visible" />
+                                </ui:Instance>
+                                <ui:Instance template="Chip">
+                                    <ui:AttributeOverrides element-name="chip" text="With hidden" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:ScrollView name="fr-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="trk-scroll">
+                            <ui:VisualElement name="fr-list" class="lb-list lb-list-reports lb-list-mod">
+                                <ui:Instance template="LeaderRow" class="sample-flagged sample-selected">
+                                    <ui:AttributeOverrides element-name="lb-sub" text="Scribble Blocks | 150cc | Moorhuhn" />
+                                </ui:Instance>
+                                <ui:Instance template="LeaderRow" class="sample-flagged sample-hidden">
+                                    <ui:AttributeOverrides element-name="lb-name" text="Speedy" />
+                                    <ui:AttributeOverrides element-name="lb-sub" text="Island | 100cc | Hank" />
+                                    <ui:AttributeOverrides element-name="lb-time" text="00:41.02" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:VisualElement name="fr-state" class="lb-state">
+                            <ui:VisualElement name="fr-state-icon" class="icon i-check lb-state-icon" />
+                            <ui:Label name="fr-state-label" text="No reported runs." class="lb-state-label" />
+                            <ui:Button name="fr-retry" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-sync" />
+                                <ui:Label text="Retry" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="fr-pager" class="lb-pager">
+                            <ui:Button name="fr-prev" tooltip="Previous page" class="mhk-button small secondary icon-only">
+                                <ui:VisualElement class="icon i-chevron_left" />
+                            </ui:Button>
+                            <ui:Label name="fr-range" text="1-25 of 40" class="lb-range" />
+                            <ui:Button name="fr-next" tooltip="Next page" class="mhk-button small secondary icon-only">
+                                <ui:VisualElement class="icon i-chevron_right" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="fr-side" class="panel fr-side">
+                        <ui:Label name="fr-detail-empty" text="Choose a run to see its reports and its player." class="fr-detail-empty" />
+                        <ui:ScrollView name="fr-detail" mode="Vertical" horizontal-scroller-visibility="Hidden" class="trk-scroll fr-detail">
+                            <ui:Label name="fr-run-title" text="SmokeRacer | 03:21.40" class="trk-section-title" />
+                            <ui:Label name="fr-run-sub" text="Scribble Blocks | 150cc | uploaded 26 Oct 2026" class="fr-sub" />
+                            <ui:Label text="Reports" class="fr-heading" />
+                            <ui:VisualElement name="fr-reports" class="fr-reports">
+                                <ui:VisualElement class="fr-report">
+                                    <ui:Label text="Speed at 01:12.40 | Hank | 26 Oct 2026" class="fr-report-head" />
+                                    <ui:Label text="Speed 41.2 m/s above the kart's 30.5 m/s top speed." class="fr-report-detail" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                            <ui:Label name="fr-reports-state" text="Loading..." class="fr-sub" />
+                            <ui:Label text="Account" class="fr-heading" />
+                            <ui:VisualElement name="fr-account" class="fr-account">
+                                <ui:Label name="fr-account-line" text="Germany | joined 3 Oct 2026 | last login 26 Oct 2026" class="fr-sub" />
+                                <ui:Label name="fr-account-stats" text="12 runs, 1 hidden | 0 cheat kicks" class="fr-sub" />
+                                <ui:Label name="fr-account-disabled" text="Disabled: cheating" class="fr-disabled" />
+                            </ui:VisualElement>
+                            <ui:Label name="fr-account-state" text="Loading..." class="fr-sub" />
+                            <ui:VisualElement class="fr-actions">
+                                <ui:Button name="fr-watch" class="mhk-button small secondary">
+                                    <ui:VisualElement class="icon i-visibility" />
+                                    <ui:Label text="Watch" class="button-label" />
+                                </ui:Button>
+                                <ui:Button name="fr-hide" class="mhk-button small secondary">
+                                    <ui:VisualElement name="fr-hide-icon" class="icon i-visibility_off" />
+                                    <ui:Label name="fr-hide-label" text="Hide run" class="button-label" />
+                                </ui:Button>
+                                <ui:Button name="fr-disable" class="mhk-button small danger">
+                                    <ui:VisualElement class="icon i-account_circle" />
+                                    <ui:Label name="fr-disable-label" text="Disable account" class="button-label" />
+                                </ui:Button>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Label name="status" text="Run hidden." class="records-status trk-status" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="refresh" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-sync" />
+                    <ui:Label text="Refresh" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

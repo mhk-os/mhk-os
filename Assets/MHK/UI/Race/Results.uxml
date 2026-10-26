@@ -113,6 +113,7 @@
                         </ui:Instance>
                     </ui:VisualElement>
                     <ui:Label name="tt-note" text="Saved as your best on Island (100cc)." class="hud-tt-note" />
+                    <ui:Label name="tt-upload" text="Uploading your record..." class="hud-tt-note" style="margin-top: 4px;" />
                 </ui:VisualElement>
                 <ui:VisualElement class="checker-strip hud-results-checker" />
             </ui:VisualElement>

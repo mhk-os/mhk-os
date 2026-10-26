@@ -113,8 +113,10 @@ namespace MHK.Race
         public event Action ResultsReady;
         public event Action<bool> PauseChanged;
 
-        /// <summary>Share of <see cref="LoadProgress"/> taken by the track scene, spawning the karts takes the rest.</summary>
+        /// <summary>Share of <see cref="LoadProgress"/> taken by the track scene, spawning the karts (and ghosts) takes the rest.</summary>
         const float TrackLoadShare = 0.9f;
+        /// <summary>Share of the rest taken by the karts in a time trial, loading the ghosts takes what is left.</summary>
+        const float TimeTrialKartShare = 0.2f;
         const float IntroOrbitSeconds = 1.5f;
         const float MinFarClip = 10f;
         const float NearClip = 0.1f;
@@ -169,13 +171,30 @@ namespace MHK.Race
             yield return null; // let colliders settle before placing karts
             yield return SpawnKarts();
             AttachModeRules();
-            Debug.Log($"[Race] {Track.Id}: track scene {trackLoaded - loadStart:0.00} s, karts {Time.realtimeSinceStartup - trackLoaded:0.00} s.");
+            yield return WaitForGhosts();
+            Debug.Log($"[Race] {Track.Id}: track scene {trackLoaded - loadStart:0.00} s, karts and ghosts {Time.realtimeSinceStartup - trackLoaded:0.00} s.");
             if (!IsAttract) MusicPlayer.PlayTrack(Track);
 
             yield return RunIntro();
             yield return RunCountdown();
             StartRacing();
         }
+
+        // Time trials: the ghosts load over frames after the karts; the loading screen stays up until they are all there.
+        IEnumerator WaitForGhosts()
+        {
+            if (TimeTrial == null) yield break;
+            var from = KartsLoadedProgress;
+            while (!TimeTrial.GhostsLoaded)
+            {
+                LoadProgress = from + (1f - from) * TimeTrial.LoadProgress;
+                yield return null;
+            }
+            LoadProgress = 1f;
+        }
+
+        /// <summary>Share of <see cref="LoadProgress"/> reached when every kart is spawned.</summary>
+        float KartsLoadedProgress => TrackLoadShare + (1f - TrackLoadShare) * (Session.mode == GameMode.TimeTrial ? TimeTrialKartShare : 1f);
 
         void EnsureSession()
         {
@@ -227,6 +246,7 @@ namespace MHK.Race
             {
                 TimeTrial = gameObject.AddComponent<TimeTrialRun>();
                 TimeTrial.Load(this);
+                gameObject.AddComponent<Validation.GhostValidation>();
             }
             if (!IsBattle) return;
             Battle = gameObject.AddComponent<BattleRules>();

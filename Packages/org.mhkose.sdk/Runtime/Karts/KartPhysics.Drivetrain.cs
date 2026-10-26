@@ -58,14 +58,38 @@ namespace MHK.Karts
         /// <summary>Theoretical top speed (m/s) in top gear at the end of the torque curve (section 7).</summary>
         public float MaxSpeed() => RedlineSpeed(effects != null ? effects.MaxSpeedMultiplier : 1f);
 
-        float RedlineSpeed(float maxSpeedMultiplier)
+        float RedlineSpeed(float maxSpeedMultiplier) => RedlineSpeed(profile, ClassFactor, SpeedScale, maxSpeedMultiplier);
+
+        /// <summary>
+        /// Speed (m/s) in top gear at the end of the torque curve × <paramref name="maxSpeedMultiplier"/> (<see cref="MaxSpeed"/>
+        /// of a kart with <paramref name="p"/>, engine class factor and speed scale): what speed pads raise a kart to.
+        /// </summary>
+        public static float RedlineSpeed(KartPhysicsProfile p, float classFactor, float speedScale, float maxSpeedMultiplier = 1f)
         {
-            var p = profile;
             if (p == null) return FallbackMaxSpeed;
             var maxRpm = p.torqueCurve.Length > 0 ? p.torqueCurve[^1].rpm : FallbackMaxRpm;
             var top = p.gears.Length > 0 ? p.gears[^1] : 1f;
-            var diff = DiffRatio(p, ClampClassFactor(ClassFactor), ClampSpeedScale(SpeedScale));
+            var diff = DiffRatio(p, ClampClassFactor(classFactor), ClampSpeedScale(speedScale));
             return maxRpm * p.wheelsRadiusRear / (top * diff * RadPerSecToRpm) * maxSpeedMultiplier;
+        }
+
+        /// <summary>
+        /// Largest forward acceleration (m/s²) the engine can give at full throttle without effects: the strongest gear at
+        /// the peak of the torque curve, before traction limits, drag and slopes.
+        /// </summary>
+        public static float MaxDriveAcceleration(KartPhysicsProfile p, float classFactor, float speedScale, float torqueScale)
+        {
+            if (p == null || p.gears == null || p.gears.Length == 0 || p.mass <= 0f) return 0f;
+            var f = ClampClassFactor(classFactor);
+            var s = ClampSpeedScale(speedScale);
+            var diff = DiffRatio(p, f, s);
+            var wheelForce = p.torqueCoefficientFront / Mathf.Max(0.01f, p.wheelsRadiusFront)
+                             + p.torqueCoefficientRear / Mathf.Max(0.01f, p.wheelsRadiusRear);
+            var peak = 0f;
+            foreach (var point in p.torqueCurve) peak = Mathf.Max(peak, TorqueCurve(p, point.rpm, 1f, f, torqueScale));
+            var gear = 0f;
+            foreach (var g in p.gears) gear = Mathf.Max(gear, Mathf.Abs(g));
+            return gear * diff * peak * (s * s) * Mathf.Abs(wheelForce) / p.mass;
         }
 
         // Remake: above MaxSpeed the original engine gives no force at full throttle, so a boost's excess speed only fades

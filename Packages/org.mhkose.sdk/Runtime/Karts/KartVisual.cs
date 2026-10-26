@@ -182,9 +182,19 @@ namespace MHK.Karts
         /// <summary>Holds the win or lose pose after the finish.</summary>
         public void PlayWin(bool won) => PlayAction(won ? CharacterAnimRole.Win : CharacterAnimRole.Lose, true);
 
+        /// <summary>
+        /// Driver and kart model animate (default) or freeze in their pose, for a ghost too far away to watch
+        /// (<see cref="CharacterAnimator.SetDormant"/>). Wheels, pose, opacity and tints stay live.
+        /// </summary>
+        public void SetAnimated(bool animated)
+        {
+            if (animator != null) animator.SetDormant(!animated);
+            if (kartAnimator != null) kartAnimator.SetDormant(!animated);
+        }
+
         void OnDestroy()
         {
-            if (seeThrough != null) seeThrough.DestroyCopies();
+            if (seeThrough != null) seeThrough.ReleaseFadedMaterials();
             if (kart == null) return;
             kart.Effects.Started -= OnEffectApplied;
             kart.Effects.Ended -= OnEffectEnded;
