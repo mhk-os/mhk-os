@@ -9,12 +9,15 @@ namespace MHK.Powerups
     /// <summary>
     /// Placed magnet (MHK3): catches the nearest kart that comes within <see cref="radius"/>, one at a time, and holds it
     /// on a leash that shortens towards the magnet. The kart keeps its controls and velocity, only its position is held,
-    /// so it drives off at the speed it built up when the magnet lets go. Never catches its user or ghost karts.
+    /// so it drives off at the speed it built up when the magnet lets go. Never catches its user or ghost karts. A remote
+    /// racer's kart is only held on its own client; here the magnet waits until that racer's state lets it go.
     /// </summary>
     [DefaultExecutionOrder(100)] // after Kart: holds the position the physics step is about to move from
     public partial class MagnetPowerup : PowerupBehaviour, IPlantedHazard
     {
         const float SightHeight = 0.5f;
+        // A remote racer's catch shows once its client confirms it (HitApplied / its state); the magnet holds on meanwhile (s).
+        const float RemoteConfirmSeconds = 1f;
 
         [Tooltip("A kart whose centre comes this close (m) is caught: the nearest one, if the magnet is free. MHK3: 5.")]
         public float radius = 5f;
@@ -37,7 +40,7 @@ namespace MHK.Powerups
 
         Kart victim;
         float leash;
-        float active;
+        float active, caughtAt;
         Vector3 baseScale;
 
         /// <summary>A magnet holds <paramref name="kart"/> right now (its driver should not count it as stuck).</summary>
@@ -67,12 +70,15 @@ namespace MHK.Powerups
             transform.localScale = baseScale * Mathf.Clamp01(growTime > 0f ? active / growTime : 1f);
         }
 
-        void FixedUpdate()
+        // Holds a kart through the physics step: catching up a remote use would move karts several steps at once.
+        protected internal override bool FastForwards => false;
+
+        protected override void Step(float dt)
         {
             if (InFlight) return;
-            active += Time.fixedDeltaTime;
-            if (!ReferenceEquals(victim, null)) Hold(Time.fixedDeltaTime);
-            else if (active > lifetime) Destroy(gameObject);
+            active += dt;
+            if (!ReferenceEquals(victim, null)) Hold(dt);
+            else if (active > lifetime) Remove();
             else TryCatch();
         }
 
@@ -83,6 +89,7 @@ namespace MHK.Powerups
             var k = Nearest(centre);
             if (k == null || !KartReactions.Apply(k, catchEffect, Owner, -1f, Usage)) return;
             victim = k;
+            caughtAt = active;
             held.Add(k);
             var p = k.Physics.Body.position;
             leash = new Vector2(p.x - centre.x, p.z - centre.z).magnitude;
@@ -114,14 +121,16 @@ namespace MHK.Powerups
         // Moves the kart back onto the leash circle where this step would carry it beyond. Its velocity is not touched.
         void Hold(float h)
         {
-            if (!IsTangible(victim) || !victim.Effects.Has(catchEffect))
+            var confirming = victim != null && victim.IsRemote && active - caughtAt < RemoteConfirmSeconds;
+            if (!IsTangible(victim) || (!victim.Effects.Has(catchEffect) && !confirming))
             {
                 held.Remove(victim);
                 victim = null;
-                Destroy(gameObject);
+                Remove();
                 return;
             }
             leash = Mathf.Max(holdDistance, leash - pullSpeed * h);
+            if (!MovesHere(victim)) return;
             var body = victim.Physics.Body;
             var centre = transform.position;
             var next = body.position + body.linearVelocity * h;

@@ -15,6 +15,9 @@ namespace MHK.Core
         public GameObject kartRootPrefab;
         [Tooltip("Physics of karts without their own profile, also the reference kart for the engine classes' top speeds.")]
         public KartPhysicsProfile defaultPhysics;
+        [Tooltip("Online races: sign (Prefabs/UnknownContent/UnknownContentMarker) above a remote kart whose character or " +
+                 "kart is not installed here, so the stand-in driver is not mistaken for someone else's.")]
+        public GameObject unknownContentMarker;
 
         [Header("Loading")]
         [Tooltip("Loading screen (Prefabs/UI/LoadingScreen): spawned once under the GameRoot, SceneFlow shows it while scenes load.")]
@@ -142,8 +145,11 @@ namespace MHK.Core
         [Header("Time trial ghosts")]
         [Tooltip("Opacity of the ghosts raced against (the see-through look of a ghost-ride kart, 1 = opaque).")]
         [Range(0.05f, 1f)] public float ghostOpacity = 0.45f;
-        [Tooltip("Most ghosts in one time trial (the own best plus picked ones).")]
-        [Min(1)] public int maxGhosts = 3;
+        [Tooltip("Most ghosts in one time trial (the own best plus picked ones, local or downloaded).")]
+        [Min(1)] public int maxGhosts = 50;
+        [Tooltip("Raced ghosts nearest the camera that animate, show effect visuals and name tags; the others only " +
+                 "drive (the split reference and a watched ghost always count as near).")]
+        [Min(1)] public int ghostDetailCount = 8;
         [Tooltip("Seconds a ghost keeps recording after the finish line (it coasts on, then fades out).")]
         [Min(0f)] public float ghostTailSeconds = 3f;
         [Tooltip("Ghost name tags show up to this distance from the camera (m), 0 = no name tags.")]

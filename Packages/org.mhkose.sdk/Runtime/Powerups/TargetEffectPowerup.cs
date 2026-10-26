@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using MHK.Karts;
 using MHK.Modding;
@@ -8,8 +7,9 @@ namespace MHK.Powerups
 {
     /// <summary>
     /// Applies an effect directly to selected opponents (16-tons weight on the leader, flash on everybody ahead, ...),
-    /// optionally dropping a visual onto each target during <see cref="delay"/>. The activation sound plays at once,
-    /// then the hit sound at each target, or the fail sound when there is none.
+    /// optionally dropping a visual onto each target during <see cref="delay"/> (counted in physics steps). The activation
+    /// sound plays at once, then the hit sound at each target, or the fail sound when there is none. Online a single
+    /// target is the one its user chose; every client then decides only about its own kart.
     /// </summary>
     public class TargetEffectPowerup : PowerupBehaviour
     {
@@ -46,34 +46,56 @@ namespace MHK.Powerups
         [Tooltip("Only karts within this distance are targeted (0 = unlimited).")]
         public float maxDistance;
 
-        protected override void OnLaunch() => StartCoroutine(Run());
+        List<Kart> victims;
+        List<GameObject> visuals;
+        float t, hang;
+        bool applied;
 
-        IEnumerator Run()
+        protected override void OnLaunch()
         {
-            var victims = SelectVictims();
-            var visuals = SpawnDropVisuals(victims);
+            victims = SelectVictims();
+            ChosenTarget = victims.Count > 0 ? victims[0] : null;
+            visuals = SpawnDropVisuals(victims);
             PlaySfx(activationSound, victims.Count > 0 ? victims[0].transform.position : Owner.transform.position);
-            var t = 0f;
-            var hang = Mathf.Clamp(hangTime, 0f, delay);
-            while (t < delay)
-            {
-                t += Time.deltaTime;
-                MoveDropVisuals(victims, visuals, Mathf.Clamp01((t - hang) / Mathf.Max(delay - hang, MinDelay)), BobOffset(t, hang));
-                yield return null;
-            }
-            ApplyToVictims(victims, visuals);
+            hang = Mathf.Clamp(hangTime, 0f, delay);
+        }
+
+        protected override void Step(float dt)
+        {
+            if (applied) return;
+            t += dt;
+            if (t < delay) return;
+            applied = true;
+            MoveDropVisuals(1f, 0f);
+            ApplyToVictims();
             if (victims.Count == 0 && Owner != null) PlaySfx(failSound, Owner.transform.position);
             Destroy(gameObject, SelfDestroyDelay);
         }
 
+        // The dropping visuals follow the frame's time between steps.
+        void Update()
+        {
+            if (applied || visuals == null) return;
+            var shown = Mathf.Min(t + PoseInterpolation.StepShare * Time.fixedDeltaTime, delay);
+            MoveDropVisuals(Mathf.Clamp01((shown - hang) / Mathf.Max(delay - hang, MinDelay)), BobOffset(shown, hang));
+        }
+
+        // Single targets (leader, next ahead, nearest) are the user's choice online; groups are selected here.
         List<Kart> SelectVictims()
         {
             var victims = new List<Kart>();
+            if (Context.targetGiven && SingleTarget(targets))
+            {
+                if (Context.target != null && !Context.target.Effects.Ghost) victims.Add(Context.target);
+                return victims;
+            }
             PowerupTargeting.Select(Owner, targets, maxDistance > 0f ? maxDistance : float.PositiveInfinity, victims);
             if (maxDistance > 0f)
                 victims.RemoveAll(v => Vector3.Distance(v.transform.position, Owner.transform.position) > maxDistance);
             return victims;
         }
+
+        static bool SingleTarget(TargetSelection s) => s != TargetSelection.AllAhead && s != TargetSelection.AllOthers;
 
         List<GameObject> SpawnDropVisuals(List<Kart> victims)
         {
@@ -85,7 +107,7 @@ namespace MHK.Powerups
             return visuals;
         }
 
-        void MoveDropVisuals(List<Kart> victims, List<GameObject> visuals, float k, float bob)
+        void MoveDropVisuals(float k, float bob)
         {
             var height = dropHeight * (1f - k * k) + bob;
             for (var i = 0; i < victims.Count; i++)
@@ -102,7 +124,7 @@ namespace MHK.Powerups
             return bobAmplitude * (1f - u * u) * Mathf.Sin(2f * Mathf.PI * t / bobPeriod);
         }
 
-        void ApplyToVictims(List<Kart> victims, List<GameObject> visuals)
+        void ApplyToVictims()
         {
             for (var i = 0; i < victims.Count; i++)
             {

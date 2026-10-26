@@ -9,7 +9,7 @@ namespace MHK.Powerups
     /// Ground-following projectile (missiles, rockets, thrown balls). Optionally follows the racing line and homes in on
     /// a target once it is close enough (MHK2 homing missile model: activation and lock distances).
     /// </summary>
-    public class ProjectilePowerup : ProjectileBehaviour
+    public class ProjectilePowerup : ProjectileBehaviour, INetProjectile
     {
         /// <summary>A shot inheriting the owner's speed flies at least this much faster than the owner (m/s).</summary>
         public const float OwnerSpeedMargin = 5f;
@@ -20,6 +20,7 @@ namespace MHK.Powerups
         const float GroundProbeDown = 6f;
         const float HoverSharpness = 20f;
         const float SegmentEpsilon = 1e-8f;
+        const float MinCorrectSpeedSqr = 0.01f;
 
         [Header("Flight")]
         [Tooltip("Do not add the shooter's speed to the launch speed.")]
@@ -62,6 +63,21 @@ namespace MHK.Powerups
         int bounces;
         int pathSegment = -1;
 
+        public bool Flying => true;
+        public Vector3 NetPosition => SimulatedPosition;
+        public Vector3 NetVelocity => direction * (locked ? lockedSpeed : speed);
+
+        public void Correct(Vector3 position, Vector3 velocity)
+        {
+            BeginCorrection(position);
+            velocity.y = 0f;
+            if (velocity.sqrMagnitude > MinCorrectSpeedSqr) direction = velocity.normalized;
+        }
+
+        protected internal override void OnNetHit(Kart victim) => Despawn(impactVfx, SimulatedPosition, hitSound);
+
+        protected internal override float NetHitReach => hitRadius;
+
         protected override void OnLaunch()
         {
             var t = Owner.transform;
@@ -70,16 +86,18 @@ namespace MHK.Powerups
             direction.Normalize();
             transform.SetPositionAndRotation(t.position + direction * spawnDistance + Vector3.up * hoverHeight,
                 Quaternion.LookRotation(direction, Vector3.up));
-            if (homing && !Context.backwards) target = PowerupTargeting.First(Owner, targetSelection);
+            if (homing && !Context.backwards) target = Context.targetGiven ? Context.target : PowerupTargeting.First(Owner, targetSelection);
+            ChosenTarget = target;
             // Original world speeds (not scaled with the karts), plus the owner's speed so its own shot never falls behind.
             if (!ignoreOwnerSpeed) speed = Mathf.Max(speed, OwnerSpeedAlong(direction) + OwnerSpeedMargin);
             PlayLaunch();
+            InterpolatePose();
         }
 
-        void Update()
+        protected override void Step(float dt)
         {
-            var dt = Time.deltaTime;
             if (TickLifetime(dt, impactVfx)) return;
+            ApplyCorrection();
             Steer(dt);
             Decelerate(dt);
             var currentSpeed = locked ? lockedSpeed : speed;
@@ -145,7 +163,7 @@ namespace MHK.Powerups
             return true;
         }
 
-        // Along the path travelled this frame, so fast shots cannot skip past a kart between frames.
+        // Along the path travelled this step, so fast shots cannot skip past a kart between steps.
         void CheckHits(Vector3 from, Vector3 to)
         {
             var karts = Kart.All;

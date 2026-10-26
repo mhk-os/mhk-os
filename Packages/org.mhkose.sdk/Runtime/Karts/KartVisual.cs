@@ -124,6 +124,7 @@ namespace MHK.Karts
             model = rig.model;
             animator = rig.driver;
             kartAnimator = rig.kart;
+            if (kart != null && Validation.UnknownContentGuard.IsPlaceholder(kart.Setup)) AddUnknownMarker();
 
             seeThrough = new KartSeeThrough(transform, view, GetComponentsInChildren<Renderer>());
             wheelVisibility = new KartWheelVisibility(model);
@@ -140,6 +141,13 @@ namespace MHK.Karts
             kart.Effects.Ended += OnEffectEnded;
             kart.Respawned += OnRespawned;
             kart.Collided += OnCollided;
+        }
+
+        // Online: a stand-in for a character or kart this game does not have wears the '?' sign (fading with the kart).
+        void AddUnknownMarker()
+        {
+            var prefab = GameRoot.Instance.Config.unknownContentMarker;
+            if (prefab != null) Instantiate(prefab, body, false).name = "Unknown content";
         }
 
         internal bool PlayAction(CharacterAnimRole role, bool hold = false)
@@ -182,9 +190,19 @@ namespace MHK.Karts
         /// <summary>Holds the win or lose pose after the finish.</summary>
         public void PlayWin(bool won) => PlayAction(won ? CharacterAnimRole.Win : CharacterAnimRole.Lose, true);
 
+        /// <summary>
+        /// Driver and kart model animate (default) or freeze in their pose, for a ghost too far away to watch
+        /// (<see cref="CharacterAnimator.SetDormant"/>). Wheels, pose, opacity and tints stay live.
+        /// </summary>
+        public void SetAnimated(bool animated)
+        {
+            if (animator != null) animator.SetDormant(!animated);
+            if (kartAnimator != null) kartAnimator.SetDormant(!animated);
+        }
+
         void OnDestroy()
         {
-            if (seeThrough != null) seeThrough.DestroyCopies();
+            if (seeThrough != null) seeThrough.ReleaseFadedMaterials();
             if (kart == null) return;
             kart.Effects.Started -= OnEffectApplied;
             kart.Effects.Ended -= OnEffectEnded;

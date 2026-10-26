@@ -161,6 +161,7 @@ namespace MHK.Karts
             {
                 if (rb == Body || (ghostExcludeLayers.value & (1 << rb.gameObject.layer)) != 0) continue;
                 if (rb.isKinematic && !rb.TryGetComponent<TrackHazard>(out _)) continue;
+                if (rb.gameObject.scene.GetPhysicsScene() != physicsScene) continue;
                 rb.GetComponentsInChildren(colliderScratch);
                 foreach (var c in colliderScratch)
                 {
@@ -176,7 +177,7 @@ namespace MHK.Karts
             var t = chassis.transform;
             var centre = t.TransformPoint(chassis.center);
             var half = Vector3.Scale(chassis.size * 0.5f, t.lossyScale);
-            var n = Physics.OverlapBoxNonAlloc(centre, half, overlapBuffer, t.rotation, ~0, QueryTriggerInteraction.Ignore);
+            var n = physicsScene.OverlapBox(centre, half, overlapBuffer, t.rotation, ~0, QueryTriggerInteraction.Ignore);
             for (var i = 0; i < n; i++)
             {
                 var c = overlapBuffer[i];

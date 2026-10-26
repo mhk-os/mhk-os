@@ -37,7 +37,7 @@ namespace MHK.Powerups
             heldScale = transform.localScale;
             if (model == null)
             {
-                Destroy(gameObject);
+                Remove();
                 return;
             }
             var parent = KartMounts.Frame(Owner);
@@ -74,21 +74,27 @@ namespace MHK.Powerups
             model.transform.SetPositionAndRotation(ground + tilt * (modelPosition - rest), tilt * modelRotation);
         }
 
-        void Update()
+        protected override void Step(float dt)
         {
             if (model == null || t > model.Length) return;
-            t += Time.deltaTime;
-            model.Sample(t);
+            t += dt;
             if (restScale != 1f) transform.localScale = heldScale * Mathf.Lerp(1f, restScale, landTime > 0f ? t / landTime : 1f);
             if (landed || t < landTime) return;
             landed = true;
             if (!onGround)
             {
-                Destroy(gameObject);
+                Remove();
                 return;
             }
             SetEnabled(activateOnLanding, true);
             PlaySfx(landSound, transform.position);
+        }
+
+        // The drop animation is drawn at the frame's time between steps.
+        void Update()
+        {
+            if (model == null || t > model.Length + Time.fixedDeltaTime) return;
+            model.Sample(Mathf.Min(t + PoseInterpolation.StepShare * Time.fixedDeltaTime, model.Length));
         }
 
         // Skinned renderers only update their bounds when skinned for rendering, so they are measured from a baked copy.

@@ -8,7 +8,7 @@ namespace MHK.Powerups
     /// behind the kart and stuck straight onto the solid ground below (MHK2: no fall). With no ground it is lost.
     /// Combine with <see cref="HazardTrap"/>, <see cref="AreaEffectPowerup"/> or <see cref="MagnetPowerup"/>.
     /// </summary>
-    public class PlacementPowerup : PowerupBehaviour, ILandingPowerup
+    public class PlacementPowerup : PowerupBehaviour, ILandingPowerup, INetProjectile
     {
         /// <summary>Throw origin ahead of the kart (m).</summary>
         public const float ThrowOriginForward = 1.5f;
@@ -69,6 +69,17 @@ namespace MHK.Powerups
 
         public bool Landed { get; private set; }
 
+        public bool Flying => flying;
+        public Vector3 NetPosition => SimulatedPosition;
+        public Vector3 NetVelocity => velocity;
+
+        public void Correct(Vector3 position, Vector3 newVelocity)
+        {
+            if (!flying) return;
+            BeginCorrection(position);
+            velocity = newVelocity;
+        }
+
         bool DiscardsOnSteepGround => maxGroundSlope < DiscardSlopeLimit;
 
         protected override void OnLaunch()
@@ -96,11 +107,12 @@ namespace MHK.Powerups
         {
             var t = Owner.transform;
             // Landing distance as in the original: the kart velocity share is taken in original units (÷ SpeedScale).
-            var kartVel = Owner.Physics.Body.linearVelocity * (inheritVelocity / SpeedScale);
+            var kartVel = OwnerVelocity * (inheritVelocity / SpeedScale);
             transform.position = t.position + t.forward * ThrowOriginForward + Vector3.up * ThrowOriginUp;
             velocity = t.forward * throwSpeed + Vector3.up * throwUpSpeed + kartVel;
             flying = true;
             loop = Effects.EffectLoopSound.Play(gameObject, flightLoop);
+            InterpolatePose();
         }
 
         // Corners of each mesh's local bounds, so a rotated plate is not oversized like a world AABB.
@@ -118,10 +130,10 @@ namespace MHK.Powerups
             return reach;
         }
 
-        void Update()
+        protected override void Step(float dt)
         {
             if (!flying) return;
-            var dt = Time.deltaTime;
+            ApplyCorrection();
             flightTime += dt;
             velocity += Vector3.down * (gravity * dt);
             var next = transform.position + velocity * dt;
@@ -177,7 +189,7 @@ namespace MHK.Powerups
         {
             flying = false;
             PlaySfx(failSound, transform.position);
-            Destroy(gameObject);
+            Remove();
         }
     }
 }

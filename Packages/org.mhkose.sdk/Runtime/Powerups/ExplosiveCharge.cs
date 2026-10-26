@@ -67,16 +67,24 @@ namespace MHK.Powerups
             if (model == null) model = transform;
         }
 
+        // The tumble is visual only: it follows frame time.
         void Update()
         {
+            if (!exploded && !HasLanded && model != null && model != transform) model.Rotate(flightSpin * Time.deltaTime, Space.Self);
+        }
+
+        protected override void Step(float dt)
+        {
             if (exploded || Owner == null) return;
-            if (HasLanded)
-            {
-                Explode(transform.position);
-                return;
-            }
-            if (model != null && model != transform) model.Rotate(flightSpin * Time.deltaTime, Space.Self);
-            if (KartInContact()) Explode(transform.position);
+            if (HasLanded || KartInContact()) Explode(transform.position);
+        }
+
+        protected internal override float NetHitReach => splashRadius;
+
+        // Another client saw the blast hit a racer: it goes off here too, where it is now.
+        protected internal override void OnNetHit(Kart victim)
+        {
+            if (!exploded && Owner != null) Explode(SimulatedPosition);
         }
 
         bool KartInContact()
@@ -106,7 +114,7 @@ namespace MHK.Powerups
                 if (!IsTangible(k) || OwnerImmune(k)) continue;
                 AffectKart(k, at);
             }
-            Destroy(gameObject);
+            Remove();
         }
 
         void SpawnBlastFx(Vector3 at)
@@ -141,7 +149,7 @@ namespace MHK.Powerups
             {
                 KartReactions.Apply(k, hitEffect, Owner, -1f, Usage);
             }
-            else if (dist <= splashRadius && KartReactions.Apply(k, splashEffect, Owner, -1f, Usage))
+            else if (dist <= splashRadius && KartReactions.Apply(k, splashEffect, Owner, -1f, Usage) && MovesHere(k))
             {
                 var fade = 1f - Mathf.InverseLerp(hitRadius, splashRadius, dist);
                 var away = dist > MinPushDistance ? flat / dist : Vector3.zero;

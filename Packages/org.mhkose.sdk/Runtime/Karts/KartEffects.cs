@@ -41,6 +41,11 @@ namespace MHK.Karts
         }
 
         const float ParticleReleasePadding = 0.1f;
+        // A remote kart's effect missing from its state is ended only once it has run this long (s): a hit shown at once
+        // (HitApplied) waits for the state that lists it.
+        const float RemoteSyncGrace = 0.5f;
+        // Effects a remote kart's state lists run at least this much longer (s), so they never end before the state drops them.
+        const float RemoteKeepAlive = 0.25f;
 
         readonly List<ActiveEffect> active = new();
         readonly List<ActiveEffect> expired = new();
@@ -105,6 +110,8 @@ namespace MHK.Karts
         /// Ticks, not seconds: a hit right at its end lands on the same step in every run.
         /// </summary>
         public int ProtectedUntilTick { get; set; }
+        /// <summary>The kart whose hostile effect or ram last cost this kart health (battle: who eliminated it). Null = none.</summary>
+        public Kart LastAttacker { get; internal set; }
 
         /// <summary>Every successful <see cref="Apply"/>, including refreshes of a running effect (ghost recording replays these).</summary>
         public event Action<StatusEffectDefinition, Kart> Applied;
@@ -129,9 +136,12 @@ namespace MHK.Karts
         /// respawn (<see cref="HasRespawnPending"/>): nothing is applied, refreshed or extended then.
         /// <paramref name="usage"/> is the powerup use the hit comes from (<see cref="Powerups.PowerupContext.usage"/>, 0 =
         /// none): it costs this kart health only once per use (<see cref="Kart.TakeDamage"/>).
+        /// Online, a remote racer's kart is never changed by a hit seen here: its own client decides
+        /// (<see cref="Powerups.OnlineItems"/>); its own buffs only show.
         /// </summary>
         public bool Apply(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f, int usage = 0)
         {
+            if (kart != null && kart.IsRemote) return ApplyToRemote(def, source, durationOverride, usage);
             if (IsBlocked(def)) return false;
             var duration = ResolveDuration(def, durationOverride);
             EndConflictingBuffs(def);
@@ -153,7 +163,83 @@ namespace MHK.Karts
             if (def.snapToTopSpeed) SnapToTopSpeed();
             Applied?.Invoke(def, source);
             if (existing == null) Started?.Invoke(def, source);
+            if (def.hostile) Powerups.OnlineItems.OnLocalHit(kart, def, source, usage, existing == null);
             return true;
+        }
+
+        // A hit on a remote racer is reported as seen and lands only visually once its client confirms it (HitApplied).
+        bool ApplyToRemote(StatusEffectDefinition def, Kart source, float durationOverride, int usage)
+        {
+            if (IsBlocked(def)) return false;
+            if (def.hostile)
+            {
+                Powerups.OnlineItems.OnRemoteHit(kart, def, source, usage);
+                return true;
+            }
+            ShowRemote(def, source, durationOverride, usage);
+            return true;
+        }
+
+        /// <summary>
+        /// Shows <paramref name="def"/> on a remote racer's kart as its client applied it (HitApplied, its state): visuals,
+        /// sounds and reactions only. Its motion, health and item come from its client.
+        /// </summary>
+        public void ShowRemote(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f, int usage = 0)
+        {
+            if (def == null || kart == null || !kart.IsRemote || kart.Eliminated) return;
+            var duration = ResolveDuration(def, durationOverride);
+            var existing = Find(def);
+            if (existing != null)
+            {
+                existing.TimeLeft = Mathf.Max(existing.TimeLeft, duration);
+                existing.Duration = Mathf.Max(existing.Duration, duration);
+                if (usage != 0) existing.Usage = usage;
+            }
+            else
+            {
+                if (def.exclusiveBuff)
+                    for (var i = active.Count - 1; i >= 0; i--)
+                        if (active[i].Definition.exclusiveBuff) End(i, false);
+                active.Add(new ActiveEffect(def, duration, SpawnAttachedVfx(def), usage));
+                if (def.applySound != null) AudioManager.PlaySfx(def.applySound, transform.position);
+            }
+            Recalculate();
+            Applied?.Invoke(def, source);
+            if (existing == null) Started?.Invoke(def, source);
+        }
+
+        /// <summary>
+        /// Makes a remote racer's effects those its latest state lists: missing ones start (<see cref="ShowRemote"/>),
+        /// listed ones keep running, others end once they had <see cref="RemoteSyncGrace"/> to appear in a state.
+        /// </summary>
+        public void SyncRemote(IReadOnlyList<StatusEffectDefinition> listed)
+        {
+            if (kart == null || !kart.IsRemote || listed == null) return;
+            for (var i = active.Count - 1; i >= 0; i--)
+            {
+                var e = active[i];
+                if (Listed(listed, e.Definition)) e.TimeLeft = Mathf.Max(e.TimeLeft, RemoteKeepAlive);
+                else if (e.Elapsed > RemoteSyncGrace) End(i, true);
+            }
+            for (var i = 0; i < listed.Count; i++)
+                if (listed[i] != null && Find(listed[i]) == null) ShowRemote(listed[i]);
+            Recalculate();
+        }
+
+        static bool Listed(IReadOnlyList<StatusEffectDefinition> listed, StatusEffectDefinition def)
+        {
+            for (var i = 0; i < listed.Count; i++)
+                if (Same(listed[i], def)) return true;
+            return false;
+        }
+
+        /// <summary>Ends the effects a powerup use applied or refreshed last (an online use the server rejected).</summary>
+        public void RemoveUsage(int usage)
+        {
+            if (usage == 0) return;
+            for (var i = active.Count - 1; i >= 0; i--)
+                if (active[i].Usage == usage) End(i, false);
+            Recalculate();
         }
 
         bool IsBlocked(StatusEffectDefinition def)
@@ -227,8 +313,9 @@ namespace MHK.Karts
             if (def.dropsHeldItem && kart != null && kart.Inventory != null) kart.Inventory.Clear();
             if (kart == null) return;
             if (def.heal > 0) kart.Heal(def.heal);
-            if (def.hostile && source != null && source != kart)
-                kart.TakeDamage(def.damage >= 0 ? def.damage : Core.GameRoot.Instance.Config.defaultHitDamage, source, usage);
+            if (!def.hostile || source == null || source == kart) return;
+            LastAttacker = source;
+            kart.TakeDamage(def.damage >= 0 ? def.damage : Core.GameRoot.Instance.Config.defaultHitDamage, source, usage);
         }
 
         public bool Has(StatusEffectDefinition def) => Find(def) != null;
@@ -283,7 +370,7 @@ namespace MHK.Karts
             }
             if (natural && d.endSound != null) AudioManager.PlaySfx(d.endSound, transform.position);
             Ended?.Invoke(d);
-            if (natural && d.respawnOnEnd && kart != null) kart.RespawnBehind(d.respawnBackDistance);
+            if (natural && d.respawnOnEnd && kart != null && !kart.IsRemote) kart.RespawnBehind(d.respawnBackDistance);
         }
 
         static void ReleaseWorldParticles(GameObject vfx)
@@ -305,7 +392,7 @@ namespace MHK.Karts
             TickTimers(dt);
             if (kart != null && kart.Physics != null && kart.Physics.JustLanded) Land();
             Recalculate();
-            ApplyContinuous(dt);
+            if (kart == null || !kart.IsRemote) ApplyContinuous(dt);
             UpdateSpin();
             ApplyAuras();
         }

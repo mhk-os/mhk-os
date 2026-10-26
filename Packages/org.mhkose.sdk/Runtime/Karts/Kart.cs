@@ -33,6 +33,11 @@ namespace MHK.Karts
         public IKartDriver Driver { get; set; }
         /// <summary>When false the kart ignores its driver (countdown, after finishing for humans until AI takes over).</summary>
         public bool ControlsEnabled { get; set; }
+        /// <summary>
+        /// Another online racer's kart: a kinematic stand-in that follows the received states (<see cref="Online.RemoteKart"/>).
+        /// It runs no driver, physics step, items or respawns here; its client simulates it.
+        /// </summary>
+        public bool IsRemote { get; private set; }
         public KartInput CurrentInput => input;
         /// <summary>
         /// The input the physics stepped with in the last tick: the driver's, after the countdown / effects locks
@@ -100,7 +105,9 @@ namespace MHK.Karts
         float IKartView.SpinAngle => Effects.SpinAngle;
         float IKartView.ScaleMultiplier => Effects.ScaleMultiplier;
         float IKartView.VerticalScale => Effects.VerticalScale;
-        float IKartView.Opacity => Effects.Opacity;
+        float IKartView.Opacity => Effects.Opacity * RemoteFade;
+        /// <summary>Remote racers fade out to 0 when they leave the race.</summary>
+        internal float RemoteFade { get; set; } = 1f;
         bool IKartView.Burned => Effects.Burned;
         Color IKartView.ModelTint => Effects.ModelTint;
         bool IKartView.Hidden => Effects.Hidden;
@@ -170,12 +177,40 @@ namespace MHK.Karts
 
         void FixedUpdate()
         {
+            if (IsRemote) return;
             if (Driver != null) Driver.UpdateInput(this, ref input);
             var effective = FilterInput(input);
             EffectiveInput = effective;
             Physics.Step(effective, Time.fixedDeltaTime);
             if (ControlsEnabled) Inventory.HandleInput(effective);
             CheckRespawnTriggers(effective);
+        }
+
+        /// <summary>
+        /// Turns this kart into a remote racer's stand-in: no driver, a kinematic body the local kart bumps into. Called
+        /// once right after spawning.
+        /// </summary>
+        internal void BecomeRemote()
+        {
+            IsRemote = true;
+            Driver = null;
+            Physics.Body.isKinematic = true;
+            Physics.Body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            Physics.Body.interpolation = RigidbodyInterpolation.Interpolate;
+        }
+
+        /// <summary>A remote racer's controls as received (animations and look-back read them).</summary>
+        internal void SetRemoteInput(in KartInput remote)
+        {
+            input = remote;
+            EffectiveInput = remote;
+        }
+
+        /// <summary>A remote racer's battle health as its client reports it (its own client decides hits on it).</summary>
+        public void SetRemoteHealth(int health)
+        {
+            if (!IsRemote || Eliminated) return;
+            Health = Mathf.Clamp(health, 0, GameRoot.Instance.Config.maxHealth);
         }
 
         KartInput FilterInput(KartInput effective)
@@ -338,7 +373,8 @@ namespace MHK.Karts
         void OnCollisionEnter(Collision c)
         {
             var surface = TrackSurface.Of(c.collider);
-            if (surface != null) ReactToSurface(surface.kind);
+            // A remote racer's respawns are its own client's business.
+            if (surface != null && !IsRemote) ReactToSurface(surface.kind);
             Collided?.Invoke(this, c);
         }
     }

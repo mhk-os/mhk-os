@@ -14,9 +14,12 @@ namespace MHK.Ghosts
         IReadOnlyList<GhostEntry> List(string trackId);
         /// <summary>The personal best of a track and engine class, also when it is from another version, null if none.</summary>
         GhostEntry Best(string trackId, Difficulty engineClass);
-        /// <summary>The ghost with id <paramref name="id"/> (the best when several entries share it), null if none.</summary>
+        /// <summary>
+        /// The ghost with id <paramref name="id"/> (the best when several entries share it), also a downloaded one
+        /// (<see cref="GhostKind.Online"/>), null if none.
+        /// </summary>
         GhostEntry Find(string id);
-        /// <summary>The full ghost (frames and events), null when it can't be read.</summary>
+        /// <summary>The full ghost (frames and events), null when it can't be read. Thread-safe: races load ghosts in parallel.</summary>
         GhostData Load(GhostEntry entry);
         /// <summary>Stores a finished run: the new personal best when it beats the current one, else the last run.</summary>
         GhostSaveResult SaveRun(GhostData run);

@@ -1,6 +1,7 @@
 using MHK.Audio;
 using MHK.Karts;
 using MHK.Modding;
+using MHK.Race;
 using UnityEngine;
 
 namespace MHK.Powerups
@@ -15,13 +16,27 @@ namespace MHK.Powerups
         /// explosions): a kart loses health once per use however often it is hit (<see cref="Kart.TakeDamage"/>). 0 = none.
         /// </summary>
         public readonly int usage;
+        /// <summary>Race tick of the use (<see cref="RaceClock.Ticks"/>; online receivers get the sender's).</summary>
+        public readonly int tick;
+        /// <summary>
+        /// The target the user chose, sent with an online use (<see cref="targetGiven"/>): receivers aim at it instead of
+        /// choosing their own from their view of the race. Null with targetGiven = the user had none.
+        /// </summary>
+        public readonly Kart target;
+        public readonly bool targetGiven;
 
         public PowerupContext(Kart owner, PowerupDefinition definition, bool backwards, int usage)
+            : this(owner, definition, backwards, usage, RaceClock.Ticks, null, false) { }
+
+        public PowerupContext(Kart owner, PowerupDefinition definition, bool backwards, int usage, int tick, Kart target, bool targetGiven)
         {
             this.owner = owner;
             this.definition = definition;
             this.backwards = backwards;
             this.usage = usage;
+            this.tick = tick;
+            this.target = target;
+            this.targetGiven = targetGiven;
         }
     }
 
@@ -32,15 +47,38 @@ namespace MHK.Powerups
     }
 
     /// <summary>
+    /// A moving powerup object that online clients keep in agreement: every client reports its position
+    /// (ProjectileReport) and the server sends a correction when the reports spread (ProjectileCorrect).
+    /// </summary>
+    public interface INetProjectile
+    {
+        /// <summary>Still moving (reports stop once it rests or ends).</summary>
+        bool Flying { get; }
+        /// <summary>Position of the last simulated step.</summary>
+        Vector3 NetPosition { get; }
+        Vector3 NetVelocity { get; }
+        /// <summary>Blends towards <paramref name="position"/> (already extrapolated to the current tick) moving with <paramref name="velocity"/>.</summary>
+        void Correct(Vector3 position, Vector3 velocity);
+    }
+
+    /// <summary>
     /// Base class of the composable components on a powerup's use prefab. All behaviours on the spawned
-    /// prefab receive <see cref="Launch"/>, so they combine into new powerups without code.
+    /// prefab receive <see cref="Launch"/>, so they combine into new powerups without code. Gameplay runs in physics
+    /// steps (<see cref="Step"/>), never on frame time, so a use plays out alike at any frame rate and on every online
+    /// client; moving objects draw interpolated (<see cref="InterpolatePose"/>).
     /// </summary>
     public abstract class PowerupBehaviour : MonoBehaviour
     {
         [Tooltip("Volume of this behaviour's one-shot sounds.")]
         [SerializeField, Range(0f, 1f)] protected float soundVolume = 1f;
 
+        // Share of an online position correction applied per step (about 90 % within 10 steps) and when it is done.
+        const float CorrectionShare = 0.2f;
+        const float CorrectionDoneSqr = 1e-6f;
+
         ILandingPowerup landing;
+        PoseInterpolation interpolation;
+        Vector3 correction;
 
         protected PowerupContext Context { get; private set; }
         protected Kart Owner => Context.owner;
@@ -49,8 +87,13 @@ namespace MHK.Powerups
         /// Self-propelled items use their original world speeds.
         /// </summary>
         protected float SpeedScale => Owner != null && Owner.Physics != null ? Owner.Physics.SpeedScale : KartPhysics.GlobalSpeedScale;
-        /// <summary><see cref="Time.time"/> at <see cref="Launch"/> (when the item was placed, dropped or thrown).</summary>
-        protected float LaunchTime { get; private set; }
+        /// <summary>Race tick of the use (<see cref="PowerupContext.tick"/>): owner immunity counts from it.</summary>
+        protected int LaunchTick => Context.tick;
+        /// <summary>
+        /// The kart this use aims at (homing target, hammer target, the single target of a targeted item), sent with an
+        /// online use. Null = none.
+        /// </summary>
+        public Kart ChosenTarget { get; protected set; }
         /// <summary>An <see cref="ILandingPowerup"/> on this object still carries it.</summary>
         protected bool InFlight => landing != null && !landing.Landed;
         /// <summary>An <see cref="ILandingPowerup"/> on this object has put it down.</summary>
@@ -67,15 +110,47 @@ namespace MHK.Powerups
         public void Launch(PowerupContext ctx)
         {
             Context = ctx;
-            LaunchTime = Time.time;
             TryGetComponent(out landing);
             OnLaunch();
         }
 
         protected abstract void OnLaunch();
 
-        /// <summary><paramref name="k"/> is this item's owner and the item was launched less than <see cref="OwnerHazardImmunity"/> ago.</summary>
-        protected bool OwnerImmune(Kart k) => k != null && k == Owner && Time.time - LaunchTime < OwnerHazardImmunity;
+        /// <summary>One physics step of the behaviour's gameplay (flight, timers, hit tests). Not called while disabled.</summary>
+        protected virtual void Step(float dt) { }
+
+        /// <summary>
+        /// The behaviour can simulate several steps at once (<see cref="StepOnce"/>) to catch up with an online use that
+        /// started ticks ago. Off for behaviours that move karts or rigidbodies through the physics step.
+        /// </summary>
+        protected internal virtual bool FastForwards => true;
+
+        void FixedUpdate() => StepOnce();
+
+        /// <summary>Simulates one physics step now (also used to fast-forward).</summary>
+        internal void StepOnce()
+        {
+            Step(Time.fixedDeltaTime);
+            if (interpolation != null) interpolation.Capture();
+        }
+
+        /// <summary>
+        /// Draws this object between its simulated steps from now on (call after placing it in <see cref="OnLaunch"/>).
+        /// </summary>
+        protected void InterpolatePose()
+        {
+            if (interpolation == null && !TryGetComponent(out interpolation)) interpolation = gameObject.AddComponent<PoseInterpolation>();
+            interpolation.Snap();
+        }
+
+        /// <summary>The simulated position: the transform may show an interpolated one between steps (<see cref="InterpolatePose"/>).</summary>
+        protected Vector3 SimulatedPosition => interpolation != null ? interpolation.SimulatedPosition : transform.position;
+
+        /// <summary>
+        /// <paramref name="k"/> is this item's owner and the use is less than <see cref="OwnerHazardImmunity"/> old (race
+        /// ticks since <see cref="LaunchTick"/>).
+        /// </summary>
+        protected bool OwnerImmune(Kart k) => k != null && k == Owner && RaceClock.SecondsAt(RaceClock.Ticks - LaunchTick) < OwnerHazardImmunity;
 
         /// <summary>The kart exists, races and is not a ghost, so items can hit it.</summary>
         protected static bool IsTangible(Kart k) => k != null && !k.Eliminated && !k.Effects.Ghost;
@@ -86,8 +161,33 @@ namespace MHK.Powerups
         /// <summary>This item's use (<see cref="PowerupContext.usage"/>): pass it to <see cref="KartReactions.Apply"/> hits.</summary>
         protected int Usage => Context.usage;
 
+        /// <summary>The owner's velocity (m/s): a remote racer's as its latest state says.</summary>
+        protected Vector3 OwnerVelocity => OnlineItems.VelocityOf(Owner);
+
+        /// <summary>
+        /// The kart's motion is simulated here, so an item may push or hold it. A remote racer's stand-in only follows
+        /// its client: items never move it.
+        /// </summary>
+        protected static bool MovesHere(Kart k) => k != null && !k.IsRemote;
+
         /// <summary>The owner's speed (m/s) along the unit vector <paramref name="direction"/>.</summary>
-        protected float OwnerSpeedAlong(Vector3 direction) => Vector3.Dot(Owner.Physics.Body.linearVelocity, direction);
+        protected float OwnerSpeedAlong(Vector3 direction) => Vector3.Dot(OwnerVelocity, direction);
+
+        /// <summary>
+        /// Starts moving the simulated position towards <paramref name="target"/> over the next steps
+        /// (<see cref="ApplyCorrection"/>), so an online correction never makes the object jump.
+        /// </summary>
+        protected void BeginCorrection(Vector3 target) => correction = target - SimulatedPosition;
+
+        /// <summary>Moves the transform a share of the remaining correction (<see cref="BeginCorrection"/>). Call at the start of a step.</summary>
+        protected void ApplyCorrection()
+        {
+            if (correction == Vector3.zero) return;
+            var move = correction * CorrectionShare;
+            transform.position += move;
+            correction -= move;
+            if (correction.sqrMagnitude < CorrectionDoneSqr) correction = Vector3.zero;
+        }
 
         /// <summary>The definition's held mount, or <paramref name="fallback"/> without a definition.</summary>
         protected HeldMount HeldMountOr(HeldMount fallback) => Context.definition != null ? Context.definition.heldMount : fallback;
@@ -99,8 +199,34 @@ namespace MHK.Powerups
         protected void Despawn(GameObject vfx, Vector3 at, AudioClip sound, SoundRange range = null)
         {
             PowerupFx.Spawn(vfx, at, sound, soundVolume, range);
+            Remove();
+        }
+
+        /// <summary>
+        /// Removes this object at once: deactivated now (nothing of it runs or hits any more, also while a use is caught
+        /// up within one frame), destroyed at the end of the frame.
+        /// </summary>
+        protected void Remove()
+        {
+            gameObject.SetActive(false);
             Destroy(gameObject);
         }
+
+        /// <summary>Removes the object without effects (an online use the server rejected).</summary>
+        internal void Discard() => Remove();
+
+        /// <summary>
+        /// Online: <paramref name="victim"/>'s client confirmed a hit by this use (HitApplied) and this part is the one
+        /// that can have made it (<see cref="NetHitReach"/>). Shots that stop at a kart end here too, hazards count the
+        /// hit. Nothing is applied to the victim.
+        /// </summary>
+        protected internal virtual void OnNetHit(Kart victim) { }
+
+        /// <summary>Distance (m) from <see cref="NetHitPosition"/> within which this part hits a kart; 0 = it never ends by a hit.</summary>
+        protected internal virtual float NetHitReach => 0f;
+
+        /// <summary>Where this part hits from (its simulated position).</summary>
+        internal Vector3 NetHitPosition => SimulatedPosition;
 
         /// <summary>
         /// Distance (m) from the owner's origin to the edge of its chassis box along the unit vector

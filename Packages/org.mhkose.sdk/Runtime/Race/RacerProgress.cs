@@ -49,6 +49,33 @@ namespace MHK.Race
 
         public void SetRespawnOverride(Pose pose) => RespawnOverride = pose;
 
+        /// <summary>
+        /// An online remote racer: lap and race distance come from its own client (<see cref="ApplyRemote"/>) and its
+        /// finish from the server; the projection still runs for the minimap, items and targeting.
+        /// </summary>
+        public bool Remote { get; private set; }
+
+        /// <summary>Takes a remote racer's lap and race distance as its client reports them (ranking).</summary>
+        public void ApplyRemote(int lap, float raceDistance)
+        {
+            Remote = true;
+            if (Finished) return;
+            Lap = Mathf.Clamp(lap, 0, totalLaps);
+            RaceDistance = raceDistance;
+        }
+
+        /// <summary>Records lap times a remote racer reported with its finish (seconds).</summary>
+        public void SetRemoteLapTimes(IReadOnlyList<float> laps)
+        {
+            LapTimes.Clear();
+            BestLap = -1f;
+            for (var i = 0; i < laps.Count; i++)
+            {
+                LapTimes.Add(laps[i]);
+                if (BestLap < 0f || laps[i] < BestLap) BestLap = laps[i];
+            }
+        }
+
         public event System.Action<RacerProgress> FinishedRace;
 
         /// <summary>Near the finish line (m of path distance) crossings are taken from the real line plane.</summary>
@@ -326,7 +353,7 @@ namespace MHK.Race
             lineSide = SideOfLine(rawLap);
             // Near the line the lap distance follows the line plane, so it wraps exactly at the crossing.
             lapDistance = DistanceInLap(rawLap, lineSide);
-            if (Finished) return;
+            if (Finished || Remote) return;
 
             var near = Mathf.Abs(prevSide) < len * LineNearShare && Mathf.Abs(lineSide) < len * LineNearShare;
             if (near && prevSide < 0f && lineSide >= 0f)

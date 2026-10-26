@@ -59,13 +59,21 @@ namespace MHK.Core
         public CameraMode cameraMode = CameraMode.Close;
         [Tooltip("Keyboard rebinds: Input System binding overrides of MHKControls as JSON (empty = default keys).")]
         public string keyBindings = "";
-        [Tooltip("Name written into time-trial ghosts (Records screen), empty = the system user name.")]
-        public string playerName = "";
         [Tooltip("Stable random id of this player (time-trial ghosts, a future server groups runs by it). Created on first use.")]
         public string playerId = "";
         [Tooltip("Own single race and battle item odds, one set per item family of the track (Powerups screen). A family " +
                  "without a set uses the default odds.")]
         public List<ItemOddsSet> itemOdds = new();
+        [Tooltip("Game server (Account screen, advanced): tls://host:port, tcp://host:port (local network only) or host[:port]. " +
+                 "Empty = the built-in server. The -server command-line option wins over it.")]
+        public string onlineServer = "";
+        [Tooltip("Upload a new time-trial personal best to the leaderboards right after the race while logged in (Records screen).")]
+        public bool autoUploadBests = true;
+        [Tooltip("Driver and kart last chosen in an online lobby (the default loadout of the next lobby).")]
+        public string lastOnlineCharacterId = "";
+        public string lastOnlineKartId = "";
+        [Tooltip("Settings of the last private room the player created (Create room screen).")]
+        public Online.RoomSettings lastRoom = new();
 
         /// <summary>The player's own item odds for tracks of the family <paramref name="family"/> (top-level pack id), null = default odds.</summary>
         public ItemOddsSet ItemOddsFor(string family)
@@ -75,12 +83,16 @@ namespace MHK.Core
             return null;
         }
 
-        /// <summary>The name ghosts are signed with: <see cref="playerName"/>, else the system user name, else "Player".</summary>
+        /// <summary>
+        /// The name ghosts are signed with: the account's username (logged in, else the stored session of the server in
+        /// use, <see cref="Online.OnlineService.Username"/>), else the system user name, else "Player".
+        /// </summary>
         public string SignatureName
         {
             get
             {
-                if (!string.IsNullOrWhiteSpace(playerName)) return playerName.Trim();
+                var account = Online.OnlineService.Username;
+                if (!string.IsNullOrWhiteSpace(account)) return account.Trim();
                 var system = Application.isMobilePlatform ? "" : Environment.UserName;
                 return string.IsNullOrWhiteSpace(system) ? DefaultSignature : system;
             }

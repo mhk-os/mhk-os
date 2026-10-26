@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using MHK.Core;
 using MHK.Modding;
+using MHK.Online;
 using UnityEngine;
 
 namespace MHK.Ghosts
@@ -10,10 +11,16 @@ namespace MHK.Ghosts
     /// <summary>
     /// <see cref="IGhostStore"/> over files under <c>persistentDataPath/Ghosts</c>: one folder per track with best, last,
     /// saved and imported ghosts (<see cref="GhostPaths"/>) and the last computed track hash, plus Export and Import folders.
+    /// Ghosts downloaded into <see cref="OnlineGhostCache"/> are found by id (<see cref="GhostKind.Online"/>) but not listed.
     /// </summary>
     public sealed class LocalGhostStore : IGhostStore
     {
         readonly string rootFolder;
+        // Header id to the stored files with that id (a best kept aside as saved shares it) and file to header: read from
+        // every header once on first use, then kept current by this store's own changes and by List, which reads a track's
+        // headers anyway. A race finds dozens of ghosts by id without inflating every stored file each time.
+        Dictionary<string, List<string>> pathsById;
+        Dictionary<string, GhostHeader> headerByPath;
 
         public string ExportFolder => Path.Combine(rootFolder, GhostPaths.ExportFolderName);
         public string ImportFolder => Path.Combine(rootFolder, GhostPaths.ImportFolderName);
@@ -29,14 +36,26 @@ namespace MHK.Ghosts
         {
             var list = new List<GhostEntry>();
             var dir = TrackFolder(trackId);
-            if (!Directory.Exists(dir)) return list;
+            if (!Directory.Exists(dir))
+            {
+                UnindexFolder(dir, null);
+                return list;
+            }
             var known = KnownTrackHash(trackId);
             var setupHashes = new Dictionary<(int, string, int), string>();
+            var seen = pathsById != null ? new HashSet<string>(StringComparer.Ordinal) : null;
             foreach (var path in Directory.EnumerateFiles(dir, GhostPaths.SearchPattern))
             {
                 var entry = ReadEntry(path, known, setupHashes);
-                if (entry != null && entry.header.trackId == trackId) list.Add(entry);
+                if (entry == null) continue;
+                if (seen != null)
+                {
+                    seen.Add(path);
+                    Reindex(path, entry.header);
+                }
+                if (entry.header.trackId == trackId) list.Add(entry);
             }
+            UnindexFolder(dir, seen);
             list.Sort((a, b) => a.header.finishTime.CompareTo(b.header.finishTime));
             return list;
         }
@@ -50,19 +69,33 @@ namespace MHK.Ghosts
         public GhostEntry Find(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
-            GhostEntry found = null;
-            var setupHashes = new Dictionary<(int, string, int), string>();
-            foreach (var path in StoredFiles())
+            EnsureIndex();
+            string found = null;
+            if (pathsById.TryGetValue(id, out var paths))
             {
-                var header = TryHeader(path);
-                if (header == null || header.id != id) continue;
-                var entry = ReadEntry(path, KnownTrackHash(header.trackId), setupHashes);
-                if (entry == null) continue;
-                if (found == null || entry.kind == GhostKind.Best) found = entry;
+                // Backwards: a file deleted behind the store's back leaves the list.
+                for (var i = paths.Count - 1; i >= 0; i--)
+                {
+                    var path = paths[i];
+                    if (!File.Exists(path)) Unindex(path);
+                    else if (found == null || GhostPaths.KindOf(path) == GhostKind.Best) found = path;
+                }
             }
-            return found;
+            if (found == null) return FindOnline(id);
+            var header = headerByPath[found];
+            return NewEntry(found, header, GhostPaths.KindOf(found), KnownTrackHash(header.trackId));
         }
 
+        GhostEntry FindOnline(string id)
+        {
+            if (!OnlineGhostCache.TryGet(id, out _)) return null;
+            var path = OnlineGhostCache.PathFor(id);
+            var header = TryHeader(path);
+            if (header == null || !string.Equals(header.id, id, StringComparison.OrdinalIgnoreCase)) return null;
+            return NewEntry(path, header, GhostKind.Online, KnownTrackHash(header.trackId));
+        }
+
+        /// <summary>Reads the file only (no Unity API, no index), so races decode their ghosts on worker threads.</summary>
         public GhostData Load(GhostEntry entry)
         {
             if (entry == null || string.IsNullOrEmpty(entry.location)) return null;
@@ -88,18 +121,37 @@ namespace MHK.Ghosts
             var result = new GhostSaveResult { newRecord = best == null || !best.IsCurrent || h.finishTime < best.header.finishTime };
             if (best != null && best.IsCurrent) result.previousBest = best.header.finishTime;
             // A record needs a current best to compare with: a best of another simulation version or content is kept aside.
-            if (result.newRecord && best != null && !best.IsCurrent) SafeFile.Replace(bestPath, Path.Combine(dir, GhostPaths.Saved(best.Id)));
+            if (result.newRecord && best != null && !best.IsCurrent)
+            {
+                var savedPath = Path.Combine(dir, GhostPaths.Saved(best.Id));
+                SafeFile.Replace(bestPath, savedPath);
+                Unindex(bestPath);
+                Reindex(savedPath, best.header);
+            }
             var path = result.newRecord ? bestPath : lastPath;
             GhostFile.Save(path, run);
-            if (result.newRecord && File.Exists(lastPath)) File.Delete(lastPath);
+            if (result.newRecord && File.Exists(lastPath))
+            {
+                File.Delete(lastPath);
+                Unindex(lastPath);
+            }
             result.entry = ReadEntry(path, known);
+            if (result.entry != null) Reindex(path, result.entry.header);
+            else Unindex(path);
             return result;
         }
 
         public void Delete(GhostEntry entry)
         {
-            if (entry == null || string.IsNullOrEmpty(entry.location) || !File.Exists(entry.location)) return;
-            File.Delete(entry.location);
+            if (entry == null) return;
+            if (entry.kind == GhostKind.Online)
+            {
+                OnlineGhostCache.Remove(entry.Id);
+                return;
+            }
+            if (string.IsNullOrEmpty(entry.location)) return;
+            if (File.Exists(entry.location)) File.Delete(entry.location);
+            Unindex(entry.location);
         }
 
         public string Export(GhostEntry entry)
@@ -115,13 +167,13 @@ namespace MHK.Ghosts
             Directory.CreateDirectory(ImportFolder);
             var pending = Directory.GetFiles(ImportFolder, GhostPaths.SearchPattern);
             if (pending.Length == 0) return (0, 0);
-            var storedIds = StoredIds();
+            EnsureIndex();
             int imported = 0, failed = 0;
             foreach (var path in pending)
             {
                 try
                 {
-                    Import(path, storedIds);
+                    Import(path);
                     imported++;
                 }
                 catch (Exception e)
@@ -133,15 +185,17 @@ namespace MHK.Ghosts
             return (imported, failed);
         }
 
-        void Import(string path, HashSet<string> storedIds)
+        void Import(string path)
         {
             var h = GhostFile.Load(path).header;
             if (string.IsNullOrEmpty(h.id) || string.IsNullOrEmpty(h.trackId)) throw new InvalidDataException("no id or track");
-            if (storedIds.Add(h.id))
+            if (!pathsById.ContainsKey(h.id))
             {
                 var dir = TrackFolder(h.trackId);
                 Directory.CreateDirectory(dir);
-                File.Copy(path, Path.Combine(dir, GhostPaths.Imported(h.id)), true);
+                var target = Path.Combine(dir, GhostPaths.Imported(h.id));
+                File.Copy(path, target, true);
+                Reindex(target, h);
             }
             File.Delete(path);
         }
@@ -164,25 +218,52 @@ namespace MHK.Ghosts
             }
         }
 
-        IEnumerable<string> StoredFiles()
+        void EnsureIndex()
         {
-            if (!Directory.Exists(rootFolder)) yield break;
+            if (pathsById != null) return;
+            pathsById = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            headerByPath = new Dictionary<string, GhostHeader>(StringComparer.Ordinal);
+            if (!Directory.Exists(rootFolder)) return;
             foreach (var dir in Directory.EnumerateDirectories(rootFolder))
             {
                 if (GhostPaths.IsStoreFolder(Path.GetFileName(dir))) continue;
-                foreach (var path in Directory.EnumerateFiles(dir, GhostPaths.SearchPattern)) yield return path;
+                foreach (var path in Directory.EnumerateFiles(dir, GhostPaths.SearchPattern))
+                {
+                    var header = TryHeader(path);
+                    if (header != null) Reindex(path, header);
+                }
             }
         }
 
-        HashSet<string> StoredIds()
+        // Records that the file at path now holds header (no-op until the index is built).
+        void Reindex(string path, GhostHeader header)
         {
-            var ids = new HashSet<string>();
-            foreach (var path in StoredFiles())
-            {
-                var header = TryHeader(path);
-                if (header != null && !string.IsNullOrEmpty(header.id)) ids.Add(header.id);
-            }
-            return ids;
+            if (pathsById == null) return;
+            Unindex(path);
+            if (string.IsNullOrEmpty(header.id)) return;
+            headerByPath[path] = header;
+            if (!pathsById.TryGetValue(header.id, out var paths)) pathsById[header.id] = paths = new List<string>(1);
+            paths.Add(path);
+        }
+
+        void Unindex(string path)
+        {
+            if (headerByPath == null || !headerByPath.Remove(path, out var header)) return;
+            if (!pathsById.TryGetValue(header.id, out var paths)) return;
+            paths.Remove(path);
+            if (paths.Count == 0) pathsById.Remove(header.id);
+        }
+
+        // Drops the indexed files of dir that are not in seen (null: all of them).
+        void UnindexFolder(string dir, HashSet<string> seen)
+        {
+            if (headerByPath == null) return;
+            List<string> gone = null;
+            foreach (var path in headerByPath.Keys)
+                if (Path.GetDirectoryName(path) == dir && (seen == null || !seen.Contains(path)))
+                    (gone ??= new List<string>()).Add(path);
+            if (gone == null) return;
+            foreach (var path in gone) Unindex(path);
         }
 
         // A remembered track hash holds while the fingerprint scheme, the simulation version and the track's pack stay:
@@ -196,15 +277,17 @@ namespace MHK.Ghosts
         static GhostEntry ReadEntry(string path, string knownTrackHash, Dictionary<(int, string, int), string> setupHashes = null)
         {
             var header = TryHeader(path);
-            if (header == null) return null;
-            return new GhostEntry
-            {
-                header = header,
-                kind = GhostPaths.KindOf(path),
-                location = path,
-                compatibility = GhostCompatibilityRules.Evaluate(header, knownTrackHash, setupHashes),
-            };
+            return header != null ? NewEntry(path, header, GhostPaths.KindOf(path), knownTrackHash, setupHashes) : null;
         }
+
+        static GhostEntry NewEntry(string path, GhostHeader header, GhostKind kind, string knownTrackHash,
+            Dictionary<(int, string, int), string> setupHashes = null) => new()
+        {
+            header = header,
+            kind = kind,
+            location = path,
+            compatibility = GhostCompatibilityRules.Evaluate(header, knownTrackHash, setupHashes),
+        };
 
         static GhostHeader TryHeader(string path)
         {

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Startup script of the self-extracting Linux installer (makeself runs it in the extracted folder). Asks for the
-# install folder, copies the game, adds a menu entry and uninstall.sh. Options after "--": --dir <folder>, --yes.
+# install folder, copies the game, adds a menu entry (also the handler of mhkos:// room links) and uninstall.sh. Options
+# after "--": --dir <folder>, --yes.
 set -euo pipefail
 
 name="Moorhuhn Kart OSE"
@@ -47,12 +48,15 @@ cat > "$apps/org.mhkose.moorhuhnkart.desktop" << EOF
 Type=Application
 Name=$name
 Comment=Open source remake of Moorhuhn Kart
-Exec="$quoted"
+Exec="$quoted" %u
 Path=$dir
 Icon=$dir/MoorhuhnKart.png
 Terminal=false
 Categories=Game;
+MimeType=x-scheme-handler/mhkos;
 EOF
 if command -v update-desktop-database > /dev/null; then update-desktop-database "$apps" > /dev/null 2>&1 || true; fi
+# Room links (mhkos://join/CODE) start the game with the link; a running game takes it over.
+if command -v xdg-mime > /dev/null; then xdg-mime default org.mhkose.moorhuhnkart.desktop x-scheme-handler/mhkos > /dev/null 2>&1 || true; fi
 
 echo "Done. $name is in your application menu. Uninstall with: \"$dir/uninstall.sh\""

@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using MHK.Core;
 using MHK.Ghosts;
+using MHK.Online;
 using MHK.Race;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -71,6 +73,39 @@ namespace MHK.UI
         string exportedFormat = "Exported: {0}";
         [SerializeField, Tooltip("Note when exporting failed.")]
         string exportFailedText = "Export failed (see the log).";
+        [SerializeField, Tooltip("Upload line while a new record uploads to the leaderboards.")]
+        string uploadingText = "Uploading your record...";
+        [SerializeField, Tooltip("Upload line once uploaded ({0} = rank on the online leaderboard).")]
+        string uploadedFormat = "Uploaded: rank #{0} online.";
+        [SerializeField, Tooltip("Upload line once uploaded when the server ranks another run of the account higher.")]
+        string uploadedText = "Uploaded to the online leaderboard.";
+        [SerializeField, Tooltip("Upload line when the upload failed ({0} = reason).")]
+        string uploadFailedFormat = "Upload failed: {0}";
+        [SerializeField, Tooltip("Upload line of a new record while no account is logged in.")]
+        string loginHintText = "Log in on the Account screen to post your records online.";
+        [SerializeField, Tooltip("The menu button in time trials: back to the track's records page (leaderboard), its tooltip.")]
+        string leaderboardText = "Leaderboard", leaderboardTip = "This track's records and the online leaderboard";
+
+        [Header("Online texts")]
+        [SerializeField, Tooltip("Mode chips of the online results: race and battle.")]
+        string onlineRaceText = "Online race", onlineBattleText = "Online battle";
+        [SerializeField, Tooltip("Race chip of an online race in a set ({0} = race number, {1} = races in the set).")]
+        string onlineSetFormat = "Race {0}/{1}";
+        [SerializeField, Tooltip("Chip of a solo race against computer drivers.")]
+        string soloChipText = "vs AI";
+        [SerializeField, Tooltip("Tooltip of the solo chip.")]
+        string soloChipTip = "Raced alone against computer drivers: no points.";
+        [SerializeField, Tooltip("Button back to the lobby after an online race.")]
+        string backToLobbyText = "Back to lobby";
+        [SerializeField, Tooltip("Tooltip of the countdown on the lobby button.")]
+        string autoReturnTip = "Back to the lobby by itself when the countdown ends.";
+        [SerializeField, Tooltip("Info line while the server's result has not come (the player left the race or lost it).")]
+        string noResultText = "No result";
+        [SerializeField, Tooltip("Outcome badges of the online results: DNF, left, kicked for cheating, removed by a moderator, desync.")]
+        string dnfText = "DNF", leftText = "Left", kickedText = "Kicked", removedText = "Removed", desyncText = "Desync";
+        [SerializeField, Tooltip("Outcome tooltips, in the same order.")]
+        string dnfTip = "Did not finish in time.", leftTip = "Left the race.", kickedTip = "Removed: the other players' checks found cheating.",
+            removedTip = "Removed by a moderator.", desyncTip = "This racer's game data differed from the others'.";
 
         [Header("Timing (seconds)")]
         [SerializeField, Tooltip("Delay before the first result row enters.")]
@@ -89,38 +124,124 @@ namespace MHK.UI
         static readonly string[] MedalClasses = { "gold", "silver", "bronze" };
 
         VisualElement staggered;
+        // Bumped on every unbind, so an upload finishing later leaves a closed screen alone.
+        int bindVersion;
+
+        // Online: back to the lobby on its own once the lobby moved on from the results, but never before the table
+        // could be read (a solo race ended early goes straight back to waiting).
+        bool onlineReturnArmed;
+        float onlineReturnAfter;
+        Label returnCountdown;
+        int shownCountdown = -1;
+        const float MinOnlineResultsSeconds = 6f;
 
         protected override void Bind()
         {
             var race = Race;
             var session = race.Session;
             var champ = session.mode == GameMode.Championship;
+            var online = race.IsOnline;
+            var solo = online && race.Online != null && race.Online.Solo;
             var battle = race.Battle != null;
+            var screen = Q<VisualElement>("results");
+            screen.EnableInClassList("online", online);
+            screen.EnableInClassList("solo", solo);
             BindHeader(race, session, champ, battle);
             var rows = Q<VisualElement>("rows");
-            var rowCount = FillResultRows(rows, race, champ, battle);
+            var rowCount = FillResultRows(rows, race, champ || (online && !solo), battle);
             var afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * rowCount;
             BindChampion(session, champ, afterRows);
             var laps = BindTimeTrial(race.TimeTrial);
             staggered = laps ?? rows;
             if (laps != null) afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * laps.childCount;
-            BindButtons(race, champ && session.HasNextRace, champ, afterRows);
+            if (online) BindOnlineButtons(race, afterRows, rowCount);
+            else BindButtons(race, champ && session.HasNextRace, champ, afterRows);
+            onlineReturnArmed = online;
+            onlineReturnAfter = Time.unscaledTime + MinOnlineResultsSeconds;
+            shownCountdown = -1;
+        }
+
+        void Update()
+        {
+            if (!onlineReturnArmed || Race == null || SceneFlow.Busy) return;
+            // The next race was set up meanwhile: it loads by itself.
+            if (OnlineRace.Current != null && OnlineRace.Current != Race.Online)
+            {
+                onlineReturnArmed = false;
+                return;
+            }
+            var lobby = OnlineLobby.Current;
+            var resultsPhase = lobby != null && lobby.Phase is not (LobbyPhase.Waiting or LobbyPhase.Voting);
+            var left = Mathf.Max(onlineReturnAfter - Time.unscaledTime, resultsPhase ? OnlineLobby.PhaseSecondsLeft : 0f);
+            ShowCountdown(Mathf.CeilToInt(left));
+            if (Time.unscaledTime < onlineReturnAfter || resultsPhase) return;
+            onlineReturnArmed = false;
+            Race.Continue();
+        }
+
+        void ShowCountdown(int seconds)
+        {
+            if (returnCountdown == null || seconds == shownCountdown) return;
+            shownCountdown = seconds;
+            returnCountdown.text = seconds.ToString(CultureInfo.InvariantCulture);
+            returnCountdown.SetVisible(seconds > 0);
+        }
+
+        void BindOnlineButtons(RaceManager race, long afterRows, int rowCount)
+        {
+            Q<Button>("race-again").SetVisible(false);
+            Q<Button>("next-race").SetVisible(false);
+            var menu = Q<Button>("menu");
+            menu.SetVisible(true);
+            var icon = menu.Q<VisualElement>(className: "icon");
+            if (icon != null) icon.SetIcon("group");
+            var label = menu.Q<Label>(className: "button-label");
+            if (label != null) label.text = backToLobbyText;
+            menu.tooltip = "";
+            returnCountdown.tooltip = autoReturnTip;
+            menu.clicked += () => race.Continue();
+            Q<VisualElement>("buttons").SetTransitionDelay(afterRows + UiAnim.Ms(buttonsDelay));
+            Root.schedule.Execute(() => menu.Focus());
+            if (rowCount == 0) InfoChips.Add(Q<VisualElement>("online-chips"), "cloud_off", noResultText, null, InfoChipState.Bad);
         }
 
         protected override void AfterBind() => UiAnim.Stagger(staggered, rowsStep, rowsFirstDelay, "from-left");
 
-        protected override void Unbind() => staggered = null;
+        protected override void Unbind()
+        {
+            staggered = null;
+            bindVersion++;
+        }
 
         void BindHeader(RaceManager race, GameSession session, bool champ, bool battle)
         {
             Q<Label>("title").text = race.Track.DisplayName;
-            Q<Label>("info").text = champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
+            var info = Q<Label>("info");
+            var chips = Q<VisualElement>("online-chips");
+            returnCountdown = Q<Label>("return-countdown");
+            returnCountdown.SetVisible(false);
+            chips.Clear();
+            var setup = race.Online != null ? race.Online.Setup : null;
+            chips.SetVisible(race.IsOnline);
+            info.SetVisible(!race.IsOnline);
+            if (race.IsOnline) AddOnlineChips(chips, setup, session, battle);
+            else info.text = champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
             Q<VisualElement>("head-best").SetVisible(!battle);
             Q<VisualElement>("head-status").SetVisible(battle);
-            Q<VisualElement>("head-points").SetVisible(champ);
+            Q<VisualElement>("head-points").SetVisible(champ || (race.IsOnline && (setup == null || !setup.solo)));
         }
 
-        int FillResultRows(VisualElement rows, RaceManager race, bool champ, bool battle)
+        // The online race at a glance: mode, its place in the set, engine class, solo against AI.
+        void AddOnlineChips(VisualElement chips, RaceSetup setup, GameSession session, bool battle)
+        {
+            InfoChips.Add(chips, battle ? "swords" : "sports_score", battle ? onlineBattleText : onlineRaceText, null, InfoChipState.On);
+            if (setup != null && setup.setSize > 0 && !setup.solo)
+                InfoChips.Add(chips, "flag", string.Format(onlineSetFormat, setup.setRace, setup.setSize));
+            InfoChips.Add(chips, "speed", GameRoot.Instance.Config.GetDifficulty(session.difficulty).label);
+            if (setup != null && setup.solo) InfoChips.Add(chips, "smart_toy", soloChipText, soloChipTip);
+        }
+
+        int FillResultRows(VisualElement rows, RaceManager race, bool points, bool battle)
         {
             rows.Clear();
             var index = 0;
@@ -128,7 +249,7 @@ namespace MHK.UI
             {
                 var row = UiTree.Spawn<VisualElement>(resultRowTemplate, rows);
                 if (row == null) break;
-                FillResultRow(row, r, champ, battle, UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * index + UiAnim.Ms(pointsPopDelay));
+                FillResultRow(row, r, points, battle, UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * index + UiAnim.Ms(pointsPopDelay));
                 index++;
             }
             return index;
@@ -137,29 +258,69 @@ namespace MHK.UI
         void FillResultRow(VisualElement row, RaceResult r, bool champ, bool battle, long gainPopMs)
         {
             row.EnableInClassList("me", r.isHuman);
+            var outcome = OutcomeBadge(r.outcome, battle);
+            // Medals and the winner's burst only for racers who finished (online a leaver can be ranked 2nd of 3).
+            var medal = outcome.icon == null ? r.position - 1 : -1;
             var burst = row.Q<VisualElement>("burst");
-            if (r.position == 1)
+            if (medal == 0)
             {
                 burst.SetVisible(true);
                 UiAnim.Spin(burst, WinnerSpinDegreesPerSecond);
             }
             else burst.RemoveFromHierarchy();
-            row.Q<VisualElement>("badge").SetExclusiveClass(r.position - 1, MedalClasses);
+            row.Q<VisualElement>("badge").SetExclusiveClass(medal, MedalClasses);
             row.SetText("badge-label", r.position.ToString(CultureInfo.InvariantCulture));
             row.SetText("name", r.name);
             ContentDisplay.SetDriver(row, r.characterId, r.kartId);
-            row.SetText("time", UiText.Clock(r.time));
+            AddPlatform(row, r);
+            var timeLabel = row.Q<Label>("time");
+            timeLabel.text = r.time > 0f || !r.online ? UiText.Clock(r.time) : "-";
+            if (outcome.icon != null)
+            {
+                // Not finished: the badge takes the time's place, its explanation is the tooltip.
+                var cell = new VisualElement { pickingMode = PickingMode.Position };
+                cell.AddToClassList("hud-res-outcome");
+                InfoChips.Add(cell, outcome.icon, outcome.text, outcome.tip, InfoChipState.Bad);
+                timeLabel.parent.Insert(timeLabel.parent.IndexOf(timeLabel), cell);
+                timeLabel.SetVisible(false);
+            }
             var extra = row.Q<Label>("best");
-            extra.text = battle ? (r.survived ? survivorText : outText) : r.bestLap > 0 ? UiText.Clock(r.bestLap) : "";
+            extra.text = battle ? (r.survived ? survivorText : outText) : outcome.icon == null && r.bestLap > 0 ? UiText.Clock(r.bestLap) : "";
             extra.EnableInClassList("good", battle && r.survived);
             extra.EnableInClassList("bad", battle && !r.survived);
             row.Q<VisualElement>("points").SetVisible(champ);
             if (!champ) return;
             var gain = row.Q<Label>("gain");
-            gain.text = "+" + r.pointsGained.ToString(CultureInfo.InvariantCulture);
+            // Online, a racer who gained nothing shows only its set standing.
+            gain.text = r.online && r.pointsGained == 0 ? "" : "+" + r.pointsGained.ToString(CultureInfo.InvariantCulture);
             row.SetText("total", "(" + r.totalPoints.ToString(CultureInfo.InvariantCulture) + ")");
             if (r.pointsGained > 0) gain.schedule.Execute(() => UiAnim.Pop(gain, GainPopScale, GainPopMs)).ExecuteLater(gainPopMs);
         }
+
+        // Online: the racer's device (desktop or phone) after the name, nothing for computer drivers or unknown devices.
+        static void AddPlatform(VisualElement row, RaceResult r)
+        {
+            if (!r.online) return;
+            var platform = OnlineUi.PlatformIcon(r.platform);
+            if (platform.icon == null) return;
+            var name = row.Q<Label>("name");
+            var device = new VisualElement { tooltip = platform.name };
+            device.AddToClassList("icon");
+            device.AddToClassList("hud-res-platform");
+            device.SetIcon(platform.icon);
+            name.parent.Insert(name.parent.IndexOf(name) + 1, device);
+        }
+
+        // Outcome badge of an online row (icon, label, tooltip), no icon for a finish.
+        (string icon, string text, string tip) OutcomeBadge(Online.RaceOutcome? outcome, bool battle) => outcome switch
+        {
+            Online.RaceOutcome.Dnf when !battle => ("flag", dnfText, dnfTip),
+            Online.RaceOutcome.Left => ("logout", leftText, leftTip),
+            Online.RaceOutcome.KickedCheating => ("gavel", kickedText, kickedTip),
+            Online.RaceOutcome.KickedModerator => ("shield_person", removedText, removedTip),
+            Online.RaceOutcome.Desync => ("sync_problem", desyncText, desyncTip),
+            _ => (null, null, null),
+        };
 
         void BindChampion(GameSession session, bool champ, long afterRows)
         {
@@ -199,6 +360,12 @@ namespace MHK.UI
             if (tt == null) return null;
             Q<VisualElement>("head").SetVisible(false);
             Q<VisualElement>("rows").SetVisible(false);
+            // The menu reopens this track's records page after a time trial (MenuFlow), so the button says where it goes.
+            var menu = Q<Button>("menu");
+            menu.Q<VisualElement>(className: "icon")?.SetIcon("leaderboard");
+            var label = menu.Q<Label>(className: "button-label");
+            if (label != null) label.text = leaderboardText;
+            menu.tooltip = leaderboardTip;
 
             var replay = tt.IsReplay;
             var run = replay ? tt.Spectated != null ? tt.Spectated.Data.header : null : tt.Run != null ? tt.Run.header : null;
@@ -215,12 +382,13 @@ namespace MHK.UI
             note.text = NoteText(replay, saved, run, entry, classLabel);
             note.tooltip = replay && entry != null && !entry.IsCurrent ? otherVersionTip : "";
             BindGhostButtons(watch, export, note, entry, replay);
+            BindUpload(replay, saved);
             return laps;
         }
 
         void BindTimeTrialHeader(bool replay, GhostHeader run, string classLabel)
         {
-            Q<Label>("info").text = replay && run != null ? string.Format(replayInfoFormat, run.playerName, run.engineClassLabel)
+            Q<Label>("info").text = replay && run != null ? string.Format(replayInfoFormat, PlayerName(run), run.engineClassLabel)
                 : string.Format(timeTrialInfoFormat, classLabel);
             Q<Label>("race-again-label").text = replay ? watchAgainText : retryText;
         }
@@ -230,8 +398,11 @@ namespace MHK.UI
             var deltaHead = Q<Label>("tt-head-delta");
             deltaHead.SetVisible(reference != null);
             if (reference == null) return;
-            deltaHead.text = tt.Reference.Entry != null && tt.Reference.Entry.kind == GhostKind.Best ? vsBestText : string.Format(vsGhostFormat, reference.playerName);
+            deltaHead.text = tt.Reference.Entry != null && tt.Reference.Entry.kind == GhostKind.Best ? vsBestText : string.Format(vsGhostFormat, PlayerName(reference));
         }
+
+        // A downloaded ghost shows its uploader's account name; the name inside the file is not trusted.
+        static string PlayerName(GhostHeader h) => OnlineGhostCache.TryGet(h.id, out var online) ? online.username : h.playerName;
 
         VisualElement FillLapRows(GhostHeader run, GhostHeader reference)
         {
@@ -258,6 +429,33 @@ namespace MHK.UI
             Q<Label>("tt-record-label").text = saved.previousBest > 0f && run != null
                 ? string.Format(newRecordFormat, UiText.SignedSeconds(run.finishTime - saved.previousBest))
                 : newRecordText;
+        }
+
+        // Status of the automatic upload of a new record, followed until it ends.
+        void BindUpload(bool replay, GhostSaveResult saved)
+        {
+            var label = Q<Label>("tt-upload");
+            label.text = "";
+            var newRecord = !replay && saved != null && saved.newRecord && saved.entry != null;
+            if (newRecord && OnlineTimeTrials.TryGetAutoUpload(saved.entry.Id, out var upload))
+            {
+                label.text = upload.IsCompleted ? UploadText(upload.Result) : uploadingText;
+                if (!upload.IsCompleted) ShowUploadWhenDone(label, upload, bindVersion);
+            }
+            else if (newRecord && Settings.autoUploadBests && !OnlineService.IsLoggedIn) label.text = loginHintText;
+            label.SetVisible(label.text.Length > 0);
+        }
+
+        async void ShowUploadWhenDone(Label label, Task<OnlineResult<UploadResult>> upload, int version)
+        {
+            var r = await upload;
+            if (version == bindVersion && label.panel != null) label.text = UploadText(r);
+        }
+
+        string UploadText(OnlineResult<UploadResult> r)
+        {
+            if (r.Ok) return r.value.run.rank > 0 ? string.Format(uploadedFormat, r.value.run.rank) : uploadedText;
+            return r.result.status == Status.NotLoggedIn ? loginHintText : string.Format(uploadFailedFormat, r.result.message);
         }
 
         string NoteText(bool replay, GhostSaveResult saved, GhostHeader run, GhostEntry entry, string classLabel)

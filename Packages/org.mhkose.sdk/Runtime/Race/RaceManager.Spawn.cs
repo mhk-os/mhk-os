@@ -15,17 +15,19 @@ namespace MHK.Race
         IEnumerator SpawnKarts()
         {
             var cfg = GameRoot.Instance.Config;
-            var order = StartOrder(cfg);
+            var order = IsOnline ? Session.racers : StartOrder(cfg);
             var count = order.Count;
             var spawned = new List<Kart>(count);
             Kart player = null;
             for (var i = 0; i < count; i++)
             {
                 if (i > 0) yield return null;
+                // The online race ended meanwhile (Start leaves), or this racer left while the race loaded.
+                if (IsOnline && (Online == null || (!order[i].isHuman && Online.HasLeft(order[i].onlineSlot)))) continue;
                 var kart = SpawnKart(i, order[i], cfg);
                 if (order[i].isHuman && player == null) player = kart;
                 spawned.Add(kart);
-                LoadProgress = TrackLoadShare + (1f - TrackLoadShare) * (i + 1) / count;
+                LoadProgress = TrackLoadShare + (KartsLoadedProgress - TrackLoadShare) * (i + 1) / count;
             }
             karts.AddRange(spawned);
             LocalPlayer = player != null ? player : karts.Count > 0 ? karts[0] : null;
@@ -44,9 +46,28 @@ namespace MHK.Race
 
         Kart SpawnKart(int slot, RacerSetup setup, GameConfig cfg)
         {
+            if (Online != null && setup.onlineSlot >= 0 && !setup.isHuman) return SpawnRemote(slot, setup, cfg);
             var content = GameRoot.Instance.Content;
             var character = content.Get<CharacterDefinition>(setup.characterId);
             var kartDef = content.ResolveKart(setup.kartId, character);
+            var kart = Spawn(slot, setup, character, kartDef, cfg);
+            kart.Driver = setup.isHuman ? CreatePlayerDriver(Mathf.Max(0, setup.playerIndex)) : CreateAiDriver(slot);
+            if (Online != null && setup.onlineSlot >= 0)
+            {
+                // The player's keys still pause; the computer drives (and uses items).
+                if (setup.isHuman && OnlineAutopilot)
+                {
+                    kart.Driver = CreateAiDriver(slot);
+                    Debug.Log("[Race] -autopilot: the computer drives the local kart in this online race.");
+                }
+                Online.Register(setup.onlineSlot, kart);
+            }
+            return kart;
+        }
+
+        // A kart on grid position <paramref name="slot"/>, placed, its progress started, parked until GO; no driver yet.
+        Kart Spawn(int slot, RacerSetup setup, CharacterDefinition character, KartDefinition kartDef, GameConfig cfg)
+        {
             var profile = kartDef != null && kartDef.physics != null ? kartDef.physics : cfg.defaultPhysics;
             var pose = TrackRuntime.GetGridPose(slot);
             var kart = Instantiate(cfg.kartRootPrefab, pose.position, pose.rotation, kartsRoot).GetComponent<Kart>();
@@ -58,7 +79,6 @@ namespace MHK.Race
             kart.Progress.Begin(TrackRuntime, Laps);
             kart.Progress.FinishedRace += OnRacerFinished;
             kart.ControlsEnabled = false;
-            kart.Driver = setup.isHuman ? CreatePlayerDriver(Mathf.Max(0, setup.playerIndex)) : CreateAiDriver(slot);
             return kart;
         }
 

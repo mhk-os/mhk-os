@@ -23,6 +23,13 @@ namespace MHK.Core
         /// <summary>Championship points (persist across races of a cup).</summary>
         public int points;
         public float totalTime;
+
+        /// <summary>Online races: the racer's grid slot (<c>RaceSlot.slot</c>), -1 offline and for local AI.</summary>
+        public int onlineSlot = -1;
+        /// <summary>Online races: the racer's country (ISO 3166-1 alpha-2, "" unknown) for its name tag.</summary>
+        public string country = "";
+        /// <summary>Online races: the racer's device (<c>RaceSlot.platform</c>), 0 unknown.</summary>
+        public int platform;
     }
 
     /// <summary>Everything the Race scene needs to know about the next race(s). Created by the menus, kept by <see cref="GameRoot"/>.</summary>
@@ -52,6 +59,11 @@ namespace MHK.Core
         public List<string> ghostIds = new();
         /// <summary>Time trial replay: id of the ghost to watch, no kart races (<see cref="IsReplay"/>).</summary>
         public string replayGhostId;
+        /// <summary>
+        /// An online race (<see cref="Online.OnlineRace"/> holds its setup): the grid is <see cref="racers"/> in order,
+        /// the server gives GO, finishes and results.
+        /// </summary>
+        public bool online;
 
         /// <summary>A time-trial replay: the race shows a recorded ghost instead of racing.</summary>
         public bool IsReplay => mode == GameMode.TimeTrial && !string.IsNullOrEmpty(replayGhostId);

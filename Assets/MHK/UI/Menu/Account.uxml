@@ -1,0 +1,101 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Online account. Logged out (signed-out): the mode chips (modes: Log in, Register), username, password and, when registering, confirm (confirm-block) and the rules line; submit sends (Enter too) and shows busy while it waits. Logged in (signed-in): the username, the moderator badge (role 1), the member-since line, the country row (dropdown: Auto from the IP, then every country) and Log out. form-status shows the last error or result (class good for a success). The connection line (connection-icon, class online on connection-bar while connected) names the server and its state; server-toggle opens server-box: the server address field (placeholder = built-in server, empty = built-in), server-apply saves it and reconnects, server-note says when the command line overrides it. reconnect (footer) connects again while offline. Preview classes on page: preview-signed-in (the logged-in view), preview-register (register mode), preview-status (the status line), preview-server (server box open), preview-offline (Reconnect). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Account" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="account-panel" class="panel account-panel">
+                    <ui:VisualElement name="signed-out" class="acc-signed-out">
+                        <ui:VisualElement name="modes" class="tabs acc-modes">
+                            <ui:Instance template="Chip" class="sample-selected">
+                                <ui:AttributeOverrides element-name="chip" text="Log in" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="Register" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                        <ui:Label text="Username" class="acc-field-label" />
+                        <ui:TextField name="username" max-length="20" class="acc-input" />
+                        <ui:Label text="Password" class="acc-field-label" />
+                        <ui:TextField name="password" password="true" max-length="128" class="acc-input" />
+                        <ui:VisualElement name="confirm-block" class="acc-confirm">
+                            <ui:Label text="Confirm password" class="acc-field-label" />
+                            <ui:TextField name="confirm" password="true" max-length="128" class="acc-input" />
+                            <ui:Label name="rules" text="Username: 3 to 20 letters, digits, _ . - (starting and ending with a letter or digit). Password: at least 8 characters. There is no e-mail and no password reset, so keep your password safe." class="acc-rules" />
+                        </ui:VisualElement>
+                        <ui:Button name="submit" class="mhk-button go acc-submit">
+                            <ui:VisualElement name="submit-icon" class="icon i-login" />
+                            <ui:Label name="submit-label" text="Log in" class="button-label" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="signed-in" class="acc-signed-in">
+                        <ui:VisualElement class="acc-identity">
+                            <ui:VisualElement class="icon i-account_circle acc-avatar" />
+                            <ui:VisualElement class="acc-identity-text">
+                                <ui:VisualElement class="acc-name-row">
+                                    <ui:Label name="account-name" text="Hank" class="acc-name" />
+                                    <ui:VisualElement name="moderator-badge" tooltip="Moderators keep online races fair." class="acc-badge">
+                                        <ui:VisualElement class="icon i-shield_person" />
+                                        <ui:Label text="Moderator" class="acc-badge-label" />
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
+                                <ui:Label name="account-since" text="Racing online since 26 October 2026" class="acc-since" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:Instance template="SettingRow" name="country" class="setting-row setting-dropdown acc-country">
+                            <ui:AttributeOverrides element-name="setting-label" text="Country" />
+                            <ui:AttributeOverrides element-name="setting-value-label" text="Auto (from IP: DE)" />
+                        </ui:Instance>
+                        <ui:Button name="logout" class="mhk-button secondary acc-logout">
+                            <ui:VisualElement class="icon i-logout" />
+                            <ui:Label text="Log out" class="button-label" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="form-status" class="acc-status">
+                        <ui:VisualElement name="form-status-icon" class="icon i-error" />
+                        <ui:Label name="form-status-label" text="Wrong username or password." class="acc-status-label" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="connection-bar" class="panel acc-connection">
+                    <ui:VisualElement class="acc-connection-row">
+                        <ui:VisualElement name="connection-icon" class="icon i-cloud_off acc-connection-icon" />
+                        <ui:Label name="connection-label" text="Offline: No server is running there (connection refused). Retrying in 4 s." class="acc-connection-label" />
+                        <ui:Button name="server-toggle" tooltip="Choose another game server (advanced)." class="mhk-button small secondary icon-only acc-server-toggle">
+                            <ui:VisualElement class="icon i-dns" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="server-box" class="acc-server">
+                        <ui:VisualElement class="acc-server-row">
+                            <ui:TextField name="server" max-length="200" class="acc-input acc-server-input" />
+                            <ui:Button name="server-apply" tooltip="Saves the server address and connects to it. Empty uses the built-in server." class="mhk-button small acc-server-apply">
+                                <ui:VisualElement class="icon i-check" />
+                                <ui:Label text="Use" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:Label name="server-note" text="tls://host:port, or tcp://host:port on this computer or the local network. Empty uses the built-in server." class="acc-server-note" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="reconnect" class="mhk-button small secondary acc-reconnect">
+                    <ui:VisualElement class="icon i-sync" />
+                    <ui:Label text="Reconnect" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

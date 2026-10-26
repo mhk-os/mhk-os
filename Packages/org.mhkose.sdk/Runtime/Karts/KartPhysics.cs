@@ -112,6 +112,9 @@ namespace MHK.Karts
         bool wasGrounded;
         bool boostOverspeed;
         BoxCollider chassis;
+        // The scene the kart's queries run in: the default one in races, a local physics scene when the ghost validation
+        // re-simulates a run (MHK.Validation). Taken at every step, as the kart can be moved between scenes.
+        PhysicsScene physicsScene;
 
         void Awake()
         {
@@ -128,6 +131,13 @@ namespace MHK.Karts
         }
 
         static Vector3 FromOriginal(Vector3 v) => new(v.z, v.y, v.x);
+
+        /// <summary>Chassis box of <paramref name="p"/> in kart space: centre and half extents (what <see cref="Chassis"/> gets).</summary>
+        public static void ChassisBox(KartPhysicsProfile p, out Vector3 centre, out Vector3 halfExtents)
+        {
+            centre = FromOriginal(p.chassisCollOffset);
+            halfExtents = FromOriginal(p.chassisSize);
+        }
 
         void ApplyProfile()
         {
@@ -203,6 +213,37 @@ namespace MHK.Karts
             return new Vector3(r2, r2, r2);
         }
 
+        /// <summary>
+        /// Takes the inspector settings (ground mask, chassis material, solver and handling tweaks, pass-through layers) of
+        /// <paramref name="source"/>, for a kart built in code that must step exactly like the race kart prefab.
+        /// </summary>
+        public void CopySettings(KartPhysics source)
+        {
+            groundMask = source.groundMask;
+            chassisMaterial = source.chassisMaterial;
+            solverIterations = source.solverIterations;
+            contactMargin = source.contactMargin;
+            lateralForceHeight = source.lateralForceHeight;
+            wallMaxNormalY = source.wallMaxNormalY;
+            ghostExcludeLayers = source.ghostExcludeLayers;
+            runOverExcludeLayers = source.runOverExcludeLayers;
+            ghostExitTimeout = source.ghostExitTimeout;
+            if (profile != null) ApplyProfile();
+        }
+
+        /// <summary>
+        /// Sets the input model's state after a <see cref="Teleport"/> to a recorded one (re-simulation): steering command
+        /// (as <see cref="SteerCommand01"/>) and the pedals fully on or off.
+        /// </summary>
+        public void PrimeInput(float steerCommand01, bool throttle, bool brake)
+        {
+            if (profile == null) return;
+            steerCommandDeg = -Mathf.Clamp(steerCommand01, -1f, 1f) * profile.maxSteeringAngle;
+            prevSteer = steerCommandDeg;
+            Throttle = throttle ? 1f : 0f;
+            BrakeAmount = brake ? 1f : 0f;
+        }
+
         public void Teleport(Vector3 position, Quaternion rotation)
         {
             Body.position = position;
@@ -250,6 +291,7 @@ namespace MHK.Karts
         public void Step(in KartInput input, float h)
         {
             if (profile == null) return;
+            physicsScene = gameObject.scene.GetPhysicsScene();
             UpdateIntangible(effects != null && effects.GhostActive, h);
             UpdateRunOver(effects != null && effects.RunOverActive, h);
             if (Suspended)

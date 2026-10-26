@@ -1,0 +1,55 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Private room settings (create a room, or the owner changing them while the room waits). Code fills: the room name field, mode-tabs (Races / Battles / Championship), cup-row (championship: a SettingRow dropdown), mod-grid (one toggle card per loaded content pack: logo, title, tracks or arenas), rule-rows (anticheat, engine class, laps, items and odds, AI, players, track pick, races per set: switches, segmented chips, steppers) and summary (info chips of the result). room-status shows why the server refused. save creates the room (Create room) or saves. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Create room" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement class="room-body">
+                    <ui:VisualElement class="panel room-left">
+                        <ui:VisualElement class="room-name-row">
+                            <ui:VisualElement class="icon i-edit room-row-icon" />
+                            <ui:TextField name="room-name" max-length="32" tooltip="Room name" class="acc-input room-name" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="mode-tabs" class="tabs room-tabs" />
+                        <ui:Instance template="SettingRow" name="cup-row" class="setting-row setting-dropdown room-cup">
+                            <ui:AttributeOverrides element-name="setting-label" text="Cup" />
+                            <ui:AttributeOverrides element-name="setting-value-label" text="Gold Cup" />
+                        </ui:Instance>
+                        <ui:ScrollView name="mod-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="room-mod-scroll">
+                            <ui:VisualElement name="mod-grid" class="card-grid room-mod-grid" />
+                        </ui:ScrollView>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="panel room-right">
+                        <ui:ScrollView name="rule-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="room-rule-scroll">
+                            <ui:VisualElement name="rule-rows" class="room-rules" />
+                        </ui:ScrollView>
+                        <ui:VisualElement name="summary" class="info-chips room-summary" />
+                        <ui:VisualElement name="room-status" class="onl-status">
+                            <ui:VisualElement class="icon i-error" />
+                            <ui:Label name="room-status-label" text="Choose at least one mod with tracks." class="onl-status-label" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="save" class="mhk-button big go">
+                    <ui:VisualElement name="save-icon" class="icon i-add" />
+                    <ui:Label name="save-label" text="Create room" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -63,6 +63,86 @@ namespace MHK.Race
             GameRoot.Instance.SaveProgress();
         }
 
+        /// <summary>
+        /// Online results: the server's rows (place, time, race and set points, outcome) in its order. A solo race shows
+        /// the local ranking with the AI, the player's row taking the server's outcome; a player who did not finish
+        /// (ended early, left) is last, as the server ranks them.
+        /// </summary>
+        public static void BuildOnline(RaceManager race, IReadOnlyList<Kart> ranking, Online.OnlineRace online, List<RaceResult> results)
+        {
+            results.Clear();
+            var server = online.Results;
+            var battle = race.Battle != null;
+            if (online.Solo)
+            {
+                var mine = server != null ? server.rows.Find(r => r.slot == online.LocalSlot && !r.ai) : null;
+                RaceResult own = null;
+                for (var i = 0; i < ranking.Count; i++)
+                {
+                    var k = ranking[i];
+                    var result = FromKart(k, i + 1, battle);
+                    if (k == race.LocalPlayer && mine != null)
+                    {
+                        TakeRow(result, mine, battle);
+                        if (mine.outcome != Online.RaceOutcome.Finished)
+                        {
+                            own = result;
+                            continue;
+                        }
+                    }
+                    results.Add(result);
+                }
+                if (own != null) results.Add(own);
+                for (var i = 0; i < results.Count; i++) results[i].position = i + 1;
+                return;
+            }
+            if (server == null) return;
+            var rows = new List<Online.RaceResultRow>(server.rows);
+            rows.Sort((a, b) => a.position.CompareTo(b.position));
+            foreach (var row in rows)
+            {
+                var slot = online.Setup.Slot(row.slot);
+                var k = online.KartOf(row.slot);
+                var result = k != null ? FromKart(k, row.position, battle) : new RaceResult
+                {
+                    characterId = slot != null ? slot.characterId : null,
+                    kartId = slot != null ? slot.kartId : null,
+                    bestLap = -1f,
+                };
+                result.name = row.username;
+                result.isHuman = row.slot == online.LocalSlot;
+                result.platform = slot != null ? slot.platform : 0;
+                TakeRow(result, row, battle);
+                results.Add(result);
+            }
+        }
+
+        static RaceResult FromKart(Kart k, int position, bool battle) => new()
+        {
+            position = position,
+            name = k.DisplayName,
+            characterId = k.Character != null ? k.Character.Id : null,
+            kartId = k.KartDef != null ? k.KartDef.Id : null,
+            isHuman = k.IsHuman,
+            time = k.Progress.FinishTime,
+            bestLap = k.Progress.BestLap,
+            survived = battle && !k.Eliminated,
+            online = true,
+            platform = k.Setup != null ? k.Setup.platform : 0,
+        };
+
+        static void TakeRow(RaceResult result, Online.RaceResultRow row, bool battle)
+        {
+            result.online = true;
+            result.position = row.position;
+            result.time = row.finishMs > 0 ? row.finishMs / 1000f : 0f;
+            result.pointsGained = row.points;
+            result.totalPoints = row.setPoints;
+            // A battle's DNF is a racer still in at the time limit: no badge, the status column says Survivor.
+            result.outcome = battle && row.outcome == Online.RaceOutcome.Dnf ? Online.RaceOutcome.Finished : row.outcome;
+            if (battle && row.outcome != Online.RaceOutcome.Finished && row.outcome != Online.RaceOutcome.Dnf) result.survived = false;
+        }
+
         static RaceResult Award(Kart k, int position, int gained, bool battle)
         {
             var result = new RaceResult { racer = k.Setup, totalTimeBefore = k.Setup.totalTime };

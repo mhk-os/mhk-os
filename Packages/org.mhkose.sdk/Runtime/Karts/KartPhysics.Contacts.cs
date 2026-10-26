@@ -62,7 +62,7 @@ namespace MHK.Karts
             var reach = ProbeAbove + wh.radius + contactMargin;
             for (var pass = 0; pass < ProbePasses; pass++)
             {
-                if (!Physics.Raycast(start, -up, out var hit, reach - travelled, groundMask, QueryTriggerInteraction.Ignore)) break;
+                if (!physicsScene.Raycast(start, -up, out var hit, reach - travelled, groundMask, QueryTriggerInteraction.Ignore)) break;
                 if (ShouldSkipHit(ref wh, hit))
                 {
                     start -= up * (hit.distance + ProbeSkin);

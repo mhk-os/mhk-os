@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using MHK.Ghosts;
+using MHK.Online;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Debug = UnityEngine.Debug;
@@ -8,7 +9,7 @@ using Debug = UnityEngine.Debug;
 namespace MHK.UI
 {
     /// <summary>
-    /// A menu page listing stored ghosts as GhostRow.uxml rows (ghost picker, Records page). While it is open, ghosts
+    /// A menu page listing stored ghosts as GhostRow.uxml rows (the records hub and the track records page). While it is open, ghosts
     /// dropped into the import folder are taken in when the page opens and whenever the game gets the focus back.
     /// </summary>
     public abstract class GhostListScreen : MenuScreen
@@ -22,22 +23,28 @@ namespace MHK.UI
         protected string savedTip = "Your earlier best, kept from another version";
         [SerializeField, Tooltip("Tooltip of the icon of an imported ghost.")]
         protected string importedTip = "Imported";
+        [SerializeField, Tooltip("Tooltip of the icon of a ghost downloaded from the leaderboards.")]
+        protected string onlineTip = "Downloaded from the leaderboard";
         [SerializeField, Tooltip("Tooltip of the icon of a ghost recorded with another simulation version or other content (the game version doesn't matter).")]
         protected string otherVersionTip = "Other version. It can be raced but never counts as a record.";
 
-        static readonly string[] KindClasses = { "best", "last", "saved", "imported" };
+        // Indexed by GhostKind.
+        static readonly string[] KindClasses = { "best", "last", "saved", "imported", "online" };
 
         protected static IGhostStore Store => GhostStores.Current;
 
         protected void Reset() => showcaseVisible = false;
 
-        /// <summary>Fills a GhostRow.uxml row: time, player, date, driver and kart pictures, engine class, kind and version icons.</summary>
+        /// <summary>
+        /// Fills a GhostRow.uxml row: time, player (a download shows its uploader's account, not the name in the file),
+        /// date, driver and kart pictures, engine class, kind and version icons.
+        /// </summary>
         protected void FillGhostRow(VisualElement row, GhostEntry e)
         {
             var h = e.header;
             row.EnableInClassList("other", !e.IsCurrent);
             row.SetText("ghost-time", UiText.Clock(h.finishTime));
-            row.SetText("ghost-player", string.IsNullOrEmpty(h.playerName) ? "?" : h.playerName);
+            row.SetText("ghost-player", PlayerName(e));
             row.SetText("ghost-date", h.Date.ToLocalTime().ToString("d"));
             row.SetText("ghost-class", h.engineClassLabel);
             ContentDisplay.SetDriver(row, h.characterId, h.kartId);
@@ -54,8 +61,16 @@ namespace MHK.UI
             GhostKind.Best => bestTip,
             GhostKind.LastRun => lastTip,
             GhostKind.Imported => importedTip,
+            GhostKind.Online => onlineTip,
             _ => savedTip,
         };
+
+        /// <summary>The name a ghost row shows: the uploader's account for a download, else the name in the file.</summary>
+        protected static string PlayerName(GhostEntry e)
+        {
+            if (e.kind == GhostKind.Online && OnlineGhostCache.TryGet(e.Id, out var info) && !string.IsNullOrEmpty(info.username)) return info.username;
+            return string.IsNullOrEmpty(e.header.playerName) ? "?" : e.header.playerName;
+        }
 
         /// <summary>Shows the empty note instead of the list when there are no rows.</summary>
         protected void ShowEmptyState(bool empty)

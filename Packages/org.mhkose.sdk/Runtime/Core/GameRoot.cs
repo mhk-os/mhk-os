@@ -103,6 +103,7 @@ namespace MHK.Core
         void CreateChildServices()
         {
             if (!TryGetComponent<Audio.AudioManager>(out _)) gameObject.AddComponent<Audio.AudioManager>();
+            if (!TryGetComponent<Online.OnlineService>(out _)) gameObject.AddComponent<Online.OnlineService>();
             if (Config.loadingScreen == null) return;
             LoadingScreen = Instantiate(Config.loadingScreen, transform);
             LoadingScreen.gameObject.SetActive(false);
@@ -149,6 +150,11 @@ namespace MHK.Core
         }
 
         void OnApplicationQuit() => quitting = true;
+
+        // In the editor OnApplicationQuit runs when play mode stops, which can be after the statics cleanup; without a
+        // domain reload the flag would then survive into the next play session and keep Instance null.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetQuitting() => quitting = false;
 
         void OnDestroy()
         {

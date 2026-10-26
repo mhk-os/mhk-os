@@ -39,15 +39,20 @@ namespace MHK.Powerups
             return passThrough;
         }
 
-        /// <summary>Makes the given item colliders ignore every pass-through track collider.</summary>
+        /// <summary>
+        /// Makes the given item colliders ignore every pass-through track collider of their own physics scene. The
+        /// validation's copies of the track (a separate local physics scene) are found too and must be left out:
+        /// Unity refuses to pair colliders of different physics scenes.
+        /// </summary>
         public static void IgnorePassThrough(IEnumerable<Collider> itemColliders)
         {
             var list = PassThroughColliders();
             foreach (var mine in itemColliders)
             {
                 if (mine == null) continue;
+                var physics = mine.gameObject.scene.GetPhysicsScene();
                 foreach (var c in list)
-                    if (c != null) Physics.IgnoreCollision(mine, c);
+                    if (c != null && c.gameObject.scene.GetPhysicsScene() == physics) Physics.IgnoreCollision(mine, c);
             }
         }
 

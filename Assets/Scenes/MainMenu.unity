@@ -151,6 +151,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: MHK.Runtime::MHK.UI.TitleScreen
   showcaseVisible: 0
   allowBack: 1
+  loginText: Log in
 --- !u!4 &142454102
 Transform:
   m_ObjectHideFlags: 0
@@ -224,7 +225,7 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
---- !u!1 &165399297
+--- !u!1 &155314627
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -232,23 +233,23 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 165399298}
-  - component: {fileID: 165399300}
-  - component: {fileID: 165399299}
+  - component: {fileID: 155314628}
+  - component: {fileID: 155314630}
+  - component: {fileID: 155314631}
   m_Layer: 0
-  m_Name: Ghosts
+  m_Name: Online
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 0
---- !u!4 &165399298
+--- !u!4 &155314628
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 165399297}
+  m_GameObject: {fileID: 155314627}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -257,38 +258,13 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1327142894}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &165399299
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 165399297}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9ce5c937df1aa46df869e101118a5fa4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.GhostScreen
-  showcaseVisible: 0
-  allowBack: 1
-  bestTip: Your best
-  lastTip: Last run
-  savedTip: Your earlier best, kept from another version
-  importedTip: Imported
-  otherVersionTip: Other version. It can be raced but never counts as a record.
-  chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
-  rowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
-  rowStep: 0.05
-  rowFirst: 0.1
-  countFormat: '{0} of {1} ghosts'
-  fullTipFormat: Up to {0} ghosts can be raced.
---- !u!1931382934 &165399300
+--- !u!1931382934 &155314630
 PanelRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 165399297}
+  m_GameObject: {fileID: 155314627}
   m_Enabled: 1
   m_CastShadows: 0
   m_ReceiveShadows: 0
@@ -332,7 +308,7 @@ PanelRenderer:
   m_MaskInteraction: 0
   serializedVersion: 1
   m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
-  sourceAsset: {fileID: 9197481963319205126, guid: 61bc8b6f4b5f649f089b770922bbcfff, type: 3}
+  sourceAsset: {fileID: 9197481963319205126, guid: 294b41f67986b4160a9ab3b430f39da5, type: 3}
   m_ParentUI: {fileID: 0}
   m_WorldSpaceSizeMode: 1
   m_WorldSpaceWidth: 1920
@@ -340,6 +316,33 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!114 &155314631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 155314627}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 513bc877ea19d410f9ed226aac58db01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.OnlineScreen
+  showcaseVisible: 0
+  allowBack: 1
+  instanceTemplate: {fileID: 9197481963319205126, guid: f271c050a5d1348dd96545c4626e4ae0, type: 3}
+  refreshSeconds: 5
+  loggedOutText: Log in to race online.
+  linkLoginFormat: Log in to join room {0}.
+  linkJoiningFormat: Joining room {0}...
+  loginText: Log in
+  announcingText: Sending your content to the server...
+  codePlaceholder: Room code
+  noLobbiesText: No lobby yet
+  kickedByOwnerText: The room owner removed you.
+  kickedByModText: A moderator removed you.
+  closedText: The lobby closed.
+  strikeSuffix: ' Anticheat lobbies with it are closed to you.'
 --- !u!1 &439274510
 GameObject:
   m_ObjectHideFlags: 0
@@ -445,6 +448,172 @@ PanelRenderer:
   serializedVersion: 1
   m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
   sourceAsset: {fileID: 9197481963319205126, guid: 512c4699bd6fc4a1889de4f1e8894cdd, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
+--- !u!1 &460173361
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 460173362}
+  - component: {fileID: 460173364}
+  - component: {fileID: 460173363}
+  m_Layer: 0
+  m_Name: TrackRecords
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &460173362
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 460173361}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &460173363
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 460173361}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17158685221d145ecb0724a1efbf563a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.TrackRecordsScreen
+  showcaseVisible: 0
+  allowBack: 1
+  bestTip: Your best
+  lastTip: Last run
+  savedTip: Your earlier best, kept from another version
+  importedTip: Imported
+  onlineTip: Downloaded from the leaderboard
+  otherVersionTip: Other version. It can be raced but never counts as a record.
+  pageSize: 25
+  currentVersionLabel: Current version
+  olderVersionLabel: Version {0}
+  versionPartSeparator: " \xB7 "
+  otherTrackLabel: other track data
+  boardLapsLabel: '{0} laps'
+  onePlayerText: 1 player
+  playersFormat: '{0} players'
+  localOnlyText: Only on this device
+  playersTip: Players on this board
+  lastUploadTip: Last upload
+  worldText: World
+  myContinentFormat: 'My continent: {0}'
+  myCountryFormat: 'My country: {0}'
+  anyKartText: Any kart
+  anyDriverText: Any driver
+  searchHint: Player
+  stateLoading: Loading
+  stateNoRuns: No runs yet
+  stateNoMatch: No matches
+  stateOffline: Offline
+  pageRangeFormat: '{0}-{1} / {2}'
+  chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
+  ghostRowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
+  leaderRowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
+  narrowWidth: 1560
+  localTab: Your ghosts
+  globalTab: Leaderboard
+  pickFormat: '{0} / {1}'
+  pickTipFormat: Picked ghosts to race (up to {0})
+  bestRaceTip: Your best race
+  bestLapTip: Your best lap
+  arenaTip: Time trials run on circuits only.
+  importedCountFormat: 'Ghosts imported: {0}'
+  unreadableFormat: 'Unreadable files: {0}'
+  nothingNewText: No new ghosts.
+  exportedFormat: 'Exported: {0}'
+  exportFailedText: Export failed (see the log).
+  confirmDeleteQuestion: Delete the ghost {0}?
+  deleteText: Delete
+  deletedText: Ghost deleted.
+  uploadTip: Upload to the leaderboard
+  loginToUploadTip: Log in to upload your ghosts
+  uploadingTip: Uploading...
+  loginToUploadText: Log in to upload your ghosts to the leaderboards.
+  uploadedRankFormat: '#{0}'
+  uploadedRankTip: 'On the leaderboard: rank {0}'
+  uploadedSlowerTip: Uploaded. Your best on this board is faster.
+  uploadedHiddenTip: Uploaded, but hidden by a moderator.
+  uploadedFormat: 'Uploaded: rank {0} on the leaderboard.'
+  duplicateText: This ghost was already uploaded.
+  uploadedSlowerText: Uploaded. Your best on this board stays faster.
+  downloadingFormat: 'Downloading ghosts: {0} of {1}'
+  downloadsFailedFormat: 'Downloads failed ({0} / {1}): {2}'
+  unreadableDownloadText: The downloaded ghost could not be read.
+--- !u!1931382934 &460173364
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 460173361}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: 18a2d1a951c5644c3a6860c6a0597f49, type: 3}
   m_ParentUI: {fileID: 0}
   m_WorldSpaceSizeMode: 1
   m_WorldSpaceWidth: 1920
@@ -660,6 +829,12 @@ MonoBehaviour:
   lapsFormat: '{0} laps'
   recordFormat: '{0} | {1}'
   noRecord: "\u2014"
+  voteTitle: Vote for the next track
+  ownerPickTitle: Choose the next track
+  soloTitle: 'Race AI: choose a track'
+  randomTitle: Random
+  randomTip: 'A random track of the lobby: whoever''s vote is drawn decides.'
+  randomPickTip: A random track of the lobby
 --- !u!1931382934 &833478354
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -937,6 +1112,125 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!1 &1017059795
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1017059796}
+  - component: {fileID: 1017059798}
+  - component: {fileID: 1017059799}
+  m_Layer: 0
+  m_Name: RoomSettings
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1017059796
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1017059795}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1931382934 &1017059798
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1017059795}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: 8f8308eae3b1e4a4fa9767e5fbc299ee, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
+--- !u!114 &1017059799
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1017059795}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa86565fe18114604b5c974095551bad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.RoomSettingsScreen
+  showcaseVisible: 0
+  allowBack: 1
+  rowTemplate: {fileID: 9197481963319205126, guid: 22b5d9498c7f4fa0bc3d661550603c7b, type: 3}
+  createTitle: Create room
+  editTitle: Room settings
+  createLabel: Create room
+  saveLabel: Save
+  trackLapsText: Track
+  defaultOddsText: Standard
+  ownOddsFormat: 'My odds: {0}'
+  roomOddsText: This room's odds
+  noTracksText: Choose at least one mod with tracks.
+  noArenasText: Choose at least one mod with arenas.
+  noCupText: The chosen mods have no cup.
+  tracksFormat: '{0} tracks'
+  arenasFormat: '{0} arenas'
 --- !u!1 &1164318081
 GameObject:
   m_ObjectHideFlags: 0
@@ -1498,6 +1792,142 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!1 &1232056120
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1232056121}
+  - component: {fileID: 1232056123}
+  - component: {fileID: 1232056122}
+  m_Layer: 0
+  m_Name: FlaggedRuns
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1232056121
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232056120}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1232056122
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232056120}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4440ae4afac8a4ab3a44f7c562f46f84, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.FlaggedRunsScreen
+  showcaseVisible: 0
+  allowBack: 1
+  chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
+  rowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
+  pageSize: 25
+  visibleTab: Visible
+  hiddenTab: With hidden
+  reportRowFormat: '{0} | {1}'
+  stateLoading: Loading
+  stateNone: All quiet
+  stateNotModerator: Moderators only
+  stateOffline: Offline
+  pageRangeFormat: '{0}-{1} / {2}'
+  trackTip: Track
+  classTip: Engine class
+  uploadedTip: Uploaded
+  flagsTip: Players who reported it
+  ghostTimeTip: Ghost time of the finding
+  reporterTip: Reported by
+  ignoredTip: 'Ignored: the reporter is not trusted'
+  noReports: None
+  countryTip: Country
+  joinedTip: Joined
+  lastLoginTip: Last login
+  runsTip: Runs
+  hiddenRunsTip: Hidden runs
+  cheatKicksTip: Kicked from races for cheating
+  disabledTip: 'Disabled: {0}'
+  hideLabel: Hide
+  unhideLabel: Unhide
+  disableLabel: Disable
+  enableLabel: Enable
+  disabledLabel: Disabled
+--- !u!1931382934 &1232056123
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1232056120}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: 88e4c61aca7344e88b199f33dc4a7a93, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
 --- !u!1 &1327142891
 GameObject:
   m_ObjectHideFlags: 0
@@ -1544,7 +1974,12 @@ Transform:
   - {fileID: 1952376593}
   - {fileID: 2021217551}
   - {fileID: 1515517134}
-  - {fileID: 165399298}
+  - {fileID: 460173362}
+  - {fileID: 1232056121}
+  - {fileID: 1459417795}
+  - {fileID: 155314628}
+  - {fileID: 1017059796}
+  - {fileID: 1524361512}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1327142895
@@ -1566,6 +2001,130 @@ MonoBehaviour:
   titleScreen: {fileID: 142454100}
   firstRunScreen: {fileID: 959608588}
   ambientLight: {r: 0.86, g: 0.74, b: 0.66, a: 1}
+  overlay: 0
+--- !u!1 &1459417794
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1459417795}
+  - component: {fileID: 1459417797}
+  - component: {fileID: 1459417796}
+  m_Layer: 0
+  m_Name: Account
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1459417795
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1459417794}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1459417796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1459417794}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da75057ab0ece435e8d1135f7085dd52, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.AccountScreen
+  showcaseVisible: 0
+  allowBack: 1
+  chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
+  loginTab: Log in
+  registerTab: Register
+  loginText: Log in
+  registerText: Create Account
+  busyText: Please wait
+  mismatchText: The passwords do not match.
+  welcomeFormat: Welcome, {0}! Your account is ready.
+  autoCountryFormat: 'Auto (from IP: {0})'
+  autoCountryText: Auto (from IP)
+  sinceFormat: Racing online since {0}
+  connectingFormat: Connecting to {0}...
+  connectedFormat: Connected to {0}
+  plaintextSuffix: ' (unencrypted)'
+  offlineFormat: 'Offline: {0}'
+  offlineReasonFormat: 'Offline: {1}'
+  retryFormat: ' Retrying in {0} s.'
+  commandLineNote: The -server option on the command line sets the server ({0}). This field applies when the game starts without it.
+--- !u!1931382934 &1459417797
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1459417794}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: c71c35e9904c24be8bcf0dda604fd4c8, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
 --- !u!1 &1496520759
 GameObject:
   m_ObjectHideFlags: 0
@@ -1707,18 +2266,27 @@ MonoBehaviour:
   lastTip: Last run
   savedTip: Your earlier best, kept from another version
   importedTip: Imported
+  onlineTip: Downloaded from the leaderboard
   otherVersionTip: Other version. It can be raced but never counts as a record.
   rowTemplate: {fileID: 9197481963319205126, guid: 10e70e9f187004644a062f2d2ff69e72, type: 3}
-  ghostRowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
-  arenaTip: Time trials run on circuits only.
+  chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
   importedCountFormat: 'Ghosts imported: {0}'
   unreadableFormat: 'Unreadable files: {0}'
   nothingNewText: No new ghosts.
-  exportedFormat: 'Exported: {0}'
-  exportFailedText: Export failed (see the log).
-  confirmDeleteQuestion: Delete this ghost?
-  deleteText: Delete
-  deletedText: Ghost deleted.
+  storedGhostsTip: Stored ghosts
+  autoUploadLabel: Auto-upload
+  autoUploadOnTip: New personal bests go to the leaderboard
+  autoUploadOffTip: New personal bests stay on this device
+  autoUploadLoginTip: Log in so new bests go to the leaderboard
+  loginText: Log in
+  accountChipTip: Signed in as {0}
+  loginChipTip: Log in for leaderboards and uploads
+  worldOnePlayerTip: World record | 1 player
+  worldPlayersTip: World record | {0} players
+  loadingWorldTip: Loading world records
+  offlineLabel: Offline
+  yourBestTip: Your best
+  worldRecordTip: World record
 --- !u!1931382934 &1515517136
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -1777,6 +2345,146 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!1 &1524361511
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1524361512}
+  - component: {fileID: 1524361514}
+  - component: {fileID: 1524361515}
+  m_Layer: 0
+  m_Name: Lobby
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1524361512
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1524361511}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1931382934 &1524361514
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1524361511}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: 0f6487e006407427eb117945c69e46c1, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
+--- !u!114 &1524361515
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1524361511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b475ed41a1fb94fc2b8c451c09617d95, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.LobbyScreen
+  showcaseVisible: 0
+  allowBack: 1
+  memberTemplate: {fileID: 9197481963319205126, guid: 4bd6f6fda71484a549ee954205fce7bd, type: 3}
+  waitingOwnerText: Start when you are ready
+  waitingOthersText: Waiting for the owner
+  aloneText: Waiting for players
+  votingText: Vote for the next track
+  loadingFormat: Loading {0}
+  countdownText: Get ready!
+  racingText: Race running
+  sittingOutText: You race in the next one
+  soloRacingText: Racing AI
+  resultsText: Results
+  setResultsText: Set results
+  setRaceFormat: Race {0} of {1}
+  publicTitleFormat: '{0} #{1}'
+  noLoadoutText: Choose a driver
+  readyText: Ready
+  notReadyText: Ready?
+  voteText: Vote
+  changeVoteText: Change vote
+  startVoteText: Start voting
+  pickTrackText: Choose track
+  soloText: Race AI while you wait
+  soloAloneText: Race alone
+  startCupFormat: 'Start: {0}'
+  lastRaceTitle: Last race
+  setTitle: Set results
+  soloTitle: Last race vs AI
+  leaveQuestion: Leave this lobby?
+  leaveLabel: Leave
+  kickQuestionFormat: 'Remove {0} from the lobby? They cannot come back for 10 minutes. Reason (shown to them):'
+  kickLabel: Kick
+  kickedFormat: '{0} was removed.'
+  codeCopiedText: Code copied
+  linkCopiedText: Link copied
+  dnfText: DNF
 --- !u!1 &1554823461
 GameObject:
   m_ObjectHideFlags: 0

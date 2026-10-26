@@ -14,7 +14,8 @@ namespace MHK.Race
     /// bridge falls (<see cref="Core.GameConfig.dropEffect"/>), as on drop geometry, for the rest of the race. The road
     /// collision under the pieces stays: the bridge area is the corridor between its <see cref="gates"/>.
     /// Driven by the race clock in physics steps, so the collapse comes at the same race time in every run with the same
-    /// driving; a replay sets it off at the tick the watched ghost reached the bridge.
+    /// driving; a replay sets it off at the tick the watched ghost reached the bridge. Online only the local kart sets
+    /// it off here and tells the server; the server's first trigger (BridgeTriggered) sets the tick on every client.
     /// </summary>
     [DefaultExecutionOrder(900)] // after karts moved and respawned this step, before GhostRecorder (1000): it sees the pose a ghost records
     public partial class CollapsingBridge : MonoBehaviour
@@ -89,6 +90,9 @@ namespace MHK.Race
         int liveTrigger = -1;
         GhostData replayData;
         int replayTrigger = -1;
+
+        /// <summary>Online bridge id: index in the stable order of the track's bridges (<see cref="Powerups.StableOrder"/>), -1 offline.</summary>
+        public int NetId { get; internal set; } = -1;
 
         void Awake()
         {
@@ -225,7 +229,9 @@ namespace MHK.Race
         void FixedUpdate()
         {
             var ticks = RaceClock.Ticks;
-            if (liveTrigger > ticks || !RaceClock.Running) liveTrigger = -1; // the clock was reset
+            var online = Powerups.OnlineItems.Active;
+            // An online trigger may lie ahead of the local clock (it counts from GO here, too); offline a later trigger means the clock was reset.
+            if ((liveTrigger > ticks && !online) || !RaceClock.Running) liveTrigger = -1;
             if (liveTrigger >= 0 || !RaceClock.Running || TryGetReplay(out _)) return;
             var race = RaceManager.Current;
             var karts = race.Karts;
@@ -233,11 +239,15 @@ namespace MHK.Race
             {
                 var kart = karts[i];
                 var body = kart != null && kart.Physics != null ? kart.Physics.Body : null;
-                if (body == null || !Contains(body.position)) continue;
+                if (body == null || (online && kart.IsRemote) || !Contains(body.position)) continue;
                 liveTrigger = ticks;
+                if (online) Powerups.OnlineItems.SendBridgeTrigger(this, ticks);
                 return;
             }
         }
+
+        /// <summary>Online: the server's first trigger of this bridge (BridgeTriggered) is the one for everybody.</summary>
+        internal void SetSharedTrigger(int tick) => liveTrigger = Mathf.Max(0, tick);
 
         // Replays have no physics karts: the watched ghost's recorded ticks set the bridge off.
         static bool TryGetReplay(out GhostData data)

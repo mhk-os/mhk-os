@@ -55,10 +55,19 @@ namespace MHK.Powerups
         void OnEnable() => PlantedHazards.Register(this);
         void OnDisable() => PlantedHazards.Unregister(this);
 
+        // The flying ball's spin is visual only: it follows frame time.
         void Update()
         {
-            var dt = Time.deltaTime;
-            if (!open && TickFlight(dt)) return;
+            if (!open && InFlight && flightModel != null) flightModel.transform.Rotate(flightSpin * Time.deltaTime, Space.Self);
+        }
+
+        protected override void Step(float dt)
+        {
+            if (!open)
+            {
+                if (InFlight) return;
+                Open();
+            }
             if (closing >= 0f)
             {
                 TickClosing(dt);
@@ -69,15 +78,14 @@ namespace MHK.Powerups
             TrySwallowNearby();
         }
 
-        bool TickFlight(float dt)
+        protected internal override float NetHitReach => triggerRadius;
+
+        // Another client saw the hole catch a racer: it closes here as well.
+        protected internal override void OnNetHit(Kart victim)
         {
-            if (InFlight)
-            {
-                if (flightModel != null) flightModel.transform.Rotate(flightSpin * dt, Space.Self);
-                return true;
-            }
-            Open();
-            return false;
+            if (!open || closing >= 0f) return;
+            closing = 0f;
+            Effects.EffectLoopSound.Stop(ref loop);
         }
 
         void TickClosing(float dt)
@@ -93,7 +101,7 @@ namespace MHK.Powerups
                 }
                 SetRadius(radius * Mathf.Clamp01(left / Mathf.Max(MinShrinkTime, shrinkTime)));
             }
-            if (left <= 0f) Destroy(gameObject);
+            if (left <= 0f) Remove();
         }
 
         void TrySwallowNearby()

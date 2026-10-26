@@ -1,7 +1,8 @@
 ; Windows installer of one desktop build, made by Tools/installer/package.sh (makensis defines SOURCE, OUTFILE, ICON,
 ; ARCH x64 or arm64, BUILD, SHA7, ENTRIES). Installs per user without admin rights, so players can edit the loose
-; files in Mods\<id>\Assets. The uninstaller removes the build's files and the folder when nothing else is left in it,
-; never the player's data in AppData\LocalLow.
+; files in Mods\<id>\Assets. Registers the mhkos:// URL scheme (room links mhkos://join/CODE) for the current user. The
+; uninstaller removes the build's files, the scheme and the folder when nothing else is left in it, never the player's data
+; in AppData\LocalLow.
 Unicode true
 ManifestDPIAware true
 RequestExecutionLevel user
@@ -18,6 +19,7 @@ SetCompressorDictSize 64
 !define ICONFILE "MoorhuhnKart.ico"
 !define UNINSTALLER "Uninstall.exe"
 !define UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\MoorhuhnKartOSE"
+!define SCHEME_KEY "Software\Classes\mhkos"
 
 Name "${NAME}"
 OutFile "${OUTFILE}"
@@ -80,6 +82,11 @@ Section "Install"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "QuietUninstallString" '"$INSTDIR\${UNINSTALLER}" /S'
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "NoRepair" 1
+  ; Room links: Windows starts the game with the link as its argument (a running game takes it over, JoinLinkForwarder).
+  WriteRegStr HKCU "${SCHEME_KEY}" "" "URL:Moorhuhn Kart OSE room link"
+  WriteRegStr HKCU "${SCHEME_KEY}" "URL Protocol" ""
+  WriteRegStr HKCU "${SCHEME_KEY}\DefaultIcon" "" '"$INSTDIR\${ICONFILE}"'
+  WriteRegStr HKCU "${SCHEME_KEY}\shell\open\command" "" '"$INSTDIR\${EXE}" "%1"'
   ${GetSize} "$INSTDIR" "/S=0K" $0 $1 $2
   WriteRegDWORD HKCU "${UNINSTALL_KEY}" "EstimatedSize" $0
 SectionEnd
@@ -94,4 +101,9 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\${NAME}.lnk"
   Delete "$DESKTOP\${NAME}.lnk"
   DeleteRegKey HKCU "${UNINSTALL_KEY}"
+  ; Only the scheme this install registered: another install may have taken it over since.
+  ReadRegStr $0 HKCU "${SCHEME_KEY}\shell\open\command" ""
+  ${If} $0 == '"$INSTDIR\${EXE}" "%1"'
+    DeleteRegKey HKCU "${SCHEME_KEY}"
+  ${EndIf}
 SectionEnd

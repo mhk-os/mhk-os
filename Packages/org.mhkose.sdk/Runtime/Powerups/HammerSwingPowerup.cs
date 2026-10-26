@@ -65,7 +65,8 @@ namespace MHK.Powerups
                 model.Sample(0f);
             }
             if (Owner.Inventory != null) Owner.Inventory.HideHeldVisual(model != null ? model.Length / playbackSpeed : 0f);
-            target = FindTarget();
+            target = Context.targetGiven ? Context.target : FindTarget();
+            ChosenTarget = target;
         }
 
         Kart FindTarget()
@@ -88,20 +89,29 @@ namespace MHK.Powerups
             return best;
         }
 
-        void Update()
+        protected override void Step(float dt)
         {
             if (Owner == null || model == null)
             {
-                Destroy(gameObject);
+                Remove();
                 return;
             }
-            var dt = Time.deltaTime * playbackSpeed;
+            dt *= playbackSpeed;
             t += dt;
             DesiredAim(out var desiredYaw, out var desiredReach);
             ApplyAim(desiredYaw, desiredReach, dt);
-            model.Sample(t);
-            if (!struck && t >= strikeTime) Strike();
-            if (Returned || t > model.Length + MaxOvertime) Destroy(gameObject);
+            if (!struck && t >= strikeTime)
+            {
+                model.Sample(t);
+                Strike();
+            }
+            if (Returned || t > model.Length + MaxOvertime) Remove();
+        }
+
+        // The swing is drawn at the frame's time between steps, so the clip plays smoothly at any frame rate.
+        void Update()
+        {
+            if (model != null) model.Sample(t + PoseInterpolation.StepShare * Time.fixedDeltaTime * playbackSpeed);
         }
 
         bool Returned => t >= model.Length && Mathf.Abs(yaw) < ReturnYawTolerance && Mathf.Abs(reach) < ReturnReachTolerance;

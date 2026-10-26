@@ -8,9 +8,11 @@ using UnityEngine;
 namespace MHK.Powerups
 {
     /// <summary>
-    /// Pickup placed on the track that gives a random powerup (<see cref="PowerupRoller"/>) and respawns after a delay.
-    /// A fixed id gives that powerup, applies that status effect on contact, or gives the character special
-    /// (<see cref="CharacterSpecialId"/>). Boxes that give powerups are removed from races without items.
+    /// Pickup placed on the track that gives a random powerup (<see cref="PowerupRoller"/>) and respawns after a delay
+    /// (counted in physics steps). A fixed id gives that powerup, applies that status effect on contact, or gives the
+    /// character special (<see cref="CharacterSpecialId"/>). Boxes that give powerups are removed from races without items.
+    /// Online the server decides what a box gives and who got it (<see cref="OnlineItems"/>): only the local kart picks
+    /// up here, status effect boxes stay local.
     /// </summary>
     public partial class ItemBox : MonoBehaviour
     {
@@ -35,6 +37,10 @@ namespace MHK.Powerups
 
         /// <summary>Can be collected now (not waiting to reappear).</summary>
         public bool Available => hiddenTimer <= 0f;
+        /// <summary>Online box id: index in the stable order of the track's boxes (<see cref="StableOrder"/>), -1 offline.</summary>
+        public int NetId { get; internal set; } = -1;
+        /// <summary>Respawn delay (s).</summary>
+        public float RespawnSeconds => respawnSeconds > 0 ? respawnSeconds : GameRoot.Instance.Config.itemBoxRespawnSeconds;
 
         void OnEnable() => active.Add(this);
         void OnDisable() => active.Remove(this);
@@ -50,12 +56,12 @@ namespace MHK.Powerups
             string.IsNullOrEmpty(fixedPowerupId) || fixedPowerupId == CharacterSpecialId ||
             GameRoot.Instance.Content.Get<StatusEffectDefinition>(fixedPowerupId) == null;
 
-        void Update()
+        void FixedUpdate()
         {
             if (hiddenTimer > 0f)
             {
-                hiddenTimer -= Time.deltaTime;
-                if (hiddenTimer <= 0f && visual != null) visual.SetActive(true);
+                hiddenTimer -= Time.fixedDeltaTime;
+                if (hiddenTimer <= 0f) Show(true);
                 return;
             }
             var p = transform.position;
@@ -64,11 +70,31 @@ namespace MHK.Powerups
             {
                 var k = karts[i];
                 var d = k.transform.position - p;
-                if (d.sqrMagnitude > radius * radius || k.Eliminated || k.Effects.Hidden) continue;
+                if (d.sqrMagnitude > radius * radius || k.Eliminated || k.Effects.Hidden || k.IsRemote) continue;
                 if (!TryGive(k)) continue;
                 Collect();
                 break;
             }
+        }
+
+        /// <summary>Online: another racer got this box <paramref name="ticksAgo"/> physics steps ago (shown as its pickup).</summary>
+        internal void HideTaken(int ticksAgo)
+        {
+            Collect();
+            hiddenTimer -= Mathf.Max(0, ticksAgo) * Time.fixedDeltaTime;
+            if (hiddenTimer <= 0f) Restore();
+        }
+
+        /// <summary>Online: the server refused the local kart's pickup: the box is there again.</summary>
+        internal void Restore()
+        {
+            hiddenTimer = 0f;
+            Show(true);
+        }
+
+        void Show(bool on)
+        {
+            if (visual != null) visual.SetActive(on);
         }
 
         bool TryGive(Kart k)
@@ -80,6 +106,7 @@ namespace MHK.Powerups
                 if (effect != null) return k.Effects.Apply(effect, k);
             }
             if (!k.Inventory.CanReceive || !PowerupRoller.ItemsEnabled) return false;
+            if (OnlineItems.Active) return OnlineItems.RequestPickup(this, k);
             var def = PowerupFor(k, content);
             if (def == null) return false;
             k.Inventory.Give(def);
@@ -96,8 +123,8 @@ namespace MHK.Powerups
         void Collect()
         {
             if (resolvedPickupSound == null) resolvedPickupSound = pickupSound != null ? pickupSound : PackPickupSound();
-            hiddenTimer = respawnSeconds > 0 ? respawnSeconds : GameRoot.Instance.Config.itemBoxRespawnSeconds;
-            if (visual != null) visual.SetActive(false);
+            hiddenTimer = RespawnSeconds;
+            Show(false);
             PowerupFx.Spawn(pickupVfx, transform.position, resolvedPickupSound);
         }
 

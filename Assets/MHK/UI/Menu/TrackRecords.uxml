@@ -1,0 +1,167 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- One track's records, opened from the Records page. Toolbar: track picture, name and game, the engine class chips (classes), the Version dropdown (version: Current first, then older simulation versions; a version with several boards lists each as its own entry), on narrow screens the section chips (sections: .narrow on page shows one section at a time) and the pick pill (pick-count with pick-clear). Your ghosts (local-panel): best race / best lap chips (local-chips) and the stored ghosts of the class and version (GhostRow with check, Watch, Upload or the uploaded rank, Export, Delete; ghost-empty when none). Leaderboard (global-panel): board chips (board-chips: players, last upload), filters (lb-search with its icon, lb-scope region, lb-kart, lb-character dropdowns), the player's own row pinned (lb-mine, when it is not on the shown page), the page of rows (LeaderRow; lb-list gets .lb-list-mod for moderators) or lb-state (icon and one line: loading, none, offline with lb-retry), and the pager. status: the last action's result. Footer: Back, Import folder, Reload, Reports (moderators), Race (with the picked ghosts: downloads the missing ones, then driver and kart). Preview classes on page: preview-narrow, preview-state, preview-mod. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="GhostRow" src="/Assets/MHK/UI/Menu/Templates/GhostRow.uxml" />
+    <ui:Template name="LeaderRow" src="/Assets/MHK/UI/Menu/Templates/LeaderRow.uxml" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Time Trials" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement class="trk-browser">
+                    <ui:VisualElement class="panel trk-toolbar">
+                        <mhk:ContentImage name="track-picture" class="trk-picture" image="/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png" />
+                        <ui:VisualElement class="trk-heading">
+                            <ui:Label name="track-name" text="Scribble Blocks" class="trk-name" />
+                            <ui:Label name="track-game" text="Moorhuhn Kart Extra" class="trk-game" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="classes" class="tabs trk-classes">
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="50cc" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip" class="sample-selected">
+                                <ui:AttributeOverrides element-name="chip" text="100cc" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="150cc" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                        <ui:Instance template="SettingRow" name="version" tooltip="Simulation version" class="setting-row setting-dropdown trk-filter trk-version">
+                            <ui:AttributeOverrides element-name="setting-label" text="Version" />
+                            <ui:AttributeOverrides element-name="setting-value-label" text="Current" />
+                        </ui:Instance>
+                        <ui:VisualElement name="sections" class="tabs trk-sections">
+                            <ui:Instance template="Chip" class="sample-selected">
+                                <ui:AttributeOverrides element-name="chip" text="Yours" />
+                            </ui:Instance>
+                            <ui:Instance template="Chip">
+                                <ui:AttributeOverrides element-name="chip" text="Leaderboard" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="pick-pill" class="trk-pick-pill">
+                            <ui:VisualElement class="icon i-group trk-pick-icon" />
+                            <ui:Label name="pick-count" text="3 / 50" class="trk-pick-count" />
+                            <ui:Button name="pick-clear" tooltip="Clear the picked ghosts" class="trk-pick-clear">
+                                <ui:VisualElement class="icon i-close" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="trk-columns">
+                        <ui:VisualElement name="local-panel" class="panel trk-local">
+                            <ui:VisualElement class="trk-section-head">
+                                <ui:Label text="Your ghosts" class="trk-section-title" />
+                                <ui:VisualElement name="local-chips" class="info-chips trk-head-chips" />
+                            </ui:VisualElement>
+                            <ui:ScrollView name="ghost-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="ghost-scroll trk-scroll">
+                                <ui:VisualElement name="ghost-list" class="ghost-list ghost-list-records">
+                                    <ui:Instance template="GhostRow" class="sample-selected">
+                                        <ui:AttributeOverrides element-name="ghost-time" text="03:21.40" />
+                                    </ui:Instance>
+                                    <ui:Instance template="GhostRow" class="sample-last sample-uploaded">
+                                        <ui:AttributeOverrides element-name="ghost-time" text="03:23.76" />
+                                        <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_hank.png" />
+                                    </ui:Instance>
+                                </ui:VisualElement>
+                            </ui:ScrollView>
+                            <ui:VisualElement name="ghost-empty" class="lb-state ghost-empty trk-empty">
+                                <ui:VisualElement class="icon i-timer lb-state-icon" />
+                                <ui:Label text="No ghosts yet" class="lb-state-label" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="global-panel" class="panel trk-global">
+                            <ui:VisualElement class="trk-section-head">
+                                <ui:Label text="Leaderboard" class="trk-section-title" />
+                                <ui:VisualElement name="board-chips" class="info-chips trk-head-chips" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="lb-filters">
+                                <ui:VisualElement class="lb-search-box">
+                                    <ui:VisualElement class="icon i-search lb-search-icon" />
+                                    <ui:TextField name="lb-search" max-length="20" class="lb-search" />
+                                </ui:VisualElement>
+                                <ui:Instance template="SettingRow" name="lb-scope" tooltip="Region" class="setting-row setting-dropdown trk-filter">
+                                    <ui:AttributeOverrides element-name="setting-label" text="Region" />
+                                    <ui:AttributeOverrides element-name="setting-value-label" text="World" />
+                                </ui:Instance>
+                                <ui:Instance template="SettingRow" name="lb-kart" tooltip="Kart" class="setting-row setting-dropdown trk-filter">
+                                    <ui:AttributeOverrides element-name="setting-label" text="Kart" />
+                                    <ui:AttributeOverrides element-name="setting-value-label" text="Any kart" />
+                                </ui:Instance>
+                                <ui:Instance template="SettingRow" name="lb-character" tooltip="Driver" class="setting-row setting-dropdown trk-filter">
+                                    <ui:AttributeOverrides element-name="setting-label" text="Driver" />
+                                    <ui:AttributeOverrides element-name="setting-value-label" text="Any driver" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="lb-mine" class="lb-list lb-mine">
+                                <ui:Instance template="LeaderRow" class="sample-mine">
+                                    <ui:AttributeOverrides element-name="lb-rank" text="27" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                            <ui:ScrollView name="lb-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="trk-scroll lb-scroll">
+                                <ui:VisualElement name="lb-list" class="lb-list">
+                                    <ui:Instance template="LeaderRow" class="sample-selected sample-flagged sample-gold" />
+                                    <ui:Instance template="LeaderRow" class="sample-mismatch">
+                                        <ui:AttributeOverrides element-name="lb-rank" text="2" />
+                                        <ui:AttributeOverrides element-name="lb-name" text="Lesshuhn-Fan" />
+                                        <ui:AttributeOverrides element-name="lb-country" text="AT" />
+                                        <ui:AttributeOverrides element-name="lb-time" text="03:22.95" />
+                                    </ui:Instance>
+                                    <ui:Instance template="LeaderRow" class="sample-hidden">
+                                        <ui:AttributeOverrides element-name="lb-rank" text="-" />
+                                        <ui:AttributeOverrides element-name="lb-name" text="Speedy" />
+                                        <ui:AttributeOverrides element-name="lb-time" text="00:41.02" />
+                                    </ui:Instance>
+                                </ui:VisualElement>
+                            </ui:ScrollView>
+                            <ui:VisualElement name="lb-state" class="lb-state">
+                                <ui:VisualElement name="lb-state-icon" class="icon i-cloud_off lb-state-icon" />
+                                <ui:Label name="lb-state-label" text="Offline" class="lb-state-label" />
+                                <ui:Button name="lb-retry" class="mhk-button small secondary">
+                                    <ui:VisualElement class="icon i-sync" />
+                                    <ui:Label text="Retry" class="button-label" />
+                                </ui:Button>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="lb-pager" class="lb-pager">
+                                <ui:Button name="lb-prev" tooltip="Previous page" class="mhk-button small secondary icon-only">
+                                    <ui:VisualElement class="icon i-chevron_left" />
+                                </ui:Button>
+                                <ui:Label name="lb-range" text="1-25 / 312" class="lb-range" />
+                                <ui:Button name="lb-next" tooltip="Next page" class="mhk-button small secondary icon-only">
+                                    <ui:VisualElement class="icon i-chevron_right" />
+                                </ui:Button>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:Label name="status" text="Uploaded: #3" class="records-status trk-status" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="open-import" tooltip="Import folder" class="mhk-button small secondary icon-only desktop-only">
+                    <ui:VisualElement class="icon i-folder_open" />
+                </ui:Button>
+                <ui:Button name="reload" tooltip="Reload ghosts" class="mhk-button small secondary icon-only">
+                    <ui:VisualElement class="icon i-replay" />
+                </ui:Button>
+                <ui:Button name="reports" class="mhk-button small secondary trk-reports">
+                    <ui:VisualElement class="icon i-shield_person" />
+                    <ui:Label text="Reports" class="button-label" />
+                </ui:Button>
+                <ui:Button name="race" class="mhk-button go">
+                    <ui:VisualElement class="icon i-flag" />
+                    <ui:Label name="race-label" text="Race" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

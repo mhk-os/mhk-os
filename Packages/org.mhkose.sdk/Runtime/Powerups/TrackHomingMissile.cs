@@ -13,13 +13,14 @@ namespace MHK.Powerups
     /// leader and flies through other karts. Remake: while the locked target is respawn-protected the missile waits
     /// behind it and strikes when the protection ends, so a respawn never dodges it.
     /// </summary>
-    public partial class TrackHomingMissile : PowerupBehaviour
+    public partial class TrackHomingMissile : PowerupBehaviour, INetProjectile
     {
         const float LaunchHeight = 1f;
         const float VerticalWeight = 0.25f;
         const float ArriveDistance = 1f;
         const float HitDistance = 2f;
         const float MinTravelSqr = 1e-4f;
+        const float MinCorrectSpeedSqr = 0.01f;
 
         [SerializeField] float speed = 70f;
         [SerializeField] float lockedSpeed = 90f;
@@ -53,6 +54,9 @@ namespace MHK.Powerups
         int dir = 1;
         int segment = -1;
         Kart target;
+        // Online the missile hunts the kart its user's client saw leading at the launch (sent with the use), so every
+        // client chases the same kart; offline it follows whoever leads now (MHK2).
+        Kart sharedHunt;
         Vector3 travel;
 
         [AutoStaticsCleanup] static readonly List<TrackHomingMissile> active = new();
@@ -68,6 +72,20 @@ namespace MHK.Powerups
         void OnEnable() => active.Add(this);
         void OnDisable() => active.Remove(this);
 
+        public bool Flying => true;
+        public Vector3 NetPosition => SimulatedPosition;
+        public Vector3 NetVelocity => travel * currentSpeed;
+
+        public void Correct(Vector3 position, Vector3 velocity)
+        {
+            BeginCorrection(position);
+            if (velocity.sqrMagnitude > MinCorrectSpeedSqr) travel = velocity.normalized;
+        }
+
+        protected internal override void OnNetHit(Kart victim) => Despawn(impactVfx, SimulatedPosition, hitSound, endSoundRange);
+
+        protected internal override float NetHitReach => HitDistance;
+
         protected override void OnLaunch()
         {
             // Original world speeds, lifetime and arm delay (not scaled with the karts).
@@ -76,8 +94,11 @@ namespace MHK.Powerups
             currentSpeed = speed;
             travel = Owner.transform.forward;
             transform.SetPositionAndRotation(Owner.transform.position + Vector3.up * LaunchHeight, Quaternion.LookRotation(travel, Vector3.up));
-            Hunted = Leader();
+            Hunted = Context.targetGiven ? Context.target : Leader();
+            ChosenTarget = Hunted;
+            if (Context.targetGiven || OnlineItems.Active) sharedHunt = Hunted;
             Effects.EffectLoopSound.Play(gameObject, flightLoop);
+            InterpolatePose();
         }
 
         // Unlike TargetSelection.Leader this includes the owner (MHK2).
@@ -94,9 +115,15 @@ namespace MHK.Powerups
             return best;
         }
 
+        // The model's roll is visual only: it follows frame time.
         void Update()
         {
-            var dt = Time.deltaTime;
+            if (model != null) model.Rotate(0f, 0f, rollSpeed * Time.deltaTime, Space.Self);
+        }
+
+        protected override void Step(float dt)
+        {
+            ApplyCorrection();
             // A target that turned into a ghost is lost: the missile goes for the leader among the tangible karts.
             if (target != null && target.Effects.Ghost) target = null;
             var waiting = target != null && target.Effects.RespawnProtected;
@@ -118,7 +145,7 @@ namespace MHK.Powerups
 
         Vector3 CruiseAim(TrackPath path, float myD, float dt)
         {
-            var leader = Leader();
+            var leader = sharedHunt != null && sharedHunt.isActiveAndEnabled && IsTangible(sharedHunt) ? sharedHunt : Leader();
             Hunted = leader;
             if (leader != null)
             {
@@ -167,7 +194,6 @@ namespace MHK.Powerups
             var step = currentSpeed * dt;
             if (stopAtAim) step = Mathf.Min(step, to.magnitude);
             transform.SetPositionAndRotation(transform.position + travel * step, Quaternion.LookRotation(travel, Vector3.up));
-            if (model != null) model.Rotate(0f, 0f, rollSpeed * dt, Space.Self);
         }
 
         void Finish(Kart victim)

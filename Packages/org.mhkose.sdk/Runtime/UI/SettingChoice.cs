@@ -31,7 +31,13 @@ namespace MHK.UI
         /// <summary>The row's value button.</summary>
         public Button Button { get; }
 
-        bool IsDropdown => count() > MaxCycleValues;
+        /// <summary>
+        /// Open a list even for a few values, and let Left / Right move the focus instead of stepping (choices whose number
+        /// varies, or compact dropdowns side by side such as leaderboard filters).
+        /// </summary>
+        public bool AlwaysList { get; set; }
+
+        bool IsDropdown => AlwaysList || count() > MaxCycleValues;
 
         /// <summary>
         /// Binds <paramref name="row"/> to the values 0 to <paramref name="count"/> - 1: <paramref name="index"/> is the current one,
@@ -108,7 +114,7 @@ namespace MHK.UI
                 NavigationMoveEvent.Direction.Right => 1,
                 _ => 0,
             };
-            if (steps == 0) return;
+            if (steps == 0 || AlwaysList) return;
             Step(steps);
             e.StopPropagation();
             Button.focusController?.IgnoreEvent(e);

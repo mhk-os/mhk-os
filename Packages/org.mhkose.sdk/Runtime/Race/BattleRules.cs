@@ -2,18 +2,22 @@ using System;
 using System.Collections.Generic;
 using MHK.Core;
 using MHK.Karts;
+using MHK.Powerups;
 using UnityEngine;
 
 namespace MHK.Race
 {
     /// <summary>
     /// Battle rules (MHK Thunder mode 3, Last Man Standing there): ramming costs health, karts at 0 health are
-    /// eliminated, the round ends when all humans are out or one kart is left.
+    /// eliminated, the round ends when all humans are out or one kart is left. Online each racer's client decides its
+    /// own health and elimination (<see cref="OnlineItems"/>): rams only cost the local kart health here, and other
+    /// racers are eliminated when the server says so.
     /// </summary>
     public class BattleRules : MonoBehaviour
     {
         RaceManager race;
-        readonly Dictionary<Kart, float> ramCooldownUntil = new();
+        // Race tick until which a kart takes no ram damage again.
+        readonly Dictionary<Kart, int> ramCooldownUntil = new();
         float roundEndTimer = -1f;
 
         /// <summary>Karts not eliminated yet.</summary>
@@ -50,14 +54,16 @@ namespace MHK.Race
         {
             if (race.Phase != RacePhase.Racing || a.Eliminated) return;
             var b = Kart.FromCollider(c.collider);
-            if (b == null || b == a || b.Eliminated) return;
+            if (b == null || b == a || b.Eliminated || b.IsRemote) return;
             var cfg = GameRoot.Instance.Config;
-            if (a.Physics.Body.linearVelocity.magnitude <= cfg.ramMinSpeed * a.Physics.SpeedScale) return;
+            if (OnlineItems.VelocityOf(a).magnitude <= cfg.ramMinSpeed * a.Physics.SpeedScale) return;
             var toB = b.transform.position - a.transform.position;
             if (Vector3.Angle(a.transform.forward, toB) > cfg.ramConeDegrees) return;
-            if (ramCooldownUntil.TryGetValue(b, out var until) && Time.time < until) return;
+            var now = RaceClock.Ticks;
+            if (ramCooldownUntil.TryGetValue(b, out var until) && now < until) return;
             if (b.Effects.IsProtected) return;
-            ramCooldownUntil[b] = Time.time + cfg.ramCooldown;
+            ramCooldownUntil[b] = now + Mathf.CeilToInt(cfg.ramCooldown / RaceClock.Step);
+            b.Effects.LastAttacker = a;
             b.TakeDamage(cfg.ramDamage, a);
         }
 
@@ -66,7 +72,12 @@ namespace MHK.Race
             if (race == null || race.Phase != RacePhase.Racing || RoundOver) return;
             var karts = race.Karts;
             for (var i = 0; i < karts.Count; i++)
-                if (!karts[i].Eliminated && karts[i].Health < 1) Eliminate(karts[i]);
+            {
+                var k = karts[i];
+                if (k.Eliminated || k.Health >= 1 || k.IsRemote) continue;
+                Eliminate(k);
+                OnlineItems.SendEliminatedSelf(k);
+            }
 
             int alive = 0, humans = 0, humansOut = 0;
             for (var i = 0; i < karts.Count; i++)
@@ -85,6 +96,12 @@ namespace MHK.Race
             k.Eliminate();
             k.Progress.ForceFinish(k.Progress.RaceClock);
             KartEliminated?.Invoke(k);
+        }
+
+        /// <summary>Online: the server says <paramref name="k"/> is out (its client reported it, or the server decided).</summary>
+        public void EliminateShared(Kart k)
+        {
+            if (k != null && !k.Eliminated) Eliminate(k);
         }
 
         /// <summary>

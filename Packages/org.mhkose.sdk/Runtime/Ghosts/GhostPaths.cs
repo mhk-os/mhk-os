@@ -20,7 +20,9 @@ namespace MHK.Ghosts
         public static string Saved(string id) => SavedPrefix + Safe(id) + GhostFile.Extension;
         public static string Imported(string id) => ImportPrefix + Safe(id) + GhostFile.Extension;
 
-        public static bool IsStoreFolder(string folderName) => folderName is ExportFolderName or ImportFolderName;
+        /// <summary>Folders under the store root that are not a track's: export, import and the download cache.</summary>
+        public static bool IsStoreFolder(string folderName) =>
+            folderName is ExportFolderName or ImportFolderName or MHK.Online.OnlineGhostCache.FolderName;
 
         public static GhostKind KindOf(string path)
         {

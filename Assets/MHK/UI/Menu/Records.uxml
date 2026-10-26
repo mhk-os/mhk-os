@@ -1,78 +1,78 @@
-<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Records. Code fills rec-list with one row per loaded track and per track of a mod that is not loaded but has a record (.missing), and for the focused track (.selected) the side panel: its name, its stored time-trial ghosts (one GhostRow each, all engine classes, with Watch / Export / Delete) and the status line (shown after an import, export or delete). Play starts a time trial on the focused track (disabled with a tooltip when no mod has it). Ghosts in the import folder are taken in when the page opens and when the game gets the focus back, Reload does it at once. Preview class on page: preview-empty (the track has no ghosts: the empty line instead of the list). -->
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- Time Trials hub (Title: Time Trials). Code fills the engine class chips (classes), the online state chip (rec-online: world records loading / offline) and rec-list with one row per circuit and per track of a mod that is not loaded but has a ghost or record (.missing): your best ghost of the class (driver and kart, time) and the world record of the current version (time; players in the tooltip). Clicking or submitting a row (or Open) opens that track's page in the class (your ghosts, leaderboard, Race). The side panel shows the focused track (.selected): picture, name, game, the stored ghost count chip (rec-chips), per engine class your best and the world record (rec-classes: class chip, driver and kart, your time, world time; .empty without one), the Auto-upload toggle (auto-upload, .on) and the account chip (rec-account, .online when logged in: the username, else Log in), and the status line (after an import). Reports (moderators only) opens the flagged runs. Ghosts in the import folder are taken in when the page opens and when the game gets the focus back, Reload does it at once. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="RecordRow" src="/Assets/MHK/UI/Menu/Templates/RecordRow.uxml" />
-    <ui:Template name="GhostRow" src="/Assets/MHK/UI/Menu/Templates/GhostRow.uxml" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
-            <ui:Label name="title" text="Records" class="page-title" />
+            <ui:Label name="title" text="Time Trials" class="page-title" />
         </ui:VisualElement>
         <ui:VisualElement class="page-body">
             <ui:VisualElement name="main" class="page-main wide anim from-left">
                 <ui:VisualElement class="records-browser">
                     <ui:VisualElement name="records-panel" class="panel list-panel records-panel">
+                        <ui:VisualElement class="rec-toolbar">
+                            <ui:VisualElement name="classes" class="tabs rec-classes-tabs">
+                                <ui:Instance template="Chip">
+                                    <ui:AttributeOverrides element-name="chip" text="50cc" />
+                                </ui:Instance>
+                                <ui:Instance template="Chip">
+                                    <ui:AttributeOverrides element-name="chip" text="100cc" />
+                                </ui:Instance>
+                                <ui:Instance template="Chip" class="sample-selected">
+                                    <ui:AttributeOverrides element-name="chip" text="150cc" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="rec-online" class="info-chips rec-online" />
+                        </ui:VisualElement>
                         <ui:VisualElement class="rec-head">
-                            <ui:Label text="Track" class="rec-track" />
-                            <ui:Label text="Game" class="rec-game" />
-                            <ui:Label text="Best lap" class="rec-cell rec-head-time" />
-                            <ui:Label text="Best race" class="rec-cell rec-head-time" />
+                            <ui:Label text="Track" class="rec-names" />
+                            <ui:Label text="Your best" class="rec-cell rec-best-cell rec-head-time" />
+                            <ui:Label text="World record" class="rec-cell rec-world-cell rec-head-time" />
                         </ui:VisualElement>
                         <ui:ScrollView name="rec-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
                             <ui:VisualElement name="rec-list">
                                 <ui:Instance template="RecordRow" class="sample-selected" />
                                 <ui:Instance template="RecordRow" class="sample-alt">
                                     <ui:AttributeOverrides element-name="rec-track" text="Kart Track" />
-                                    <ui:AttributeOverrides element-name="rec-lap" text="01:01.78" />
-                                    <ui:AttributeOverrides element-name="rec-race" text="03:11.31" />
+                                    <ui:AttributeOverrides element-name="rec-best" text="01:01.78" />
+                                    <ui:AttributeOverrides element-name="rec-world" text="00:58.31" />
                                     <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_hank.png" />
                                 </ui:Instance>
-                                <ui:Instance template="RecordRow">
-                                    <ui:AttributeOverrides element-name="rec-track" text="Luna" />
-                                    <ui:AttributeOverrides element-name="rec-lap" text="01:15.97" />
-                                    <ui:AttributeOverrides element-name="rec-race" text="03:58.56" />
-                                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_snowman.png" />
-                                </ui:Instance>
-                                <ui:Instance template="RecordRow" class="sample-alt sample-empty">
-                                    <ui:AttributeOverrides element-name="rec-track" text="Dockland" />
-                                    <ui:AttributeOverrides element-name="rec-lap" text="--:--.--" />
-                                    <ui:AttributeOverrides element-name="rec-race" text="--:--.--" />
-                                </ui:Instance>
                                 <ui:Instance template="RecordRow" class="sample-empty">
-                                    <ui:AttributeOverrides element-name="rec-track" text="Booo!" />
-                                    <ui:AttributeOverrides element-name="rec-lap" text="--:--.--" />
-                                    <ui:AttributeOverrides element-name="rec-race" text="--:--.--" />
+                                    <ui:AttributeOverrides element-name="rec-track" text="Dockland" />
+                                    <ui:AttributeOverrides element-name="rec-best" text="--:--.--" />
+                                    <ui:AttributeOverrides element-name="rec-world" text="--:--.--" />
                                 </ui:Instance>
-                                <ui:Instance template="RecordRow" class="sample-alt">
-                                    <ui:AttributeOverrides element-name="rec-track" text="Island" />
-                                    <ui:AttributeOverrides element-name="rec-game" text="Moorhuhn Kart 2" />
-                                    <ui:AttributeOverrides element-name="rec-lap" text="01:44.24" />
-                                    <ui:AttributeOverrides element-name="rec-race" text="05:48.19" />
-                                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_pumpkin.png" />
-                                </ui:Instance>
-                                <ui:Instance template="RecordRow" class="sample-missing">
+                                <ui:Instance template="RecordRow" class="sample-alt sample-missing">
                                     <ui:AttributeOverrides element-name="rec-track" text="Warehouse" />
                                     <ui:AttributeOverrides element-name="rec-game" text="TINcan" />
-                                    <ui:AttributeOverrides element-name="rec-lap" text="00:54.45" />
-                                    <ui:AttributeOverrides element-name="rec-race" text="02:58.70" />
+                                    <ui:AttributeOverrides element-name="rec-best" text="00:54.45" />
+                                    <ui:AttributeOverrides element-name="rec-world" text="00:51.10" />
                                 </ui:Instance>
                             </ui:VisualElement>
                         </ui:ScrollView>
                     </ui:VisualElement>
-                    <ui:VisualElement name="ghosts-side" class="panel records-ghosts">
-                        <ui:TextField name="player-name" label="Your name" value="Player" max-length="24" class="records-name" />
-                        <ui:Label name="ghosts-title" text="Scribble Blocks" class="records-ghosts-title" />
-                        <ui:ScrollView name="ghost-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="ghost-scroll">
-                            <ui:VisualElement name="ghost-list" class="ghost-list ghost-list-records">
-                                <ui:Instance template="GhostRow">
-                                    <ui:AttributeOverrides element-name="ghost-time" text="03:21.40" />
-                                </ui:Instance>
-                                <ui:Instance template="GhostRow" class="sample-last">
-                                    <ui:AttributeOverrides element-name="ghost-time" text="03:23.76" />
-                                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_hank.png" />
-                                </ui:Instance>
+                    <ui:VisualElement name="records-side" class="panel records-ghosts records-side">
+                        <mhk:ContentImage name="rec-picture" class="rec-picture" image="/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png" />
+                        <ui:VisualElement class="rec-side-head">
+                            <ui:VisualElement class="rec-side-names">
+                                <ui:Label name="ghosts-title" text="Scribble Blocks" class="records-ghosts-title" />
+                                <ui:Label name="rec-side-game" text="Moorhuhn Kart Extra" class="rec-side-game" />
                             </ui:VisualElement>
-                        </ui:ScrollView>
-                        <ui:Label name="ghost-empty" text="No ghosts for this track yet." class="ghost-empty" />
+                            <ui:VisualElement name="rec-chips" class="info-chips rec-chips" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="rec-classes" class="rec-classes" />
+                        <ui:VisualElement class="rec-side-actions">
+                            <ui:Button name="auto-upload" class="rec-toggle on">
+                                <ui:VisualElement name="auto-upload-icon" class="icon i-toggle_on rec-toggle-icon" />
+                                <ui:Label name="auto-upload-label" text="Auto-upload" class="rec-toggle-label" />
+                            </ui:Button>
+                            <ui:Button name="rec-account" class="rec-account-chip">
+                                <ui:VisualElement name="rec-account-icon" class="icon i-login rec-account-icon" />
+                                <ui:Label name="rec-account-label" text="Log in" class="rec-account-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
                         <ui:Label name="ghost-status" text="Ghosts imported: 2" class="records-status" />
                     </ui:VisualElement>
                 </ui:VisualElement>
@@ -87,17 +87,19 @@
                 </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right">
-                <ui:Button name="open-import" class="mhk-button small secondary desktop-only">
+                <ui:Button name="reports" class="mhk-button small secondary trk-reports">
+                    <ui:VisualElement class="icon i-shield_person" />
+                    <ui:Label text="Reports" class="button-label" />
+                </ui:Button>
+                <ui:Button name="open-import" tooltip="Import folder" class="mhk-button small secondary icon-only desktop-only">
                     <ui:VisualElement class="icon i-folder_open" />
-                    <ui:Label text="Import folder" class="button-label" />
                 </ui:Button>
-                <ui:Button name="reload" class="mhk-button small secondary">
+                <ui:Button name="reload" tooltip="Reload ghosts" class="mhk-button small secondary icon-only">
                     <ui:VisualElement class="icon i-replay" />
-                    <ui:Label text="Reload" class="button-label" />
                 </ui:Button>
-                <ui:Button name="play" class="mhk-button go">
-                    <ui:VisualElement class="icon i-play_arrow" />
-                    <ui:Label text="Play" class="button-label" />
+                <ui:Button name="open" class="mhk-button go">
+                    <ui:VisualElement class="icon i-leaderboard" />
+                    <ui:Label text="Open" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>

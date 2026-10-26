@@ -11,6 +11,8 @@ namespace MHK.Ghosts
         Saved,
         /// <summary>Imported from a file.</summary>
         Imported,
+        /// <summary>Downloaded from the server (<see cref="MHK.Online.OnlineGhostCache"/>): found by id, never listed with a track's ghosts.</summary>
+        Online,
     }
 
     /// <summary>A ghost in a store: its header and where / how it is kept.</summary>
