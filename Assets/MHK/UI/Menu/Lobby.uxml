@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
-    <!-- The lobby the player is in. Header: lobby name (title) and for private rooms the code box (code, copy-code, copy-link: mhkos://join/CODE); settings-chips (info chips: mods, mode, anticheat, engine class, laps, items, ...). Banner: phase icon, phase, phase-sub (race of the set, track), countdown. members: one Templates/LobbyMemberCard.uxml per player and one quiet mem-free-tile with the free places. Side: the player's kart (Driver / Kart open the card pages limited to the lobby's content), actions (Ready in private rooms, Vote while voting, Race AI while alone, the owner's Start and Settings), the last race's results (result-list, lob-result-row each; points hidden for solo races). Footer: Leave. -->
+    <!-- The lobby the player is in. Header: lobby name (title) and for private rooms the code box (code, copy-code, copy-link: mhkos://join/CODE); settings-chips (info chips: mods, mode, anticheat, engine class, laps, items, ...). Banner: phase icon, phase, phase-sub (race of the set, track), countdown. members: one Templates/LobbyMemberCard.uxml per player and one quiet mem-free-tile with the free places. Side: the player's driver and kart (portrait as on the player cards; Select character opens the driver page, then the kart page, limited to the lobby's content, and sets both at once), actions (Ready in private rooms, Vote while voting, Race AI while alone, the owner's Start and Settings), the last race's results (result-list, lob-result-row each; points hidden for solo races). Footer: Leave. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="LobbyMemberCard" src="/Assets/MHK/UI/Menu/Templates/LobbyMemberCard.uxml" />
     <ui:VisualElement name="page" class="menu-page">
@@ -31,7 +31,7 @@
                             </ui:VisualElement>
                             <ui:Label name="countdown" text="14" class="lob-countdown" />
                         </ui:VisualElement>
-                        <ui:ScrollView name="member-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="lob-members-scroll">
+                        <ui:ScrollView name="member-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Hidden" class="lob-members-scroll">
                             <ui:VisualElement name="member-list" class="lob-members">
                                 <ui:Instance template="LobbyMemberCard" class="sample-mine" />
                                 <ui:Instance template="LobbyMemberCard">
@@ -55,16 +55,10 @@
                                 <ui:Label name="loadout-kart" text="Red Kart" class="lob-loadout-kart" />
                             </ui:VisualElement>
                         </ui:VisualElement>
-                        <ui:VisualElement class="lob-buttons">
-                            <ui:Button name="pick-driver" class="mhk-button small secondary">
-                                <ui:VisualElement class="icon i-person_add" />
-                                <ui:Label text="Driver" class="button-label" />
-                            </ui:Button>
-                            <ui:Button name="pick-kart" class="mhk-button small secondary">
-                                <ui:VisualElement class="icon i-sports_motorsports" />
-                                <ui:Label text="Kart" class="button-label" />
-                            </ui:Button>
-                        </ui:VisualElement>
+                        <ui:Button name="pick-driver" class="mhk-button small secondary lob-pick">
+                            <ui:VisualElement class="icon i-sports_motorsports" />
+                            <ui:Label text="Select character" class="button-label" />
+                        </ui:Button>
                         <ui:VisualElement class="lob-actions">
                             <ui:Button name="ready" tooltip="Tell the room owner you are ready" class="mhk-button secondary">
                                 <ui:VisualElement name="ready-icon" class="icon i-check" />

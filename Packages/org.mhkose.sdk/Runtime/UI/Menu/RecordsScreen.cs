@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using MHK.Core;
 using MHK.Ghosts;
@@ -10,16 +11,18 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// Records (Records.uxml): best lap and best race of every track with the driver and kart that set them (also of
-    /// mods that are not loaded). The side panel sums up the focused track (its best ghost per engine class) and holds the
-    /// player's name written into new ghosts, the automatic upload of new bests and the online account. Clicking or
-    /// submitting a track (or Open) opens its records page (<see cref="TrackRecordsScreen"/>: ghosts, leaderboard, races
-    /// against picked ghosts). Moderators get Reports (<see cref="FlaggedRunsScreen"/>).
+    /// Time Trials hub (Records.uxml), opened by the title's Time Trials: every circuit (and tracks of mods that are not
+    /// loaded but have a record) with your best ghost and the world record (<see cref="WorldRecords"/>) in the chosen
+    /// engine class. The side panel sums up the focused track per class and holds the automatic upload of new bests and
+    /// the online account. Clicking or submitting a track (or Open) opens its page (<see cref="TrackRecordsScreen"/>:
+    /// ghosts, leaderboard, Race). Moderators get Reports (<see cref="FlaggedRunsScreen"/>).
     /// </summary>
     public class RecordsScreen : GhostListScreen
     {
         [SerializeField, Tooltip("Track row (Templates/RecordRow.uxml).")]
         VisualTreeAsset rowTemplate;
+        [SerializeField, Tooltip("Engine class chip (Templates/Chip.uxml).")]
+        VisualTreeAsset chipTemplate;
 
         [Header("Texts")]
         [SerializeField, Tooltip("Status after an import ({0} = ghosts taken in).")]
@@ -35,16 +38,35 @@ namespace MHK.UI
             autoUploadOffTip = "New personal bests stay on this device", autoUploadLoginTip = "Log in so new bests go to the leaderboard";
         [SerializeField, Tooltip("Account chip: logged out label, tooltips logged in ({0} = name) and out.")]
         string loginText = "Log in", accountChipTip = "Signed in as {0}", loginChipTip = "Log in for leaderboards and uploads";
+        [SerializeField, Tooltip("World record tooltips: one player, players ({0}); the online chip while loading and offline (label).")]
+        string worldOnePlayerTip = "World record | 1 player", worldPlayersTip = "World record | {0} players",
+            loadingWorldTip = "Loading world records", offlineLabel = "Offline";
+        [SerializeField, Tooltip("Tooltips of the side panel times: your best, the world record.")]
+        string yourBestTip = "Your best", worldRecordTip = "World record";
 
         string shownTrackId;
+        Difficulty hubClass;
+        bool classChosen;
         VisualElement selectedRow;
         Label status;
         Button open, autoUpload;
+        readonly List<(string trackId, VisualElement row)> rows = new();
 
         static SaveData Save => GameRoot.Instance.Save;
 
+        /// <summary>The next opening focuses <paramref name="trackId"/> (and shows <paramref name="engineClass"/> when given).</summary>
+        public void FocusTrack(string trackId, Difficulty? engineClass = null)
+        {
+            shownTrackId = trackId;
+            if (engineClass == null) return;
+            hubClass = engineClass.Value;
+            classChosen = true;
+        }
+
         protected override void Bind()
         {
+            if (!classChosen) hubClass = Selection.difficulty;
+            classChosen = true;
             status = Q<Label>("ghost-status");
             open = OnClick("open", OpenTrack, click: false);
             SetStatus("");
@@ -57,10 +79,13 @@ namespace MHK.UI
             OnClick("reports", () => Flow.Show<FlaggedRunsScreen>());
             OnClick("reload", () => ImportNow(true));
             OnClick("open-import", () => GhostUi.Reveal(GhostUi.ImportFolder));
+            BindClasses();
+            BindNavigation();
             OnlineService.Changed += ShowAccount;
             ShowAccount();
             FocusTarget = FillTracks();
             StartAutoImport();
+            LoadWorldRecords();
         }
 
         protected override void Unbind()
@@ -69,6 +94,7 @@ namespace MHK.UI
             StopAutoImport();
             OnlineService.Changed -= ShowAccount;
             GameRoot.Instance.SaveSettings();
+            rows.Clear();
             selectedRow = null;
             status = null;
             open = null;
@@ -81,6 +107,7 @@ namespace MHK.UI
             var text = imported + failed == 0 ? nothingNewText : string.Format(importedCountFormat, imported);
             if (failed > 0) text += UiText.Separator + string.Format(unreadableFormat, failed);
             SetStatus(text);
+            ShowBests();
             ShowSummary();
         }
 
@@ -90,7 +117,38 @@ namespace MHK.UI
             status.SetVisible(!string.IsNullOrEmpty(text));
         }
 
-        // Account chip, auto-upload toggle and the moderators' Reports button follow the login.
+        void BindClasses()
+        {
+            var labels = GameRoot.Instance.Config.difficulties.Select(d => d.label).ToList();
+            ChipGroup.Fill(Q<VisualElement>("classes"), chipTemplate, labels, (int)hubClass, index =>
+            {
+                Click();
+                hubClass = (Difficulty)index;
+                ShowBests();
+                ShowWorldRecords();
+            });
+        }
+
+        // Arrow keys: Right from a track goes to the side panel's toggle and Left back, Down from the class chips goes to
+        // the shown track; no wrapping at the edges.
+        void BindNavigation()
+        {
+            var list = Q<VisualElement>("rec-list");
+            var scroll = Q<ScrollView>("rec-scroll");
+            KeepFocusedInView(scroll, list);
+            LeaderRows.NoScrollbarFocus(scroll);
+            LeaderRows.NoWrap(Root);
+            LeaderRows.DownFromTo(Q<VisualElement>("classes"), () => selectedRow);
+            LeaderRows.UpFromTopTo(scroll, () => LeaderRows.SelectedChip(Q<VisualElement>("classes")));
+            list.RegisterCallback<NavigationMoveEvent>(e => MoveFocus(e, NavigationMoveEvent.Direction.Right, autoUpload));
+            Q<VisualElement>("records-side").RegisterCallback<NavigationMoveEvent>(e =>
+            {
+                if (e.target != Q<Button>("rec-account")) MoveFocus(e, NavigationMoveEvent.Direction.Left, selectedRow);
+            });
+        }
+
+        // Account chip, auto-upload toggle and the moderators' Reports button follow the login; logging in may make the
+        // world records reachable.
         void ShowAccount()
         {
             if (status == null) return;
@@ -106,21 +164,14 @@ namespace MHK.UI
             Q<Label>("auto-upload-label").text = autoUploadLabel;
             autoUpload.tooltip = !on ? autoUploadOffTip : account != null ? autoUploadOnTip : autoUploadLoginTip;
             SetVisible("reports", OnlineService.IsModerator);
+            if (!WorldRecords.Online && OnlineService.State >= OnlineState.Connected) LoadWorldRecords();
         }
 
         VisualElement FillTracks()
         {
             var list = Q<VisualElement>("rec-list");
             list.Clear();
-            KeepFocusedInView(Q<ScrollView>("rec-scroll"), list);
-            LeaderRows.NoWrap(Root);
-            LeaderRows.NoScrollbarFocus(Q<ScrollView>("rec-scroll"));
-            // Right from a track goes to the side panel's toggle, Left from there back to the track.
-            list.RegisterCallback<NavigationMoveEvent>(e => MoveFocus(e, NavigationMoveEvent.Direction.Right, autoUpload));
-            Q<VisualElement>("records-side").RegisterCallback<NavigationMoveEvent>(e =>
-            {
-                if (e.target != Q<Button>("rec-account")) MoveFocus(e, NavigationMoveEvent.Direction.Left, selectedRow);
-            });
+            rows.Clear();
             var i = 0;
             VisualElement first = null, shown = null;
             string firstId = null;
@@ -135,16 +186,19 @@ namespace MHK.UI
                 }
                 if (id == shownTrackId) shown = row;
             }
+            ShowBests();
+            ShowWorldRecords();
             if (shown != null) ShowTrack(shownTrackId, shown);
             else if (first != null) ShowTrack(firstId, first);
             else open.SetEnabled(false);
             return shown ?? first;
         }
 
-        // Loaded tracks in content order, then tracks of mods that are not loaded with a record and a stored name.
+        // Loaded circuits in content order (time trials need a circuit), then tracks of mods that are not loaded with a
+        // record and a stored name.
         static List<string> TrackIds()
         {
-            var ids = Content.All<TrackDefinition>().Select(t => t.Id).ToList();
+            var ids = Content.All<TrackDefinition>().Where(t => t.layout == TrackLayout.Circuit).Select(t => t.Id).ToList();
             ids.AddRange(Save.records
                 .Where(r => (r.bestLap > 0f || r.bestRace > 0f) && Content.Get<TrackDefinition>(r.trackId) == null
                             && SaveData.Find(Save.knownTracks, r.trackId) != null)
@@ -163,15 +217,64 @@ namespace MHK.UI
             row.focusable = true;
             row.SetText("rec-track", ContentDisplay.TrackName(trackId));
             row.SetText("rec-game", ContentDisplay.TrackGame(trackId));
-            var rec = Save.records.Find(r => r.trackId == trackId);
-            SetTime(row.Q("rec-lap-cell"), rec?.bestLap ?? 0f, rec?.bestLapCharacter, rec?.bestLapKart);
-            SetTime(row.Q("rec-race-cell"), rec?.bestRace ?? 0f, rec?.bestRaceCharacter, rec?.bestRaceKart);
+            rows.Add((trackId, row));
             row.RegisterCallback<FocusInEvent>(_ => ShowTrack(trackId, row));
             row.RegisterCallback<PointerDownEvent>(_ => row.Focus());
             // A click or tap opens the track (the pointer down focused it first); so does submit.
             row.RegisterCallback<ClickEvent>(_ => OpenTrack());
             row.RegisterCallback<NavigationSubmitEvent>(_ => OpenTrack());
             return row;
+        }
+
+        // Your best ghost of the shown class per track (the personal best file: one header read per track).
+        void ShowBests()
+        {
+            foreach (var (trackId, row) in rows)
+            {
+                var best = Store.Best(trackId, hubClass);
+                var cell = row.Q("rec-best-cell");
+                var has = best != null;
+                cell.EnableInClassList("empty", !has);
+                row.SetText("rec-best", has ? UiText.Clock(best.header.finishTime) : UiText.NoClock);
+                ContentDisplay.SetDriver(cell, best?.header.characterId, best?.header.kartId);
+                cell.Q(className: "rec-driver").SetVisible(has);
+            }
+        }
+
+        void ShowWorldRecords()
+        {
+            foreach (var (trackId, row) in rows)
+            {
+                var has = WorldRecords.TryGet(trackId, (int)hubClass, out var board);
+                var cell = row.Q("rec-world-cell");
+                cell.EnableInClassList("empty", !has);
+                row.SetText("rec-world", has ? UiText.Clock(board.bestMs / 1000f) : UiText.NoClock);
+                cell.tooltip = has ? PlayersTip(board.players) : "";
+            }
+        }
+
+        string PlayersTip(int players) => players == 1 ? worldOnePlayerTip : string.Format(CultureInfo.InvariantCulture, worldPlayersTip, players);
+
+        // One request for every track (cached for a minute); the chip says when it loads or the server is out of reach.
+        void LoadWorldRecords() => LoadWorldRecordsAsync().LogExceptionsAndForget();
+
+        async Awaitable LoadWorldRecordsAsync()
+        {
+            var task = WorldRecords.Load();
+            if (!task.IsCompleted) ShowOnlineChip(true);
+            await task;
+            if (status == null) return;
+            ShowOnlineChip(false);
+            ShowWorldRecords();
+            ShowSummary();
+        }
+
+        void ShowOnlineChip(bool loading)
+        {
+            var chips = Q<VisualElement>("rec-online");
+            chips.Clear();
+            if (loading) InfoChips.Add(chips, "sync", null, loadingWorldTip);
+            else if (!WorldRecords.Online) InfoChips.Add(chips, "cloud_off", offlineLabel, WorldRecords.LastError, InfoChipState.Off);
         }
 
         void ShowTrack(string trackId, VisualElement row)
@@ -185,7 +288,7 @@ namespace MHK.UI
             ShowSummary();
         }
 
-        // The focused track's picture, its best stored ghost per engine class (time, driver and kart) and the ghost count.
+        // The focused track's picture, the ghost count, and per engine class your best (time, driver and kart) and the world record.
         void ShowSummary()
         {
             if (status == null || shownTrackId == null) return;
@@ -212,15 +315,25 @@ namespace MHK.UI
                 icons.Add(DriverIcon("driver-kart"));
                 line.Add(icons);
                 ContentDisplay.SetDriver(icons, best?.header.characterId, best?.header.kartId);
-                icons.SetVisible(best != null);
-                var time = new Label(best != null ? UiText.Clock(best.header.finishTime) : UiText.NoClock);
+                icons.style.visibility = best != null ? Visibility.Visible : Visibility.Hidden;
+                var time = new Label(best != null ? UiText.Clock(best.header.finishTime) : UiText.NoClock) { tooltip = yourBestTip };
                 time.AddToClassList("rec-class-time");
                 line.Add(time);
+                var hasWorld = WorldRecords.TryGet(shownTrackId, c, out var board);
+                var world = new VisualElement { tooltip = hasWorld ? PlayersTip(board.players) : worldRecordTip };
+                world.AddToClassList("rec-class-world");
+                world.EnableInClassList("empty", !hasWorld);
+                var globe = new VisualElement { pickingMode = PickingMode.Ignore };
+                globe.AddToClassList("icon");
+                globe.AddToClassList("i-public");
+                world.Add(globe);
+                world.Add(new Label(hasWorld ? UiText.Clock(board.bestMs / 1000f) : UiText.NoClock) { pickingMode = PickingMode.Ignore });
+                line.Add(world);
                 classes.Add(line);
             }
             var chips = Q<VisualElement>("rec-chips");
             chips.Clear();
-            InfoChips.Add(chips, "inventory_2", entries.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), storedGhostsTip);
+            InfoChips.Add(chips, "inventory_2", entries.Count.ToString(CultureInfo.InvariantCulture), storedGhostsTip);
         }
 
         static void MoveFocus(NavigationMoveEvent e, NavigationMoveEvent.Direction direction, VisualElement to)
@@ -243,17 +356,7 @@ namespace MHK.UI
         {
             if (shownTrackId == null) return;
             Click();
-            Flow.Get<TrackRecordsScreen>().Open(shownTrackId);
-        }
-
-        static void SetTime(VisualElement cell, float seconds, string characterId, string kartId)
-        {
-            var label = cell.Q<Label>(className: "rec-time");
-            var has = seconds > 0f;
-            label.text = has ? UiText.Clock(seconds) : UiText.NoClock;
-            label.EnableInClassList("accent", has);
-            label.EnableInClassList("empty", !has);
-            ContentDisplay.SetDriver(cell, has ? characterId : null, has ? kartId : null);
+            Flow.Get<TrackRecordsScreen>().Open(shownTrackId, hubClass);
         }
     }
 }

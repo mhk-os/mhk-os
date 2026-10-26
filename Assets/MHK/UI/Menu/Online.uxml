@@ -1,7 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Online play. Logged out (class onl-logged-out on page): onl-login with Log in (the Account page). Logged in: mode-tabs (Races / Battles) and anticheat-tabs (with / without) choose the public categories; set-grid holds one card per mod set (Templates/OnlineSetCard.uxml, clicking it is Quick join), inst-list the lobbies of the selected set (Templates/OnlineInstanceRow.uxml). The side panel joins a private room by code (code field, join-code) and creates one (create). onl-status shows content warnings and errors (class good for progress). -->
+    <!-- Online play. Logged out (class onl-logged-out on page): onl-login with Log in (the Account page). Logged in: one table of every public lobby (onl-head names the columns; lobby-list holds one Templates/OnlineInstanceRow.uxml per lobby, sorted races first, then mod set, anticheat on first, then number; a row joins its lobby). The side panel joins a private room by code (code field, join-code) and creates one (create). onl-status shows content warnings and errors (class good for progress). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
-    <ui:Template name="OnlineSetCard" src="/Assets/MHK/UI/Menu/Templates/OnlineSetCard.uxml" />
     <ui:Template name="OnlineInstanceRow" src="/Assets/MHK/UI/Menu/Templates/OnlineInstanceRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
@@ -19,34 +18,25 @@
                 </ui:VisualElement>
                 <ui:VisualElement name="onl-browser" class="onl-browser">
                     <ui:VisualElement name="public" class="panel onl-public">
-                        <ui:VisualElement class="onl-bar">
-                            <ui:VisualElement name="mode-tabs" class="tabs onl-tabs">
-                                <ui:Button text="Races" class="chip selected" />
-                                <ui:Button text="Battles" class="chip" />
+                        <ui:VisualElement name="onl-head" class="onl-head">
+                            <ui:VisualElement class="onl-col-mode" />
+                            <ui:Label text="#" class="onl-head-label onl-col-inst" />
+                            <ui:Label text="Mods" class="onl-head-label onl-col-set" />
+                            <ui:VisualElement class="onl-col-ac" tooltip="Anticheat">
+                                <ui:VisualElement class="icon i-shield" />
                             </ui:VisualElement>
-                            <ui:VisualElement name="anticheat-tabs" class="tabs onl-tabs">
-                                <ui:Button text="Anticheat" class="chip selected" />
-                                <ui:Button text="Off" class="chip" />
-                            </ui:VisualElement>
+                            <ui:Label text="Class" class="onl-head-label onl-col-engine" />
+                            <ui:Label text="Players" class="onl-head-label onl-col-players" />
+                            <ui:Label text="Status" class="onl-head-label onl-col-phase" />
+                            <ui:VisualElement class="onl-col-join" />
                         </ui:VisualElement>
-                        <ui:VisualElement name="set-grid" class="card-grid onl-set-grid">
-                            <ui:Instance template="OnlineSetCard" class="sample-selected" />
-                            <ui:Instance template="OnlineSetCard">
-                                <ui:AttributeOverrides element-name="set-name" text="MHK + TINcan" />
-                            </ui:Instance>
-                            <ui:Instance template="OnlineSetCard">
-                                <ui:AttributeOverrides element-name="set-name" text="MHK 2" />
-                            </ui:Instance>
-                        </ui:VisualElement>
-                        <ui:VisualElement class="onl-lobbies">
-                            <ui:VisualElement class="icon i-group onl-lobbies-icon" />
-                            <ui:VisualElement name="inst-list" class="onl-inst-list">
+                        <ui:ScrollView name="lobby-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="onl-list-scroll">
+                            <ui:VisualElement name="lobby-list" class="onl-list">
                                 <ui:Instance template="OnlineInstanceRow" />
-                                <ui:Instance template="OnlineInstanceRow">
-                                    <ui:AttributeOverrides element-name="inst-name" text="#2" />
-                                </ui:Instance>
+                                <ui:Instance template="OnlineInstanceRow" />
+                                <ui:Instance template="OnlineInstanceRow" />
                             </ui:VisualElement>
-                        </ui:VisualElement>
+                        </ui:ScrollView>
                         <ui:VisualElement name="onl-status" class="onl-status">
                             <ui:VisualElement name="onl-status-icon" class="icon i-warning" />
                             <ui:Label name="onl-status-label" text="Your copy of tincan differs from other players'." class="onl-status-label" />
@@ -58,7 +48,6 @@
                             <ui:Label text="Private room" class="onl-side-title" />
                         </ui:VisualElement>
                         <ui:VisualElement class="onl-code-row">
-                            <ui:VisualElement class="icon i-pin onl-code-icon" />
                             <ui:TextField name="code" max-length="8" tooltip="The 6-character code of a friend's room." class="acc-input onl-code" />
                             <ui:Button name="join-code" tooltip="Join the room with this code" class="mhk-button go onl-code-join">
                                 <ui:VisualElement class="icon i-login" />

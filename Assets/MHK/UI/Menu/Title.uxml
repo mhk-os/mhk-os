@@ -21,9 +21,9 @@
                         <ui:VisualElement class="icon i-play_arrow"/>
                         <ui:Label text="Single Race" class="button-label"/>
                     </ui:Button>
-                    <ui:Button name="time-trial" class="mhk-button anim from-left" style="transition-delay: 320ms;">
+                    <ui:Button name="time-trials" tooltip="Race ghosts and climb the leaderboards" class="mhk-button anim from-left" style="transition-delay: 320ms;">
                         <ui:VisualElement class="icon i-timer"/>
-                        <ui:Label text="Time Trial" class="button-label"/>
+                        <ui:Label text="Time Trials" class="button-label"/>
                     </ui:Button>
                     <ui:Button name="battle" class="mhk-button anim from-left" style="transition-delay: 380ms;">
                         <ui:VisualElement class="icon i-swords"/>
@@ -35,10 +35,6 @@
                     </ui:Button>
                     <ui:VisualElement class="title-small anim from-left" style="transition-delay: 470ms;">
                         <ui:VisualElement class="title-small-row">
-                            <ui:Button name="records" class="mhk-button small secondary">
-                                <ui:VisualElement class="icon i-leaderboard"/>
-                                <ui:Label text="Records" class="button-label"/>
-                            </ui:Button>
                             <ui:Button name="mods" class="mhk-button small secondary">
                                 <ui:VisualElement class="icon i-extension"/>
                                 <ui:Label text="Mods" class="button-label"/>

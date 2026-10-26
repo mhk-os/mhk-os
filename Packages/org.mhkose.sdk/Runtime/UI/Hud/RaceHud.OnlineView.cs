@@ -342,6 +342,16 @@ namespace MHK.UI
                     country.AddToClassList("hud-net-country");
                     plate.Add(country);
                 }
+                // The racer's device (desktop or phone), nothing when unknown.
+                var platform = OnlineUi.PlatformIcon(setup != null ? setup.platform : 0);
+                if (platform.icon != null)
+                {
+                    var device = new VisualElement { pickingMode = PickingMode.Ignore, tooltip = platform.name };
+                    device.AddToClassList("icon");
+                    device.AddToClassList("hud-net-platform");
+                    device.AddToClassList("i-" + platform.icon);
+                    plate.Add(device);
+                }
                 tag.ping.AddToClassList("icon");
                 tag.ping.AddToClassList("hud-net-ping");
                 tag.ping.AddToClassList(PingIcons[2]);

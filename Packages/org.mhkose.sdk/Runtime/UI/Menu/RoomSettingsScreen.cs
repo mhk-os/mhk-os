@@ -222,13 +222,6 @@ namespace MHK.UI
 
         bool HasPack(string id) => settings.packs.Exists(p => string.Equals(p, id, StringComparison.OrdinalIgnoreCase));
 
-        static ContentPack FindPack(string id)
-        {
-            foreach (var p in Registry.Packs)
-                if (p != null && string.Equals(p.packId, id, StringComparison.OrdinalIgnoreCase)) return p;
-            return null;
-        }
-
         // Tracks (or arenas in battles) a pack brings itself.
         int TracksOf(string packId)
         {
@@ -248,7 +241,7 @@ namespace MHK.UI
             foreach (var id in AvailablePacks())
             {
                 var packId = id;
-                var pack = FindPack(id);
+                var pack = OnlineUi.FindPack(id);
                 var card = new Button { tooltip = pack != null && !string.IsNullOrEmpty(pack.description) ? pack.description : UiText.GameName(id), userData = id };
                 card.AddToClassList("card");
                 card.AddToClassList("room-mod-card");
@@ -259,10 +252,8 @@ namespace MHK.UI
                 checkIcon.AddToClassList("icon");
                 checkIcon.AddToClassList("i-check");
                 check.Add(checkIcon);
-                var logo = new VisualElement { pickingMode = PickingMode.Ignore };
+                var logo = OnlineUi.Logo(pack, id);
                 logo.AddToClassList("room-mod-logo");
-                if (pack != null && pack.logo != null) logo.SetImage(pack.logo);
-                else logo.AddToClassList("onl-set-logo-missing");
                 var title = new Label(OnlineUi.PackName(id)) { pickingMode = PickingMode.Ignore };
                 title.AddToClassList("room-mod-name");
                 var chips = new VisualElement { name = "mod-chips", pickingMode = PickingMode.Ignore };

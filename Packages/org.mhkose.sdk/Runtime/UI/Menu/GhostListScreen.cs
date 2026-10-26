@@ -9,7 +9,7 @@ using Debug = UnityEngine.Debug;
 namespace MHK.UI
 {
     /// <summary>
-    /// A menu page listing stored ghosts as GhostRow.uxml rows (ghost picker, track records page). While it is open, ghosts
+    /// A menu page listing stored ghosts as GhostRow.uxml rows (the records hub and the track records page). While it is open, ghosts
     /// dropped into the import folder are taken in when the page opens and whenever the game gets the focus back.
     /// </summary>
     public abstract class GhostListScreen : MenuScreen

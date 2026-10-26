@@ -9,10 +9,10 @@ namespace MHK.UI
 {
     /// <summary>
     /// Track browser (Track.uxml): a card per track and the info panel of the hovered or focused one (laps or arena,
-    /// records). Battles list arenas first, the other modes circuits only. Time trials open the ghost picker, the other
-    /// modes the race settings. For the online lobby it lists the lobby's tracks (arenas in battle lobbies): a Random
-    /// card first and the remaining time while voting (<see cref="LobbyPick.Vote"/>), the next race's track for the room
-    /// owner (<see cref="LobbyPick.OwnerPick"/>).
+    /// records). Battles list arenas first, the other modes circuits only. A time trial (track fixed on its records page)
+    /// starts at once, the other modes open the race settings. For the online lobby it lists the lobby's tracks (arenas
+    /// in battle lobbies): a Random card first and the remaining time while voting (<see cref="LobbyPick.Vote"/>), the
+    /// next race's track for the room owner (<see cref="LobbyPick.OwnerPick"/>).
     /// </summary>
     public class TrackScreen : CardGridScreen<TrackDefinition>
     {
@@ -270,8 +270,9 @@ namespace MHK.UI
         }
 
         /// <summary>
-        /// What follows the track choice for <paramref name="track"/>: the ghost picker in time trials, else the race
-        /// settings. The kart page calls it directly when the track was fixed beforehand (<see cref="MenuSelection.trackFixed"/>).
+        /// What follows the track choice for <paramref name="track"/>: a time trial starts at once against the ghosts
+        /// picked on the track's records page, the other modes open the race settings. The kart page calls it directly when
+        /// the track was fixed beforehand (<see cref="MenuSelection.trackFixed"/>).
         /// </summary>
         public void Continue(TrackDefinition track)
         {
@@ -279,7 +280,9 @@ namespace MHK.UI
             selection.track = track;
             if (selection.mode == GameMode.TimeTrial)
             {
-                Flow.Get<GhostScreen>().Open(track);
+                if (SceneFlow.Busy) return;
+                selection.trackFixed = false;
+                SceneFlow.StartSession(selection.BuildTimeTrialSession(track));
                 return;
             }
             Flow.Get<RaceSettingsScreen>().Open(() => SceneFlow.StartSession(selection.BuildSession(new[] { track }, selection.opponents)),

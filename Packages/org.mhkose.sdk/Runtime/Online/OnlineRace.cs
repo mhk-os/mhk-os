@@ -328,6 +328,7 @@ namespace MHK.Online
                     displayName = slot.username,
                     onlineSlot = slot.slot,
                     country = slot.country,
+                    platform = slot.platform,
                 });
             }
             session.ResetStandings();

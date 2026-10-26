@@ -1,7 +1,8 @@
-/* Time trial pages (imported by MHKTheme.uss): the Records side panel, one track's records (your ghosts and the online
- * leaderboard side by side, one at a time on narrow screens: .narrow on the page), the ghost picker's pill, the
+/* Time trial pages (imported by MHKTheme.uss): the Time Trials hub (track list and side panel), one track's records
+ * (your ghosts and the online leaderboard side by side, one at a time on narrow screens: .narrow on the page), the
  * moderators' Reports page and the text prompt. Big numbers (times, ranks) use the display font, metadata is small
- * and muted, explanations live in tooltips. Elements that code shows only in some states are hidden here (code sets
+ * and muted, explanations live in tooltips. One spacing scale: 4 (inside rows), 8 (between controls), 12 (between
+ * panels and as panel padding), rows 52 px tall. Elements that code shows only in some states are hidden here (code sets
  * their display inline); the preview-* classes show those states in UI Builder. Chips: .info-chip (MHKOnline.uss). */
 
 .i-history { background-image: url("Icons/history.png"); }
@@ -9,22 +10,49 @@
 .i-toggle_on { background-image: url("Icons/toggle_on.png"); }
 .i-toggle_off { background-image: url("Icons/toggle_off.png"); }
 
-/* ---- Records: the side panel sums up the focused track. ---- */
-.panel.records-side { padding: 14px 16px 16px 16px; }
+/* ---- Time Trials hub: the track list (class chips, your best, world record) and the side panel, equal heights. ---- */
+.records-browser { align-items: stretch; }
+.records-browser > .panel.records-panel { width: 58%; padding: 12px; }
+.rec-toolbar { flex-direction: row; align-items: center; justify-content: space-between; min-height: 42px; margin-bottom: 8px; flex-shrink: 0; }
+.tabs.rec-classes-tabs { margin: 0; align-self: center; }
+.info-chips.rec-online { flex-shrink: 0; }
+.records-panel .rec-head { padding: 0 12px 4px 12px; margin-bottom: 4px; }
+.records-panel .rec-row { min-height: 52px; padding: 4px 12px; margin: 0; }
+.rec-names { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.rec-row .rec-track { -unity-font-definition: var(--font-bold); font-size: 19px; color: var(--mhk-gray-900); padding: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec-row .rec-game { font-size: 13px; color: var(--mhk-gray-500); padding: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.records-panel .rec-cell { flex-direction: row; align-items: center; justify-content: flex-end; flex-shrink: 0; }
+.records-panel .rec-best-cell { width: 232px; }
+.records-panel .rec-world-cell { width: 168px; margin-left: 8px; }
+.rec-head .rec-head-time { -unity-text-align: middle-right; }
+.records-panel .rec-time { flex-grow: 0; -unity-font-definition: var(--font-display); font-size: 24px; color: var(--mhk-gray-900); padding: 0; margin: 0; -unity-text-align: middle-right; }
+.rec-world-cell .rec-time { color: var(--mhk-gray-700); }
+.rec-cell.empty .rec-time, TemplateContainer.sample-empty .rec-time { color: var(--mhk-gray-400); }
+.icon.rec-world-icon { width: 18px; height: 18px; margin-right: 6px; -unity-background-image-tint-color: var(--mhk-gray-400); }
+.rec-cell.empty .rec-world-icon { opacity: 0.5; }
+.records-panel .rec-driver { margin-right: 8px; }
+.records-panel .rec-driver .driver-icon { width: 34px; height: 34px; }
+
+.panel.records-ghosts.records-side { margin-left: 12px; align-self: stretch; max-height: none; padding: 12px; }
 .rec-picture { height: 168px; border-radius: 12px; background-size: cover; background-color: var(--mhk-row); flex-shrink: 0; }
-.rec-side-head { flex-direction: row; align-items: center; margin: 8px 0 6px 0; }
+.rec-side-head { flex-direction: row; align-items: center; margin: 8px 0; }
 .rec-side-names { flex-grow: 1; flex-shrink: 1; min-width: 0; }
 .rec-side-head .records-ghosts-title { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rec-side-game { font-size: 15px; color: var(--mhk-gray-500); padding: 0; margin: 0; }
+.rec-side-game { font-size: 14px; color: var(--mhk-gray-500); padding: 0; margin: 0; }
 .info-chips.rec-chips { flex-shrink: 0; }
-.rec-classes { margin: 2px 0 8px 0; }
-.rec-class-line { flex-direction: row; align-items: center; min-height: 48px; padding: 2px 10px 2px 6px; margin: 2px 0; border-radius: 10px; background-color: var(--mhk-row); }
+/* The class lines take the free height, so the toggle and the account chip sit on the panel's bottom edge. */
+.rec-classes { flex-grow: 1; }
+.rec-class-line { flex-direction: row; align-items: center; min-height: 52px; padding: 4px 12px 4px 8px; margin: 0 0 4px 0; border-radius: 10px; background-color: var(--mhk-row); }
 .info-chip.rec-class-chip { height: 34px; border-radius: 17px; margin: 0 8px 0 0; background-color: rgba(23, 25, 29, 0.07); }
 .rec-class-chip .info-chip-label { font-size: 17px; }
 .rec-class-driver { flex-shrink: 0; }
-.rec-class-driver .driver-icon { width: 36px; height: 36px; }
-.rec-class-time { flex-grow: 1; -unity-font-definition: var(--font-display); font-size: 28px; color: var(--mhk-gray-900); -unity-text-align: middle-right; padding: 0; margin: 0 0 0 8px; }
+.rec-class-driver .driver-icon { width: 34px; height: 34px; }
+.rec-class-time { flex-grow: 1; -unity-font-definition: var(--font-display); font-size: 26px; color: var(--mhk-gray-900); -unity-text-align: middle-right; padding: 0; margin: 0 0 0 8px; }
 .rec-class-line.empty .rec-class-time { color: var(--mhk-gray-400); }
+.rec-class-world { flex-direction: row; align-items: center; justify-content: flex-end; width: 128px; flex-shrink: 0; margin-left: 12px; }
+.rec-class-world .icon { width: 16px; height: 16px; margin-right: 4px; -unity-background-image-tint-color: var(--mhk-gray-400); }
+.rec-class-world Label { -unity-font-definition: var(--font-display); font-size: 20px; color: var(--mhk-gray-600); padding: 0; margin: 0; }
+.rec-class-world.empty Label { color: var(--mhk-gray-400); }
 .rec-side-actions { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 /* Toggle and account chip: pill buttons with an icon, accent ring when focused. */
 .rec-toggle, .rec-account-chip {
@@ -44,12 +72,14 @@
 
 /* ---- One track's records: toolbar. ---- */
 .trk-browser { flex-grow: 1; flex-shrink: 1; min-height: 0; }
-.panel.trk-toolbar { flex-direction: row; align-items: center; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 10px; flex-shrink: 0; }
+.panel.trk-toolbar { flex-direction: row; align-items: center; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 12px; flex-shrink: 0; }
 .trk-picture { width: 104px; height: 60px; border-radius: 10px; background-size: cover; background-color: var(--mhk-row); flex-shrink: 0; margin-right: 12px; }
 .trk-heading { flex-grow: 1; flex-shrink: 1; min-width: 150px; }
 .trk-name { -unity-font-definition: var(--font-display); font-size: 28px; color: var(--mhk-gray-900); padding: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trk-game { font-size: 14px; color: var(--mhk-gray-500); padding: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs.trk-classes, .tabs.trk-sections, .tabs.fr-filter { margin: 0 6px; align-self: center; }
+/* Chip rows stay on one line at every aspect (the theme's tabs wrap). */
+.tabs.trk-classes, .tabs.trk-sections, .tabs.fr-filter, .tabs.rec-classes-tabs { flex-wrap: nowrap; flex-shrink: 0; }
 .tabs.trk-sections { display: none; }
 .narrow .tabs.trk-sections, .preview-narrow .tabs.trk-sections { display: flex; }
 /* Compact dropdowns (version, region, kart, driver): the value button only, the name is the tooltip. */
@@ -73,7 +103,6 @@
 .trk-pick-clear:focus { border-color: var(--mhk-gray-900); }
 .trk-pick-clear .icon { width: 20px; height: 20px; -unity-background-image-tint-color: var(--mhk-gray-900); }
 .trk-pick-clear:disabled { display: none; }
-.ghost-toolbar .trk-pick-pill { margin-left: 0; padding-right: 12px; }
 
 /* ---- Columns: your ghosts and the leaderboard. ---- */
 .trk-columns { flex-direction: row; flex-grow: 1; flex-shrink: 1; min-height: 0; align-items: stretch; }
@@ -195,8 +224,6 @@ TemplateContainer.sample-uploaded > .ghost-row .ghost-upload { display: none; }
 .lb-range { min-width: 140px; font-size: 16px; color: var(--mhk-gray-600); -unity-text-align: middle-center; }
 .narrow .lb-driver .driver-kart { display: none; }
 
-/* The ghost picker's empty state. */
-.ghosts-panel .lb-state.ghost-empty { flex-grow: 1; }
 
 /* ---- Reports (moderators). ---- */
 .panel.fr-list-panel { width: 58%; flex-shrink: 1; margin-right: 12px; padding: 12px; }

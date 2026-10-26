@@ -35,10 +35,14 @@ namespace MHK.UI
         /// <summary>Single race or battle: the picked track (its item family sets the default item odds).</summary>
         public TrackDefinition track;
         /// <summary>
-        /// <see cref="track"/> was chosen before the driver (a record attempt from the Records page): the kart page goes
+        /// <see cref="track"/> was chosen before the driver (a time trial from the track's records page): the kart page goes
         /// straight on to what follows the track choice. Cleared when the player backs out of the driver page.
         /// </summary>
         public bool trackFixed;
+        /// <summary>Time trial: race the personal best of the track and class (picked on the records page, or nothing picked).</summary>
+        public bool raceOwnBest = true;
+        /// <summary>Time trial: the other ghosts picked on the records page (stored or downloaded), in pick order.</summary>
+        public readonly List<string> ghostIds = new();
         /// <summary>
         /// The card pages work for the online lobby: they list the lobby's content only and hand the choice to the lobby
         /// instead of starting a race. Set by the lobby screen, cleared by the offline modes.
@@ -81,6 +85,16 @@ namespace MHK.UI
             session.racers.Add(PlayerSetup());
             AddOpponents(session, opponentCount);
             session.ResetStandings();
+            return session;
+        }
+
+        /// <summary>A time trial on <paramref name="track"/> against the ghosts picked on its records page.</summary>
+        public GameSession BuildTimeTrialSession(TrackDefinition track)
+        {
+            var session = BuildSession(new[] { track }, 0);
+            session.powerupsEnabled = false;
+            session.raceOwnBest = raceOwnBest;
+            session.ghostIds.AddRange(ghostIds);
             return session;
         }
 

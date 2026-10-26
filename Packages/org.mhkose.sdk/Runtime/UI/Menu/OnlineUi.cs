@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using MHK.Core;
+using MHK.Modding;
 using MHK.Online;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -159,6 +160,48 @@ namespace MHK.UI
 
         /// <summary>Ping state: good up to 80 ms, bad above 160 ms (the anticheat stops counting a player at 200 ms).</summary>
         public static InfoChipState PingState(int ms) => ms <= 0 ? InfoChipState.Off : ms <= 80 ? InfoChipState.Good : ms <= 160 ? InfoChipState.Normal : InfoChipState.Bad;
+
+        /// <summary>
+        /// The packs' logos in fixed-size boxes (<c>.pack-logo</c>, scaled to fit, equal gaps): logos come in different image
+        /// sizes. A pack without a logo (or not loaded) shows the extension icon.
+        /// </summary>
+        public static void FillLogos(VisualElement row, IReadOnlyList<string> packs)
+        {
+            row.Clear();
+            foreach (var id in packs) row.Add(Logo(FindPack(id), id));
+        }
+
+        /// <summary>One logo box (<see cref="FillLogos"/>).</summary>
+        public static VisualElement Logo(ContentPack pack, string packId)
+        {
+            var logo = new VisualElement { pickingMode = PickingMode.Ignore, tooltip = UiText.GameName(packId) };
+            logo.AddToClassList("pack-logo");
+            if (pack != null && pack.logo != null) logo.SetImage(pack.logo);
+            else logo.AddToClassList("pack-logo-missing");
+            return logo;
+        }
+
+        /// <summary>The loaded pack <paramref name="id"/> (case-insensitive), null when not loaded.</summary>
+        public static ContentPack FindPack(string id)
+        {
+            foreach (var p in GameRoot.Instance.Content.Packs)
+                if (p != null && string.Equals(p.packId, id, StringComparison.OrdinalIgnoreCase)) return p;
+            return null;
+        }
+
+        /// <summary>
+        /// Icon and name of a player's device (<c>LobbyMember.platform</c>, <c>RaceSlot.platform</c>): a computer for Windows,
+        /// macOS and Linux, a phone for Android and iOS, no icon (null) when unknown.
+        /// </summary>
+        public static (string icon, string name) PlatformIcon(int platform) => platform switch
+        {
+            1 => ("computer", "Windows"),
+            2 => ("computer", "macOS"),
+            3 => ("computer", "Linux"),
+            4 => ("phone_android", "Android"),
+            5 => ("phone_iphone", "iOS"),
+            _ => (null, null),
+        };
 
         /// <summary>
         /// Keyboard / gamepad moves on the whole screen <paramref name="root"/> (footer included): the nearest focusable element

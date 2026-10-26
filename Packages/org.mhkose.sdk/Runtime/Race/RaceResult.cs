@@ -22,6 +22,8 @@ namespace MHK.Race
         public Online.RaceOutcome? outcome;
         /// <summary>Online: the result came from the server (points are set points, no records).</summary>
         public bool online;
+        /// <summary>Online: the racer's device (<c>RaceSlot.platform</c>), 0 unknown and for computer drivers.</summary>
+        public int platform;
 
         internal RacerSetup racer;
         internal float totalTimeBefore;

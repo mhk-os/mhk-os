@@ -679,3 +679,8 @@ TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
 }
 .hud-results.online .hud-results-row > .hud-res-points { display: flex; }
 .hud-results.online.solo .hud-results-row > .hud-res-points, .hud-results.online.solo #head-points { display: none; }
+
+/* Platform icons (desktop / phone) on name tags and online result rows. */
+.icon.hud-net-platform { width: 16px; height: 16px; margin-left: 5px; -unity-background-image-tint-color: rgba(255, 255, 255, 0.85); }
+.icon.hud-res-platform { width: 22px; height: 22px; margin: 0 12px 0 8px; flex-shrink: 0; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.hud-results-row.me .icon.hud-res-platform { -unity-background-image-tint-color: var(--mhk-gray-900); }

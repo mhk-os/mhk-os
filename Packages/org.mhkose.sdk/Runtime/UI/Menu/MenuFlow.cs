@@ -75,7 +75,10 @@ namespace MHK.UI
             Show(start, false);
             var reopen = OpenOnStart;
             OpenOnStart = null;
-            if (reopen != null && start == titleScreen) Show(GetComponentInChildren(reopen, true) as MenuScreen);
+            if (start != titleScreen) return;
+            // A screen asked for (online lobby, mods), else back to the track's records page after a time trial.
+            if (reopen != null) Show(GetComponentInChildren(reopen, true) as MenuScreen);
+            else TrackRecordsScreen.ReturnAfterRace(this);
         }
 
         // The built-in mods download while they are missing (unless the player skipped it), else the title.

@@ -7,7 +7,7 @@
     <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
-            <ui:Label name="title" text="Records" class="page-title" />
+            <ui:Label name="title" text="Time Trials" class="page-title" />
         </ui:VisualElement>
         <ui:VisualElement class="page-body">
             <ui:VisualElement name="main" class="page-main wide anim from-left">

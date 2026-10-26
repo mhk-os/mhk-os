@@ -1,8 +1,35 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One lobby of the selected public category (Online page): a compact button with the lobby number, players / max and the phase. Clicking joins it (disabled while full). -->
+    <!-- One public lobby of the Online page's table, in the columns of the table head (Online.uxml onl-head): row-mode (race / battle icon), row-instance (#1), row-set (mod set name and its logos in fixed-size boxes), row-ac (shield or crossed shield), row-engine (engine class), row-players (n/max and a fill bar), row-phase (icon and phase, "Racing · race 2/4") and the Join pill (Full while full). The whole row is one button: clicking or submitting joins the lobby; disabled (dimmed, reason as tooltip) when full or the player's content differs. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
-    <ui:Button class="mhk-button small secondary onl-instance">
-        <ui:Label name="inst-name" text="#1" class="onl-instance-name" />
-        <ui:VisualElement name="inst-chips" class="info-chips" />
+    <ui:Button class="onl-row">
+        <ui:VisualElement name="row-mode" class="icon i-sports_score onl-col-mode" tooltip="Races" />
+        <ui:Label name="row-instance" text="#1" class="onl-col-inst" />
+        <ui:VisualElement class="onl-col-set" picking-mode="Ignore">
+            <ui:Label name="row-set" text="MHK" class="onl-row-set" />
+            <ui:VisualElement name="row-logos" class="pack-logos" picking-mode="Ignore">
+                <ui:VisualElement class="pack-logo" picking-mode="Ignore" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2.kart_icon.png&quot;);" />
+                <ui:VisualElement class="pack-logo" picking-mode="Ignore" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk3.kart_icon.png&quot;);" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="onl-col-ac" picking-mode="Ignore">
+            <ui:VisualElement name="row-ac" class="icon i-shield onl-row-ac" tooltip="Anticheat" />
+        </ui:VisualElement>
+        <ui:Label name="row-engine" text="150cc" class="onl-col-engine" />
+        <ui:VisualElement class="onl-col-players" picking-mode="Ignore">
+            <ui:Label name="row-players" text="3/10" class="onl-row-players" />
+            <ui:VisualElement class="onl-bar-track" picking-mode="Ignore">
+                <ui:VisualElement name="row-fill" class="onl-bar-fill" picking-mode="Ignore" style="width: 30%;" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="onl-col-phase" picking-mode="Ignore">
+            <ui:VisualElement name="row-phase-icon" class="icon i-hourglass_top onl-row-phase-icon" />
+            <ui:Label name="row-phase" text="Waiting" class="onl-row-phase" />
+        </ui:VisualElement>
+        <ui:VisualElement class="onl-col-join" picking-mode="Ignore">
+            <ui:VisualElement class="onl-join-pill" picking-mode="Ignore">
+                <ui:VisualElement class="icon i-login" picking-mode="Ignore" />
+                <ui:Label name="row-join" text="Join" class="onl-join-label" />
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:Button>
 </ui:UXML>

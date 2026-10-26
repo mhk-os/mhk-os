@@ -352,8 +352,8 @@ namespace MHK.Online
     /// <summary>A lobby as listed (public instances) and in <see cref="LobbyState"/>.</summary>
     public sealed class LobbySummary
     {
-        // u64 u8 u8 u16, empty name, u8 bool, empty packs, u8 u8 u8 i32.
-        internal const int MinBytes = 8 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 4;
+        // u64 u8 u8 u16, empty name, u8 bool, empty packs, u8 u8 u8 i32 u8 u8 u8.
+        internal const int MinBytes = 8 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 4 + 1 + 1 + 1;
 
         public long lobbyId;
         /// <summary>False: a private room.</summary>
@@ -370,6 +370,12 @@ namespace MHK.Online
         public int maxPlayers;
         public LobbyPhase phase;
         public int simVersion;
+        /// <summary>0-2 (<see cref="Difficulty"/>).</summary>
+        public int engineClass;
+        /// <summary>Race of the running set (1-based), 0 when no set runs.</summary>
+        public int setRace;
+        /// <summary>Races per set.</summary>
+        public int setSize;
 
         public void Write(WireWriter w)
         {
@@ -385,13 +391,17 @@ namespace MHK.Online
             TimeTrialWire.U8(w, maxPlayers);
             w.U8((byte)phase);
             w.I32(simVersion);
+            TimeTrialWire.U8(w, engineClass);
+            TimeTrialWire.U8(w, setRace);
+            TimeTrialWire.U8(w, setSize);
         }
 
         public static LobbySummary Read(WireReader r) => new()
         {
             lobbyId = r.I64(), isPublic = r.U8() == 0, category = r.U8(), instance = r.U16(), name = r.String(LobbyLimits.LobbyName),
             mode = (RoomMode)r.U8(), anticheat = r.Bool(), packs = LobbyWire.Strings(r, LobbyLimits.RoomPacks, LobbyLimits.PackId),
-            players = r.U8(), maxPlayers = r.U8(), phase = (LobbyPhase)r.U8(), simVersion = r.I32(),
+            players = r.U8(), maxPlayers = r.U8(), phase = (LobbyPhase)r.U8(), simVersion = r.I32(), engineClass = r.U8(), setRace = r.U8(),
+            setSize = r.U8(),
         };
 
         public static List<LobbySummary> ReadList(WireReader r)
@@ -406,8 +416,8 @@ namespace MHK.Online
     /// <summary>A player in a lobby.</summary>
     public sealed class LobbyMember
     {
-        // u64, 4 empty strings, 5 bools, u16 i32 i64.
-        internal const int MinBytes = 8 + 4 + 5 + 2 + 4 + 8;
+        // u64, 4 empty strings, 5 bools, u16 i32 i64 u8.
+        internal const int MinBytes = 8 + 4 + 5 + 2 + 4 + 8 + 1;
 
         public long accountId;
         public string username = "";
@@ -426,6 +436,8 @@ namespace MHK.Online
         public int setPoints;
         /// <summary>Unix milliseconds.</summary>
         public long joined;
+        /// <summary>The member's device: 0 unknown, 1 Windows, 2 macOS, 3 Linux, 4 Android, 5 iOS.</summary>
+        public int platform;
 
         public bool HasLoadout => !string.IsNullOrEmpty(characterId) && !string.IsNullOrEmpty(kartId);
 
@@ -443,13 +455,14 @@ namespace MHK.Online
             w.U16((ushort)pingMs);
             w.I32(setPoints);
             w.I64(joined);
+            w.U8((byte)platform);
         }
 
         public static LobbyMember Read(WireReader r) => new()
         {
             accountId = r.I64(), username = r.String(LobbyLimits.Username), country = r.String(LobbyLimits.Country),
             characterId = r.String(LobbyLimits.ContentId), kartId = r.String(LobbyLimits.ContentId), ready = r.Bool(), owner = r.Bool(),
-            moderator = r.Bool(), inRace = r.Bool(), pingMs = r.U16(), setPoints = r.I32(), joined = r.I64(),
+            moderator = r.Bool(), inRace = r.Bool(), pingMs = r.U16(), setPoints = r.I32(), joined = r.I64(), platform = r.U8(),
         };
     }
 

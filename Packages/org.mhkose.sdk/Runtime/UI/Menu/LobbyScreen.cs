@@ -53,9 +53,10 @@ namespace MHK.UI
         [SerializeField] string codeCopiedText = "Code copied", linkCopiedText = "Link copied";
         [SerializeField] string dnfText = "DNF";
 
-        // Player card heights (px), the gap below each card (MHKOnline.uss .mem-card margin-bottom), the card's height
-        // around the portrait (top row, name, badges, points, padding) and the portrait's size range.
-        const float MaxCardHeight = 292f, MinCardHeight = 168f, CompactBelow = 262f, CardGap = 14f;
+        // Player cards: five per row, card heights (px), the gap between cards, the card's height around the portrait (top
+        // row, name, badges, points, padding) and the portrait's size range.
+        const int CardsPerRow = 5;
+        const float MaxCardHeight = 292f, MinCardHeight = 168f, CompactBelow = 262f, CardGap = 16f;
         const float CardChrome = 168f, MinPortrait = 56f, MaxPortrait = 124f;
         const int CountdownMs = 250;
 
@@ -138,8 +139,7 @@ namespace MHK.UI
             Q<ScrollView>("member-scroll").RegisterCallback<GeometryChangedEvent>(_ => FitCards());
             OnClick("copy-code", CopyCode);
             OnClick("copy-link", CopyLink);
-            OnClick("pick-driver", () => OpenLoadout(true));
-            OnClick("pick-kart", () => OpenLoadout(false));
+            OnClick("pick-driver", OpenLoadout);
             OnClick("ready", ToggleReady);
             OnClick("vote", OpenVote);
             OnClick("solo", OpenSolo);
@@ -318,13 +318,21 @@ namespace MHK.UI
         {
             if (members == null) return;
             var height = Q<ScrollView>("member-scroll").layout.height;
-            if (float.IsNaN(height) || height <= 0f) return;
+            var width = members.layout.width;
+            if (float.IsNaN(height) || height <= 0f || float.IsNaN(width) || width <= 0f) return;
+            // Five per row with even gaps and no trailing gap: the cards end flush with the banner's edges (one pixel spare:
+            // the layout rounds to physical pixels at non-integer scales and would wrap the fifth card).
+            var cardWidth = Mathf.Floor((width - (CardsPerRow - 1) * CardGap - 1f) / CardsPerRow);
             var card = Mathf.Clamp(Mathf.Floor(height / 2f) - CardGap, MinCardHeight, MaxCardHeight);
-            var portrait = Mathf.Clamp(card - CardChrome, MinPortrait, MaxPortrait);
+            var portrait = Mathf.Min(Mathf.Clamp(card - CardChrome, MinPortrait, MaxPortrait), cardWidth - 2f * CardGap);
             var kart = Mathf.Round(portrait * 0.5f);
+            var index = 0;
             foreach (var c in members.Children())
             {
+                c.style.width = cardWidth;
                 c.style.height = card;
+                c.style.marginRight = index++ % CardsPerRow == CardsPerRow - 1 ? 0f : CardGap;
+                c.style.marginBottom = CardGap;
                 c.EnableInClassList("compact", card < CompactBelow);
                 foreach (var name in new[] { "mem-driver", "driver-portrait" })
                 {
@@ -355,6 +363,11 @@ namespace MHK.UI
             country.SetVisible(!string.IsNullOrEmpty(m.country));
             country.text = string.IsNullOrEmpty(m.country) ? "" : m.country.ToUpperInvariant();
             country.tooltip = Countries.Name(m.country);
+            var (platformIcon, platformName) = OnlineUi.PlatformIcon(m.platform);
+            var platform = card.Q("mem-platform");
+            platform.SetVisible(platformIcon != null);
+            if (platformIcon != null) platform.SetIcon(platformIcon);
+            platform.tooltip = platformName ?? "";
             card.SetText("mem-name", m.username);
             ContentDisplay.SetDriver(card, m.characterId, m.kartId);
             var ping = card.Q("mem-ping");
@@ -394,15 +407,12 @@ namespace MHK.UI
         {
             var character = me != null ? GameRoot.Instance.Content.Get<CharacterDefinition>(me.characterId) : null;
             var kart = me != null ? GameRoot.Instance.Content.Get<KartDefinition>(me.kartId) : null;
-            var loadout = Root.Q(className: "lob-loadout");
-            var portrait = loadout.Q("driver-portrait");
-            portrait.SetImage(character != null ? character.Icon != null ? character.Icon : character.portrait : null);
-            loadout.Q("driver-kart").SetImage(kart != null ? kart.Icon : null);
+            // The same pictures as the player cards.
+            ContentDisplay.SetDriver(Root.Q(className: "lob-loadout"), me?.characterId, me?.kartId);
             Q<Label>("loadout-name").text = character != null ? character.DisplayName : noLoadoutText;
             Q<Label>("loadout-kart").text = kart != null ? kart.DisplayName : "";
             var between = lobby.Phase is LobbyPhase.Waiting or LobbyPhase.Voting or LobbyPhase.Results or LobbyPhase.SetResults;
             Q<Button>("pick-driver").SetEnabled(between);
-            Q<Button>("pick-kart").SetEnabled(between && character != null);
             var alone = CanRaceAlone;
             var ready = Q<Button>("ready");
             ready.SetVisible(lobby.IsPrivate && !OnlineLobby.IsOwner && lobby.Phase == LobbyPhase.Waiting);
@@ -517,16 +527,15 @@ namespace MHK.UI
             SetStatus(linkCopiedText, true);
         }
 
-        // Driver (then kart) or just the kart, starting from the current loadout.
-        void OpenLoadout(bool driver)
+        // Driver, then kart (KartScreen sends both at once and returns here), starting from the current loadout.
+        void OpenLoadout()
         {
             var me = OnlineLobby.Me;
             var content = GameRoot.Instance.Content;
             Selection.lobbyPick = LobbyPick.Loadout;
             Selection.character = me != null ? content.Get<CharacterDefinition>(me.characterId) : null;
             Selection.kart = me != null ? content.Get<KartDefinition>(me.kartId) : null;
-            if (driver || Selection.character == null) Flow.Show<CharacterScreen>();
-            else Flow.Show<KartScreen>();
+            Flow.Show<CharacterScreen>();
         }
 
         async void ToggleReady()
@@ -549,7 +558,7 @@ namespace MHK.UI
             if (!CanRaceAlone) return;
             if (!(OnlineLobby.Me?.HasLoadout ?? false))
             {
-                OpenLoadout(true);
+                OpenLoadout();
                 return;
             }
             Selection.lobbyPick = LobbyPick.Solo;

@@ -8,9 +8,9 @@ using Application = UnityEngine.Device.Application;
 namespace MHK.UI
 {
     /// <summary>
-    /// Title screen (Title.uxml): logo, the built-in mods download while they are missing, the game modes, Online, records / mods
-    /// (dot for updates and downloads) / options / music / quit, the short commit of the build, the game update link and
-    /// the online account (username or Log in).
+    /// Title screen (Title.uxml): logo, the built-in mods download while they are missing, the game modes (Time Trials
+    /// opens the records hub), Online, mods (dot for updates and downloads) / options / music / quit, the short commit of
+    /// the build, the game update link and the online account (username or Log in).
     /// </summary>
     public class TitleScreen : MenuScreen
     {
@@ -59,14 +59,14 @@ namespace MHK.UI
         {
             OnClick("championship", () => StartMode(GameMode.Championship));
             OnClick("single-race", () => StartMode(GameMode.SingleRace));
-            OnClick("time-trial", () => StartMode(GameMode.TimeTrial));
+            // Time trials start from a track's page in the hub (records, leaderboard, ghosts to race).
+            OnClick("time-trials", () => Flow.Show<RecordsScreen>());
             OnClick("battle", () =>
             {
                 Selection.opponents = Mathf.Max(1, Selection.opponents);
                 StartMode(GameMode.Battle);
             });
             OnClick("online", () => Flow.Show<OnlineScreen>());
-            OnClick("records", () => Flow.Show<RecordsScreen>());
             OnClick("mods", () => Flow.Show<ModsScreen>());
             OnClick("options", () => Flow.Show<OptionsScreen>());
             OnClick("music", () => Flow.Show<MusicScreen>());

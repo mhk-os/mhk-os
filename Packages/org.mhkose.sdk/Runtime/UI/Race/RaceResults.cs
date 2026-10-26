@@ -83,6 +83,8 @@ namespace MHK.UI
         string uploadFailedFormat = "Upload failed: {0}";
         [SerializeField, Tooltip("Upload line of a new record while no account is logged in.")]
         string loginHintText = "Log in on the Account screen to post your records online.";
+        [SerializeField, Tooltip("The menu button in time trials: back to the track's records page (leaderboard), its tooltip.")]
+        string leaderboardText = "Leaderboard", leaderboardTip = "This track's records and the online leaderboard";
 
         [Header("Online texts")]
         [SerializeField, Tooltip("Mode chips of the online results: race and battle.")]
@@ -270,6 +272,7 @@ namespace MHK.UI
             row.SetText("badge-label", r.position.ToString(CultureInfo.InvariantCulture));
             row.SetText("name", r.name);
             ContentDisplay.SetDriver(row, r.characterId, r.kartId);
+            AddPlatform(row, r);
             var timeLabel = row.Q<Label>("time");
             timeLabel.text = r.time > 0f || !r.online ? UiText.Clock(r.time) : "-";
             if (outcome.icon != null)
@@ -292,6 +295,20 @@ namespace MHK.UI
             gain.text = r.online && r.pointsGained == 0 ? "" : "+" + r.pointsGained.ToString(CultureInfo.InvariantCulture);
             row.SetText("total", "(" + r.totalPoints.ToString(CultureInfo.InvariantCulture) + ")");
             if (r.pointsGained > 0) gain.schedule.Execute(() => UiAnim.Pop(gain, GainPopScale, GainPopMs)).ExecuteLater(gainPopMs);
+        }
+
+        // Online: the racer's device (desktop or phone) after the name, nothing for computer drivers or unknown devices.
+        static void AddPlatform(VisualElement row, RaceResult r)
+        {
+            if (!r.online) return;
+            var platform = OnlineUi.PlatformIcon(r.platform);
+            if (platform.icon == null) return;
+            var name = row.Q<Label>("name");
+            var device = new VisualElement { tooltip = platform.name };
+            device.AddToClassList("icon");
+            device.AddToClassList("hud-res-platform");
+            device.SetIcon(platform.icon);
+            name.parent.Insert(name.parent.IndexOf(name) + 1, device);
         }
 
         // Outcome badge of an online row (icon, label, tooltip), no icon for a finish.
@@ -343,6 +360,12 @@ namespace MHK.UI
             if (tt == null) return null;
             Q<VisualElement>("head").SetVisible(false);
             Q<VisualElement>("rows").SetVisible(false);
+            // The menu reopens this track's records page after a time trial (MenuFlow), so the button says where it goes.
+            var menu = Q<Button>("menu");
+            menu.Q<VisualElement>(className: "icon")?.SetIcon("leaderboard");
+            var label = menu.Q<Label>(className: "button-label");
+            if (label != null) label.text = leaderboardText;
+            menu.tooltip = leaderboardTip;
 
             var replay = tt.IsReplay;
             var run = replay ? tt.Spectated != null ? tt.Spectated.Data.header : null : tt.Run != null ? tt.Run.header : null;

@@ -5,17 +5,19 @@ using MHK.Core;
 using MHK.Ghosts;
 using MHK.Modding;
 using MHK.Online;
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace MHK.UI
 {
     /// <summary>
-    /// One track's records (TrackRecords.uxml), opened from the Records page: engine class chips, the player's stored
-    /// ghosts of the class with the save's records (Watch, Upload or the uploaded rank, Export, Delete) and the online
+    /// One track's records (TrackRecords.uxml), opened from the Time Trials hub (Records page): engine class chips, the
+    /// player's stored ghosts of the class and version (Watch, Upload or the uploaded rank, Export, Delete) and the online
     /// leaderboard (TrackRecordsScreen.Leaderboard.cs). Ghosts of both lists can be picked, up to
-    /// <see cref="GameConfig.maxGhosts"/>; Race downloads the picked online ones, then walks driver and kart with the
-    /// track fixed into the ghost picker, which starts with exactly those picked (<see cref="GhostScreen.Preselect"/>).
+    /// <see cref="GameConfig.maxGhosts"/>, the personal best is picked when the page opens. Race downloads the picked
+    /// online ones, then walks driver and kart with the track fixed straight into the time trial
+    /// (<see cref="MenuSelection.BuildTimeTrialSession"/>); after it the menu comes back here (<see cref="ReturnAfterRace"/>).
     /// On narrow screens (<see cref="narrowWidth"/>) the two sections show one at a time behind section chips.
     /// </summary>
     public partial class TrackRecordsScreen : GhostListScreen
@@ -89,17 +91,51 @@ namespace MHK.UI
         static SaveData Save => GameRoot.Instance.Save;
         TrackDefinition Track => Content.Get<TrackDefinition>(trackId);
 
-        /// <summary>Opens the records of <paramref name="id"/>. Another track than last time starts fresh.</summary>
-        public void Open(string id)
+        /// <summary>
+        /// Opens the records of <paramref name="id"/>, in <paramref name="engineClass"/> when given. Another track or class
+        /// than last time starts fresh with the personal best picked.
+        /// </summary>
+        public void Open(string id, Difficulty? engineClass = null)
         {
-            if (id != trackId)
+            var cls = engineClass ?? (id == trackId ? this.engineClass : BestClass(id));
+            if (id != trackId || cls != this.engineClass)
             {
                 trackId = id;
-                engineClass = BestClass(id);
+                this.engineClass = cls;
                 ClearPicks();
+                PickOwnBest();
                 ResetLeaderboard();
             }
             Flow.Show(this);
+        }
+
+        // The time trial session the menu came back from last (so a later return to the menu does not reopen it).
+        [AutoStaticsCleanup] static GameSession returnedFrom;
+
+        /// <summary>
+        /// After an offline time trial or replay (the session that just ended): opens the Time Trials hub and that track's
+        /// page in its class on top of <paramref name="flow"/>'s title screen. False when the last session was something else.
+        /// </summary>
+        public static bool ReturnAfterRace(MenuFlow flow)
+        {
+            var session = GameRoot.Instance.Session;
+            if (session == null || session == returnedFrom || session.mode != GameMode.TimeTrial || string.IsNullOrEmpty(session.CurrentTrackId))
+                return false;
+            returnedFrom = session;
+            var hub = flow.Get<RecordsScreen>();
+            var page = flow.Get<TrackRecordsScreen>();
+            if (hub == null || page == null) return false;
+            hub.FocusTrack(session.CurrentTrackId, session.difficulty);
+            flow.Show(hub);
+            page.Open(session.CurrentTrackId, session.difficulty);
+            return true;
+        }
+
+        // The personal best of the shown track and class is picked by default (raced as the split reference).
+        void PickOwnBest()
+        {
+            var best = Store.Best(trackId, engineClass);
+            if (best != null && best.IsCurrent && !pickOrder.Contains(best.Id)) pickOrder.Add(best.Id);
         }
 
         // The class of the fastest current personal best, else the one last raced.
@@ -191,6 +227,7 @@ namespace MHK.UI
                 engineClass = (Difficulty)index;
                 // Ghosts of another class are not raced together.
                 ClearPicks();
+                PickOwnBest();
                 SetStatus("");
                 ResetLeaderboard();
                 RefreshVersions();
@@ -451,12 +488,17 @@ namespace MHK.UI
                 }
                 SetStatus("");
             }
+            // The personal best races as such (the split reference), the other picks follow in pick order.
+            var best = Store.Best(track.Id, engineClass);
             var selection = Selection;
             selection.mode = GameMode.TimeTrial;
+            selection.lobbyPick = LobbyPick.None;
             selection.track = track;
             selection.difficulty = engineClass;
             selection.trackFixed = true;
-            Flow.Get<GhostScreen>().Preselect(track.Id, engineClass, pickOrder.Count > 0 ? pickOrder : null);
+            selection.raceOwnBest = best != null && pickOrder.Contains(best.Id);
+            selection.ghostIds.Clear();
+            selection.ghostIds.AddRange(pickOrder.Where(id => best == null || id != best.Id));
             Flow.Show<CharacterScreen>();
         }
 

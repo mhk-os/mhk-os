@@ -28,6 +28,8 @@ namespace MHK.Core
         public int onlineSlot = -1;
         /// <summary>Online races: the racer's country (ISO 3166-1 alpha-2, "" unknown) for its name tag.</summary>
         public string country = "";
+        /// <summary>Online races: the racer's device (<c>RaceSlot.platform</c>), 0 unknown.</summary>
+        public int platform;
     }
 
     /// <summary>Everything the Race scene needs to know about the next race(s). Created by the menus, kept by <see cref="GameRoot"/>.</summary>

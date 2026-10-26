@@ -145,6 +145,8 @@ namespace MHK.Online
         public string country = "";
         public string characterId = "";
         public string kartId = "";
+        /// <summary>The racer's device: 0 unknown, 1 Windows, 2 macOS, 3 Linux, 4 Android, 5 iOS.</summary>
+        public int platform;
 
         public void Write(WireWriter w)
         {
@@ -154,12 +156,13 @@ namespace MHK.Online
             w.String(country, RaceProtocol.MaxCountry);
             w.String(characterId, RaceProtocol.MaxContentId);
             w.String(kartId, RaceProtocol.MaxContentId);
+            RaceWire.U8(w, platform);
         }
 
         public static RaceSlot Read(WireReader r) => new()
         {
             slot = r.U8(), accountId = r.I64(), username = r.String(RaceProtocol.MaxUsername), country = r.String(RaceProtocol.MaxCountry),
-            characterId = r.String(RaceProtocol.MaxContentId), kartId = r.String(RaceProtocol.MaxContentId),
+            characterId = r.String(RaceProtocol.MaxContentId), kartId = r.String(RaceProtocol.MaxContentId), platform = r.U8(),
         };
     }
 
@@ -234,7 +237,7 @@ namespace MHK.Online
                 laps = r.U8(), items = r.Bool(), itemOdds = RaceWire.Odds(r), anticheat = r.Bool(), solo = r.Bool(), aiCount = r.U8(),
                 seed = r.U64(),
             };
-            var count = r.ListCount(RaceProtocol.MaxRacers, 13);
+            var count = r.ListCount(RaceProtocol.MaxRacers, 14);
             for (var i = 0; i < count; i++) m.grid.Add(RaceSlot.Read(r));
             m.yourSlot = r.U8();
             m.udpPort = r.U16();

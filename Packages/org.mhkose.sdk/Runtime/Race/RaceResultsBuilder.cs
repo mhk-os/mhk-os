@@ -111,6 +111,7 @@ namespace MHK.Race
                 };
                 result.name = row.username;
                 result.isHuman = row.slot == online.LocalSlot;
+                result.platform = slot != null ? slot.platform : 0;
                 TakeRow(result, row, battle);
                 results.Add(result);
             }
@@ -127,6 +128,7 @@ namespace MHK.Race
             bestLap = k.Progress.BestLap,
             survived = battle && !k.Eliminated,
             online = true,
+            platform = k.Setup != null ? k.Setup.platform : 0,
         };
 
         static void TakeRow(RaceResult result, Online.RaceResultRow row, bool battle)

@@ -11,18 +11,15 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// Online play (Online.uxml). While logged out: Log in (the Account page). Logged in: Races / Battles and anticheat
-    /// on / off choose the public categories, one card per mod set ("MHK", "MHK + TINcan", "MHK 2") with its players;
-    /// clicking a card joins its fullest lobby with room (Quick join), the focused card's lobbies are listed below it.
-    /// The side panel joins a private room by code and creates one. Content warnings (packs that differ from other
+    /// Online play (Online.uxml). While logged out: Log in (the Account page). Logged in: one table of every public lobby
+    /// (mode, number, mod set, anticheat, engine class, players, phase; races first, then mod set, anticheat on first,
+    /// then number), a row joins its lobby. The side panel joins a private room by code and creates one. Content warnings (packs that differ from other
     /// players'), refusals and why the player last left a lobby show in the status line. A room link
     /// (<see cref="JoinLinks"/>) opens this page, which joins the room once logged in.
     /// </summary>
     public class OnlineScreen : MenuScreen
     {
-        [SerializeField, Tooltip("Mod set card (Templates/OnlineSetCard.uxml).")]
-        VisualTreeAsset setTemplate;
-        [SerializeField, Tooltip("Lobby of the selected set (Templates/OnlineInstanceRow.uxml).")]
+        [SerializeField, Tooltip("A row of the lobby table (Templates/OnlineInstanceRow.uxml).")]
         VisualTreeAsset instanceTemplate;
         [SerializeField, Tooltip("Seconds between list refreshes while the page is open.")]
         float refreshSeconds = 5f;
@@ -39,12 +36,15 @@ namespace MHK.UI
         [SerializeField] string closedText = "The lobby closed.";
         [SerializeField] string strikeSuffix = " Anticheat lobbies with it are closed to you.";
 
-        // Remembered while the game runs: the page opens on the player's last choice.
-        static bool battles;
-        static bool anticheat = true;
-        static int selected = 1;
+        // Table width (px) below which the rows leave out the mod logos: the fixed columns, the set name and five logos.
+        const float LogosMinWidth = 1180f;
 
-        readonly Dictionary<int, VisualElement> cards = new();
+        // The lobby focused last while the game runs: the table opens on it.
+        static long focusedLobby;
+
+        readonly List<Button> rows = new();
+        // The table showed lobbies since the page opened.
+        bool listed;
         List<LobbySummary> lobbies = new();
         bool busy, refreshing;
         IVisualElementScheduledItem refresh;
@@ -80,6 +80,7 @@ namespace MHK.UI
         protected override void Bind()
         {
             Selection.lobbyPick = LobbyPick.None;
+            listed = false;
             statusLabel = Q<Label>("onl-status-label");
             OnClick("login", () => Flow.Show<AccountScreen>());
             OnClick("account", () => Flow.Show<AccountScreen>());
@@ -97,27 +98,12 @@ namespace MHK.UI
             OnlineService.Changed += ShowState;
             OnlineLobby.Changed += ShowState;
             OnlineService.Connect();
-            OnlineUi.Segmented(Q<VisualElement>("mode-tabs"), new[] { ("sports_score", "Races", (string)null), ("swords", "Battles", null) },
-                battles ? 1 : 0, i =>
-                {
-                    Click();
-                    battles = i == 1;
-                    FillSets(true);
-                });
-            OnlineUi.Segmented(Q<VisualElement>("anticheat-tabs"),
-                new[]
-                {
-                    ("shield", "Anticheat", "Players' games check each other's karts, cheaters are removed from the race."),
-                    ("remove_moderator", "Off", "No anticheat: nobody checks the karts."),
-                }, anticheat ? 0 : 1, i =>
-                {
-                    Click();
-                    anticheat = i == 0;
-                    FillSets(true);
-                });
             OnlineUi.Spatial(Root, Navigate);
+            KeepFocusedInView(Q<ScrollView>("lobby-scroll"), Q<VisualElement>("lobby-list"));
+            var list = Q<VisualElement>("lobby-list");
+            list.RegisterCallback<GeometryChangedEvent>(_ => list.EnableInClassList("no-logos", list.layout.width < LogosMinWidth));
             SetStatus(null, false);
-            FillSets(false);
+            FillRows(false);
             ShowLeft();
             ShowState();
             refresh = Root.schedule.Execute(() => Refresh(false)).Every((long)(refreshSeconds * 1000f));
@@ -131,24 +117,31 @@ namespace MHK.UI
             OnlineLobby.Changed -= ShowState;
             refresh?.Pause();
             refresh = null;
-            cards.Clear();
+            rows.Clear();
             statusLabel = null;
         }
 
-        // On top of the nearest-element navigation: the tabs and the lobby list go to the selected set card, the set cards
-        // up to the selected mode tab, and the room code field left to the selected set card.
+        // Up / Down walk the table row by row (the nearest-element navigation would also do, but the rows are one column);
+        // the room code field goes left to the focused lobby row.
         VisualElement Navigate(VisualElement from, NavigationMoveEvent.Direction d)
         {
-            var modeTabs = Q<VisualElement>("mode-tabs");
-            var grid = Q<VisualElement>("set-grid");
             var code = Q<TextField>("code");
-            cards.TryGetValue(selected, out var card);
-            var setCard = OnlineUi.CanFocus(card) ? card : null;
-            if (d == NavigationMoveEvent.Direction.Down && (from.parent == modeTabs || from.parent == Q<VisualElement>("anticheat-tabs")))
-                return setCard;
-            if (d == NavigationMoveEvent.Direction.Up && from.parent == grid) return OnlineUi.SelectedChip(modeTabs);
-            if (d == NavigationMoveEvent.Direction.Up && Q<VisualElement>("inst-list").Contains(from)) return setCard;
-            if (d == NavigationMoveEvent.Direction.Left && (from == code || code.Contains(from)) && code.cursorIndex <= 0) return setCard;
+            if (d == NavigationMoveEvent.Direction.Left && (from == code || code.Contains(from)) && code.cursorIndex <= 0) return LastRow();
+            if (from is not Button row || !rows.Contains(row)) return null;
+            if (d is not (NavigationMoveEvent.Direction.Up or NavigationMoveEvent.Direction.Down)) return null;
+            var step = d == NavigationMoveEvent.Direction.Down ? 1 : -1;
+            for (var i = rows.IndexOf(row) + step; i >= 0 && i < rows.Count; i += step)
+                if (OnlineUi.CanFocus(rows[i])) return rows[i];
+            return null;
+        }
+
+        // The row focused last, else the first that can be joined.
+        VisualElement LastRow()
+        {
+            foreach (var r in rows)
+                if (r.userData is LobbySummary l && l.lobbyId == focusedLobby && OnlineUi.CanFocus(r)) return r;
+            foreach (var r in rows)
+                if (OnlineUi.CanFocus(r)) return r;
             return null;
         }
 
@@ -174,7 +167,7 @@ namespace MHK.UI
             Q<Button>("create").SetEnabled(on);
             Q<Button>("join-code").SetEnabled(on);
             Q<Button>("refresh").SetEnabled(on);
-            foreach (var card in cards.Values) card.SetEnabled(on && card.userData == null);
+            foreach (var row in rows) row.SetEnabled(on && Joinable(row.userData as LobbySummary));
         }
 
         // Packs that differ from other players' stay visible: anticheat lobbies with them refuse the player.
@@ -225,82 +218,90 @@ namespace MHK.UI
             box.Q(className: "icon")?.SetIcon(good ? "sync" : "warning");
         }
 
-        // One card per category of the chosen mode and anticheat setting.
-        void FillSets(bool focus)
+        bool Joinable(LobbySummary l) => l != null && l.players < l.maxPlayers && OnlineLobby.ContentProblem(l.packs) == null;
+
+        // One row per public lobby: races first, then mod set (category order), anticheat on first, then number.
+        void FillRows(bool keepFocus)
         {
-            var grid = Q<VisualElement>("set-grid");
-            grid.Clear();
-            cards.Clear();
-            VisualElement first = null, current = null;
+            var list = Q<VisualElement>("lobby-list");
+            var focused = list.panel?.focusController?.focusedElement as Button;
+            // Keep the focus on the table across refreshes; the first list moves it from Create room to the table.
+            var refocus = keepFocus && focused != null && (rows.Contains(focused) || (!listed && focused == Q<Button>("create")));
+            list.Clear();
+            rows.Clear();
+            var sorted = new List<LobbySummary>(lobbies);
+            sorted.Sort((a, b) =>
+            {
+                var c = (a.mode == RoomMode.BattleSet).CompareTo(b.mode == RoomMode.BattleSet);
+                if (c == 0) c = SetOrder(a).CompareTo(SetOrder(b));
+                if (c == 0) c = b.anticheat.CompareTo(a.anticheat);
+                return c != 0 ? c : a.instance.CompareTo(b.instance);
+            });
             var i = 0;
-            foreach (var c in LobbyCategories.All)
+            foreach (var l in sorted)
             {
-                if (c.Battle != battles || c.anticheat != anticheat) continue;
-                var card = UiTree.Spawn<Button>(setTemplate, grid);
-                if (card == null) break;
-                cards[c.id] = card;
-                card.SetTransitionDelay(60 + 40 * i++);
-                card.SetText("set-name", OnlineUi.SetName(c.packs));
-                card.Q("set-name").tooltip = OnlineUi.SetTooltip(c.packs);
-                FillLogos(card.Q("set-logos"), c.packs);
-                var problem = OnlineLobby.ContentProblem(c.packs);
-                card.userData = problem;
-                card.tooltip = problem ?? "";
-                var category = c;
-                card.clicked += () =>
-                {
-                    Click();
-                    Join(() => OnlineLobby.QuickJoin(category.id));
-                };
-                card.RegisterCallback<FocusInEvent>(_ => Select(category.id));
-                card.RegisterCallback<PointerEnterEvent>(_ => Select(category.id));
-                first ??= card;
-                if (c.id == selected) current = card;
+                var row = UiTree.Spawn<Button>(instanceTemplate, list);
+                if (row == null) break;
+                FillRow(row, l);
+                row.SetTransitionDelay(40 + 20 * i++);
+                rows.Add(row);
             }
-            if (current == null && first != null) selected = CategoryOf(first);
-            ShowPlayers();
-            Select(selected);
+            if (rows.Count == 0)
+            {
+                var none = new Label(noLobbiesText);
+                none.AddToClassList("onl-none");
+                list.Add(none);
+            }
             SetEnabled(LoggedIn && !busy);
-            var target = current ?? first;
+            var target = LastRow() ?? Q<Button>("create");
             FocusTarget = target;
-            if (focus) FocusLater(target);
+            if (refocus) FocusLater(target);
+            listed |= rows.Count > 0;
         }
 
-        int CategoryOf(VisualElement card)
+        // Position of a lobby's mod set in the category list (equal sets of races and battles share it).
+        static int SetOrder(LobbySummary l)
         {
-            foreach (var pair in cards)
-                if (pair.Value == card) return pair.Key;
-            return selected;
+            var name = OnlineUi.SetName(l.packs);
+            for (var i = 0; i < LobbyCategories.All.Count; i++)
+                if (OnlineUi.SetName(LobbyCategories.All[i].packs) == name) return i;
+            return LobbyCategories.All.Count;
         }
 
-        // The logos of the set's packs, as in the Mods screen.
-        static void FillLogos(VisualElement row, IReadOnlyList<string> packs)
+        void FillRow(Button row, LobbySummary l)
         {
-            row.Clear();
-            var registry = GameRoot.Instance.Content;
-            foreach (var id in packs)
+            row.userData = l;
+            var battle = l.mode == RoomMode.BattleSet;
+            var mode = row.Q("row-mode");
+            mode.SetIcon(battle ? "swords" : "sports_score");
+            mode.tooltip = battle ? "Battles" : "Races";
+            row.SetText("row-instance", "#" + l.instance.ToString(CultureInfo.InvariantCulture));
+            row.SetText("row-set", OnlineUi.SetName(l.packs));
+            row.Q("row-set").tooltip = OnlineUi.SetTooltip(l.packs);
+            OnlineUi.FillLogos(row.Q("row-logos"), l.packs);
+            var ac = row.Q("row-ac");
+            ac.SetIcon(l.anticheat ? "shield" : "remove_moderator");
+            ac.EnableInClassList("off", !l.anticheat);
+            ac.tooltip = l.anticheat ? "Anticheat: players' games check each other's karts, cheaters are removed from the race."
+                : "No anticheat: nobody checks the karts.";
+            row.SetText("row-engine", OnlineUi.EngineClassName(l.engineClass));
+            row.SetText("row-players", l.players.ToString(CultureInfo.InvariantCulture) + "/" + l.maxPlayers.ToString(CultureInfo.InvariantCulture));
+            row.Q("row-fill").style.width = Length.Percent(l.maxPlayers > 0 ? 100f * Mathf.Clamp01((float)l.players / l.maxPlayers) : 0f);
+            var full = l.players >= l.maxPlayers;
+            row.EnableInClassList("full", full);
+            var (icon, phase) = PhaseOf(l.phase);
+            if (l.setRace > 0 && l.phase is LobbyPhase.Loading or LobbyPhase.Countdown or LobbyPhase.Racing or LobbyPhase.Results)
+                phase += string.Format(CultureInfo.InvariantCulture, " \u00b7 race {0}/{1}", l.setRace, l.setSize);
+            row.Q("row-phase-icon").SetIcon(icon);
+            row.SetText("row-phase", phase);
+            row.SetText("row-join", full ? "Full" : "Join");
+            row.tooltip = OnlineLobby.ContentProblem(l.packs) ?? "";
+            row.RegisterCallback<FocusInEvent>(_ => focusedLobby = l.lobbyId);
+            row.clicked += () =>
             {
-                var pack = FindPack(registry, id);
-                var logo = new VisualElement { pickingMode = PickingMode.Ignore, tooltip = UiText.GameName(id) };
-                logo.AddToClassList("onl-set-logo");
-                if (pack != null && pack.logo != null) logo.SetImage(pack.logo);
-                else logo.AddToClassList("onl-set-logo-missing");
-                row.Add(logo);
-            }
-        }
-
-        static ContentPack FindPack(ContentRegistry registry, string id)
-        {
-            foreach (var p in registry.Packs)
-                if (p != null && string.Equals(p.packId, id, StringComparison.OrdinalIgnoreCase)) return p;
-            return null;
-        }
-
-        void Select(int category)
-        {
-            selected = category;
-            foreach (var pair in cards) pair.Value.EnableInClassList("selected", pair.Key == category);
-            ShowInstances();
+                Click();
+                Join(() => OnlineLobby.Join(l));
+            };
         }
 
         async void Refresh(bool click)
@@ -316,61 +317,7 @@ namespace MHK.UI
                 return;
             }
             lobbies = r.value;
-            ShowPlayers();
-            ShowInstances();
-        }
-
-        // Players racing in each category: the live count of the cards.
-        void ShowPlayers()
-        {
-            foreach (var pair in cards)
-            {
-                int players = 0, count = 0;
-                foreach (var l in lobbies)
-                {
-                    if (l.category != pair.Key) continue;
-                    players += l.players;
-                    count++;
-                }
-                var chips = pair.Value.Q("set-chips");
-                chips.Clear();
-                InfoChips.Add(chips, "group", players.ToString(CultureInfo.InvariantCulture),
-                    players == 1 ? "1 player online" : players + " players online", players > 0 ? InfoChipState.On : InfoChipState.Normal);
-                if (count > 1) InfoChips.Add(chips, "stadium", count.ToString(CultureInfo.InvariantCulture), count + " lobbies");
-            }
-        }
-
-        // The lobbies of the selected category: number, players, phase.
-        void ShowInstances()
-        {
-            if (statusLabel == null) return;
-            var list = Q<VisualElement>("inst-list");
-            list.Clear();
-            var problem = cards.TryGetValue(selected, out var card) ? card.userData as string : null;
-            var shown = 0;
-            foreach (var l in lobbies)
-            {
-                if (l.category != selected) continue;
-                var row = UiTree.Spawn<Button>(instanceTemplate, list);
-                if (row == null) break;
-                shown++;
-                row.SetText("inst-name", "#" + l.instance.ToString(CultureInfo.InvariantCulture));
-                var chips = row.Q("inst-chips");
-                InfoChips.Add(chips, "group", l.players.ToString(CultureInfo.InvariantCulture) + "/" + l.maxPlayers.ToString(CultureInfo.InvariantCulture), "Players");
-                var (icon, phase) = PhaseOf(l.phase);
-                InfoChips.Add(chips, icon, phase);
-                row.SetEnabled(problem == null && l.players < l.maxPlayers);
-                var lobby = l;
-                row.clicked += () =>
-                {
-                    Click();
-                    Join(() => OnlineLobby.Join(lobby));
-                };
-            }
-            if (shown > 0) return;
-            var none = new Label(noLobbiesText);
-            none.AddToClassList("onl-none");
-            list.Add(none);
+            FillRows(true);
         }
 
         /// <summary>Icon and short name of a lobby phase.</summary>
