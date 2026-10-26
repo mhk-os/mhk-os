@@ -50,6 +50,12 @@ namespace MHK.Online
             return bytes;
         }
 
+        /// <summary>Starts over, keeping the buffer (datagrams built many times a second).</summary>
+        internal void Clear() => length = 0;
+
+        /// <summary>The internal buffer; the first <see cref="Length"/> bytes are the written ones. Valid until the next write.</summary>
+        internal byte[] RawBuffer => buffer;
+
         /// <summary>Overwrites 4 bytes at <paramref name="offset"/> (a frame's length prefix once the body is known).</summary>
         internal void PatchU32(int offset, uint v)
         {

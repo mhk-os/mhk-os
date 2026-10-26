@@ -55,7 +55,7 @@ namespace MHK.Powerups
         float age, activeAge, closing = -1f;
         int hits;
         Kart lastVictim;
-        float lastHitTime = float.NegativeInfinity;
+        float lastHitAge = float.NegativeInfinity;
         Vector3 baseScale;
         Vector2 footprintCentre, footprintHalfSize;
         bool hasFootprint, footprintMeasured;
@@ -96,9 +96,8 @@ namespace MHK.Powerups
             if (baseScale == Vector3.zero) baseScale = transform.localScale;
         }
 
-        void Update()
+        protected override void Step(float dt)
         {
-            var dt = Time.deltaTime;
             age += dt;
             if (TickClosing(dt) || TickLifetime() || InFlight) return;
             if (loop == null) loop = Effects.EffectLoopSound.Play(gameObject, idleLoop);
@@ -111,7 +110,7 @@ namespace MHK.Powerups
             if (closing < 0f) return false;
             closing += dt;
             transform.localScale = baseScale * Mathf.Clamp01(1f - closing / Mathf.Max(MinCloseTime, closeTime));
-            if (closing >= closeTime) Destroy(gameObject);
+            if (closing >= closeTime) Remove();
             return true;
         }
 
@@ -143,7 +142,7 @@ namespace MHK.Powerups
             {
                 var k = karts[i];
                 if (OwnerImmune(k) || k.Effects.Ghost) continue;
-                if (k == lastVictim && Time.time - lastHitTime < rehitCooldown) continue;
+                if (k == lastVictim && age - lastHitAge < rehitCooldown) continue;
                 if (!InHitArea(k, p)) continue;
                 Trigger(k);
                 if (maxHits > 0 && hits >= maxHits)
@@ -166,16 +165,29 @@ namespace MHK.Powerups
         {
             hits++;
             lastVictim = k;
-            lastHitTime = Time.time;
+            lastHitAge = age;
             var landed = HitKart(k, effect);
             PowerupFx.Spawn(triggerVfx, transform.position, !landed && refusedSound != null ? refusedSound : triggerSound, soundVolume);
+        }
+
+        protected internal override float NetHitReach => HitRadius;
+
+        // Another client saw this hazard hit a racer: it counts here as well, so it is used up alike everywhere.
+        protected internal override void OnNetHit(Kart victim)
+        {
+            if (closing >= 0f || InFlight || (victim == lastVictim && age - lastHitAge < rehitCooldown)) return;
+            hits++;
+            lastVictim = victim;
+            lastHitAge = age;
+            PowerupFx.Spawn(triggerVfx, transform.position, triggerSound, soundVolume);
+            if (maxHits > 0 && hits >= maxHits) UsedUp();
         }
 
         void UsedUp()
         {
             Effects.EffectLoopSound.Stop(ref loop);
             if (closeTime > 0f) closing = 0f;
-            else Destroy(gameObject);
+            else Remove();
         }
 
         void MeasureFootprint()

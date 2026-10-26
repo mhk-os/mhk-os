@@ -17,9 +17,10 @@ namespace MHK.Powerups
     /// (unless it passes through the world) or at the end of its lifetime. It can pierce karts and starts at a held
     /// <see cref="HeldProjectileAim"/> visual when there is one.
     /// </summary>
-    public class StraightProjectile : ProjectileBehaviour
+    public class StraightProjectile : ProjectileBehaviour, INetProjectile
     {
         const float SegmentEpsilon = 1e-8f;
+        const float MinCorrectSpeedSqr = 0.01f;
 
         [Header("Flight")]
         public ProjectileAim aim = ProjectileAim.KartForward;
@@ -86,6 +87,25 @@ namespace MHK.Powerups
         public static Quaternion AimRotation(Kart owner, ProjectileAim aim, Vector3 direction) =>
             Quaternion.LookRotation(direction, aim == ProjectileAim.KartForward ? owner.transform.up : Vector3.up);
 
+        public bool Flying => launched;
+        public Vector3 NetPosition => SimulatedPosition;
+        public Vector3 NetVelocity => direction * speed;
+
+        public void Correct(Vector3 position, Vector3 velocity)
+        {
+            BeginCorrection(position);
+            if (velocity.sqrMagnitude > MinCorrectSpeedSqr) direction = velocity.normalized;
+        }
+
+        protected internal override float NetHitReach => hitRadius;
+
+        protected internal override void OnNetHit(Kart victim)
+        {
+            if (!hitKarts.Add(victim) || piercing) return;
+            PowerupFx.Spawn(hitVfx, victim.transform.position + victim.transform.up * hitVfxHeight, hitSound, soundVolume);
+            Remove();
+        }
+
         protected override void OnLaunch()
         {
             var t = Owner.transform;
@@ -98,6 +118,7 @@ namespace MHK.Powerups
             launched = true;
             StartAtHeldItem();
             PlayLaunch();
+            InterpolatePose();
         }
 
         // The held copy above the shooter's head hides for the item's cooldown while the model glides from it.
@@ -120,10 +141,10 @@ namespace MHK.Powerups
             if (k <= 0f) joining = false;
         }
 
-        void Update()
+        protected override void Step(float dt)
         {
-            var dt = Time.deltaTime;
             if (!launched || TickLifetime(dt, expireVfx)) return;
+            ApplyCorrection();
             Decelerate(dt);
             var from = transform.position;
             var stepLength = speed * dt;
@@ -158,7 +179,7 @@ namespace MHK.Powerups
                 PowerupFx.Spawn(hitVfx, p + k.transform.up * hitVfxHeight, hitSound, soundVolume);
                 if (!piercing)
                 {
-                    Destroy(gameObject);
+                    Remove();
                     return true;
                 }
             }

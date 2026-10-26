@@ -84,6 +84,16 @@ namespace MHK.UI
         [SerializeField, Tooltip("Upload line of a new record while no account is logged in.")]
         string loginHintText = "Log in on the Account screen to post your records online.";
 
+        [Header("Online texts")]
+        [SerializeField, Tooltip("Info line of an online race in a set ({0} = race number, {1} = races in the set).")]
+        string onlineSetFormat = "Online | Race {0} of {1}";
+        [SerializeField, Tooltip("Info line of an online race outside a set.")]
+        string onlineInfo = "Online race";
+        [SerializeField, Tooltip("Button back to the lobby after an online race.")]
+        string backToLobbyText = "Back to lobby";
+        [SerializeField, Tooltip("Note while the server's result has not come (the player left the race or lost it).")]
+        string noResultText = "No result from the server.";
+
         [Header("Timing (seconds)")]
         [SerializeField, Tooltip("Delay before the first result row enters.")]
         float rowsFirstDelay = 0.26f;
@@ -104,21 +114,61 @@ namespace MHK.UI
         // Bumped on every unbind, so an upload finishing later leaves a closed screen alone.
         int bindVersion;
 
+        // Online: back to the lobby on its own once the lobby moved on from the results, but never before the table
+        // could be read (a solo race ended early goes straight back to waiting).
+        bool onlineReturnArmed;
+        float onlineReturnAfter;
+        const float MinOnlineResultsSeconds = 6f;
+
         protected override void Bind()
         {
             var race = Race;
             var session = race.Session;
             var champ = session.mode == GameMode.Championship;
+            var online = race.Online != null;
             var battle = race.Battle != null;
             BindHeader(race, session, champ, battle);
             var rows = Q<VisualElement>("rows");
-            var rowCount = FillResultRows(rows, race, champ, battle);
+            var rowCount = FillResultRows(rows, race, champ || online, battle);
             var afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * rowCount;
             BindChampion(session, champ, afterRows);
             var laps = BindTimeTrial(race.TimeTrial);
             staggered = laps ?? rows;
             if (laps != null) afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * laps.childCount;
-            BindButtons(race, champ && session.HasNextRace, champ, afterRows);
+            if (online) BindOnlineButtons(race, afterRows, rowCount);
+            else BindButtons(race, champ && session.HasNextRace, champ, afterRows);
+            onlineReturnArmed = online;
+            onlineReturnAfter = Time.unscaledTime + MinOnlineResultsSeconds;
+        }
+
+        void Update()
+        {
+            if (!onlineReturnArmed || Race == null || SceneFlow.Busy) return;
+            // The next race was set up meanwhile: it loads by itself.
+            if (OnlineRace.Current != null && OnlineRace.Current != Race.Online)
+            {
+                onlineReturnArmed = false;
+                return;
+            }
+            if (Time.unscaledTime < onlineReturnAfter) return;
+            var lobby = OnlineLobby.Current;
+            if (lobby != null && lobby.Phase is not (LobbyPhase.Waiting or LobbyPhase.Voting)) return;
+            onlineReturnArmed = false;
+            Race.Continue();
+        }
+
+        void BindOnlineButtons(RaceManager race, long afterRows, int rowCount)
+        {
+            Q<Button>("race-again").SetVisible(false);
+            Q<Button>("next-race").SetVisible(false);
+            var menu = Q<Button>("menu");
+            menu.SetVisible(true);
+            var label = menu.Q<Label>(className: "button-label");
+            if (label != null) label.text = backToLobbyText;
+            menu.clicked += () => race.Continue();
+            Q<VisualElement>("buttons").SetTransitionDelay(afterRows + UiAnim.Ms(buttonsDelay));
+            Root.schedule.Execute(() => menu.Focus());
+            if (rowCount == 0) Q<Label>("info").text = noResultText;
         }
 
         protected override void AfterBind() => UiAnim.Stagger(staggered, rowsStep, rowsFirstDelay, "from-left");
@@ -132,13 +182,15 @@ namespace MHK.UI
         void BindHeader(RaceManager race, GameSession session, bool champ, bool battle)
         {
             Q<Label>("title").text = race.Track.DisplayName;
-            Q<Label>("info").text = champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
+            var online = race.Online != null ? race.Online.Setup : null;
+            Q<Label>("info").text = online != null ? online.setSize > 0 ? string.Format(onlineSetFormat, online.setRace, online.setSize) : onlineInfo
+                : champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
             Q<VisualElement>("head-best").SetVisible(!battle);
             Q<VisualElement>("head-status").SetVisible(battle);
-            Q<VisualElement>("head-points").SetVisible(champ);
+            Q<VisualElement>("head-points").SetVisible(champ || online != null);
         }
 
-        int FillResultRows(VisualElement rows, RaceManager race, bool champ, bool battle)
+        int FillResultRows(VisualElement rows, RaceManager race, bool points, bool battle)
         {
             rows.Clear();
             var index = 0;
@@ -146,7 +198,7 @@ namespace MHK.UI
             {
                 var row = UiTree.Spawn<VisualElement>(resultRowTemplate, rows);
                 if (row == null) break;
-                FillResultRow(row, r, champ, battle, UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * index + UiAnim.Ms(pointsPopDelay));
+                FillResultRow(row, r, points, battle, UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * index + UiAnim.Ms(pointsPopDelay));
                 index++;
             }
             return index;
@@ -166,11 +218,12 @@ namespace MHK.UI
             row.SetText("badge-label", r.position.ToString(CultureInfo.InvariantCulture));
             row.SetText("name", r.name);
             ContentDisplay.SetDriver(row, r.characterId, r.kartId);
-            row.SetText("time", UiText.Clock(r.time));
+            var hasTime = r.time > 0f || !r.online;
+            row.SetText("time", hasTime ? UiText.Clock(r.time) : r.status ?? "-");
             var extra = row.Q<Label>("best");
-            extra.text = battle ? (r.survived ? survivorText : outText) : r.bestLap > 0 ? UiText.Clock(r.bestLap) : "";
+            extra.text = battle ? (r.survived ? survivorText : outText) : hasTime && r.status != null ? r.status : r.bestLap > 0 ? UiText.Clock(r.bestLap) : "";
             extra.EnableInClassList("good", battle && r.survived);
-            extra.EnableInClassList("bad", battle && !r.survived);
+            extra.EnableInClassList("bad", (battle && !r.survived) || r.status != null);
             row.Q<VisualElement>("points").SetVisible(champ);
             if (!champ) return;
             var gain = row.Q<Label>("gain");

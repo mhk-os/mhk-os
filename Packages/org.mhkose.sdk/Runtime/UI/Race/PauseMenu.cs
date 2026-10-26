@@ -20,6 +20,16 @@ namespace MHK.UI
                                  "Options button. Empty: no Options button.")]
         MenuFlow options;
 
+        [Header("Online")]
+        [SerializeField, Tooltip("Title of the menu in online races (the race goes on behind it).")]
+        string onlineTitle = "Menu";
+        [SerializeField, Tooltip("Quit button in online races.")]
+        string leaveRaceText = "Leave race";
+        [SerializeField, Tooltip("Question before leaving an online race.")]
+        string leaveRaceQuestion = "Leave the race and the lobby? The race counts as left.";
+        [SerializeField, Tooltip("Confirm button of the leave question.")]
+        string leaveRaceConfirm = "Leave";
+
         VisualElement panel;
         Button continueButton, optionsButton;
         InputAction uiCancel;
@@ -41,7 +51,19 @@ namespace MHK.UI
                 Race.PauseKeyHandler = OnPauseKey;
             }
             else optionsButton.SetVisible(false);
-            Q<Button>("quit").clicked += () => Race.QuitToMenu();
+            var quit = Q<Button>("quit");
+            if (Race.IsOnline) BindOnline(quit);
+            else quit.clicked += () => Race.QuitToMenu();
+        }
+
+        // Online the race cannot stop or restart: the menu covers it, and quitting leaves race and lobby after a question.
+        void BindOnline(Button quit)
+        {
+            Q<Label>("title").text = onlineTitle;
+            Q<Button>("restart").SetVisible(false);
+            var label = quit.Q<Label>(className: "button-label");
+            if (label != null) label.text = leaveRaceText;
+            quit.clicked += () => ConfirmPrompt.Show(panel, leaveRaceQuestion, leaveRaceConfirm, () => Race.QuitToMenu(), () => quit.Focus());
         }
 
         protected override void AfterBind() => ShowPanel(continueButton);

@@ -73,13 +73,20 @@ namespace MHK.Powerups
             Effects.EffectLoopSound.Stop(ref loop);
         }
 
-        void Update()
+        // Growth and following the user are drawn every frame; the field acts in physics steps.
+        void LateUpdate()
+        {
+            if (InFlight) return;
+            if (followOwner && Owner != null) transform.position = Owner.transform.position;
+            transform.localScale = baseScale * Mathf.Clamp01(growTime > 0 ? active / growTime : 1f);
+        }
+
+        protected override void Step(float dt)
         {
             if (InFlight) return;
             if (followOwner && Owner != null) transform.position = Owner.transform.position;
             if (loop == null) loop = Effects.EffectLoopSound.Play(gameObject, idleLoop);
-            active += Time.deltaTime;
-            transform.localScale = baseScale * Mathf.Clamp01(growTime > 0 ? active / growTime : 1f);
+            active += dt;
             if (active > lifetime)
             {
                 Despawn(null, transform.position, expireSound);
@@ -93,30 +100,30 @@ namespace MHK.Powerups
             {
                 var k = karts[i];
                 if (!Affects(k)) continue;
-                var dist = (center - k.transform.position).magnitude;
+                var to = center - k.transform.position;
+                var dist = to.magnitude;
                 if (dist > radius) continue;
+                Pull(k, to, dist);
                 ApplyField(k);
                 if (TryCoreHit(k, dist)) return;
             }
         }
 
-        // The pull is a force, so it runs once per physics step whatever the frame rate.
-        void FixedUpdate()
+        // The pull is an acceleration on karts simulated here.
+        void Pull(Kart k, Vector3 to, float dist)
         {
-            if (gravity <= 0f || !Acting) return;
-            var center = transform.position;
-            var karts = Kart.All;
-            for (var i = 0; i < karts.Count; i++)
-            {
-                var k = karts[i];
-                if (!Affects(k) || k.Effects.Shielded) continue;
-                var to = center - k.transform.position;
-                var dist = to.magnitude;
-                if (dist > radius) continue;
-                var strength = gravity * Mathf.Lerp(CentreGravityFactor, 1f, dist / radius);
-                var dir = new Vector3(to.x, 0, to.z).normalized;
-                k.Physics.Body.AddForce(dir * strength, ForceMode.Acceleration);
-            }
+            if (gravity <= 0f || k.Effects.Shielded || !MovesHere(k)) return;
+            var strength = gravity * Mathf.Lerp(CentreGravityFactor, 1f, dist / radius);
+            var dir = new Vector3(to.x, 0, to.z).normalized;
+            k.Physics.Body.AddForce(dir * strength, ForceMode.Acceleration);
+        }
+
+        protected internal override float NetHitReach => destroyOnCoreHit && coreEffect != null ? coreRadius : 0f;
+
+        // Another client saw a kart reach the core of a field that ends there: it ends here too.
+        protected internal override void OnNetHit(Kart victim)
+        {
+            if (destroyOnCoreHit && coreEffect != null && !InFlight) Remove();
         }
 
         bool Affects(Kart k) => !(k == Owner && (!affectsOwner || OwnerImmune(k))) && !k.Effects.Ghost;
@@ -133,7 +140,7 @@ namespace MHK.Powerups
             if (dist >= coreRadius || coreEffect == null || !coreHit.Add(k)) return false;
             if (KartReactions.Apply(k, coreEffect, Owner, -1f, Usage)) PlaySfx(hitSound, k.transform.position);
             if (!destroyOnCoreHit) return false;
-            Destroy(gameObject);
+            Remove();
             return true;
         }
     }

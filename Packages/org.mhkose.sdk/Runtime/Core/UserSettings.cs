@@ -71,6 +71,11 @@ namespace MHK.Core
         public string onlineServer = "";
         [Tooltip("Upload a new time-trial personal best to the leaderboards right after the race while logged in (Records screen).")]
         public bool autoUploadBests = true;
+        [Tooltip("Driver and kart last chosen in an online lobby (the default loadout of the next lobby).")]
+        public string lastOnlineCharacterId = "";
+        public string lastOnlineKartId = "";
+        [Tooltip("Settings of the last private room the player created (Create room screen).")]
+        public Online.RoomSettings lastRoom = new();
 
         /// <summary>The player's own item odds for tracks of the family <paramref name="family"/> (top-level pack id), null = default odds.</summary>
         public ItemOddsSet ItemOddsFor(string family)

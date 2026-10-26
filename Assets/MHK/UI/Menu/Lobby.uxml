@@ -1,0 +1,123 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- The lobby the player is in. Header: lobby name (title), subtitle (category or room, packs, anticheat) and for private rooms the code box (code, Copy code, Copy link mhkos://join/CODE). Banner: phase icon, phase and its explanation, countdown to the phase end. Members: Templates/LobbyMemberRow.uxml rows in member-list (lob-kick for the room owner and moderators). Side: the player's loadout (portrait, kart, Driver and Kart open the card pages limited to the lobby's content), Ready (private rooms), Vote (while voting), owner controls (Start, Settings), the set (set-line) and the last race's results (result-list, one lob-result-row each). Footer: Leave. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="LobbyMemberRow" src="/Assets/MHK/UI/Menu/Templates/LobbyMemberRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:VisualElement class="lob-header">
+                <ui:Label name="title" text="SmokeRacer's room" class="page-title" />
+                <ui:VisualElement name="code-box" class="panel lob-code-box">
+                    <ui:Label name="code" text="K7QX2M" class="lob-code" />
+                    <ui:Button name="copy-code" tooltip="Copies the room code: friends enter it on the Online page." class="mhk-button small secondary">
+                        <ui:VisualElement class="icon i-content_paste" />
+                        <ui:Label text="Copy code" class="button-label" />
+                    </ui:Button>
+                    <ui:Button name="copy-link" tooltip="Copies the room link: opening it starts the game and joins this room." class="mhk-button small secondary">
+                        <ui:VisualElement class="icon i-person_add" />
+                        <ui:Label text="Copy link" class="button-label" />
+                    </ui:Button>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement class="lob-body">
+                    <ui:VisualElement class="lob-left">
+                        <ui:VisualElement name="banner" class="panel lob-banner">
+                            <ui:VisualElement name="phase-icon" class="icon i-map" />
+                            <ui:VisualElement class="lob-banner-text">
+                                <ui:Label name="phase" text="Vote for the next track" class="lob-phase" />
+                                <ui:Label name="phase-sub" text="Race 2 of 4 | Private room | Anticheat on | MHK 2, MHK 3" class="lob-phase-sub" />
+                            </ui:VisualElement>
+                            <ui:Label name="countdown" text="14" class="lob-countdown" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="members" class="panel list-panel lob-members">
+                            <ui:ScrollView name="member-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                                <ui:VisualElement name="member-list">
+                                    <ui:Instance template="LobbyMemberRow" class="sample-mine sample-owner" />
+                                    <ui:Instance template="LobbyMemberRow" class="sample-ready">
+                                        <ui:AttributeOverrides element-name="lb-name" text="Hank" />
+                                        <ui:AttributeOverrides element-name="lb-country" text="AT" />
+                                        <ui:AttributeOverrides element-name="lob-points" text="22" />
+                                    </ui:Instance>
+                                </ui:VisualElement>
+                            </ui:ScrollView>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="side" class="panel lob-side">
+                        <ui:Label text="YOUR KART" class="lob-side-title" />
+                        <ui:VisualElement class="lob-loadout driver-icons">
+                            <mhk:ContentImage name="driver-portrait" class="driver-icon driver-portrait" image="/Assets/MHK/UI/Samples/character_moorhuhn.png" />
+                            <mhk:ContentImage name="driver-kart" class="driver-icon driver-kart" image="/Assets/MHK/UI/Samples/mhk2.kart_icon.png" />
+                            <ui:VisualElement class="lob-loadout-text">
+                                <ui:Label name="loadout-name" text="Moorhuhn" class="lob-loadout-name" />
+                                <ui:Label name="loadout-kart" text="Red Kart" class="lob-loadout-kart" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="lob-buttons">
+                            <ui:Button name="pick-driver" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-person_add" />
+                                <ui:Label text="Driver" class="button-label" />
+                            </ui:Button>
+                            <ui:Button name="pick-kart" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-sports_motorsports" />
+                                <ui:Label text="Kart" class="button-label" />
+                            </ui:Button>
+                            <ui:Button name="ready" tooltip="Tells the room owner you are ready to race." class="mhk-button small secondary">
+                                <ui:VisualElement name="ready-icon" class="icon i-check" />
+                                <ui:Label name="ready-label" text="Ready" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="lob-buttons">
+                            <ui:Button name="vote" class="mhk-button go">
+                                <ui:VisualElement class="icon i-map" />
+                                <ui:Label name="vote-label" text="Vote" class="button-label" />
+                            </ui:Button>
+                            <ui:Button name="start" class="mhk-button go">
+                                <ui:VisualElement class="icon i-play_arrow" />
+                                <ui:Label name="start-label" text="Start race" class="button-label" />
+                            </ui:Button>
+                            <ui:Button name="room-settings" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-tune" />
+                                <ui:Label text="Settings" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:Label name="results-title" text="LAST RACE" class="lob-side-title" />
+                        <ui:ScrollView name="result-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="lob-results">
+                            <ui:VisualElement name="result-list">
+                                <ui:VisualElement class="lob-result-row mine">
+                                    <ui:Label text="1." class="lob-result-pos" />
+                                    <ui:Label text="SmokeRacer" class="lob-result-name" />
+                                    <ui:Label text="03:01.22" class="lob-result-time" />
+                                    <ui:Label text="+15" class="lob-result-points" />
+                                </ui:VisualElement>
+                                <ui:VisualElement class="lob-result-row alt">
+                                    <ui:Label text="2." class="lob-result-pos" />
+                                    <ui:Label text="Hank" class="lob-result-name" />
+                                    <ui:Label text="03:04.80" class="lob-result-time" />
+                                    <ui:Label text="+12" class="lob-result-points" />
+                                </ui:VisualElement>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:VisualElement name="lob-status" class="onl-status">
+                            <ui:VisualElement class="icon i-error" />
+                            <ui:Label name="lob-status-label" text="Pick a driver and a kart first." class="onl-status-label" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-door_open" />
+                    <ui:Label text="Leave" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Label name="footer-note" text="Lobby #1 | Races: all four games" class="muted" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

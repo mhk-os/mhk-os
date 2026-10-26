@@ -7,7 +7,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Driver choice (Character.uxml): a card per character and the info panel below the showcase. The hovered or
-    /// focused card is described and put on the turntable, picking one goes on to the kart.
+    /// focused card is described and put on the turntable, picking one goes on to the kart. For the online lobby
+    /// (<see cref="LobbyPick.Loadout"/>) it lists the lobby's drivers only.
     /// </summary>
     public class CharacterScreen : CardGridScreen<CharacterDefinition>
     {
@@ -17,7 +18,8 @@ namespace MHK.UI
         VisualElement kartLine, specialThumb, specialSymbol, kartThumb;
         Label specialText, kartText;
 
-        protected override IEnumerable<CharacterDefinition> Items => Content.All<CharacterDefinition>();
+        protected override IEnumerable<CharacterDefinition> Items =>
+            Selection.lobbyPick == LobbyPick.Loadout ? LobbyScreen.LobbyContent<CharacterDefinition>() : Content.All<CharacterDefinition>();
 
         protected override void BindPage()
         {
@@ -35,7 +37,14 @@ namespace MHK.UI
 
         protected override bool IsSelected(CharacterDefinition c) => c == Selection.character;
 
-        protected override void OnShown(CharacterDefinition c) => Flow.ShowOnTurntable(c, MenuSelection.LoadedDefaultKart(c));
+        protected override void OnShown(CharacterDefinition c) => Flow.ShowOnTurntable(c, DefaultKart(c));
+
+        // In the lobby the driver's default kart counts only when it is lobby content.
+        KartDefinition DefaultKart(CharacterDefinition c)
+        {
+            var kart = MenuSelection.LoadedDefaultKart(c);
+            return Selection.lobbyPick != LobbyPick.Loadout || LobbyScreen.LobbyContent<KartDefinition>().Contains(kart) ? kart : null;
+        }
 
         protected override void Describe(CharacterDefinition c)
         {
@@ -44,7 +53,7 @@ namespace MHK.UI
             var specialIcon = special != null ? special.Icon : null;
             specialThumb.SetImage(specialIcon);
             specialSymbol.SetVisible(specialIcon == null);
-            var kart = MenuSelection.LoadedDefaultKart(c);
+            var kart = DefaultKart(c);
             kartLine.SetVisible(kart != null);
             if (kart != null)
             {
@@ -56,8 +65,8 @@ namespace MHK.UI
         protected override void Pick(CharacterDefinition c)
         {
             Selection.character = c;
-            Settings.lastCharacterId = c.Id;
-            Selection.kart = MenuSelection.LoadedDefaultKart(c);
+            if (Selection.lobbyPick != LobbyPick.Loadout) Settings.lastCharacterId = c.Id;
+            Selection.kart = DefaultKart(c);
             Flow.Show<KartScreen>();
         }
     }

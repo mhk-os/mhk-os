@@ -1,0 +1,52 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Private room settings (create a room, or the owner changing them while the room waits). Code fills the room name field and spawns the setting rows (Templates/SettingRow.uxml) into room-rows: mode, one On/Off row per pack (section packs), anticheat, engine class, laps, items, item odds, AI when alone, max players, track pick, races per set or cup. room-status shows why the server refused. save creates the room (label Create room) or saves (Save). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Create room" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="room-panel" class="panel settings-panel room-panel">
+                    <ui:VisualElement class="room-name-row">
+                        <ui:Label text="Room name" class="setting-label" />
+                        <ui:TextField name="room-name" max-length="32" class="acc-input room-name" />
+                    </ui:VisualElement>
+                    <ui:ScrollView name="room-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="room-scroll">
+                        <ui:VisualElement name="room-rows">
+                            <ui:Instance template="SettingRow" class="setting-row">
+                                <ui:AttributeOverrides element-name="setting-label" text="Mode" />
+                                <ui:AttributeOverrides element-name="setting-value-label" text="Race set" />
+                            </ui:Instance>
+                            <ui:Label text="PACKS" class="room-section" />
+                            <ui:Instance template="SettingRow" class="setting-row">
+                                <ui:AttributeOverrides element-name="setting-label" text="Moorhuhn Kart 2" />
+                                <ui:AttributeOverrides element-name="setting-value-label" text="On" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                    </ui:ScrollView>
+                    <ui:VisualElement name="room-status" class="onl-status">
+                        <ui:VisualElement class="icon i-error" />
+                        <ui:Label name="room-status-label" text="Choose at least one pack with tracks." class="onl-status-label" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="save" class="mhk-button big go">
+                    <ui:VisualElement name="save-icon" class="icon i-add" />
+                    <ui:Label name="save-label" text="Create room" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

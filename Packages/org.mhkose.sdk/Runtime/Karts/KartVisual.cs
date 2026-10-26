@@ -124,6 +124,7 @@ namespace MHK.Karts
             model = rig.model;
             animator = rig.driver;
             kartAnimator = rig.kart;
+            if (kart != null && Validation.UnknownContentGuard.IsPlaceholder(kart.Setup)) AddUnknownMarker();
 
             seeThrough = new KartSeeThrough(transform, view, GetComponentsInChildren<Renderer>());
             wheelVisibility = new KartWheelVisibility(model);
@@ -140,6 +141,13 @@ namespace MHK.Karts
             kart.Effects.Ended += OnEffectEnded;
             kart.Respawned += OnRespawned;
             kart.Collided += OnCollided;
+        }
+
+        // Online: a stand-in for a character or kart this game does not have wears the '?' sign (fading with the kart).
+        void AddUnknownMarker()
+        {
+            var prefab = GameRoot.Instance.Config.unknownContentMarker;
+            if (prefab != null) Instantiate(prefab, body, false).name = "Unknown content";
         }
 
         internal bool PlayAction(CharacterAnimRole role, bool hold = false)

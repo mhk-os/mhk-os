@@ -15,6 +15,9 @@ namespace MHK.Core
         public GameObject kartRootPrefab;
         [Tooltip("Physics of karts without their own profile, also the reference kart for the engine classes' top speeds.")]
         public KartPhysicsProfile defaultPhysics;
+        [Tooltip("Online races: sign (Prefabs/UnknownContent/UnknownContentMarker) above a remote kart whose character or " +
+                 "kart is not installed here, so the stand-in driver is not mistaken for someone else's.")]
+        public GameObject unknownContentMarker;
 
         [Header("Loading")]
         [Tooltip("Loading screen (Prefabs/UI/LoadingScreen): spawned once under the GameRoot, SceneFlow shows it while scenes load.")]

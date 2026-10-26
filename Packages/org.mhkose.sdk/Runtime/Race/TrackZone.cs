@@ -91,7 +91,8 @@ namespace MHK.Race
         void OnTriggerEnter(Collider other)
         {
             var kart = Kart.FromCollider(other);
-            if (kart == null) return;
+            // A remote racer meets the zones on its own client.
+            if (kart == null || kart.IsRemote) return;
             switch (kind)
             {
                 case TrackZoneKind.RespawnPoint:
@@ -110,7 +111,7 @@ namespace MHK.Race
         {
             if (kind != TrackZoneKind.Push && kind != TrackZoneKind.Effect) return;
             var kart = Kart.FromCollider(other);
-            if (kart == null || kart.Eliminated) return;
+            if (kart == null || kart.Eliminated || kart.IsRemote) return;
             if (kind == TrackZoneKind.Effect)
             {
                 if (Effect != null && !kart.Effects.Has(Effect)) kart.Effects.Apply(Effect);

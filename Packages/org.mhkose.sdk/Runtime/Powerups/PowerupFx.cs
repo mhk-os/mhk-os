@@ -31,13 +31,17 @@ namespace MHK.Powerups
         public static GameObject Instantiate(GameObject prefab, Vector3 position, Quaternion rotation) =>
             Object.Instantiate(prefab, position, rotation, Root);
 
-        /// <summary>Instantiates a use prefab under <see cref="Root"/> and launches all its behaviours in component order.</summary>
+        /// <summary>
+        /// Instantiates a use prefab under <see cref="Root"/> and launches all its behaviours in component order (online
+        /// they join their use first, <see cref="OnlineItems"/>).
+        /// </summary>
         public static GameObject SpawnAndLaunch(GameObject prefab, Vector3 position, Quaternion rotation, in PowerupContext ctx)
         {
             var go = Instantiate(prefab, position, rotation);
             using (ListPool<PowerupBehaviour>.Get(out var behaviours))
             {
                 go.GetComponents(behaviours);
+                foreach (var b in behaviours) OnlineItems.Track(b, ctx);
                 foreach (var b in behaviours) b.Launch(ctx);
             }
             return go;

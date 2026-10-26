@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing and nothing downloads, the dot on mods (notify-dot: class on, red for an update, downloading blue while something downloads), game-update next to the version when a newer game release exists, quit is hidden on mobile (desktop-only) and in WebGL builds. account (footer) opens the Account page; its label is the online username, or Log in. -->
+    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing and nothing downloads, the dot on mods (notify-dot: class on, red for an update, downloading blue while something downloads), game-update next to the version when a newer game release exists, quit is hidden on mobile (desktop-only) and in WebGL builds. online opens the Online page (which offers the Account page while logged out). account (footer) opens the Account page; its label is the online username, or Log in. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="page" class="title-page">
         <ui:VisualElement class="title-body">
@@ -29,7 +29,11 @@
                         <ui:VisualElement class="icon i-swords"/>
                         <ui:Label text="Battle" class="button-label"/>
                     </ui:Button>
-                    <ui:VisualElement class="title-small anim from-left" style="transition-delay: 440ms;">
+                    <ui:Button name="online" tooltip="Race and battle other players: public lobbies and private rooms." class="mhk-button anim from-left" style="transition-delay: 410ms;">
+                        <ui:VisualElement class="icon i-person_add" />
+                        <ui:Label text="Online" class="button-label" />
+                    </ui:Button>
+                    <ui:VisualElement class="title-small anim from-left" style="transition-delay: 470ms;">
                         <ui:VisualElement class="title-small-row">
                             <ui:Button name="records" class="mhk-button small secondary">
                                 <ui:VisualElement class="icon i-leaderboard"/>

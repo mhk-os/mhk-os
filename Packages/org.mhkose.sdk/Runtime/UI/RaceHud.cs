@@ -55,6 +55,20 @@ namespace MHK.UI
         [SerializeField, Tooltip("Replay plate ({0} = player name, {1} = engine class, {2} = finish time).")]
         string replayFormat = "{0} | {1} | {2}";
 
+        [Header("Online")]
+        [SerializeField, Tooltip("Status while the race waits for the other racers to load.")]
+        string waitingForPlayersText = "Waiting for players...";
+        [SerializeField, Tooltip("Status after the player's finish until the server's result.")]
+        string waitingForResultText = "Waiting for the other racers...";
+        [SerializeField, Tooltip("Warning while no states of the other racers arrive.")]
+        string connectionTroubleText = "Connection trouble";
+        [SerializeField, Tooltip("Solo race prompt when someone wants to join ({0} = their name).")]
+        string joinWaitingFormat = "{0} wants to join";
+        [SerializeField, Tooltip("Button of the solo race prompt.")]
+        string endRaceText = "End race";
+        [SerializeField, Tooltip("Solo race prompt once the player chose to end the race.")]
+        string endingRaceText = "Ending the race...";
+
         const float FinishFlashSeconds = 4f, KartOutFlashSeconds = 2f;
         const float SpeedoHeadroom = 1.4f, SpeedoStepKmh = 10f;
         static readonly Color UnsetOverlay = new(-1f, -1f, -1f, -1f);
@@ -69,6 +83,7 @@ namespace MHK.UI
         Countdown countdown;
         Messages messages;
         TimeTrialView timeTrial;
+        OnlineView online;
 
         BattleRules battle;
         bool widgetsShown, speedoScaled, resultsShown;
@@ -89,6 +104,7 @@ namespace MHK.UI
             countdown = new Countdown(this);
             messages = new Messages(this);
             timeTrial = new TimeTrialView(this);
+            online = new OnlineView(this);
         }
 
         protected override void OnEnable()
@@ -114,6 +130,7 @@ namespace MHK.UI
             countdown.Bind();
             messages.Bind();
             timeTrial.Bind();
+            online.Bind();
             hud.NoPick();
             BindLayout();
 
@@ -164,6 +181,7 @@ namespace MHK.UI
             if (battle != null) battle.KartEliminated -= OnEliminated;
             battle = null;
             timeTrial.Unbind();
+            online.Unbind();
             messages.Unbind();
         }
 
@@ -266,6 +284,7 @@ namespace MHK.UI
             countdown.Tick(dt);
             messages.Tick(dt);
             timeTrial.Tick(race.TimeTrial);
+            online.Tick();
             if (player != null) UpdatePlayer();
             else if (race.TimeTrial != null && race.TimeTrial.Spectated != null) UpdateSpectated(race.TimeTrial.Spectated);
         }

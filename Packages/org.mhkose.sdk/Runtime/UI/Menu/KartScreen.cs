@@ -8,12 +8,15 @@ namespace MHK.UI
     /// <summary>
     /// Kart choice (Kart.uxml): a card per kart and the info panel with the three stat bars below the showcase. The
     /// hovered or focused kart carries the selected driver on the turntable, picking one goes on to the track or cup.
+    /// For the online lobby (<see cref="LobbyPick.Loadout"/>) it lists the lobby's karts and picking one sets the
+    /// player's loadout and returns to the lobby.
     /// </summary>
     public class KartScreen : CardGridScreen<KartDefinition>
     {
         VisualElement speed, acceleration, handling;
 
-        protected override IEnumerable<KartDefinition> Items => Content.All<KartDefinition>();
+        protected override IEnumerable<KartDefinition> Items =>
+            Selection.lobbyPick == LobbyPick.Loadout ? LobbyScreen.LobbyContent<KartDefinition>() : Content.All<KartDefinition>();
 
         protected override void BindPage()
         {
@@ -40,7 +43,8 @@ namespace MHK.UI
         protected override void Pick(KartDefinition k)
         {
             Selection.kart = k;
-            Flow.ShowTrackChoice();
+            if (Selection.lobbyPick == LobbyPick.Loadout) LobbyScreen.ChooseLoadout(Flow, Selection.character, k);
+            else Flow.ShowTrackChoice();
         }
 
         static void SetFill(VisualElement bar, float value) => bar.style.width = Length.Percent(Mathf.Clamp01(value) * 100f);

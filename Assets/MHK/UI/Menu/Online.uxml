@@ -1,0 +1,90 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Online play. Logged out (class onl-logged-out on page): onl-login with the reason and Log in (opens the Account page). Logged in: onl-categories lists the public lobby categories in two groups (Races, Battles; Templates/OnlineCategoryRow.uxml rows, code fills cat-list), the side panel the lobbies of the selected category (Templates/OnlineInstanceRow.uxml rows in inst-list) with side-title / side-sub, and the room code field with Join. onl-status shows content warnings (packs that differ from other players') and errors (class good for a success). Footer: Back, Refresh, Create room. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="OnlineCategoryRow" src="/Assets/MHK/UI/Menu/Templates/OnlineCategoryRow.uxml" />
+    <ui:Template name="OnlineInstanceRow" src="/Assets/MHK/UI/Menu/Templates/OnlineInstanceRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Online" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement name="onl-login" class="panel onl-login">
+                    <ui:VisualElement class="icon i-cloud_off lb-state-icon" />
+                    <ui:Label name="onl-login-label" text="Log in to race other players online." class="onl-login-label" />
+                    <ui:Button name="login" class="mhk-button go">
+                        <ui:VisualElement class="icon i-login" />
+                        <ui:Label text="Log in" class="button-label" />
+                    </ui:Button>
+                </ui:VisualElement>
+                <ui:VisualElement name="onl-browser" class="onl-browser">
+                    <ui:VisualElement name="categories" class="panel list-panel onl-categories">
+                        <ui:ScrollView name="cat-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                            <ui:VisualElement name="cat-list">
+                                <ui:Label text="RACES" class="onl-group-title" />
+                                <ui:Instance template="OnlineCategoryRow" class="sample-selected" />
+                                <ui:Instance template="OnlineCategoryRow">
+                                    <ui:AttributeOverrides element-name="cat-players" text="3 racing" />
+                                </ui:Instance>
+                                <ui:Label text="BATTLES" class="onl-group-title" />
+                                <ui:Instance template="OnlineCategoryRow">
+                                    <ui:AttributeOverrides element-name="cat-name" text="Battles: all four games" />
+                                    <ui:AttributeOverrides element-name="cat-players" text="Empty" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:VisualElement name="onl-status" class="onl-status">
+                            <ui:VisualElement name="onl-status-icon" class="icon i-warning" />
+                            <ui:Label name="onl-status-label" text="Your copy of tincan differs from other players'. Anticheat lobbies with it are closed to you." class="onl-status-label" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="side" class="panel onl-side">
+                        <ui:Label name="side-title" text="Races: all four games" class="onl-side-title" />
+                        <ui:Label name="side-sub" text="150cc, track laps, standard items. Sets of 4 races: vote for the next track." class="onl-side-sub" />
+                        <ui:ScrollView name="inst-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll onl-instances">
+                            <ui:VisualElement name="inst-list">
+                                <ui:Instance template="OnlineInstanceRow" />
+                                <ui:Instance template="OnlineInstanceRow">
+                                    <ui:AttributeOverrides element-name="inst-name" text="Lobby #2" />
+                                    <ui:AttributeOverrides element-name="inst-players" text="0 / 10" />
+                                    <ui:AttributeOverrides element-name="inst-phase" text="Waiting" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:Label text="PRIVATE ROOM" class="lob-side-title" />
+                        <ui:VisualElement class="onl-join-row">
+                            <ui:TextField name="code" max-length="8" tooltip="The 6-character code of a private room (Copy code in its lobby)." class="acc-input onl-code" />
+                            <ui:Button name="join-code" class="mhk-button small go">
+                                <ui:VisualElement class="icon i-login" />
+                                <ui:Label text="Join" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+                <ui:Button name="account" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-account_circle" />
+                    <ui:Label name="account-label" text="SmokeRacer" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="refresh" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-sync" />
+                    <ui:Label text="Refresh" class="button-label" />
+                </ui:Button>
+                <ui:Button name="create" class="mhk-button go">
+                    <ui:VisualElement class="icon i-add" />
+                    <ui:Label text="Create room" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

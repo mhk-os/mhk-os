@@ -151,6 +151,14 @@ namespace MHK.Race
         IEnumerator Start()
         {
             if (!IsAttract) EnsureSession();
+            if (!BindOnline())
+            {
+                // Not an error: the online race ended (left the lobby, connection lost) before this scene started.
+                Debug.LogWarning("[Race] The online race ended before it loaded; back to the online menu.");
+                LoadFailed = true;
+                PrepareOnlineMenu();
+                yield break;
+            }
             Track = GameRoot.Instance.Content.Get<TrackDefinition>(Session.CurrentTrackId);
             if (Track == null || !Track.scene.IsSet)
             {
@@ -171,10 +179,18 @@ namespace MHK.Race
             yield return null; // let colliders settle before placing karts
             yield return SpawnKarts();
             AttachModeRules();
+            AttachOnline();
             yield return WaitForGhosts();
             Debug.Log($"[Race] {Track.Id}: track scene {trackLoaded - loadStart:0.00} s, karts and ghosts {Time.realtimeSinceStartup - trackLoaded:0.00} s.");
             if (!IsAttract) MusicPlayer.PlayTrack(Track);
 
+            if (IsOnline)
+            {
+                // Ended while loading (connection lost, lobby gone): the loading screen goes, Update returns to the lobby.
+                if (Online == null) Phase = RacePhase.Intro;
+                else yield return RunOnlineStart();
+                yield break;
+            }
             yield return RunIntro();
             yield return RunCountdown();
             StartRacing();
@@ -219,6 +235,16 @@ namespace MHK.Race
         {
             Debug.LogError(message);
             LoadFailed = true;
+            if (!IsOnline) return;
+            // The server takes the racer out after its load timeout; here the race's UDP seat and overrides end now.
+            if (MHK.Online.OnlineRace.Current != null) MHK.Online.OnlineRace.Current.End();
+            PrepareOnlineMenu();
+        }
+
+        // A failed load returns to the main menu (SceneFlow): online it opens on the lobby, or the online page once out of it.
+        static void PrepareOnlineMenu()
+        {
+            UI.MenuFlow.OpenOnStart = MHK.Online.OnlineLobby.InLobby ? typeof(UI.LobbyScreen) : typeof(UI.OnlineScreen);
         }
 
         IEnumerator LoadTrack()
@@ -327,13 +353,15 @@ namespace MHK.Race
             {
                 k.ControlsEnabled = true;
                 k.Progress.StartClock();
-                powerStart.Apply(k, cfg);
+                // A remote racer's start is its own client's business.
+                if (!k.IsRemote) powerStart.Apply(k, cfg);
             }
             if (TimeTrial != null) TimeTrial.OnGo();
         }
 
         void FixedUpdate()
         {
+            StepOnlineStart();
             if (ClockRunning) RaceTicks++;
         }
 
@@ -341,12 +369,19 @@ namespace MHK.Race
         {
             var kart = p.GetComponent<Kart>();
             finishCounter++;
+            // Races only: in battles an elimination also "finishes" a kart; a solo battle reports at the round's end.
+            if (Online != null && Battle == null && kart == LocalPlayer && !Online.LocalLeft) Online.SendFinished(p, finishCounter);
             KartFinished?.Invoke(kart);
             if (Battle != null || !kart.IsHuman) return;
             HandToAi(kart, kart.RacerIndex + 100);
             kart.Celebrate(finishCounter <= 3);
             if (kart == LocalPlayer && chaseCamera != null) chaseCamera.CurrentMode = ChaseCamera.Mode.Finished;
-            if (karts.Where(k => k.IsHuman).All(k => k.Progress.Finished))
+            // Online races end with the server's result, shown once the finish had its moment.
+            if (IsOnline)
+            {
+                if (kart == LocalPlayer) finishTimer = GameRoot.Instance.Config.finishGraceSeconds;
+            }
+            else if (karts.Where(k => k.IsHuman).All(k => k.Progress.Finished))
                 finishTimer = GameRoot.Instance.Config.finishGraceSeconds;
         }
 
@@ -354,7 +389,38 @@ namespace MHK.Race
         {
             if (Phase is RacePhase.Countdown or RacePhase.Racing or RacePhase.Finished) UpdateRanking();
             HandlePause();
+            if (IsOnline)
+            {
+                UpdateOnline();
+                return;
+            }
             if (Phase == RacePhase.Racing && RaceOver()) EndRace();
+        }
+
+        void UpdateOnline()
+        {
+            if (Online == null)
+            {
+                // The online race ended while this scene loaded or ran (connection lost, lobby gone): back to the lobby.
+                if (Phase != RacePhase.Results && Phase != RacePhase.Loading && !SceneFlow.Busy && !abandoned)
+                {
+                    abandoned = true;
+                    SetPaused(false);
+                    MHK.Online.OnlineLobby.ReturnToLobby();
+                }
+                return;
+            }
+            if (finishTimer > 0f) finishTimer -= Time.unscaledDeltaTime;
+            // A solo battle against AI ends here (the server knows no AI): the place when the round is over.
+            if (Battle != null && Online.Solo && Phase == RacePhase.Racing && !soloBattleReported && Battle.TickRoundEnd(Time.deltaTime))
+            {
+                soloBattleReported = true;
+                UpdateRanking();
+                if (LocalPlayer != null) Online.SendFinished(LocalPlayer.Progress, LocalPlayer.Progress.Position);
+            }
+            // The result may come before GO too (taken out while loading, a solo race ended early).
+            if (Online.Results != null && finishTimer <= 0f && Phase is RacePhase.Intro or RacePhase.Countdown or RacePhase.Racing)
+                EndRace();
         }
 
         bool RaceOver()
@@ -404,8 +470,13 @@ namespace MHK.Race
         {
             if (Paused == paused) return;
             Paused = paused;
-            Time.timeScale = paused ? 0f : playbackSpeed;
-            AudioListener.pause = paused;
+            // Online the race goes on for everybody: the menu only covers it.
+            if (IsOnline) HoldLocalInput(paused);
+            else
+            {
+                Time.timeScale = paused ? 0f : playbackSpeed;
+                AudioListener.pause = paused;
+            }
             PauseChanged?.Invoke(paused);
         }
 
@@ -431,37 +502,57 @@ namespace MHK.Race
 
         void UpdateRanking() => ranking.Update(karts, Battle);
 
+        /// <summary>Takes a kart out of the race (an online racer that left): no longer ranked or shown.</summary>
+        internal void RemoveKart(Kart kart)
+        {
+            if (!karts.Remove(kart)) return;
+            UpdateRanking();
+        }
+
         void EndRace()
         {
             Phase = RacePhase.Finished;
-            if (Battle == null) RaceResultsBuilder.EstimateUnfinished(karts, ranking.Order, TrackRuntime.path.Length, Laps);
+            if (Battle == null && (Online == null || Online.Solo))
+                RaceResultsBuilder.EstimateUnfinished(karts, ranking.Order, TrackRuntime.path.Length, Laps);
             UpdateRanking();
             foreach (var k in karts) k.Progress.StopClock();
             if (TimeTrial != null) TimeTrial.Complete();
-            RaceResultsBuilder.Build(this, ranking.Order, Results);
+            if (Online != null)
+            {
+                Online.LogStats();
+                RaceResultsBuilder.BuildOnline(this, ranking.Order, Online, Results);
+            }
+            else RaceResultsBuilder.Build(this, ranking.Order, Results);
             Phase = RacePhase.Results;
             ResultsReady?.Invoke();
         }
 
-        /// <summary>Called by the results UI: next race of the cup, else back to the menu.</summary>
+        /// <summary>Called by the results UI: next race of the cup, else back to the menu (online: back to the lobby).</summary>
         public void Continue()
         {
             SetPaused(false);
-            if (Session.mode == GameMode.Championship && Session.HasNextRace) SceneFlow.NextRace();
+            if (IsOnline) ReturnToLobby();
+            else if (Session.mode == GameMode.Championship && Session.HasNextRace) SceneFlow.NextRace();
             else SceneFlow.GoToMenu();
         }
 
-        /// <summary>Runs this race again, taking back the points and time it awarded.</summary>
+        /// <summary>Runs this race again, taking back the points and time it awarded. Not online (the server starts races).</summary>
         public void Restart()
         {
-            if (SceneFlow.Busy) return; // already leaving (a second click must not take the points again)
+            if (SceneFlow.Busy || IsOnline) return; // already leaving (a second click must not take the points again)
             SetPaused(false);
             foreach (var r in Results) r.Rollback();
             SceneFlow.RestartRace();
         }
 
+        /// <summary>Back to the main menu; online it leaves the race and the lobby (<see cref="LeaveOnline"/>).</summary>
         public void QuitToMenu()
         {
+            if (IsOnline)
+            {
+                LeaveOnline();
+                return;
+            }
             SetPaused(false);
             SceneFlow.GoToMenu();
         }

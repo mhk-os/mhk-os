@@ -60,7 +60,8 @@ namespace MHK.UI
             public void Refresh(PowerupInventory inventory)
             {
                 var held = inventory.Held;
-                var state = held == null ? Empty : inventory.Rolling ? Rolling : Held;
+                // Online the roulette spins before the server granted an item (nothing held yet).
+                var state = inventory.Rolling ? Rolling : held == null ? Empty : Held;
                 if (state != shownState) OnStateChanged(shownState, state);
                 if (state == Empty)
                 {

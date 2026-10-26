@@ -28,6 +28,8 @@ namespace MHK.Powerups
         const float UpLossBeside = 0.45f;
         const float TumbleRoll = 3f;
         const float SideBurstShare = 0.5f;
+        // A remote digger's states list the tunnel effect within this time (s); without it afterwards it has surfaced.
+        const float RemoteSurfaceGrace = 0.5f;
 
         [Header("Dig")]
         [Tooltip("Distance travelled underground (m).")]
@@ -155,16 +157,18 @@ namespace MHK.Powerups
             EndDig();
         }
 
-        void FixedUpdate()
+        // Moves its owner through the physics step: a remote use cannot be caught up step by step.
+        protected internal override bool FastForwards => false;
+
+        protected override void Step(float dt)
         {
             if (Owner == null) { if (phase != Phase.Done) EndDig(); return; }
-            var dt = Time.fixedDeltaTime;
             phaseTime += dt;
             switch (phase)
             {
                 case Phase.Waiting:
                     if (Owner.Physics.IsGrounded && TryBeginDig()) break;
-                    if (phaseTime > waitForGround) Destroy(gameObject);
+                    if (phaseTime > waitForGround) Remove();
                     break;
                 case Phase.Digging:
                     Dig(dt);
@@ -234,8 +238,11 @@ namespace MHK.Powerups
 
         void Suspend()
         {
-            Owner.Physics.Suspended = true;
-            Owner.Physics.Body.detectCollisions = false;
+            if (MovesHere(Owner))
+            {
+                Owner.Physics.Suspended = true;
+                Owner.Physics.Body.detectCollisions = false;
+            }
             if (tunnelEffect != null) Owner.Effects.Apply(tunnelEffect, Owner, -1f, Usage);
             visualRoot = Owner.Visual != null ? Owner.Visual.transform : null;
         }
@@ -255,6 +262,11 @@ namespace MHK.Powerups
 
         void Dig(float dt)
         {
+            if (!MovesHere(Owner))
+            {
+                FollowRemoteOwner(dt);
+                return;
+            }
             var target = TargetSpeed();
             var accel = Mathf.Max(MinTime, target - entrySpeed) / Mathf.Max(MinTime, accelerationTime);
             speed = Mathf.MoveTowards(speed, target, accel * dt);
@@ -283,6 +295,27 @@ namespace MHK.Powerups
             if (ended && phaseTime >= sinkTime) Surface(pose);
         }
 
+        // A remote racer digs on its own client: here the mound follows its stand-in, which its states move underground.
+        // It surfaces after the dig distance or once those states no longer list the tunnel effect.
+        void FollowRemoteOwner(float dt)
+        {
+            var kt = Owner.transform;
+            var pose = new Pose(kt.position - kt.up * rideHeight, kt.rotation);
+            var moved = pose.position - tunnel.Ground;
+            moved.y = 0f;
+            travelled += moved.magnitude;
+            tunnel.SetHead(pose);
+            if (mound != null)
+            {
+                if (mound.NeedsCapture(tunnel.Ground)) mound.Capture(CaptureArea(), tunnel.Heading);
+                mound.MoveHead(tunnel.Ground, tunnel.Normal, tunnel.Forward);
+            }
+            dirt.Dig(tunnel.Ground, tunnel.Normal, tunnel.Forward, Mathf.Max(0f, Owner.Physics.ForwardSpeed), dt);
+            if (phaseTime > LaunchGrace) LaunchKartsAtHead();
+            var surfaced = tunnelEffect != null && phaseTime > RemoteSurfaceGrace && !Owner.Effects.Has(tunnelEffect);
+            if ((travelled >= digDistance - 1e-3f || surfaced) && phaseTime >= sinkTime) Surface(pose);
+        }
+
         void DriveBodyTo(Pose pose, float dt)
         {
             var body = Owner.Physics.Body;
@@ -295,7 +328,7 @@ namespace MHK.Powerups
         void Surface(Pose head)
         {
             var pose = tunnel.SurfacePose(head, Owner.Physics.Chassis, rideHeight);
-            PlaceOwnerAt(pose);
+            if (MovesHere(Owner)) PlaceOwnerAt(pose);
             RestoreOwner();
             tunnel.SetHead(pose);
             if (mound != null)
@@ -327,8 +360,11 @@ namespace MHK.Powerups
         {
             Effects.EffectLoopSound.Stop(ref loop);
             if (Owner == null) return;
-            Owner.Physics.Suspended = false;
-            Owner.Physics.Body.detectCollisions = true;
+            if (MovesHere(Owner))
+            {
+                Owner.Physics.Suspended = false;
+                Owner.Physics.Body.detectCollisions = true;
+            }
             if (tunnelEffect != null) Owner.Effects.Remove(tunnelEffect);
             Hide(false);
         }
@@ -392,9 +428,12 @@ namespace MHK.Powerups
             var sideways = dist > CentreDistance ? Mathf.Clamp01(Mathf.Abs(side) / Mathf.Max(MinSideDistance, dist)) * Mathf.Clamp01(dist / (hitRadius * 0.5f)) : 0f;
             var sign = side >= 0f ? 1f : -1f;
             var v = normal * (launchUp * (1f - UpLossBeside * sideways)) + right * (sign * launchSide * sideways) + forward * launchForward;
-            var rb = k.Physics.Body;
-            rb.linearVelocity = new Vector3(rb.linearVelocity.x, Mathf.Max(0f, rb.linearVelocity.y), rb.linearVelocity.z) + v;
-            rb.angularVelocity += forward * (-sign * TumbleRoll * sideways);
+            if (MovesHere(k))
+            {
+                var rb = k.Physics.Body;
+                rb.linearVelocity = new Vector3(rb.linearVelocity.x, Mathf.Max(0f, rb.linearVelocity.y), rb.linearVelocity.z) + v;
+                rb.angularVelocity += forward * (-sign * TumbleRoll * sideways);
+            }
             PlaySfx(hitSound, k.transform.position);
             dirt.Burst(tunnel.Ground, normal, forward, SideBurstShare);
         }

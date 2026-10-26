@@ -82,6 +82,7 @@ namespace MHK.Powerups
             flying = true;
             PlaySfx(launchSound, start);
             loop = Effects.EffectLoopSound.Play(gameObject, flightLoop);
+            InterpolatePose();
         }
 
         void ResolveTarget()
@@ -131,14 +132,19 @@ namespace MHK.Powerups
             return Vector3.Dot(position - path.GetPoint(d), side);
         }
 
-        void Update()
+        protected override void Step(float dt)
         {
             if (!flying) return;
-            t += Time.deltaTime;
+            t += dt;
             var s = Mathf.Clamp01(t / duration);
             transform.position = Vector3.Lerp(start, target, s) + Vector3.up * (apex * 4f * s * (1f - s));
-            if (flightVisual != null) flightVisual.transform.Rotate(tumble * Time.deltaTime, Space.Self);
             if (s >= 1f) Land();
+        }
+
+        // The tumble is visual only: it follows frame time.
+        void Update()
+        {
+            if (flying && flightVisual != null) flightVisual.transform.Rotate(tumble * Time.deltaTime, Space.Self);
         }
 
         void Land()

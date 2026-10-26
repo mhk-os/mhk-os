@@ -94,7 +94,8 @@ namespace MHK.Race
         bool Victim(Collider other, out Kart kart, out StatusEffectDefinition def)
         {
             kart = Kart.FromCollider(other);
-            def = kart == null || kart.Eliminated || kart.Effects.Ghost ? null : Effect;
+            // A remote racer is hit by hazards on its own client (its state shows the effect).
+            def = kart == null || kart.IsRemote || kart.Eliminated || kart.Effects.Ghost ? null : Effect;
             return def != null && !kart.Effects.Has(def) && !kart.Effects.HasRespawnPending;
         }
 

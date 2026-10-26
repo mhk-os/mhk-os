@@ -8,7 +8,7 @@ using Application = UnityEngine.Device.Application;
 namespace MHK.UI
 {
     /// <summary>
-    /// Title screen (Title.uxml): logo, the built-in mods download while they are missing, the game modes, records / mods
+    /// Title screen (Title.uxml): logo, the built-in mods download while they are missing, the game modes, Online, records / mods
     /// (dot for updates and downloads) / options / music / quit, the short commit of the build, the game update link and
     /// the online account (username or Log in).
     /// </summary>
@@ -65,6 +65,7 @@ namespace MHK.UI
                 Selection.opponents = Mathf.Max(1, Selection.opponents);
                 StartMode(GameMode.Battle);
             });
+            OnClick("online", () => Flow.Show<OnlineScreen>());
             OnClick("records", () => Flow.Show<RecordsScreen>());
             OnClick("mods", () => Flow.Show<ModsScreen>());
             OnClick("options", () => Flow.Show<OptionsScreen>());
@@ -97,6 +98,7 @@ namespace MHK.UI
         void StartMode(GameMode mode)
         {
             Selection.mode = mode;
+            Selection.lobbyPick = LobbyPick.None;
             Flow.Show<CharacterScreen>();
         }
     }

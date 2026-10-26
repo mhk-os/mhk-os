@@ -12,7 +12,7 @@ namespace MHK.Powerups
     /// are not solid for it.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public class PhysicsBallPowerup : PowerupBehaviour
+    public class PhysicsBallPowerup : PowerupBehaviour, INetProjectile
     {
         const float OriginalDamping = 3.1f;
         const float ReleaseBackoff = 0.05f;
@@ -21,6 +21,8 @@ namespace MHK.Powerups
         const float MinGroundNormalY = 0.5f;
         const float BounceSoundInterval = 0.1f;
         const float SegmentEpsilon = 1e-8f;
+        // Share of an online position correction applied per step.
+        const float CorrectionShare = 0.2f;
 
         public float throwSpeed = 80f;
         [Tooltip("Gap (m) between the thrower's chassis and the ball's surface where it is released, in front (or behind " +
@@ -61,6 +63,30 @@ namespace MHK.Powerups
         bool done;
         float lastBounceTime = -1f;
         Effects.EffectLoopSound loop;
+        Vector3 correction;
+
+        public bool Flying => body != null && !done && !body.isKinematic;
+        public Vector3 NetPosition => body != null ? body.position : transform.position;
+        public Vector3 NetVelocity => body != null ? body.linearVelocity : Vector3.zero;
+
+        public void Correct(Vector3 position, Vector3 velocity)
+        {
+            if (!Flying) return;
+            correction = position - body.position;
+            body.linearVelocity = velocity;
+        }
+
+        // A rigidbody moves through the physics step: a remote use cannot be caught up step by step.
+        protected internal override bool FastForwards => false;
+
+        protected internal override float NetHitReach => hitRadius + radius;
+
+        protected internal override void OnNetHit(Kart victim)
+        {
+            if (done) return;
+            done = true;
+            Despawn(hitVfx, NetPosition, hitSound);
+        }
 
         protected override void OnLaunch()
         {
@@ -103,16 +129,18 @@ namespace MHK.Powerups
             return origin + dir * distance;
         }
 
-        void FixedUpdate()
+        protected override void Step(float dt)
         {
             if (body == null || done) return;
-            timer += Time.fixedDeltaTime;
+            timer += dt;
             if (timer > timeout || TrackRuntime.IsBelowKillHeight(body.position))
             {
                 Dissolve();
                 return;
             }
-            if (body.isKinematic) return;
+            CheckHits();
+            if (done || body.isKinematic) return;
+            ApplyBodyCorrection();
             PreventTunnelling();
             if (timer > moveTime) Damp();
             // The original freezes the body 3 s after the damping starts. Here only once it lies on the ground,
@@ -159,10 +187,10 @@ namespace MHK.Powerups
         bool OnGround() =>
             ItemPhysics.Raycast(body.position, Vector3.down, radius + GroundProbeExtra, out var hit, mask) && hit.normal.y > MinGroundNormalY;
 
-        void Update()
+        // Along the path the ball moved since the last step, so a fast ball cannot skip past a kart.
+        void CheckHits()
         {
-            if (body == null || done) return;
-            var p = transform.position;
+            var p = body.position;
             var r2 = hitRadius * hitRadius;
             var karts = Kart.All;
             for (var i = 0; i < karts.Count; i++)
@@ -172,6 +200,16 @@ namespace MHK.Powerups
                 if (TryHit(k, p)) return;
             }
             sweptFrom = p;
+        }
+
+        void ApplyBodyCorrection()
+        {
+            if (correction == Vector3.zero) return;
+            var move = correction * CorrectionShare;
+            body.position += move;
+            lastPosition += move;
+            correction -= move;
+            if (correction.sqrMagnitude < 1e-6f) correction = Vector3.zero;
         }
 
         bool TryHit(Kart k, Vector3 at)

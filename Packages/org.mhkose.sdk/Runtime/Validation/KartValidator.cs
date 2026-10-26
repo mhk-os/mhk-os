@@ -171,9 +171,25 @@ namespace MHK.Validation
 
         /// <summary>Seconds of recorded time between two re-simulation windows (more ghosts, fewer windows each).</summary>
         public float ResimInterval { get; set; } = 3f;
+        /// <summary>
+        /// Samples come from a live online race (<see cref="LiveValidation"/>): every few ticks with occasional gaps, and
+        /// items move karts in ways the validator does not model. Each detection is raised through <see cref="Found"/>
+        /// again while it lasts (the caller counts strikes), one sample adds at most <see cref="LiveSustainStep"/> to the
+        /// timers that require a state to last, steps over several ticks are compared with their mean velocity, wall
+        /// crossings are only looked for across short steps (<see cref="LiveCrossingMaxTicks"/>), and the data and wall
+        /// checks pause while a status effect is active. Off (ghosts): each reason is reported once.
+        /// </summary>
+        public bool Live { get; set; }
+        /// <summary>Seconds one live sample adds at most to the sustain timers (speed, chassis penetration).</summary>
+        public const float LiveSustainStep = 0.1f;
+        /// <summary>
+        /// Live: a wall crossing is only looked for between chassis positions at most this many ticks apart; across lost
+        /// states the straight chord of a curve cuts through walls the kart drove around.
+        /// </summary>
+        public const int LiveCrossingMaxTicks = 8;
         /// <summary>Every problem found, at most one per reason, in the order found.</summary>
         public IReadOnlyList<Violation> Violations => violations;
-        /// <summary>Raised for each new entry of <see cref="Violations"/>.</summary>
+        /// <summary>Raised for each new entry of <see cref="Violations"/>, in <see cref="Live"/> mode for every detection.</summary>
         public event Action<Violation> Found;
         public ValidationMargins Margins => margins;
         /// <summary>Tick of the latest sample, -1 before the first.</summary>
@@ -268,11 +284,15 @@ namespace MHK.Validation
         void CheckData(in KartSample s, float dt, bool cut)
         {
             var exempt = cut || Recent(lastPush, s.tick, ExemptSeconds) || Recent(lastMover, s.tick, ExemptSeconds)
-                         || Recent(lastMovesKart, s.tick, ExemptSeconds) || Recent(lastCut, prev.tick, 0f);
+                         || Recent(lastMovesKart, s.tick, ExemptSeconds) || Recent(lastCut, prev.tick, 0f)
+                         || (Live && Recent(lastEffect, s.tick, ExemptSeconds));
             var bad = false;
             if (!exempt)
             {
-                var err = ((s.position - prev.position) / dt - prev.velocity).magnitude;
+                var moved = (s.position - prev.position) / dt;
+                var err = (moved - prev.velocity).magnitude;
+                // Live samples span several ticks: the kart moved with every velocity in between, roughly their mean.
+                if (Live && s.tick - prev.tick > 1) err = Mathf.Min(err, (moved - 0.5f * (prev.velocity + s.velocity)).magnitude);
                 bad = err > Mathf.Max(DataMinError, DataRelativeError * prev.velocity.magnitude);
             }
             if (dataCount == DataWindow)
@@ -314,7 +334,7 @@ namespace MHK.Validation
             var speed = s.velocity.magnitude;
             if (speed > allowed)
             {
-                speedOver += dt;
+                speedOver += Live ? Mathf.Min(dt, LiveSustainStep) : dt;
                 if (speedOver >= SpeedSustainSeconds)
                     Report(FlagReason.Speed, s.tick, $"{speed:0.0} m/s, at most {allowed:0.0} m/s possible");
                 return;
@@ -378,7 +398,8 @@ namespace MHK.Validation
         // Wall clip: the chassis deep inside static geometry for a while, or its centre passed a wall face and stayed behind it.
         void CheckWalls(in KartSample s, Vector3 centre, bool cut, float dt)
         {
-            var exempt = cut || Recent(lastMover, s.tick, ExemptSeconds) || Recent(lastBridge, s.tick, ExemptSeconds) || Recent(lastCut, s.tick, ExemptSeconds);
+            var exempt = cut || Recent(lastMover, s.tick, ExemptSeconds) || Recent(lastBridge, s.tick, ExemptSeconds) || Recent(lastCut, s.tick, ExemptSeconds)
+                         || (Live && Recent(lastEffect, s.tick, ExemptSeconds));
             if (exempt)
             {
                 penetrationTime = 0f;
@@ -388,7 +409,7 @@ namespace MHK.Validation
             var depth = track.ChassisPenetration(s.position, s.rotation, spec);
             if (depth > PenetrationDepth)
             {
-                penetrationTime += dt;
+                penetrationTime += Live ? Mathf.Min(dt, LiveSustainStep) : dt;
                 if (penetrationTime >= PenetrationSeconds) Report(FlagReason.WallClip, s.tick, $"chassis {depth:0.00} m inside the track geometry");
             }
             else penetrationTime = 0f;
@@ -406,6 +427,7 @@ namespace MHK.Validation
                 crossing = false;
             }
             if (!lastQueryValid || (centre - lastQueryCentre).sqrMagnitude > CrossingMaxStep * CrossingMaxStep) return;
+            if (Live && s.tick - lastQueryTick > LiveCrossingMaxTicks) return;
             if (!track.WallBetween(lastQueryCentre, centre, WallMaxNormalY, out var hit)) return;
             crossing = true;
             crossPoint = hit.point;
@@ -629,9 +651,10 @@ namespace MHK.Validation
 
         void Report(FlagReason reason, int atTick, string detail)
         {
-            if (!reported.Add(reason)) return;
+            var first = reported.Add(reason);
+            if (!first && !Live) return;
             var v = new Violation(reason, atTick, atTick * tick, detail);
-            violations.Add(v);
+            if (first) violations.Add(v);
             Found?.Invoke(v);
         }
     }
