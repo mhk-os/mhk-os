@@ -21,6 +21,10 @@
 *.unitypackage.meta
 crashlytics-build.properties
 
+# Android signing keys (CI writes the release keystore into the project folder; never commit one)
+*.keystore
+*.jks
+
 # Local symlinks: private workspace (notes, archives, extracted originals) and the original games
 /work
 /originals

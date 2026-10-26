@@ -13,8 +13,9 @@ namespace MHK.Editor.Build
     /// <summary>
     /// Player builds of the release targets (CI and local). Command line: <c>-executeMethod MHK.Editor.Build.CiBuild.Build
     /// -mhkTarget macos-arm64 -mhkOut build/macos-arm64 [-mhkLoose true|false] [-mhkExtraMods &lt;folder&gt;]</c> plus the
-    /// <see cref="BuildStamp"/> options, exit code 0 on success. Desktop: &lt;out&gt;/ holds the executable or .app and
-    /// Mods/&lt;id&gt;/ with the shipped mods, their textures and sounds loose by default.
+    /// <see cref="BuildStamp"/> options and, for Android, the <see cref="AndroidSigning"/> ones; exit code 0 on success.
+    /// Desktop: &lt;out&gt;/ holds the executable or .app and Mods/&lt;id&gt;/ with the shipped mods, their textures and
+    /// sounds loose by default.
     /// </summary>
     public static class CiBuild
     {
@@ -92,6 +93,7 @@ namespace MHK.Editor.Build
                 return false;
             }
             var previous = target.architecture != null ? architecture.GetValue(null) : null;
+            if (target.buildTarget == BuildTarget.Android && !AndroidSigning.Apply()) return false;
             try
             {
                 if (previous != null) architecture.SetValue(null, target.architecture.Value);
@@ -105,6 +107,7 @@ namespace MHK.Editor.Build
                 ShippedModsBuild.Loose = false;
                 ShippedModsBuild.ExtraMods = null;
                 if (previous != null) architecture.SetValue(null, previous);
+                AndroidSigning.Restore();
             }
         }
 

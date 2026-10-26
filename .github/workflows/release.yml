@@ -160,6 +160,12 @@ jobs:
           customParameters: -mhkTarget ${{ matrix.target }} -mhkOut build/${{ matrix.target }} -mhkCommit ${{ github.sha }} -mhkBuildCode ${{ needs.prepare.outputs.number }}
           versioning: None
           allowDirtyBuild: true
+          # Android installs updates only when they are signed with the same key (AndroidSigning).
+          androidKeystoreName: release.keystore
+          androidKeystoreBase64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          androidKeystorePass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          androidKeyaliasName: ${{ secrets.ANDROID_KEYALIAS_NAME }}
+          androidKeyaliasPass: ${{ secrets.ANDROID_KEYALIAS_PASS }}
 
       - name: Package
         env:
@@ -180,6 +186,18 @@ jobs:
             Tools/installer/package.sh "$TARGET" "build/$TARGET" "$file" "$NUMBER" "$SHA7"
           fi
           echo "FILE=$file" >> "$GITHUB_ENV"
+
+      # Every release APK must carry the release certificate (vars.ANDROID_CERT_SHA256), or installed games refuse it as an
+      # update.
+      - name: Check the APK signature
+        if: matrix.target == 'android'
+        env:
+          CERT: ${{ vars.ANDROID_CERT_SHA256 }}
+        run: |
+          test -n "$CERT"
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs "$FILE" | tee "$RUNNER_TEMP/signers.txt"
+          grep -qi "certificate SHA-256 digest: $CERT" "$RUNNER_TEMP/signers.txt"
 
       - name: Check the Linux installer
         if: startsWith(matrix.target, 'linux-')

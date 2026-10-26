@@ -60,6 +60,11 @@
 .title-small-row > .mhk-button { flex-grow: 1; flex-basis: 0; margin: 2px 3px; }
 .title-page > .page-footer { margin: 0; }
 .title-page #version { font-size: 20px; color: var(--mhk-gray-600); }
+/* Short pages (TitleScreen adds title-compact: wide phones, ultrawide monitors): a smaller logo keeps the buttons clear of
+ * the footer. */
+.title-compact .logo { width: 450px; height: 221px; }
+.title-compact .logo-text { font-size: 72px; }
+.title-compact #logo-wrap { margin-top: -12px; margin-bottom: 14px; }
 
 .info-plate { width: 440px; }
 .info-name {

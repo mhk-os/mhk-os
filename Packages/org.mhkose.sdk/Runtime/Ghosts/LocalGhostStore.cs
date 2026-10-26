@@ -16,11 +16,13 @@ namespace MHK.Ghosts
     public sealed class LocalGhostStore : IGhostStore
     {
         readonly string rootFolder;
-        // Header id to the stored files with that id (a best kept aside as saved shares it) and file to header: read from
-        // every header once on first use, then kept current by this store's own changes and by List, which reads a track's
-        // headers anyway. A race finds dozens of ghosts by id without inflating every stored file each time.
+        // Header id to the stored files with that id (a best kept aside as saved shares it) and file to header and write
+        // time: read from every header once on first use, then kept current by this store's own changes and by List, which
+        // reads a track's headers anyway. A race finds dozens of ghosts by id without inflating every stored file each time;
+        // a file another game process rewrote since (best and last runs reuse their names) is read again.
         Dictionary<string, List<string>> pathsById;
         Dictionary<string, GhostHeader> headerByPath;
+        Dictionary<string, DateTime> writtenByPath;
 
         public string ExportFolder => Path.Combine(rootFolder, GhostPaths.ExportFolderName);
         public string ImportFolder => Path.Combine(rootFolder, GhostPaths.ImportFolderName);
@@ -73,17 +75,35 @@ namespace MHK.Ghosts
             string found = null;
             if (pathsById.TryGetValue(id, out var paths))
             {
-                // Backwards: a file deleted behind the store's back leaves the list.
+                // Backwards: a file deleted behind the store's back leaves the list, one rewritten moves to its new id.
                 for (var i = paths.Count - 1; i >= 0; i--)
                 {
                     var path = paths[i];
-                    if (!File.Exists(path)) Unindex(path);
-                    else if (found == null || GhostPaths.KindOf(path) == GhostKind.Best) found = path;
+                    if (!File.Exists(path))
+                    {
+                        Unindex(path);
+                        continue;
+                    }
+                    if (File.GetLastWriteTimeUtc(path) != writtenByPath[path] && !Reread(path, id)) continue;
+                    if (found == null || GhostPaths.KindOf(path) == GhostKind.Best) found = path;
                 }
             }
             if (found == null) return FindOnline(id);
             var header = headerByPath[found];
             return NewEntry(found, header, GhostPaths.KindOf(found), KnownTrackHash(header.trackId));
+        }
+
+        // Indexes the current header of a file that changed since it was indexed; true when it still holds id.
+        bool Reread(string path, string id)
+        {
+            var header = TryHeader(path);
+            if (header == null)
+            {
+                Unindex(path);
+                return false;
+            }
+            Reindex(path, header);
+            return header.id == id;
         }
 
         GhostEntry FindOnline(string id)
@@ -223,6 +243,7 @@ namespace MHK.Ghosts
             if (pathsById != null) return;
             pathsById = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             headerByPath = new Dictionary<string, GhostHeader>(StringComparer.Ordinal);
+            writtenByPath = new Dictionary<string, DateTime>(StringComparer.Ordinal);
             if (!Directory.Exists(rootFolder)) return;
             foreach (var dir in Directory.EnumerateDirectories(rootFolder))
             {
@@ -242,6 +263,7 @@ namespace MHK.Ghosts
             Unindex(path);
             if (string.IsNullOrEmpty(header.id)) return;
             headerByPath[path] = header;
+            writtenByPath[path] = File.GetLastWriteTimeUtc(path);
             if (!pathsById.TryGetValue(header.id, out var paths)) pathsById[header.id] = paths = new List<string>(1);
             paths.Add(path);
         }
@@ -249,6 +271,7 @@ namespace MHK.Ghosts
         void Unindex(string path)
         {
             if (headerByPath == null || !headerByPath.Remove(path, out var header)) return;
+            writtenByPath.Remove(path);
             if (!pathsById.TryGetValue(header.id, out var paths)) return;
             paths.Remove(path);
             if (paths.Count == 0) pathsById.Remove(header.id);

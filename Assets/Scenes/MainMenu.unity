@@ -152,6 +152,7 @@ MonoBehaviour:
   showcaseVisible: 0
   allowBack: 1
   loginText: Log in
+  compactHeight: 1000
 --- !u!4 &142454102
 Transform:
   m_ObjectHideFlags: 0
@@ -547,6 +548,7 @@ MonoBehaviour:
   exportedFormat: 'Exported: {0}'
   exportFailedText: Export failed (see the log).
   confirmDeleteQuestion: Delete the ghost {0}?
+  confirmDeleteUploadedQuestion: Delete the ghost {0} from this device? It stays on the leaderboard.
   deleteText: Delete
   deletedText: Ghost deleted.
   uploadTip: Upload to the leaderboard
