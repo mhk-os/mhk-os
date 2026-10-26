@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -323,7 +324,7 @@ namespace MHK.Online
                     if (!Dispatch(frame)) return;
                 }
             }
-            catch (Exception e) when (e is IOException || e is SocketException || e is ObjectDisposedException)
+            catch (Exception e) when (IsConnectionError(e))
             {
                 End("The connection to the server was lost.");
             }
@@ -402,11 +403,16 @@ namespace MHK.Online
                     SendPing();
                 }
             }
-            catch (Exception e) when (e is IOException || e is SocketException || e is ObjectDisposedException || e is InvalidOperationException)
+            catch (Exception e) when (IsConnectionError(e) || e is InvalidOperationException)
             {
                 End("The connection to the server was lost.");
             }
         }
+
+        // Mono's SslStream reports a lost or closed connection as an AggregateException around the actual error.
+        static bool IsConnectionError(Exception e) => e is AggregateException a
+            ? a.Flatten().InnerExceptions.All(IsConnectionError)
+            : e is IOException || e is SocketException || e is ObjectDisposedException;
 
         // Keeps the connection alive; the answer only refreshes the receive time (no one waits for it).
         void SendPing()
