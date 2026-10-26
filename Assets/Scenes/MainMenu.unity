@@ -152,6 +152,7 @@ MonoBehaviour:
   showcaseVisible: 0
   allowBack: 1
   loginText: Log in
+  compactHeight: 1000
 --- !u!4 &142454102
 Transform:
   m_ObjectHideFlags: 0
@@ -549,6 +550,8 @@ MonoBehaviour:
   confirmDeleteQuestion: Delete the ghost {0}?
   deleteText: Delete
   deletedText: Ghost deleted.
+  deleteTip: Delete
+  onLeaderboardDeleteTip: 'On the leaderboard: it can''t be deleted'
   uploadTip: Upload to the leaderboard
   loginToUploadTip: Log in to upload your ghosts
   uploadingTip: Uploading...
