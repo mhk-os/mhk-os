@@ -511,7 +511,13 @@ namespace MHK.UI
             hide.clicked += () =>
             {
                 Click();
-                ModerationPrompts.ToggleHidden(hide, run, Report, LoadPage);
+                // Hiding an own run also changes the uploaded mark of its stored ghost.
+                var own = OnlineService.Account is { } me && (long)me.id == run.accountId;
+                ModerationPrompts.ToggleHidden(hide, run, Report, () =>
+                {
+                    LoadPage();
+                    if (own) LoadMyRuns();
+                });
             };
             var account = row.Q<Button>("lb-account");
             account.clicked += () =>

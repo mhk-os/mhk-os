@@ -548,10 +548,9 @@ MonoBehaviour:
   exportedFormat: 'Exported: {0}'
   exportFailedText: Export failed (see the log).
   confirmDeleteQuestion: Delete the ghost {0}?
+  confirmDeleteUploadedQuestion: Delete the ghost {0} from this device? It stays on the leaderboard.
   deleteText: Delete
   deletedText: Ghost deleted.
-  deleteTip: Delete
-  onLeaderboardDeleteTip: 'On the leaderboard: it can''t be deleted'
   uploadTip: Upload to the leaderboard
   loginToUploadTip: Log in to upload your ghosts
   uploadingTip: Uploading...

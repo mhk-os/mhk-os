@@ -13,11 +13,12 @@ namespace MHK.UI
 {
     /// <summary>
     /// One track's records (TrackRecords.uxml), opened from the Time Trials hub (Records page): engine class chips, the
-    /// player's stored ghosts of the class and version (Watch, Upload or the uploaded rank, Export, Delete unless the
-    /// leaderboard shows it) and the online leaderboard (TrackRecordsScreen.Leaderboard.cs). Ghosts of both lists can be
-    /// picked, up to <see cref="GameConfig.maxGhosts"/>, the personal best is picked when the page opens. Race downloads the picked
-    /// online ones, then walks driver and kart with the track fixed straight into the time trial
-    /// (<see cref="MenuSelection.BuildTimeTrialSession"/>); after it the menu comes back here (<see cref="ReturnAfterRace"/>).
+    /// player's stored ghosts of the class and version (Watch, Upload or the uploaded rank, Export, Delete: the stored
+    /// file only, an uploaded run stays on the leaderboard) and the online leaderboard (TrackRecordsScreen.Leaderboard.cs).
+    /// Ghosts of both lists can be picked, up to <see cref="GameConfig.maxGhosts"/>, the personal best is picked when the
+    /// page opens. Race downloads the picked online ones, then walks driver and kart with the track fixed straight into
+    /// the time trial (<see cref="MenuSelection.BuildTimeTrialSession"/>); after it the menu comes back here
+    /// (<see cref="ReturnAfterRace"/>).
     /// On narrow screens (<see cref="narrowWidth"/>) the two sections show one at a time behind section chips.
     /// </summary>
     public partial class TrackRecordsScreen : GhostListScreen
@@ -54,12 +55,12 @@ namespace MHK.UI
         string exportFailedText = "Export failed (see the log).";
         [SerializeField, Tooltip("Question of Delete. {0} = the ghost's time.")]
         string confirmDeleteQuestion = "Delete the ghost {0}?";
+        [SerializeField, Tooltip("Question of Delete for a ghost the server has (it stays on the leaderboard). {0} = the ghost's time.")]
+        string confirmDeleteUploadedQuestion = "Delete the ghost {0} from this device? It stays on the leaderboard.";
         [SerializeField, Tooltip("Confirm button text of the delete question.")]
         string deleteText = "Delete";
         [SerializeField, Tooltip("Status after deleting.")]
         string deletedText = "Ghost deleted.";
-        [SerializeField, Tooltip("Delete button tooltips: a stored ghost, one on the leaderboard (it can't be deleted).")]
-        string deleteTip = "Delete", onLeaderboardDeleteTip = "On the leaderboard: it can't be deleted";
         [SerializeField, Tooltip("Upload button tooltips: logged in, logged out, while uploading.")]
         string uploadTip = "Upload to the leaderboard", loginToUploadTip = "Log in to upload your ghosts", uploadingTip = "Uploading...";
         [SerializeField, Tooltip("Status when Upload is pressed logged out (the Account page opens).")]
@@ -319,7 +320,10 @@ namespace MHK.UI
             delete.clicked += () =>
             {
                 Click();
-                ConfirmPrompt.Show(delete, string.Format(confirmDeleteQuestion, UiText.Clock(entry.header.finishTime)), deleteText, () => Delete(entry));
+                // Deleting only removes the stored file: an uploaded run stays on the leaderboard, where it plays the
+                // server's copy.
+                var question = OnlineTimeTrials.TryGetUploaded(entry.Id, out _) ? confirmDeleteUploadedQuestion : confirmDeleteQuestion;
+                ConfirmPrompt.Show(delete, string.Format(question, UiText.Clock(entry.header.finishTime)), deleteText, () => Delete(entry));
             };
             ShowUploadMark(entry, row);
             return row;
@@ -340,10 +344,6 @@ namespace MHK.UI
             var isUploaded = own && OnlineTimeTrials.TryGetUploaded(entry.Id, out run);
             upload.SetVisible(own && !isUploaded);
             uploaded.SetVisible(isUploaded);
-            var delete = row.Q<Button>("ghost-delete");
-            var deletable = Deletable(entry);
-            delete.SetEnabled(deletable);
-            delete.tooltip = deletable ? deleteTip : onLeaderboardDeleteTip;
             if (isUploaded)
             {
                 row.SetText("ghost-uploaded-label", run.rank > 0 ? string.Format(uploadedRankFormat, run.rank) : "");
@@ -397,21 +397,11 @@ namespace MHK.UI
             if (!r.Ok && r.result.status != Status.NotLoggedIn) Debug.Log($"[Records] My runs of {id}: {r.result.message}");
         }
 
-        // A ghost the leaderboard shows stays: without the file its leaderboard row would play the server's copy, while
-        // the own best and its picks moved on to other runs. Ghosts that are only stored here, slower uploads and hidden
-        // ones can go.
-        static bool Deletable(GhostEntry entry) =>
-            !(OnlineTimeTrials.TryGetUploaded(entry.Id, out var run) && run.rank > 0 && !run.hidden);
-
         void Delete(GhostEntry entry)
         {
-            if (!Deletable(entry)) return;
             Store.Delete(entry);
-            if (pickOrder.Remove(entry.Id))
-            {
-                pickedRuns.Remove(entry.Id);
-                UpdatePickCount();
-            }
+            // Picked on the leaderboard, the run stays picked: it races the server's copy now.
+            if (!pickedRuns.ContainsKey(entry.Id) && pickOrder.Remove(entry.Id)) UpdatePickCount();
             SetStatus(deletedText);
             FocusLater(FillLocal());
         }
