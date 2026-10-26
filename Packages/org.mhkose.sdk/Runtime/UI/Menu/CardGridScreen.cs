@@ -53,8 +53,11 @@ namespace MHK.UI
 
         protected virtual bool IsSelected(T item) => false;
 
+        /// <summary>Name of a source game in the filter chips and the info panel (the online lobby uses the short names).</summary>
+        protected virtual string GameName(string game) => UiText.GameName(game);
+
         /// <summary>Game line of the info panel.</summary>
-        protected virtual string InfoGame(T item) => UiText.GameName(item.SourceGame);
+        protected virtual string InfoGame(T item) => GameName(item.SourceGame);
 
         /// <summary>After <see cref="Describe"/>: the info panel now shows <paramref name="item"/> (hovered or focused).</summary>
         protected virtual void OnShown(T item) { }
@@ -227,7 +230,7 @@ namespace MHK.UI
             }
             var filters = new List<string> { null };
             filters.AddRange(games);
-            var labels = filters.Select(f => f == null ? AllGamesLabel : UiText.GameName(f)).ToList();
+            var labels = filters.Select(f => f == null ? AllGamesLabel : GameName(f)).ToList();
             ChipGroup.Fill(tabs, chipTemplate, labels, filters.IndexOf(GameFilter), index =>
             {
                 Click();

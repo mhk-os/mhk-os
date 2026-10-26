@@ -108,6 +108,12 @@ namespace MHK.Online
         /// <summary>Whether <see cref="RttMs"/> of <paramref name="slot"/> is a measurement (a Pong or a World entry arrived).</summary>
         public bool RttKnown(int slot) => slot == LocalSlot ? udp != null && udp.Synced : rttBySlot.ContainsKey(slot);
 
+        /// <summary>
+        /// The racer of <paramref name="slot"/> has its race loaded as far as this client can tell: its kart states arrive
+        /// (a client sends them from its loaded grid), or for the local racer its RaceLoaded went out.
+        /// </summary>
+        public bool IsLoaded(int slot) => slot == LocalSlot ? Loaded != null : rttBySlot.ContainsKey(slot) && !leftSlots.Contains(slot);
+
         /// <summary>Both racers' RTTs are known and at most <see cref="EligibleRttMs"/>: a check of one by the other counts.</summary>
         public bool Eligible(int observerSlot, int observedSlot) =>
             RttKnown(observerSlot) && RttKnown(observedSlot) && RttMs(observerSlot) <= EligibleRttMs && RttMs(observedSlot) <= EligibleRttMs;

@@ -13,6 +13,7 @@
             </ui:VisualElement>
             <ui:VisualElement name="panel" class="panel hud-results-panel anim pop" style="transition-delay: 80ms;">
                 <ui:Label name="info" text="Race 2 of 4 | Moorhuhn Cup" class="hud-results-info" />
+                <ui:VisualElement name="online-chips" class="info-chips hud-results-chips" />
                 <ui:VisualElement name="head" class="row hud-results-head">
                     <ui:Label text="Pos" class="hud-res-head hud-res-pos" />
                     <ui:Label text="Racer" class="hud-res-head hud-res-racer" />
@@ -137,6 +138,7 @@
                 <ui:Button name="menu" class="mhk-button">
                     <ui:VisualElement class="icon i-home" />
                     <ui:Label text="Menu" class="button-label" />
+                    <ui:Label name="return-countdown" text="8" class="hud-res-countdown" />
                 </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>

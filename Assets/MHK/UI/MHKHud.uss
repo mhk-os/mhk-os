@@ -595,3 +595,87 @@ TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
 .touch-button.touch-wheel.pressed .icon.touch-icon { -unity-background-image-tint-color: var(--mhk-accent); }
 .touch-knob { background-color: rgba(255, 255, 255, 0.88); border-width: 3px; border-color: rgba(23, 25, 29, 0.55); }
 .touch-button.touch-joystick.pressed .touch-knob { background-color: var(--mhk-accent); border-color: var(--mhk-gray-900); }
+
+/* ---- Online races (NetRace): name tags, waiting chips, connection icon, join toast, results variant ---------------
+ * RaceHud.OnlineView builds these in code; RaceResults adds .online to the results screen. */
+.i-gavel { background-image: url("Icons/gavel.png"); }
+.i-wifi_off { background-image: url("Icons/wifi_off.png"); }
+.i-sync_problem { background-image: url("Icons/sync_problem.png"); }
+.i-person { background-image: url("Icons/person.png"); }
+.i-check_circle { background-image: url("Icons/check_circle.png"); }
+
+/* Name tag over a remote kart: name, country code, ping bars. Small and translucent. */
+.hud-net-tag {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(23, 25, 29, 0.6);
+    border-radius: 9px;
+    padding: 1px 6px 2px 8px;
+}
+.hud-net-name { -unity-font-definition: var(--font-bold); font-size: 17px; color: var(--mhk-white); padding: 0; margin: 0; white-space: nowrap; }
+.hud-net-country {
+    -unity-font-definition: var(--font-bold);
+    font-size: 11px;
+    color: var(--mhk-gray-900);
+    background-color: rgba(255, 255, 255, 0.85);
+    border-radius: 4px;
+    padding: 0 3px 1px 3px;
+    margin: 0 0 0 6px;
+}
+.icon.hud-net-ping { width: 16px; height: 16px; margin-left: 4px; -unity-background-image-tint-color: var(--mhk-gray-400); }
+.icon.hud-net-ping.good { -unity-background-image-tint-color: var(--mhk-good); }
+.icon.hud-net-ping.fair { -unity-background-image-tint-color: var(--mhk-accent); }
+.icon.hud-net-ping.bad { -unity-background-image-tint-color: var(--mhk-bad); }
+
+/* Bottom centre: who has loaded (chips, while the race waits for the players). */
+.hud-net-column { position: absolute; left: 0; right: 0; bottom: 15%; align-items: center; }
+.hud-net-waiting { flex-direction: row; flex-wrap: wrap; justify-content: center; max-width: 80%; padding: 8px 10px; border-radius: 22px; background-color: var(--mhk-glass); }
+.hud-net-waiting .info-chip { height: 34px; border-radius: 17px; }
+.hud-net-waiting .info-chip .info-chip-label { font-size: 17px; }
+.hud-net-waiting .info-chip.off { opacity: 0.6; }
+.hud-net-waiting .info-chip.good .info-chip-icon { -unity-background-image-tint-color: var(--mhk-good); }
+.hud-net-waiting .info-chip.good .info-chip-label { color: var(--mhk-white); }
+.hud-net-waiting .info-chip.me { border-width: 2px; border-color: var(--mhk-accent); }
+
+/* Connection trouble: one icon under the lap box, pulsing. */
+.hud-net-trouble {
+    position: absolute; right: 28px; top: 210px;
+    width: 52px; height: 52px; border-radius: 26px;
+    background-color: var(--mhk-bad-ink);
+    align-items: center; justify-content: center;
+    transition-property: opacity; transition-duration: 0.45s;
+}
+.hud-net-trouble.dim { opacity: 0.45; }
+.icon.hud-net-trouble-icon { width: 32px; height: 32px; -unity-background-image-tint-color: var(--mhk-white); }
+
+/* Solo race: someone waits to join (top centre, under the notices). */
+.hud-net-toast-anchor { position: absolute; left: 0; right: 0; top: 96px; align-items: center; }
+.hud-net-toast {
+    flex-direction: row; align-items: center;
+    background-color: var(--mhk-glass);
+    border-radius: 26px;
+    padding: 6px 6px 6px 16px;
+    transition-property: opacity, translate; transition-duration: 0.25s;
+}
+.hud-net-toast.hidden { opacity: 0; translate: 0 -12px; }
+.icon.hud-net-toast-icon { width: 28px; height: 28px; margin-right: 8px; -unity-background-image-tint-color: var(--mhk-accent); }
+.hud-net-toast-name { -unity-font-definition: var(--font-bold); font-size: 20px; color: var(--mhk-white); padding: 0; margin: 0 14px 0 0; }
+.mhk-button.hud-net-toast-button { margin: 0; min-width: 0; height: 44px; padding: 0 16px 0 12px; }
+
+/* Results, online: outcome badges in the time column, the race's chips under the title, the return countdown. */
+.hud-res-outcome { width: 190px; flex-direction: row; justify-content: center; align-items: center; }
+.hud-res-outcome .info-chip { margin: 0; }
+.hud-results-chips { justify-content: center; margin: 2px 0 10px 0; }
+.hud-res-countdown {
+    -unity-font-definition: var(--font-display);
+    font-size: 20px;
+    color: var(--mhk-gray-900);
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 13px;
+    min-width: 26px; height: 26px;
+    -unity-text-align: middle-center;
+    padding: 0 6px 2px 6px;
+    margin: 0 0 0 10px;
+}
+.hud-results.online .hud-results-row > .hud-res-points { display: flex; }
+.hud-results.online.solo .hud-results-row > .hud-res-points, .hud-results.online.solo #head-points { display: none; }

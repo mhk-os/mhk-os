@@ -25,7 +25,10 @@ namespace MHK.UI
             handling = Q<VisualElement>("stat-handling");
         }
 
-        protected override string CardTag(KartDefinition k) => UiText.GameName(k.SourceGame);
+        protected override string GameName(string game) =>
+            Selection.lobbyPick == LobbyPick.Loadout ? OnlineUi.PackName(game) : UiText.GameName(game);
+
+        protected override string CardTag(KartDefinition k) => GameName(k.SourceGame);
 
         protected override Texture2D CardImage(KartDefinition k) => k.Icon;
 

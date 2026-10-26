@@ -28,23 +28,18 @@ namespace MHK.UI
         string unreadableFormat = "Unreadable files: {0}";
         [SerializeField, Tooltip("Status after Reload found nothing new.")]
         string nothingNewText = "No new ghosts.";
-        [SerializeField, Tooltip("Ghost count of the focused track: none, one, several ({0} = count).")]
-        string noGhostsText = "No ghosts stored yet.", oneGhostText = "1 ghost stored", ghostsFormat = "{0} ghosts stored";
-        [SerializeField, Tooltip("Values of Upload new bests.")]
-        string offText = "Off", onText = "On";
-        [SerializeField, Tooltip("Tooltip of Upload new bests.")]
-        string autoUploadTip = "Uploads every new personal best of a time trial to the leaderboard while you are logged in.";
-        [SerializeField, Tooltip("Account line: logged in ({0} = name), logged out (with auto upload on, off).")]
-        string onlineFormat = "Uploading as {0}.", loggedOutAutoText = "Log in so new bests reach the leaderboards.",
-            loggedOutText = "Log in to upload your records. Leaderboards work without.";
-        [SerializeField, Tooltip("Account button: logged out, logged in.")]
-        string loginText = "Log in", accountText = "Account";
+        [SerializeField, Tooltip("Tooltip of the stored ghost count chip.")]
+        string storedGhostsTip = "Stored ghosts";
+        [SerializeField, Tooltip("Auto-upload toggle: label and tooltips (on, off; logged out the tooltip says it waits for a login).")]
+        string autoUploadLabel = "Auto-upload", autoUploadOnTip = "New personal bests go to the leaderboard",
+            autoUploadOffTip = "New personal bests stay on this device", autoUploadLoginTip = "Log in so new bests go to the leaderboard";
+        [SerializeField, Tooltip("Account chip: logged out label, tooltips logged in ({0} = name) and out.")]
+        string loginText = "Log in", accountChipTip = "Signed in as {0}", loginChipTip = "Log in for leaderboards and uploads";
 
         string shownTrackId;
         VisualElement selectedRow;
         Label status;
-        Button open;
-        SettingChoice autoUpload;
+        Button open, autoUpload;
 
         static SaveData Save => GameRoot.Instance.Save;
 
@@ -53,13 +48,11 @@ namespace MHK.UI
             status = Q<Label>("ghost-status");
             open = OnClick("open", OpenTrack, click: false);
             SetStatus("");
-            BindPlayerName();
-            autoUpload = BindChoice("auto-upload", () => 2, () => Settings.autoUploadBests ? 1 : 0, i => i == 1 ? onText : offText,
-                i =>
-                {
-                    Settings.autoUploadBests = i == 1;
-                    ShowAccount();
-                }, _ => autoUploadTip);
+            autoUpload = OnClick("auto-upload", () =>
+            {
+                Settings.autoUploadBests = !Settings.autoUploadBests;
+                ShowAccount();
+            });
             OnClick("rec-account", () => Flow.Show<AccountScreen>());
             OnClick("reports", () => Flow.Show<FlaggedRunsScreen>());
             OnClick("reload", () => ImportNow(true));
@@ -97,27 +90,22 @@ namespace MHK.UI
             status.SetVisible(!string.IsNullOrEmpty(text));
         }
 
-        void BindPlayerName()
-        {
-            var nameField = Q<TextField>("player-name");
-            nameField.SetValueWithoutNotify(Settings.playerName);
-            nameField.textEdition.placeholder = Settings.SignatureName;
-            nameField.RegisterValueChangedCallback(e => Settings.playerName = e.newValue);
-        }
-
+        // Account chip, auto-upload toggle and the moderators' Reports button follow the login.
         void ShowAccount()
         {
             if (status == null) return;
             var account = OnlineService.Account;
-            var row = Root.Q(className: "rec-account-row");
-            row.EnableInClassList("online", account != null);
-            Q<VisualElement>("rec-account-icon").SetIcon(account != null ? "cloud_done" : "cloud_off");
-            Q<Label>("rec-account-label").text = account != null ? string.Format(onlineFormat, account.username)
-                : Settings.autoUploadBests ? loggedOutAutoText : loggedOutText;
-            Q<Label>("rec-account-button-label").text = account != null ? accountText : loginText;
-            Q<VisualElement>("rec-account-button-icon").SetIcon(account != null ? "account_circle" : "login");
+            var chip = Q<Button>("rec-account");
+            chip.EnableInClassList("online", account != null);
+            chip.tooltip = account != null ? string.Format(accountChipTip, account.username) : loginChipTip;
+            Q<VisualElement>("rec-account-icon").SetIcon(account != null ? "account_circle" : "login");
+            Q<Label>("rec-account-label").text = account != null ? account.username : loginText;
+            var on = Settings.autoUploadBests;
+            autoUpload.EnableInClassList("on", on);
+            Q<VisualElement>("auto-upload-icon").SetIcon(on ? "toggle_on" : "toggle_off");
+            Q<Label>("auto-upload-label").text = autoUploadLabel;
+            autoUpload.tooltip = !on ? autoUploadOffTip : account != null ? autoUploadOnTip : autoUploadLoginTip;
             SetVisible("reports", OnlineService.IsModerator);
-            autoUpload?.Refresh();
         }
 
         VisualElement FillTracks()
@@ -125,6 +113,14 @@ namespace MHK.UI
             var list = Q<VisualElement>("rec-list");
             list.Clear();
             KeepFocusedInView(Q<ScrollView>("rec-scroll"), list);
+            LeaderRows.NoWrap(Root);
+            LeaderRows.NoScrollbarFocus(Q<ScrollView>("rec-scroll"));
+            // Right from a track goes to the side panel's toggle, Left from there back to the track.
+            list.RegisterCallback<NavigationMoveEvent>(e => MoveFocus(e, NavigationMoveEvent.Direction.Right, autoUpload));
+            Q<VisualElement>("records-side").RegisterCallback<NavigationMoveEvent>(e =>
+            {
+                if (e.target != Q<Button>("rec-account")) MoveFocus(e, NavigationMoveEvent.Direction.Left, selectedRow);
+            });
             var i = 0;
             VisualElement first = null, shown = null;
             string firstId = null;
@@ -189,7 +185,7 @@ namespace MHK.UI
             ShowSummary();
         }
 
-        // The focused track's picture and its best stored ghost per engine class.
+        // The focused track's picture, its best stored ghost per engine class (time, driver and kart) and the ghost count.
         void ShowSummary()
         {
             if (status == null || shownTrackId == null) return;
@@ -207,21 +203,40 @@ namespace MHK.UI
                     .OrderBy(e => e.header.finishTime).FirstOrDefault();
                 var line = new VisualElement();
                 line.AddToClassList("rec-class-line");
-                var name = new Label(difficulties[c].label);
-                name.AddToClassList("rec-class-name");
+                line.EnableInClassList("empty", best == null);
+                InfoChips.Add(line, "speed", difficulties[c].label).AddToClassList("rec-class-chip");
+                var icons = new VisualElement();
+                icons.AddToClassList("driver-icons");
+                icons.AddToClassList("rec-class-driver");
+                icons.Add(DriverIcon("driver-portrait"));
+                icons.Add(DriverIcon("driver-kart"));
+                line.Add(icons);
+                ContentDisplay.SetDriver(icons, best?.header.characterId, best?.header.kartId);
+                icons.SetVisible(best != null);
                 var time = new Label(best != null ? UiText.Clock(best.header.finishTime) : UiText.NoClock);
                 time.AddToClassList("rec-class-time");
-                time.EnableInClassList("empty", best == null);
-                line.Add(name);
                 line.Add(time);
                 classes.Add(line);
             }
-            Q<Label>("rec-ghost-count").text = entries.Count switch
-            {
-                0 => noGhostsText,
-                1 => oneGhostText,
-                _ => string.Format(ghostsFormat, entries.Count),
-            };
+            var chips = Q<VisualElement>("rec-chips");
+            chips.Clear();
+            InfoChips.Add(chips, "inventory_2", entries.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), storedGhostsTip);
+        }
+
+        static void MoveFocus(NavigationMoveEvent e, NavigationMoveEvent.Direction direction, VisualElement to)
+        {
+            if (e.direction != direction || to == null || to.panel == null || e.target is not VisualElement from) return;
+            to.Focus();
+            e.StopPropagation();
+            from.focusController?.IgnoreEvent(e);
+        }
+
+        static VisualElement DriverIcon(string name)
+        {
+            var e = new ContentImage { name = name };
+            e.AddToClassList("driver-icon");
+            e.AddToClassList(name);
+            return e;
         }
 
         void OpenTrack()

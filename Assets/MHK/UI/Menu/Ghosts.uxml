@@ -23,7 +23,10 @@
                                 <ui:AttributeOverrides element-name="chip" text="150cc" />
                             </ui:Instance>
                         </ui:VisualElement>
-                        <ui:Label name="ghost-count" text="2 of 3 ghosts" class="ghost-count" />
+                        <ui:VisualElement name="pick-pill" class="trk-pick-pill">
+                            <ui:VisualElement class="icon i-group trk-pick-icon" />
+                            <ui:Label name="ghost-count" text="2 / 50" class="trk-pick-count" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:ScrollView name="ghost-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="ghost-scroll">
                         <ui:VisualElement name="ghost-list" class="ghost-list">
@@ -45,7 +48,10 @@
                             </ui:Instance>
                         </ui:VisualElement>
                     </ui:ScrollView>
-                    <ui:Label name="ghost-empty" text="No ghosts for this class yet." class="ghost-empty" />
+                    <ui:VisualElement name="ghost-empty" class="lb-state ghost-empty">
+                        <ui:VisualElement class="icon i-timer lb-state-icon" />
+                        <ui:Label text="No ghosts yet" class="lb-state-label" />
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>

@@ -31,20 +31,21 @@ namespace MHK.UI
 
         /// <summary>
         /// Asks <paramref name="message"/> over the screen of <paramref name="from"/> with a text field of at most
-        /// <paramref name="maxLength"/> characters starting with <paramref name="text"/>. <paramref name="confirmLabel"/> is the
-        /// confirm button's text, <paramref name="danger"/> makes it red. <paramref name="onConfirm"/> gets the trimmed text
-        /// (confirming an empty field does nothing unless <paramref name="allowEmpty"/>), <paramref name="onCancel"/> runs on
-        /// Cancel, Back or a tap outside. Null when <paramref name="from"/> is not shown.
+        /// <paramref name="maxLength"/> characters starting with <paramref name="text"/> (<paramref name="hint"/> shows while it
+        /// is empty). <paramref name="confirmLabel"/> is the confirm button's text, <paramref name="danger"/> makes it red.
+        /// <paramref name="onConfirm"/> gets the trimmed text (confirming an empty field does nothing unless
+        /// <paramref name="allowEmpty"/>), <paramref name="onCancel"/> runs on Cancel, Back or a tap outside. Null when
+        /// <paramref name="from"/> is not shown.
         /// </summary>
         public static TextPrompt Show(VisualElement from, string message, string confirmLabel, Action<string> onConfirm,
-            int maxLength = 256, string text = "", bool danger = true, bool allowEmpty = false, Action onCancel = null)
+            int maxLength = 256, string text = "", bool danger = true, bool allowEmpty = false, Action onCancel = null, string hint = "")
         {
             var host = ScreenOf(from);
-            return host == null ? null : new TextPrompt(from, host, message, confirmLabel, onConfirm, maxLength, text, danger, allowEmpty, onCancel);
+            return host == null ? null : new TextPrompt(from, host, message, confirmLabel, onConfirm, maxLength, text, danger, allowEmpty, onCancel, hint);
         }
 
         TextPrompt(VisualElement from, VisualElement host, string message, string confirmLabel, Action<string> onConfirm,
-            int maxLength, string text, bool danger, bool allowEmpty, Action onCancel)
+            int maxLength, string text, bool danger, bool allowEmpty, Action onCancel, string hint)
         {
             this.from = from;
             this.host = host;
@@ -63,6 +64,7 @@ namespace MHK.UI
             field.AddToClassList(FieldClass);
             field.AddToClassList(PromptFieldClass);
             field.SetValueWithoutNotify(text ?? "");
+            field.textEdition.placeholder = hint ?? "";
             panel.Add(field);
             var row = new VisualElement();
             row.AddToClassList(ButtonsClass);

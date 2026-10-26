@@ -53,37 +53,45 @@
                         </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="fr-side" class="panel fr-side">
-                        <ui:Label name="fr-detail-empty" text="Choose a run to see its reports and its player." class="fr-detail-empty" />
+                        <ui:VisualElement name="fr-detail-empty" class="lb-state fr-detail-empty">
+                            <ui:VisualElement class="icon i-flag lb-state-icon" />
+                            <ui:Label text="Pick a run" class="lb-state-label" />
+                        </ui:VisualElement>
                         <ui:ScrollView name="fr-detail" mode="Vertical" horizontal-scroller-visibility="Hidden" class="trk-scroll fr-detail">
-                            <ui:Label name="fr-run-title" text="SmokeRacer | 03:21.40" class="trk-section-title" />
-                            <ui:Label name="fr-run-sub" text="Scribble Blocks | 150cc | uploaded 26 Oct 2026" class="fr-sub" />
-                            <ui:Label text="Reports" class="fr-heading" />
+                            <ui:VisualElement class="fr-run-head">
+                                <ui:Label name="fr-run-title" text="SmokeRacer" class="fr-run-name" />
+                                <ui:Label name="fr-run-time" text="03:21.40" class="fr-run-time" />
+                            </ui:VisualElement>
+                            <ui:VisualElement name="fr-run-chips" class="info-chips fr-chips" />
+                            <ui:VisualElement class="fr-heading-row">
+                                <ui:VisualElement class="icon i-flag fr-heading-icon" />
+                                <ui:Label text="Reports" class="fr-heading" />
+                            </ui:VisualElement>
                             <ui:VisualElement name="fr-reports" class="fr-reports">
                                 <ui:VisualElement class="fr-report">
-                                    <ui:Label text="Speed at 01:12.40 | Hank | 26 Oct 2026" class="fr-report-head" />
+                                    <ui:VisualElement class="info-chips fr-report-chips" />
                                     <ui:Label text="Speed 41.2 m/s above the kart's 30.5 m/s top speed." class="fr-report-detail" />
                                 </ui:VisualElement>
                             </ui:VisualElement>
-                            <ui:Label name="fr-reports-state" text="Loading..." class="fr-sub" />
-                            <ui:Label text="Account" class="fr-heading" />
-                            <ui:VisualElement name="fr-account" class="fr-account">
-                                <ui:Label name="fr-account-line" text="Germany | joined 3 Oct 2026 | last login 26 Oct 2026" class="fr-sub" />
-                                <ui:Label name="fr-account-stats" text="12 runs, 1 hidden | 0 cheat kicks" class="fr-sub" />
-                                <ui:Label name="fr-account-disabled" text="Disabled: cheating" class="fr-disabled" />
+                            <ui:Label name="fr-reports-state" text="Loading" class="fr-sub" />
+                            <ui:VisualElement class="fr-heading-row">
+                                <ui:VisualElement class="icon i-account_circle fr-heading-icon" />
+                                <ui:Label text="Account" class="fr-heading" />
                             </ui:VisualElement>
-                            <ui:Label name="fr-account-state" text="Loading..." class="fr-sub" />
+                            <ui:VisualElement name="fr-account" class="info-chips fr-chips" />
+                            <ui:Label name="fr-account-state" text="Loading" class="fr-sub" />
                             <ui:VisualElement class="fr-actions">
-                                <ui:Button name="fr-watch" class="mhk-button small secondary">
+                                <ui:Button name="fr-watch" tooltip="Watch" class="mhk-button small secondary">
                                     <ui:VisualElement class="icon i-visibility" />
                                     <ui:Label text="Watch" class="button-label" />
                                 </ui:Button>
                                 <ui:Button name="fr-hide" class="mhk-button small secondary">
                                     <ui:VisualElement name="fr-hide-icon" class="icon i-visibility_off" />
-                                    <ui:Label name="fr-hide-label" text="Hide run" class="button-label" />
+                                    <ui:Label name="fr-hide-label" text="Hide" class="button-label" />
                                 </ui:Button>
                                 <ui:Button name="fr-disable" class="mhk-button small danger">
-                                    <ui:VisualElement class="icon i-account_circle" />
-                                    <ui:Label name="fr-disable-label" text="Disable account" class="button-label" />
+                                    <ui:VisualElement class="icon i-gavel" />
+                                    <ui:Label name="fr-disable-label" text="Disable" class="button-label" />
                                 </ui:Button>
                             </ui:VisualElement>
                         </ui:ScrollView>

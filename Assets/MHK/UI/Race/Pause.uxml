@@ -18,6 +18,10 @@
                     <ui:VisualElement class="icon i-settings" />
                     <ui:Label text="Options" class="button-label" />
                 </ui:Button>
+                <ui:Button name="end-race" class="mhk-button danger">
+                    <ui:VisualElement class="icon i-person_add" />
+                    <ui:Label name="end-race-label" text="End race" class="button-label" />
+                </ui:Button>
                 <ui:Button name="quit" class="mhk-button secondary">
                     <ui:VisualElement class="icon i-home" />
                     <ui:Label text="Quit to menu" class="button-label" />

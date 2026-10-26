@@ -235,7 +235,7 @@ GameObject:
   m_Component:
   - component: {fileID: 155314628}
   - component: {fileID: 155314630}
-  - component: {fileID: 155314629}
+  - component: {fileID: 155314631}
   m_Layer: 0
   m_Name: Online
   m_TagString: Untagged
@@ -258,38 +258,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1327142894}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &155314629
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 155314627}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 513bc877ea19d410f9ed226aac58db01, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.OnlineScreen
-  showcaseVisible: 0
-  allowBack: 1
-  categoryTemplate: {fileID: 9197481963319205126, guid: bdd44314deb7f46609618799970e3b92, type: 3}
-  instanceTemplate: {fileID: 9197481963319205126, guid: f271c050a5d1348dd96545c4626e4ae0, type: 3}
-  refreshSeconds: 5
-  racesGroup: RACES
-  battlesGroup: BATTLES
-  loggedOutText: Log in to race other players online.
-  linkLoginFormat: Log in to join room {0}.
-  linkJoiningFormat: Joining room {0}...
-  loginText: Log in
-  announcingText: Sending your content to the server...
-  playersFormat: '{0} in {1}'
-  emptyText: Empty
-  instanceFormat: Lobby #{0}
-  noInstancesText: 'No lobby yet: Quick join opens one.'
-  publicRulesText: 150cc, each track's laps, standard items. Sets of 4 races with points; vote for every track.
-  kickedByOwnerText: The room owner removed you.
-  kickedByModText: A moderator removed you.
-  closedText: The lobby closed.
 --- !u!1931382934 &155314630
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -348,6 +316,34 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!114 &155314631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 155314627}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 513bc877ea19d410f9ed226aac58db01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.OnlineScreen
+  showcaseVisible: 0
+  allowBack: 1
+  setTemplate: {fileID: 9197481963319205126, guid: 85259cb0e840f4801bcb790d11cc7b5b, type: 3}
+  instanceTemplate: {fileID: 9197481963319205126, guid: f271c050a5d1348dd96545c4626e4ae0, type: 3}
+  refreshSeconds: 5
+  loggedOutText: Log in to race online.
+  linkLoginFormat: Log in to join room {0}.
+  linkJoiningFormat: Joining room {0}...
+  loginText: Log in
+  announcingText: Sending your content to the server...
+  codePlaceholder: Room code
+  noLobbiesText: No lobby yet
+  kickedByOwnerText: The room owner removed you.
+  kickedByModText: A moderator removed you.
+  closedText: The lobby closed.
+  strikeSuffix: ' Anticheat lobbies with it are closed to you.'
 --- !u!1 &165399297
 GameObject:
   m_ObjectHideFlags: 0
@@ -405,8 +401,8 @@ MonoBehaviour:
   rowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
   rowStep: 0.05
   rowFirst: 0.1
-  countFormat: '{0} of {1} ghosts'
-  fullTipFormat: Up to {0} ghosts can be raced.
+  pickFormat: '{0} / {1}'
+  pickTipFormat: Picked ghosts to race (up to {0})
 --- !u!1931382934 &165399300
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -631,30 +627,36 @@ MonoBehaviour:
   onlineTip: Downloaded from the leaderboard
   otherVersionTip: Other version. It can be raced but never counts as a record.
   pageSize: 25
-  currentBoardFormat: This version | {0} players
-  archivedBoardFormat: Archived | sim {1} | {2} | {0} players
-  noBoardText: No board yet
-  loadingBoardText: Loading...
+  currentVersionText: Current
+  olderVersionFormat: Version {0}
+  yourTrackText: your track
+  otherTrackText: other track data
+  boardLapsFormat: '{0} laps'
+  versionPlayersFormat: '{0} players'
+  localOnlyText: Only on this device
+  playersTip: Players on this board
+  lastUploadTip: Last upload
   worldText: World
   myContinentFormat: 'My continent: {0}'
   myCountryFormat: 'My country: {0}'
   anyKartText: Any kart
   anyDriverText: Any driver
-  searchPlaceholder: Search player
-  loadingText: Loading the leaderboard...
-  noRunsText: Nobody has uploaded a run in this class yet.
-  noMatchText: No runs match the filters.
-  offlineFormat: The server can't be reached. {0}
-  rangeFormat: '{0}-{1} of {2}'
+  searchHint: Player
+  stateLoading: Loading
+  stateNoRuns: No runs yet
+  stateNoMatch: No matches
+  stateOffline: Offline
+  pageRangeFormat: '{0}-{1} / {2}'
   chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
   ghostRowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
   leaderRowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
   narrowWidth: 1560
   localTab: Your ghosts
   globalTab: Leaderboard
-  countFormat: '{0} of {1} ghosts'
-  fullTipFormat: Up to {0} ghosts can be raced.
-  localRecordsFormat: Best lap {0} | Best race {1} (all classes)
+  pickFormat: '{0} / {1}'
+  pickTipFormat: Picked ghosts to race (up to {0})
+  bestRaceTip: Your best race
+  bestLapTip: Your best lap
   arenaTip: Time trials run on circuits only.
   importedCountFormat: 'Ghosts imported: {0}'
   unreadableFormat: 'Unreadable files: {0}'
@@ -946,8 +948,10 @@ MonoBehaviour:
   noRecord: "\u2014"
   voteTitleFormat: 'Vote for the next track: {0}'
   ownerPickTitle: Choose the next track
+  soloTitle: 'Race AI: choose a track'
   randomTitle: Random
   randomTip: 'A random track of the lobby: whoever''s vote is drawn decides.'
+  randomPickTip: A random track of the lobby
 --- !u!1931382934 &833478354
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -1235,7 +1239,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1017059796}
   - component: {fileID: 1017059798}
-  - component: {fileID: 1017059797}
+  - component: {fileID: 1017059799}
   m_Layer: 0
   m_Name: RoomSettings
   m_TagString: Untagged
@@ -1258,37 +1262,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1327142894}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1017059797
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1017059795}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fa86565fe18114604b5c974095551bad, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.RoomSettingsScreen
-  showcaseVisible: 0
-  allowBack: 1
-  rowTemplate: {fileID: 9197481963319205126, guid: 22b5d9498c7f4fa0bc3d661550603c7b, type: 3}
-  createTitle: Create room
-  editTitle: Room settings
-  createLabel: Create room
-  saveLabel: Save
-  onText: On
-  offText: Off
-  trackLapsText: Track default
-  defaultOddsText: Standard
-  ownOddsFormat: 'My odds: {0}'
-  ownerPicksText: Owner picks
-  voteText: Vote
-  packsSection: PACKS
-  noPacksText: Choose at least one pack with tracks.
-  noCupText: The chosen packs have no cup.
-  anticheatTip: Players' games check each other's karts and the server removes cheaters from the race.
-  aiTip: Computer drivers race you while you are alone in the room.
 --- !u!1931382934 &1017059798
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -1347,6 +1320,34 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!114 &1017059799
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1017059795}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fa86565fe18114604b5c974095551bad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.RoomSettingsScreen
+  showcaseVisible: 0
+  allowBack: 1
+  rowTemplate: {fileID: 9197481963319205126, guid: 22b5d9498c7f4fa0bc3d661550603c7b, type: 3}
+  createTitle: Create room
+  editTitle: Room settings
+  createLabel: Create room
+  saveLabel: Save
+  trackLapsText: Track
+  defaultOddsText: Standard
+  ownOddsFormat: 'My odds: {0}'
+  roomOddsText: This room's odds
+  noTracksText: Choose at least one mod with tracks.
+  noArenasText: Choose at least one mod with arenas.
+  noCupText: The chosen mods have no cup.
+  tracksFormat: '{0} tracks'
+  arenasFormat: '{0} arenas'
 --- !u!1 &1164318081
 GameObject:
   m_ObjectHideFlags: 0
@@ -1960,24 +1961,32 @@ MonoBehaviour:
   pageSize: 25
   visibleTab: Visible
   hiddenTab: With hidden
-  rowSubFormat: '{0} | {1} | {2} | {3}'
-  loadingText: Loading...
-  noneText: No reported runs. All quiet.
-  notModeratorText: Only moderators see reports.
-  offlineFormat: The server can't be reached. {0}
-  rangeFormat: '{0}-{1} of {2}'
-  runTitleFormat: '{0} | {1}'
-  runSubFormat: '{0} | {1} | uploaded {2} | {3} flag(s)'
-  reportHeadFormat: '{0} at {1} | {2} | {3}'
-  ignoredSuffix: ' (ignored: reporter not trusted)'
-  noReportsText: No reports.
-  accountLineFormat: '{0} | joined {1} | last login {2}'
-  accountStatsFormat: '{0} runs ({1} hidden) | {2} cheat kicks'
-  disabledFormat: 'Disabled: {0}'
-  hideText: Hide run
-  unhideText: Unhide run
-  disableText: Disable account
-  enableText: Enable account
+  reportRowFormat: '{0} | {1}'
+  stateLoading: Loading
+  stateNone: All quiet
+  stateNotModerator: Moderators only
+  stateOffline: Offline
+  pageRangeFormat: '{0}-{1} / {2}'
+  trackTip: Track
+  classTip: Engine class
+  uploadedTip: Uploaded
+  flagsTip: Players who reported it
+  ghostTimeTip: Ghost time of the finding
+  reporterTip: Reported by
+  ignoredTip: 'Ignored: the reporter is not trusted'
+  noReports: None
+  countryTip: Country
+  joinedTip: Joined
+  lastLoginTip: Last login
+  runsTip: Runs
+  hiddenRunsTip: Hidden runs
+  cheatKicksTip: Kicked from races for cheating
+  disabledTip: 'Disabled: {0}'
+  hideLabel: Hide
+  unhideLabel: Unhide
+  disableLabel: Disable
+  enableLabel: Enable
+  disabledLabel: Disabled
 --- !u!1931382934 &1232056123
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -2381,17 +2390,14 @@ MonoBehaviour:
   importedCountFormat: 'Ghosts imported: {0}'
   unreadableFormat: 'Unreadable files: {0}'
   nothingNewText: No new ghosts.
-  noGhostsText: No ghosts stored yet.
-  oneGhostText: 1 ghost stored
-  ghostsFormat: '{0} ghosts stored'
-  offText: Off
-  onText: On
-  autoUploadTip: Uploads every new personal best of a time trial to the leaderboard while you are logged in.
-  onlineFormat: Uploading as {0}.
-  loggedOutAutoText: Log in so new bests reach the leaderboards.
-  loggedOutText: Log in to upload your records. Leaderboards work without.
+  storedGhostsTip: Stored ghosts
+  autoUploadLabel: Auto-upload
+  autoUploadOnTip: New personal bests go to the leaderboard
+  autoUploadOffTip: New personal bests stay on this device
+  autoUploadLoginTip: Log in so new bests go to the leaderboard
   loginText: Log in
-  accountText: Account
+  accountChipTip: Signed in as {0}
+  loginChipTip: Log in for leaderboards and uploads
 --- !u!1931382934 &1515517136
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -2460,7 +2466,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1524361512}
   - component: {fileID: 1524361514}
-  - component: {fileID: 1524361513}
+  - component: {fileID: 1524361515}
   m_Layer: 0
   m_Name: Lobby
   m_TagString: Untagged
@@ -2483,56 +2489,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1327142894}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1524361513
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1524361511}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b475ed41a1fb94fc2b8c451c09617d95, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.LobbyScreen
-  showcaseVisible: 0
-  allowBack: 1
-  memberTemplate: {fileID: 9197481963319205126, guid: 50cb2616d15814fadb89714f438590cc, type: 3}
-  waitingOwnerText: Waiting for you to start the next race
-  waitingOthersText: Waiting for the room owner to start
-  waitingPublicText: Waiting for players
-  votingText: Vote for the next track
-  loadingFormat: Loading {0}
-  countdownText: Get ready!
-  racingText: Race running
-  sittingOutText: 'Race running: you race in the next one'
-  resultsText: Results
-  setResultsText: Set results
-  setRaceFormat: Race {0} of {1}
-  anticheatOnText: Anticheat on
-  anticheatOffText: Anticheat off
-  privateRoomText: Private room
-  publicLobbyFormat: Public lobby #{0}
-  noLoadoutText: No driver chosen
-  readyText: Ready
-  notReadyText: Not ready
-  voteText: Vote
-  changeVoteText: Change vote
-  startVoteText: Start voting
-  pickTrackText: Choose track
-  startCupFormat: 'Start: {0}'
-  lastRaceTitle: LAST RACE
-  setTitle: SET RESULTS
-  noResultsTitle: 
-  leaveQuestion: Leave this lobby?
-  leaveLabel: Leave
-  kickQuestionFormat: 'Remove {0} from the lobby? They cannot come back for 10 minutes. Reason (shown to them):'
-  kickLabel: Kick
-  kickedFormat: '{0} was removed.'
-  codeCopiedText: Room code copied.
-  linkCopiedText: 'Room link copied: send it to your friends.'
-  pingUnknown: '-'
-  dnfText: DNF
 --- !u!1931382934 &1524361514
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -2591,6 +2547,56 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!114 &1524361515
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1524361511}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b475ed41a1fb94fc2b8c451c09617d95, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.LobbyScreen
+  showcaseVisible: 0
+  allowBack: 1
+  memberTemplate: {fileID: 9197481963319205126, guid: 4bd6f6fda71484a549ee954205fce7bd, type: 3}
+  waitingOwnerText: Start when you are ready
+  waitingOthersText: Waiting for the owner
+  aloneText: Waiting for players
+  aloneSub: Race AI until someone joins
+  votingText: Vote for the next track
+  loadingFormat: Loading {0}
+  countdownText: Get ready!
+  racingText: Race running
+  sittingOutText: You race in the next one
+  soloRacingText: Racing AI
+  resultsText: Results
+  setResultsText: Set results
+  setRaceFormat: Race {0} of {1}
+  publicTitleFormat: '{0} #{1}'
+  noLoadoutText: Choose a driver
+  readyText: Ready
+  notReadyText: Ready?
+  voteText: Vote
+  changeVoteText: Change vote
+  startVoteText: Start voting
+  pickTrackText: Choose track
+  soloText: Race AI while you wait
+  soloAloneText: Race alone
+  startCupFormat: 'Start: {0}'
+  lastRaceTitle: Last race
+  setTitle: Set results
+  soloTitle: Last race vs AI
+  leaveQuestion: Leave this lobby?
+  leaveLabel: Leave
+  kickQuestionFormat: 'Remove {0} from the lobby? They cannot come back for 10 minutes. Reason (shown to them):'
+  kickLabel: Kick
+  kickedFormat: '{0} was removed.'
+  codeCopiedText: Code copied
+  linkCopiedText: Link copied
+  dnfText: DNF
 --- !u!1 &1554823461
 GameObject:
   m_ObjectHideFlags: 0

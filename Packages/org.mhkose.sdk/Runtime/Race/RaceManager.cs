@@ -511,6 +511,8 @@ namespace MHK.Race
 
         void EndRace()
         {
+            // Online the race can end while the menu covers it: the results take over (keys and focus go to them).
+            if (IsOnline) SetPaused(false);
             Phase = RacePhase.Finished;
             if (Battle == null && (Online == null || Online.Solo))
                 RaceResultsBuilder.EstimateUnfinished(karts, ranking.Order, TrackRuntime.path.Length, Laps);

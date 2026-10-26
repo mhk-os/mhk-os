@@ -30,20 +30,27 @@ namespace MHK.UI
         string recordFormat = "{0} | {1}";
         [SerializeField, Tooltip("Shown instead of a record time when there is none.")]
         string noRecord = "—";
-        [SerializeField, Tooltip("Header title while voting in an online lobby. {0} = seconds left.")]
-        string voteTitleFormat = "Vote for the next track: {0}";
+        [SerializeField, Tooltip("Header title while voting in an online lobby (the countdown is a badge beside it).")]
+        string voteTitle = "Vote for the next track";
         [SerializeField, Tooltip("Header title when the room owner picks the next track.")]
         string ownerPickTitle = "Choose the next track";
-        [SerializeField, Tooltip("Title of the Random card while voting.")]
+        [SerializeField, Tooltip("Header title when the player picks the track of a race against AI.")]
+        string soloTitle = "Race AI: choose a track";
+        [SerializeField, Tooltip("Title of the Random card in the lobby modes.")]
         string randomTitle = "Random";
-        [SerializeField, Tooltip("Tooltip of the Random card.")]
+        [SerializeField, Tooltip("Tooltip of the Random card while voting.")]
         string randomTip = "A random track of the lobby: whoever's vote is drawn decides.";
+        [SerializeField, Tooltip("Tooltip of the Random card outside voting.")]
+        string randomPickTip = "A random track of the lobby";
 
         List<TrackDefinition> tracks;
         bool battle;
         VisualElement arenaLine, lapsLine;
         Label lapsText, bestLap, bestRace;
         IVisualElementScheduledItem voteClock;
+        Label voteTimer;
+        // While voting: the vote badge of each card by track id ("" = Random).
+        readonly Dictionary<string, VisualElement> voteBadges = new();
 
         void Reset()
         {
@@ -53,13 +60,15 @@ namespace MHK.UI
 
         protected override IEnumerable<TrackDefinition> Items => tracks;
 
-        LobbyPick Lobby => Selection.lobbyPick is LobbyPick.Vote or LobbyPick.OwnerPick ? Selection.lobbyPick : LobbyPick.None;
+        LobbyPick Lobby => Selection.lobbyPick is LobbyPick.Vote or LobbyPick.OwnerPick or LobbyPick.Solo ? Selection.lobbyPick : LobbyPick.None;
 
         protected override void BindPage()
         {
             var lobby = Lobby;
             battle = lobby != LobbyPick.None ? LobbyScreen.IsBattle : Selection.mode == GameMode.Battle;
-            if (lobby == LobbyPick.OwnerPick) Q<Label>("title").text = ownerPickTitle;
+            if (lobby == LobbyPick.Vote) AddVoteTimer();
+            else if (lobby == LobbyPick.OwnerPick) Q<Label>("title").text = ownerPickTitle;
+            else if (lobby == LobbyPick.Solo) Q<Label>("title").text = soloTitle;
             else if (battle) Q<Label>("title").text = battleTitle;
             // Arenas only host battles, but battles may also be fought on any circuit (arenas listed first). Online
             // battle lobbies use arenas only, race lobbies circuits only.
@@ -77,6 +86,8 @@ namespace MHK.UI
             Online.OnlineLobby.Changed += OnLobbyChanged;
             if (lobby == LobbyPick.Vote) voteClock = Root.schedule.Execute(ShowVoteTime).Every(250);
             ShowVoteTime();
+            // The cards (and their vote badges) are made after BindPage.
+            Root.schedule.Execute(ShowVotes);
         }
 
         protected override void Unbind()
@@ -85,32 +96,94 @@ namespace MHK.UI
             Online.OnlineLobby.Changed -= OnLobbyChanged;
             voteClock?.Pause();
             voteClock = null;
+            voteTimer = null;
+            voteBadges.Clear();
+        }
+
+        // The title and, beside it, a timer badge with the seconds left (the header becomes a row).
+        void AddVoteTimer()
+        {
+            var title = Q<Label>("title");
+            title.text = voteTitle;
+            var header = title.parent;
+            header.AddToClassList("vote-header");
+            var badge = new VisualElement { tooltip = "Voting ends" };
+            badge.AddToClassList("vote-timer");
+            var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+            icon.AddToClassList("icon");
+            icon.AddToClassList("i-timer");
+            badge.Add(icon);
+            voteTimer = new Label { pickingMode = PickingMode.Ignore };
+            voteTimer.AddToClassList("vote-timer-label");
+            badge.Add(voteTimer);
+            header.Add(badge);
         }
 
         void ShowVoteTime()
         {
-            if (Lobby != LobbyPick.Vote || Root == null) return;
-            Q<Label>("title").text = string.Format(voteTitleFormat, Mathf.CeilToInt(Online.OnlineLobby.PhaseSecondsLeft));
+            if (Lobby != LobbyPick.Vote || voteTimer == null) return;
+            voteTimer.text = Mathf.CeilToInt(Online.OnlineLobby.PhaseSecondsLeft).ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        // Voting ended (or the lobby is gone): back to the lobby, which shows what was drawn.
+        // Voting ended (or the lobby is gone): back to the lobby, which shows what was drawn. New votes update the cards.
         void OnLobbyChanged()
         {
             var lobby = Online.OnlineLobby.Current;
             var over = lobby == null || (Lobby == LobbyPick.Vote && lobby.Phase != Online.LobbyPhase.Voting)
-                       || (Lobby == LobbyPick.OwnerPick && lobby.Phase != Online.LobbyPhase.Waiting);
-            if (over && Flow.Current == this) LobbyScreen.Return(Flow);
+                       || (Lobby is LobbyPick.OwnerPick or LobbyPick.Solo && lobby.Phase != Online.LobbyPhase.Waiting)
+                       || (Lobby == LobbyPick.Solo && !LobbyScreen.CanRaceAlone);
+            if (over && Flow.Current == this)
+            {
+                LobbyScreen.Return(Flow);
+                return;
+            }
+            ShowVotes();
         }
 
-        // Voting: the Random card leads the grid.
+        // Votes per card: their count, voters' names as tooltip.
+        void ShowVotes()
+        {
+            var lobby = Online.OnlineLobby.Current;
+            if (Lobby != LobbyPick.Vote || lobby == null) return;
+            foreach (var pair in voteBadges)
+            {
+                var names = new List<string>();
+                foreach (var v in lobby.votes)
+                {
+                    if (!string.Equals(v.trackId, pair.Key, System.StringComparison.OrdinalIgnoreCase)) continue;
+                    var m = lobby.Member(v.accountId);
+                    names.Add(m != null ? m.username : "?");
+                }
+                pair.Value.Clear();
+                pair.Value.SetVisible(names.Count > 0);
+                if (names.Count > 0)
+                    InfoChips.Add(pair.Value, "how_to_vote", names.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), string.Join("\n", names), InfoChipState.On)
+                        .AddToClassList("big");
+            }
+        }
+
+        VisualElement AddVoteBadge(Button card, string trackId)
+        {
+            var badge = new VisualElement { pickingMode = PickingMode.Position };
+            badge.AddToClassList("info-chips");
+            badge.AddToClassList("vote-badge");
+            badge.SetVisible(false);
+            card.Add(badge);
+            voteBadges[trackId] = badge;
+            return badge;
+        }
+
+        // In the lobby modes the Random card leads the grid (the room owner of a championship picks the cup's order: none).
         protected override void OnGridCleared()
         {
-            if (Lobby != LobbyPick.Vote) return;
+            voteBadges.Clear();
+            var lobby = Lobby;
+            if (lobby is not (LobbyPick.Vote or LobbyPick.Solo or LobbyPick.OwnerPick)) return;
             var card = UiTree.Spawn<Button>(cardTemplate, Q<VisualElement>("card-grid"));
             if (card == null) return;
             card.SetText("card-title", randomTitle);
             card.Q<Label>("card-tag")?.SetVisible(false);
-            card.tooltip = randomTip;
+            card.tooltip = lobby == LobbyPick.Vote ? randomTip : randomPickTip;
             card.Q("card-badge")?.SetVisible(false);
             var image = card.Q("card-image");
             image?.SetImage(null);
@@ -122,22 +195,27 @@ namespace MHK.UI
                 icon.AddToClassList("random-card-icon");
                 image.Add(icon);
             }
+            if (lobby == LobbyPick.Vote) AddVoteBadge(card, "");
             card.clicked += () =>
             {
                 Click();
-                LobbyScreen.Vote(Flow, "");
+                Pick("");
             };
         }
 
-        protected override string CardTag(TrackDefinition t) => UiText.GameName(t.SourceGame);
+        protected override string GameName(string game) => Lobby != LobbyPick.None ? OnlineUi.PackName(game) : UiText.GameName(game);
+
+        protected override string CardTag(TrackDefinition t) => GameName(t.SourceGame);
 
         protected override Texture2D CardImage(TrackDefinition t) => t.Picture;
 
-        protected override string InfoGame(TrackDefinition t) => UiText.GameWithVariant(t, variantFormat);
+        protected override string InfoGame(TrackDefinition t) =>
+            string.IsNullOrEmpty(t.variant) ? GameName(t.SourceGame) : GameName(t.SourceGame) + string.Format(variantFormat, t.variant);
 
         // Arenas get the swords badge (the gold won-cup badge of cup cards) with a hover tooltip.
         protected override void OnCardSpawned(Button card, TrackDefinition t)
         {
+            if (Lobby == LobbyPick.Vote) AddVoteBadge(card, t.Id);
             var badge = card.Q("card-badge");
             if (badge == null) return;
             var arena = battle && t.layout == TrackLayout.Arena;
@@ -172,16 +250,21 @@ namespace MHK.UI
 
         protected override void Pick(TrackDefinition track)
         {
+            if (Lobby == LobbyPick.None) Continue(track);
+            else Pick(track.Id);
+        }
+
+        // The lobby modes: a vote, the owner's next track or a race against AI ("" = random).
+        void Pick(string trackId)
+        {
             switch (Lobby)
             {
                 case LobbyPick.Vote:
-                    LobbyScreen.Vote(Flow, track.Id);
+                    LobbyScreen.Vote(Flow, trackId);
                     return;
                 case LobbyPick.OwnerPick:
-                    LobbyScreen.StartOn(Flow, track.Id);
-                    return;
-                default:
-                    Continue(track);
+                case LobbyPick.Solo:
+                    LobbyScreen.StartOn(Flow, trackId);
                     return;
             }
         }

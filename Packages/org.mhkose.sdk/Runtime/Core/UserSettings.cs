@@ -59,8 +59,6 @@ namespace MHK.Core
         public CameraMode cameraMode = CameraMode.Close;
         [Tooltip("Keyboard rebinds: Input System binding overrides of MHKControls as JSON (empty = default keys).")]
         public string keyBindings = "";
-        [Tooltip("Name written into time-trial ghosts (Records screen), empty = the system user name.")]
-        public string playerName = "";
         [Tooltip("Stable random id of this player (time-trial ghosts, a future server groups runs by it). Created on first use.")]
         public string playerId = "";
         [Tooltip("Own single race and battle item odds, one set per item family of the track (Powerups screen). A family " +
@@ -85,12 +83,16 @@ namespace MHK.Core
             return null;
         }
 
-        /// <summary>The name ghosts are signed with: <see cref="playerName"/>, else the system user name, else "Player".</summary>
+        /// <summary>
+        /// The name ghosts are signed with: the account's username (logged in, else the stored session of the server in
+        /// use, <see cref="Online.OnlineService.Username"/>), else the system user name, else "Player".
+        /// </summary>
         public string SignatureName
         {
             get
             {
-                if (!string.IsNullOrWhiteSpace(playerName)) return playerName.Trim();
+                var account = Online.OnlineService.Username;
+                if (!string.IsNullOrWhiteSpace(account)) return account.Trim();
                 var system = Application.isMobilePlatform ? "" : Environment.UserName;
                 return string.IsNullOrWhiteSpace(system) ? DefaultSignature : system;
             }

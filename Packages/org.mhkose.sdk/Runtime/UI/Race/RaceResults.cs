@@ -85,14 +85,25 @@ namespace MHK.UI
         string loginHintText = "Log in on the Account screen to post your records online.";
 
         [Header("Online texts")]
-        [SerializeField, Tooltip("Info line of an online race in a set ({0} = race number, {1} = races in the set).")]
-        string onlineSetFormat = "Online | Race {0} of {1}";
-        [SerializeField, Tooltip("Info line of an online race outside a set.")]
-        string onlineInfo = "Online race";
+        [SerializeField, Tooltip("Mode chips of the online results: race and battle.")]
+        string onlineRaceText = "Online race", onlineBattleText = "Online battle";
+        [SerializeField, Tooltip("Race chip of an online race in a set ({0} = race number, {1} = races in the set).")]
+        string onlineSetFormat = "Race {0}/{1}";
+        [SerializeField, Tooltip("Chip of a solo race against computer drivers.")]
+        string soloChipText = "vs AI";
+        [SerializeField, Tooltip("Tooltip of the solo chip.")]
+        string soloChipTip = "Raced alone against computer drivers: no points.";
         [SerializeField, Tooltip("Button back to the lobby after an online race.")]
         string backToLobbyText = "Back to lobby";
-        [SerializeField, Tooltip("Note while the server's result has not come (the player left the race or lost it).")]
-        string noResultText = "No result from the server.";
+        [SerializeField, Tooltip("Tooltip of the countdown on the lobby button.")]
+        string autoReturnTip = "Back to the lobby by itself when the countdown ends.";
+        [SerializeField, Tooltip("Info line while the server's result has not come (the player left the race or lost it).")]
+        string noResultText = "No result";
+        [SerializeField, Tooltip("Outcome badges of the online results: DNF, left, kicked for cheating, removed by a moderator, desync.")]
+        string dnfText = "DNF", leftText = "Left", kickedText = "Kicked", removedText = "Removed", desyncText = "Desync";
+        [SerializeField, Tooltip("Outcome tooltips, in the same order.")]
+        string dnfTip = "Did not finish in time.", leftTip = "Left the race.", kickedTip = "Removed: the other players' checks found cheating.",
+            removedTip = "Removed by a moderator.", desyncTip = "This racer's game data differed from the others'.";
 
         [Header("Timing (seconds)")]
         [SerializeField, Tooltip("Delay before the first result row enters.")]
@@ -118,6 +129,8 @@ namespace MHK.UI
         // could be read (a solo race ended early goes straight back to waiting).
         bool onlineReturnArmed;
         float onlineReturnAfter;
+        Label returnCountdown;
+        int shownCountdown = -1;
         const float MinOnlineResultsSeconds = 6f;
 
         protected override void Bind()
@@ -125,11 +138,15 @@ namespace MHK.UI
             var race = Race;
             var session = race.Session;
             var champ = session.mode == GameMode.Championship;
-            var online = race.Online != null;
+            var online = race.IsOnline;
+            var solo = online && race.Online != null && race.Online.Solo;
             var battle = race.Battle != null;
+            var screen = Q<VisualElement>("results");
+            screen.EnableInClassList("online", online);
+            screen.EnableInClassList("solo", solo);
             BindHeader(race, session, champ, battle);
             var rows = Q<VisualElement>("rows");
-            var rowCount = FillResultRows(rows, race, champ || online, battle);
+            var rowCount = FillResultRows(rows, race, champ || (online && !solo), battle);
             var afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * rowCount;
             BindChampion(session, champ, afterRows);
             var laps = BindTimeTrial(race.TimeTrial);
@@ -139,6 +156,7 @@ namespace MHK.UI
             else BindButtons(race, champ && session.HasNextRace, champ, afterRows);
             onlineReturnArmed = online;
             onlineReturnAfter = Time.unscaledTime + MinOnlineResultsSeconds;
+            shownCountdown = -1;
         }
 
         void Update()
@@ -150,11 +168,21 @@ namespace MHK.UI
                 onlineReturnArmed = false;
                 return;
             }
-            if (Time.unscaledTime < onlineReturnAfter) return;
             var lobby = OnlineLobby.Current;
-            if (lobby != null && lobby.Phase is not (LobbyPhase.Waiting or LobbyPhase.Voting)) return;
+            var resultsPhase = lobby != null && lobby.Phase is not (LobbyPhase.Waiting or LobbyPhase.Voting);
+            var left = Mathf.Max(onlineReturnAfter - Time.unscaledTime, resultsPhase ? OnlineLobby.PhaseSecondsLeft : 0f);
+            ShowCountdown(Mathf.CeilToInt(left));
+            if (Time.unscaledTime < onlineReturnAfter || resultsPhase) return;
             onlineReturnArmed = false;
             Race.Continue();
+        }
+
+        void ShowCountdown(int seconds)
+        {
+            if (returnCountdown == null || seconds == shownCountdown) return;
+            shownCountdown = seconds;
+            returnCountdown.text = seconds.ToString(CultureInfo.InvariantCulture);
+            returnCountdown.SetVisible(seconds > 0);
         }
 
         void BindOnlineButtons(RaceManager race, long afterRows, int rowCount)
@@ -163,12 +191,16 @@ namespace MHK.UI
             Q<Button>("next-race").SetVisible(false);
             var menu = Q<Button>("menu");
             menu.SetVisible(true);
+            var icon = menu.Q<VisualElement>(className: "icon");
+            if (icon != null) icon.SetIcon("group");
             var label = menu.Q<Label>(className: "button-label");
             if (label != null) label.text = backToLobbyText;
+            menu.tooltip = "";
+            returnCountdown.tooltip = autoReturnTip;
             menu.clicked += () => race.Continue();
             Q<VisualElement>("buttons").SetTransitionDelay(afterRows + UiAnim.Ms(buttonsDelay));
             Root.schedule.Execute(() => menu.Focus());
-            if (rowCount == 0) Q<Label>("info").text = noResultText;
+            if (rowCount == 0) InfoChips.Add(Q<VisualElement>("online-chips"), "cloud_off", noResultText, null, InfoChipState.Bad);
         }
 
         protected override void AfterBind() => UiAnim.Stagger(staggered, rowsStep, rowsFirstDelay, "from-left");
@@ -182,12 +214,29 @@ namespace MHK.UI
         void BindHeader(RaceManager race, GameSession session, bool champ, bool battle)
         {
             Q<Label>("title").text = race.Track.DisplayName;
-            var online = race.Online != null ? race.Online.Setup : null;
-            Q<Label>("info").text = online != null ? online.setSize > 0 ? string.Format(onlineSetFormat, online.setRace, online.setSize) : onlineInfo
-                : champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
+            var info = Q<Label>("info");
+            var chips = Q<VisualElement>("online-chips");
+            returnCountdown = Q<Label>("return-countdown");
+            returnCountdown.SetVisible(false);
+            chips.Clear();
+            var setup = race.Online != null ? race.Online.Setup : null;
+            chips.SetVisible(race.IsOnline);
+            info.SetVisible(!race.IsOnline);
+            if (race.IsOnline) AddOnlineChips(chips, setup, session, battle);
+            else info.text = champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
             Q<VisualElement>("head-best").SetVisible(!battle);
             Q<VisualElement>("head-status").SetVisible(battle);
-            Q<VisualElement>("head-points").SetVisible(champ || online != null);
+            Q<VisualElement>("head-points").SetVisible(champ || (race.IsOnline && (setup == null || !setup.solo)));
+        }
+
+        // The online race at a glance: mode, its place in the set, engine class, solo against AI.
+        void AddOnlineChips(VisualElement chips, RaceSetup setup, GameSession session, bool battle)
+        {
+            InfoChips.Add(chips, battle ? "swords" : "sports_score", battle ? onlineBattleText : onlineRaceText, null, InfoChipState.On);
+            if (setup != null && setup.setSize > 0 && !setup.solo)
+                InfoChips.Add(chips, "flag", string.Format(onlineSetFormat, setup.setRace, setup.setSize));
+            InfoChips.Add(chips, "speed", GameRoot.Instance.Config.GetDifficulty(session.difficulty).label);
+            if (setup != null && setup.solo) InfoChips.Add(chips, "smart_toy", soloChipText, soloChipTip);
         }
 
         int FillResultRows(VisualElement rows, RaceManager race, bool points, bool battle)
@@ -207,30 +256,54 @@ namespace MHK.UI
         void FillResultRow(VisualElement row, RaceResult r, bool champ, bool battle, long gainPopMs)
         {
             row.EnableInClassList("me", r.isHuman);
+            var outcome = OutcomeBadge(r.outcome, battle);
+            // Medals and the winner's burst only for racers who finished (online a leaver can be ranked 2nd of 3).
+            var medal = outcome.icon == null ? r.position - 1 : -1;
             var burst = row.Q<VisualElement>("burst");
-            if (r.position == 1)
+            if (medal == 0)
             {
                 burst.SetVisible(true);
                 UiAnim.Spin(burst, WinnerSpinDegreesPerSecond);
             }
             else burst.RemoveFromHierarchy();
-            row.Q<VisualElement>("badge").SetExclusiveClass(r.position - 1, MedalClasses);
+            row.Q<VisualElement>("badge").SetExclusiveClass(medal, MedalClasses);
             row.SetText("badge-label", r.position.ToString(CultureInfo.InvariantCulture));
             row.SetText("name", r.name);
             ContentDisplay.SetDriver(row, r.characterId, r.kartId);
-            var hasTime = r.time > 0f || !r.online;
-            row.SetText("time", hasTime ? UiText.Clock(r.time) : r.status ?? "-");
+            var timeLabel = row.Q<Label>("time");
+            timeLabel.text = r.time > 0f || !r.online ? UiText.Clock(r.time) : "-";
+            if (outcome.icon != null)
+            {
+                // Not finished: the badge takes the time's place, its explanation is the tooltip.
+                var cell = new VisualElement { pickingMode = PickingMode.Position };
+                cell.AddToClassList("hud-res-outcome");
+                InfoChips.Add(cell, outcome.icon, outcome.text, outcome.tip, InfoChipState.Bad);
+                timeLabel.parent.Insert(timeLabel.parent.IndexOf(timeLabel), cell);
+                timeLabel.SetVisible(false);
+            }
             var extra = row.Q<Label>("best");
-            extra.text = battle ? (r.survived ? survivorText : outText) : hasTime && r.status != null ? r.status : r.bestLap > 0 ? UiText.Clock(r.bestLap) : "";
+            extra.text = battle ? (r.survived ? survivorText : outText) : outcome.icon == null && r.bestLap > 0 ? UiText.Clock(r.bestLap) : "";
             extra.EnableInClassList("good", battle && r.survived);
-            extra.EnableInClassList("bad", (battle && !r.survived) || r.status != null);
+            extra.EnableInClassList("bad", battle && !r.survived);
             row.Q<VisualElement>("points").SetVisible(champ);
             if (!champ) return;
             var gain = row.Q<Label>("gain");
-            gain.text = "+" + r.pointsGained.ToString(CultureInfo.InvariantCulture);
+            // Online, a racer who gained nothing shows only its set standing.
+            gain.text = r.online && r.pointsGained == 0 ? "" : "+" + r.pointsGained.ToString(CultureInfo.InvariantCulture);
             row.SetText("total", "(" + r.totalPoints.ToString(CultureInfo.InvariantCulture) + ")");
             if (r.pointsGained > 0) gain.schedule.Execute(() => UiAnim.Pop(gain, GainPopScale, GainPopMs)).ExecuteLater(gainPopMs);
         }
+
+        // Outcome badge of an online row (icon, label, tooltip), no icon for a finish.
+        (string icon, string text, string tip) OutcomeBadge(Online.RaceOutcome? outcome, bool battle) => outcome switch
+        {
+            Online.RaceOutcome.Dnf when !battle => ("flag", dnfText, dnfTip),
+            Online.RaceOutcome.Left => ("logout", leftText, leftTip),
+            Online.RaceOutcome.KickedCheating => ("gavel", kickedText, kickedTip),
+            Online.RaceOutcome.KickedModerator => ("shield_person", removedText, removedTip),
+            Online.RaceOutcome.Desync => ("sync_problem", desyncText, desyncTip),
+            _ => (null, null, null),
+        };
 
         void BindChampion(GameSession session, bool champ, long afterRows)
         {

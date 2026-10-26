@@ -1,12 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One lobby of a public category (Online page side panel). Code sets the name (#1, #2, ...), players / max and the phase, and .alt. lb-main joins the lobby (disabled while it is full). -->
+    <!-- One lobby of the selected public category (Online page): a compact button with the lobby number, players / max and the phase. Clicking joins it (disabled while full). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
-    <ui:VisualElement class="lb-row">
-        <ui:Button name="lb-main" class="lb-main">
-            <ui:VisualElement class="icon i-sports_motorsports onl-instance-icon" />
-            <ui:Label name="inst-name" text="Lobby #1" class="onl-instance-name" />
-            <ui:Label name="inst-players" text="4 / 10" class="onl-players" />
-            <ui:Label name="inst-phase" text="Voting" class="onl-phase" />
-        </ui:Button>
-    </ui:VisualElement>
+    <ui:Button class="mhk-button small secondary onl-instance">
+        <ui:Label name="inst-name" text="#1" class="onl-instance-name" />
+        <ui:VisualElement name="inst-chips" class="info-chips" />
+    </ui:Button>
 </ui:UXML>

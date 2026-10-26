@@ -29,24 +29,23 @@ namespace MHK.UI
         [Header("Texts")]
         [SerializeField, Tooltip("Filter chips: visible runs only, also hidden ones.")]
         string visibleTab = "Visible", hiddenTab = "With hidden";
-        [SerializeField, Tooltip("Row line ({0} = track, {1} = engine class, {2} = driver, {3} = kart).")]
-        string rowSubFormat = "{0} | {1} | {2} | {3}";
-        [SerializeField, Tooltip("States: loading, nothing reported, not a moderator, offline ({0} = reason).")]
-        string loadingText = "Loading...", noneText = "No reported runs. All quiet.", notModeratorText = "Only moderators see reports.",
-            offlineFormat = "The server can't be reached. {0}";
+        [SerializeField, Tooltip("Row line ({0} = track, {1} = engine class).")]
+        string reportRowFormat = "{0} | {1}";
+        [SerializeField, Tooltip("States: loading, nothing reported, not a moderator, offline (the reason is the tooltip).")]
+        string stateLoading = "Loading", stateNone = "All quiet", stateNotModerator = "Moderators only", stateOffline = "Offline";
         [SerializeField, Tooltip("Pager text ({0} = first row, {1} = last row, {2} = all rows).")]
-        string rangeFormat = "{0}-{1} of {2}";
-        [SerializeField, Tooltip("Detail title ({0} = player, {1} = time) and line ({0} = track, {1} = class, {2} = upload date, {3} = flags).")]
-        string runTitleFormat = "{0} | {1}", runSubFormat = "{0} | {1} | uploaded {2} | {3} flag(s)";
-        [SerializeField, Tooltip("One report's head ({0} = reason, {1} = ghost time, {2} = reporter, {3} = date) and the mark of an ignored one.")]
-        string reportHeadFormat = "{0} at {1} | {2} | {3}", ignoredSuffix = " (ignored: reporter not trusted)";
-        [SerializeField, Tooltip("States of the reports and account parts.")]
-        string noReportsText = "No reports.";
-        [SerializeField, Tooltip("Account lines ({0} = country, {1} = joined, {2} = last login) and ({0} = runs, {1} = hidden, {2} = cheat kicks), disabled ({0} = reason).")]
-        string accountLineFormat = "{0} | joined {1} | last login {2}", accountStatsFormat = "{0} runs ({1} hidden) | {2} cheat kicks",
-            disabledFormat = "Disabled: {0}";
-        [SerializeField, Tooltip("Buttons of the detail: hide / unhide, disable / enable.")]
-        string hideText = "Hide run", unhideText = "Unhide run", disableText = "Disable account", enableText = "Enable account";
+        string pageRangeFormat = "{0}-{1} / {2}";
+        [SerializeField, Tooltip("Tooltips of the run chips: track, class, upload date, flags.")]
+        string trackTip = "Track", classTip = "Engine class", uploadedTip = "Uploaded", flagsTip = "Players who reported it";
+        [SerializeField, Tooltip("Report chips: tooltip of the ghost time, of the reporter, the mark of an ignored report.")]
+        string ghostTimeTip = "Ghost time of the finding", reporterTip = "Reported by", ignoredTip = "Ignored: the reporter is not trusted";
+        [SerializeField, Tooltip("State of a run without reports.")]
+        string noReports = "None";
+        [SerializeField, Tooltip("Account chip tooltips: country, joined, last login, runs, hidden runs, cheat kicks, disabled.")]
+        string countryTip = "Country", joinedTip = "Joined", lastLoginTip = "Last login", runsTip = "Runs", hiddenRunsTip = "Hidden runs",
+            cheatKicksTip = "Kicked from races for cheating", disabledTip = "Disabled: {0}";
+        [SerializeField, Tooltip("Buttons of the detail: hide / unhide, disable / enable, the disabled chip.")]
+        string hideLabel = "Hide", unhideLabel = "Unhide", disableLabel = "Disable", enableLabel = "Enable", disabledLabel = "Disabled";
 
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
 
@@ -78,6 +77,18 @@ namespace MHK.UI
             reports = Q<VisualElement>("fr-reports");
             status = Q<Label>("status");
             LeaderRows.KeepFocusedRowInView(scroll, list);
+            LeaderRows.NoWrap(Root);
+            LeaderRows.NoScrollbarFocus(Q<ScrollView>("fr-detail"));
+            LeaderRows.UpFromTopTo(scroll, () => LeaderRows.SelectedChip(Q<VisualElement>("filter")));
+            LeaderRows.DownFromTo(Q<VisualElement>("filter"), () => list.Q<Button>("lb-main"));
+            // Right from a row's last button opens the details' actions, Left from the first action returns to the row.
+            list.RegisterCallback<NavigationMoveEvent>(e =>
+            {
+                if (e.target is Button { name: "lb-account" } && detail.resolvedStyle.display != DisplayStyle.None)
+                    MoveFocus(e, NavigationMoveEvent.Direction.Right, Q<Button>("fr-watch"));
+            });
+            Q<Button>("fr-watch").RegisterCallback<NavigationMoveEvent>(e =>
+                MoveFocus(e, NavigationMoveEvent.Direction.Left, rows.Find(r => shown != null && r.run.runId == shown.runId).row?.Q<Button>("lb-main")));
             SetStatus("", true);
             retry = OnClick("fr-retry", () =>
             {
@@ -126,6 +137,14 @@ namespace MHK.UI
             retry = prev = next = hide = disable = null;
         }
 
+        static void MoveFocus(NavigationMoveEvent e, NavigationMoveEvent.Direction direction, VisualElement to)
+        {
+            if (e.direction != direction || to == null || to.panel == null || e.target is not VisualElement from) return;
+            to.Focus();
+            e.StopPropagation();
+            from.focusController?.IgnoreEvent(e);
+        }
+
         void OnOnlineChanged()
         {
             if (list != null && OnlineService.State == OnlineState.LoggedIn && !OnlineService.IsModerator) Flow.Back();
@@ -156,13 +175,13 @@ namespace MHK.UI
 
         async Awaitable LoadAsync(int id)
         {
-            ShowState("sync", loadingText, false);
+            ShowState("sync", stateLoading, false);
             var r = await OnlineModeration.ListFlagged(offset, Size, includeHidden);
             if (id != request || list == null) return;
             if (!r.Ok)
             {
-                if (r.result.status == null) ShowState("cloud_off", string.Format(offlineFormat, r.result.message), true);
-                else ShowState("error", r.result.status == Status.Forbidden ? notModeratorText : r.result.message, true);
+                if (r.result.status == null) ShowState("cloud_off", stateOffline, true, r.result.message);
+                else ShowState("error", r.result.status == Status.Forbidden ? stateNotModerator : r.result.message, true);
                 return;
             }
             var (total, runs) = r.value;
@@ -175,12 +194,13 @@ namespace MHK.UI
             Fill(total, runs);
         }
 
-        void ShowState(string icon, string text, bool showRetry)
+        void ShowState(string icon, string text, bool showRetry, string tip = "")
         {
             if (state == null) return;
             state.SetVisible(true);
             stateIcon.SetIcon(icon);
             stateLabel.text = text;
+            stateLabel.tooltip = tip ?? "";
             retry.SetVisible(showRetry);
             scroll.SetVisible(false);
             pager.SetVisible(false);
@@ -192,14 +212,14 @@ namespace MHK.UI
             rows.Clear();
             if (runs.Count == 0)
             {
-                ShowState("check", noneText, false);
+                ShowState("check_circle", stateNone, false);
                 return;
             }
             state.SetVisible(false);
             scroll.SetVisible(true);
             for (var i = 0; i < runs.Count; i++) SpawnRow(runs[i], i % 2 == 1);
             pager.SetVisible(total > runs.Count || offset > 0);
-            range.text = string.Format(Invariant, rangeFormat, offset + 1, offset + runs.Count, total);
+            range.text = string.Format(Invariant, pageRangeFormat, offset + 1, offset + runs.Count, total);
             prev.SetEnabled(offset > 0);
             next.SetEnabled(offset + runs.Count < total);
             // The shown run's row follows its new state (hidden, flags) after a refresh.
@@ -218,8 +238,7 @@ namespace MHK.UI
         {
             var row = UiTree.Spawn<VisualElement>(rowTemplate, list);
             if (row == null) return;
-            LeaderRows.Fill(row, run, alt, string.Format(rowSubFormat, ContentDisplay.TrackName(run.trackId), ClassLabel(run.engineClass),
-                ContentDisplay.CharacterName(run.characterId), ContentDisplay.KartName(run.kartId)));
+            LeaderRows.Fill(row, run, alt, string.Format(reportRowFormat, ContentDisplay.TrackName(run.trackId), ClassLabel(run.engineClass)));
             rows.Add((run, row));
             var main = row.Q<Button>("lb-main");
             main.clicked += () =>
@@ -269,16 +288,22 @@ namespace MHK.UI
             detail.SetVisible(run != null);
             detailEmpty.SetVisible(run == null);
             if (run == null) return;
-            Q<Label>("fr-run-title").text = string.Format(runTitleFormat, run.username, UiText.Clock(run.finishMs / 1000f));
-            Q<Label>("fr-run-sub").text = string.Format(Invariant, runSubFormat, ContentDisplay.TrackName(run.trackId), ClassLabel(run.engineClass),
-                Date(run.uploaded), run.flags);
-            Q<Label>("fr-hide-label").text = run.hidden ? unhideText : hideText;
+            Q<Label>("fr-run-title").text = run.username;
+            Q<Label>("fr-run-time").text = UiText.Clock(run.finishMs / 1000f);
+            var chips = Q<VisualElement>("fr-run-chips");
+            chips.Clear();
+            InfoChips.Add(chips, "map", ContentDisplay.TrackName(run.trackId), trackTip);
+            InfoChips.Add(chips, "speed", ClassLabel(run.engineClass), classTip);
+            InfoChips.Add(chips, "upload", Date(run.uploaded), uploadedTip);
+            InfoChips.Add(chips, "flag", run.flags.ToString(Invariant), flagsTip, run.flags > 0 ? InfoChipState.Bad : InfoChipState.Normal);
+            if (run.hidden) InfoChips.Add(chips, "visibility_off", null, LeaderRows.HiddenTip, InfoChipState.Off);
+            Q<Label>("fr-hide-label").text = run.hidden ? unhideLabel : hideLabel;
             Q<VisualElement>("fr-hide-icon").SetIcon(run.hidden ? "visibility" : "visibility_off");
             Q<Button>("fr-watch").SetEnabled(Content.Get<TrackDefinition>(run.trackId) != null);
             reports.Clear();
-            SetPart("fr-reports-state", loadingText);
-            SetPart("fr-account-state", loadingText);
-            Q<VisualElement>("fr-account").SetVisible(false);
+            SetPart("fr-reports-state", stateLoading);
+            SetPart("fr-account-state", stateLoading);
+            Q<VisualElement>("fr-account").Clear();
             shownAccount = null;
             disable.SetEnabled(false);
             var id = ++detailRequest;
@@ -304,15 +329,19 @@ namespace MHK.UI
                 SetPart("fr-reports-state", r.result.message);
                 return;
             }
-            SetPart("fr-reports-state", r.value.Count == 0 ? noReportsText : "");
+            SetPart("fr-reports-state", r.value.Count == 0 ? noReports : "");
             foreach (var report in r.value)
             {
                 var item = new VisualElement();
                 item.AddToClassList("fr-report");
                 item.EnableInClassList("ignored", !report.counted);
-                var head = new Label(string.Format(reportHeadFormat, report.reason, UiText.Clock(report.atSeconds), report.reporter, Date(report.created)) +
-                                     (report.counted ? "" : ignoredSuffix));
-                head.AddToClassList("fr-report-head");
+                var head = new VisualElement();
+                head.AddToClassList(InfoChips.ContainerClass);
+                InfoChips.Add(head, "flag", report.reason.ToString(), null, InfoChipState.Bad);
+                InfoChips.Add(head, "timer", UiText.Clock(report.atSeconds), ghostTimeTip);
+                InfoChips.Add(head, "person", report.reporter, reporterTip);
+                InfoChips.Add(head, "history", Date(report.created));
+                if (!report.counted) InfoChips.Add(head, "remove_moderator", null, ignoredTip, InfoChipState.Off);
                 item.Add(head);
                 if (!string.IsNullOrEmpty(report.detail))
                 {
@@ -336,14 +365,17 @@ namespace MHK.UI
             var info = r.value;
             shownAccount = info;
             SetPart("fr-account-state", "");
-            Q<VisualElement>("fr-account").SetVisible(true);
-            var country = info.account != null && !string.IsNullOrEmpty(info.account.country) ? Countries.Name(info.account.country) : "-";
-            Q<Label>("fr-account-line").text = string.Format(accountLineFormat, country, Date(info.created), Date(info.lastLogin));
-            Q<Label>("fr-account-stats").text = string.Format(Invariant, accountStatsFormat, info.runs, info.hiddenRuns, info.cheatKicks);
-            var disabledLabel = Q<Label>("fr-account-disabled");
-            disabledLabel.text = string.Format(disabledFormat, info.disabledReason);
-            disabledLabel.SetVisible(info.disabled);
-            Q<Label>("fr-disable-label").text = info.disabled ? enableText : disableText;
+            var account = Q<VisualElement>("fr-account");
+            account.Clear();
+            if (info.disabled) InfoChips.Add(account, "gavel", disabledLabel, string.Format(disabledTip, info.disabledReason), InfoChipState.Bad);
+            var code = info.account?.country;
+            InfoChips.Add(account, "public", string.IsNullOrEmpty(code) ? "--" : code.ToUpperInvariant(), string.IsNullOrEmpty(code) ? countryTip : Countries.Name(code));
+            InfoChips.Add(account, "person_add", Date(info.created), joinedTip);
+            InfoChips.Add(account, "login", Date(info.lastLogin), lastLoginTip);
+            InfoChips.Add(account, "inventory_2", info.runs.ToString(Invariant), runsTip);
+            InfoChips.Add(account, "visibility_off", info.hiddenRuns.ToString(Invariant), hiddenRunsTip, info.hiddenRuns > 0 ? InfoChipState.Normal : InfoChipState.Off);
+            InfoChips.Add(account, "gavel", info.cheatKicks.ToString(Invariant), cheatKicksTip, info.cheatKicks > 0 ? InfoChipState.Bad : InfoChipState.Off);
+            Q<Label>("fr-disable-label").text = info.disabled ? enableLabel : disableLabel;
             disable.SetEnabled(true);
         }
 
@@ -356,7 +388,7 @@ namespace MHK.UI
 
         async Awaitable WatchAsync(RunEntry run)
         {
-            SetStatus(loadingText, true);
+            SetStatus(stateLoading, true);
             var r = await OnlineTimeTrials.Download(run.runId);
             if (list == null) return;
             if (!r.Ok)

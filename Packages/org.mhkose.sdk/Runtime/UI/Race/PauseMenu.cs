@@ -21,18 +21,19 @@ namespace MHK.UI
         MenuFlow options;
 
         [Header("Online")]
-        [SerializeField, Tooltip("Title of the menu in online races (the race goes on behind it).")]
-        string onlineTitle = "Menu";
         [SerializeField, Tooltip("Quit button in online races.")]
         string leaveRaceText = "Leave race";
         [SerializeField, Tooltip("Question before leaving an online race.")]
-        string leaveRaceQuestion = "Leave the race and the lobby? The race counts as left.";
+        string leaveRaceQuestion = "Leave the race and the lobby?";
         [SerializeField, Tooltip("Confirm button of the leave question.")]
         string leaveRaceConfirm = "Leave";
+        [SerializeField, Tooltip("Solo race, someone waits to join: the End race button ({0} = their name).")]
+        string endRaceFormat = "End race for {0}";
 
         VisualElement panel;
-        Button continueButton, optionsButton;
+        Button continueButton, optionsButton, endRaceButton;
         InputAction uiCancel;
+        bool shownEndRace;
 
         bool OptionsOpen => options != null && options.Current != null;
 
@@ -52,18 +53,49 @@ namespace MHK.UI
             }
             else optionsButton.SetVisible(false);
             var quit = Q<Button>("quit");
+            endRaceButton = Q<Button>("end-race");
+            endRaceButton.SetVisible(false);
+            shownEndRace = false;
             if (Race.IsOnline) BindOnline(quit);
             else quit.clicked += () => Race.QuitToMenu();
         }
 
         // Online the race cannot stop or restart: the menu covers it, and quitting leaves race and lobby after a question.
+        // In a solo race someone waits to join, End race is here too (reachable with keys and gamepad).
         void BindOnline(Button quit)
         {
-            Q<Label>("title").text = onlineTitle;
+            // The race goes on behind the menu: its title is the track, not "Paused".
+            Q<Label>("title").text = Race.Track != null ? Race.Track.DisplayName : "";
             Q<Button>("restart").SetVisible(false);
+            quit.Q<VisualElement>(className: "icon")?.SetIcon("logout");
             var label = quit.Q<Label>(className: "button-label");
             if (label != null) label.text = leaveRaceText;
             quit.clicked += () => ConfirmPrompt.Show(panel, leaveRaceQuestion, leaveRaceConfirm, () => Race.QuitToMenu(), () => quit.Focus());
+            endRaceButton.clicked += () =>
+            {
+                Race.Online?.EndSoloRaceEarly();
+                Race.SetPaused(false);
+            };
+            RefreshEndRace();
+        }
+
+        // Someone may start waiting (or the race end) while the menu is open: the button follows.
+        void Update()
+        {
+            if (IsBound && Race != null && Race.IsOnline) RefreshEndRace();
+        }
+
+        void RefreshEndRace()
+        {
+            var online = Race.Online;
+            var waiting = online != null && online.Solo && online.JoinWaitingUser != null && !online.EndRequested && online.Results == null;
+            if (waiting == shownEndRace) return;
+            shownEndRace = waiting;
+            var focused = endRaceButton.focusController != null && endRaceButton.focusController.focusedElement == endRaceButton;
+            endRaceButton.SetVisible(waiting);
+            if (waiting) endRaceButton.Q<Label>("end-race-label").text = string.Format(endRaceFormat, online.JoinWaitingUser);
+            // Never leave the focus on a hidden button (keys and gamepad would find nothing).
+            else if (focused) continueButton.Focus();
         }
 
         protected override void AfterBind() => ShowPanel(continueButton);
@@ -82,7 +114,7 @@ namespace MHK.UI
                 if (Race != null) Race.PauseKeyHandler = null;
             }
             panel = null;
-            continueButton = optionsButton = null;
+            continueButton = optionsButton = endRaceButton = null;
         }
 
         void ShowPanel(Button focus)

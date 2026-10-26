@@ -31,6 +31,9 @@ namespace MHK.UI
             kartThumb = Q<VisualElement>("info-kart-thumb");
         }
 
+        protected override string GameName(string game) =>
+            Selection.lobbyPick == LobbyPick.Loadout ? OnlineUi.PackName(game) : UiText.GameName(game);
+
         protected override string CardTag(CharacterDefinition c) => "";
 
         protected override Texture2D CardImage(CharacterDefinition c) => c.portrait != null ? c.portrait : c.Icon;

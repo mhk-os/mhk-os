@@ -29,8 +29,8 @@
                         <ui:VisualElement class="icon i-swords"/>
                         <ui:Label text="Battle" class="button-label"/>
                     </ui:Button>
-                    <ui:Button name="online" tooltip="Race and battle other players: public lobbies and private rooms." class="mhk-button anim from-left" style="transition-delay: 410ms;">
-                        <ui:VisualElement class="icon i-person_add" />
+                    <ui:Button name="online" tooltip="Race and battle other players" class="mhk-button anim from-left" style="transition-delay: 410ms;">
+                        <ui:VisualElement class="icon i-public" />
                         <ui:Label text="Online" class="button-label" />
                     </ui:Button>
                     <ui:VisualElement class="title-small anim from-left" style="transition-delay: 470ms;">

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using MHK.Core;
+using MHK.Ghosts;
 using MHK.Modding;
 using MHK.Online;
 using UnityEngine;
@@ -11,33 +12,36 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// The leaderboard of the track records page: the track's boards in the shown class (the board of this simulation
-    /// version and track content first, others Archived), filters, pages of <see cref="pageSize"/> rows with the
-    /// player's own row pinned, Watch and picking, and for moderators hidden runs and their actions. Browsing needs no
-    /// login; an unreachable server shows inline with Retry, and the board reloads when the connection or login changes.
+    /// The Version dropdown and the leaderboard of the track records page. Versions come from the track's boards in the
+    /// shown class and from the stored ghosts: one entry per simulation version, Current first, or one per board when a
+    /// version has several (other track data or lap count). The chosen one filters both lists. The leaderboard has
+    /// filters, pages of <see cref="pageSize"/> rows with the player's own row pinned, Watch and picking, and for
+    /// moderators hidden runs and their actions. Browsing needs no login; an unreachable server shows inline with Retry,
+    /// and the board reloads when the connection or login changes.
     /// </summary>
     public partial class TrackRecordsScreen
     {
         [Header("Leaderboard")]
         [SerializeField, Tooltip("Rows per leaderboard page (1-100).")]
         int pageSize = 25;
-        [SerializeField, Tooltip("Board names: this version ({0} = players), archived ({0} = players, {1} = simulation version, {2} = last upload).")]
-        string currentBoardFormat = "This version | {0} players", archivedBoardFormat = "Archived | sim {1} | {2} | {0} players";
-        [SerializeField, Tooltip("Board value while there is none / while loading.")]
-        string noBoardText = "No board yet", loadingBoardText = "Loading...";
+        [SerializeField, Tooltip("Version entries: the current simulation version, an older one ({0} = version), the separator before extra parts.")]
+        string currentVersionLabel = "Current version", olderVersionLabel = "Version {0}", versionPartSeparator = " · ";
+        [SerializeField, Tooltip("Version entry parts when a version has several boards: other track data than this device's, a lap count ({0} = laps).")]
+        string otherTrackLabel = "other track data", boardLapsLabel = "{0} laps";
+        [SerializeField, Tooltip("Version entry tooltip parts: one player, players ({0}), ghosts stored on this device only.")]
+        string onePlayerText = "1 player", playersFormat = "{0} players", localOnlyText = "Only on this device";
+        [SerializeField, Tooltip("Tooltips of the board chips: players, last upload.")]
+        string playersTip = "Players on this board", lastUploadTip = "Last upload";
         [SerializeField, Tooltip("Region filter: everywhere, the player's continent ({0}), the player's country ({0}).")]
         string worldText = "World", myContinentFormat = "My continent: {0}", myCountryFormat = "My country: {0}";
         [SerializeField, Tooltip("Kart and driver filters without a choice.")]
         string anyKartText = "Any kart", anyDriverText = "Any driver";
         [SerializeField, Tooltip("Placeholder of the player search.")]
-        string searchPlaceholder = "Search player";
-        [SerializeField, Tooltip("Leaderboard states: loading, no runs on any board, no rows matching the filters.")]
-        string loadingText = "Loading the leaderboard...", noRunsText = "Nobody has uploaded a run in this class yet.",
-            noMatchText = "No runs match the filters.";
-        [SerializeField, Tooltip("Leaderboard state without an answer ({0} = reason).")]
-        string offlineFormat = "The server can't be reached. {0}";
+        string searchHint = "Player";
+        [SerializeField, Tooltip("Leaderboard states: loading, no runs, no rows matching the filters, offline (the reason is the tooltip).")]
+        string stateLoading = "Loading", stateNoRuns = "No runs yet", stateNoMatch = "No matches", stateOffline = "Offline";
         [SerializeField, Tooltip("Pager text ({0} = first row, {1} = last row, {2} = all rows).")]
-        string rangeFormat = "{0}-{1} of {2}";
+        string pageRangeFormat = "{0}-{1} / {2}";
 
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
         static readonly (string code, string name)[] Continents =
@@ -45,28 +49,47 @@ namespace MHK.UI
             ("AF", "Africa"), ("AN", "Antarctica"), ("AS", "Asia"), ("EU", "Europe"), ("NA", "North America"), ("OC", "Oceania"), ("SA", "South America"),
         };
 
+        /// <summary>One entry of the Version dropdown: a simulation version, or one board of it.</summary>
+        sealed class VersionEntry
+        {
+            public int simVersion;
+            /// <summary>Track data of the board or ghosts, empty = any.</summary>
+            public string trackHash = "";
+            /// <summary>Laps of the board or ghosts, 0 = any.</summary>
+            public int laps;
+            /// <summary>The leaderboard, null when nobody uploaded.</summary>
+            public BoardInfo board;
+            public DateTime last;
+
+            public bool Matches(int sim, string hash, int lapCount) =>
+                simVersion == sim && string.Equals(trackHash, hash ?? "", StringComparison.OrdinalIgnoreCase) && laps == lapCount;
+        }
+
         // Kept while the page is left for a race and back; reset per track and class.
         List<BoardInfo> boards;
-        long boardId;
+        VersionEntry version;
+        bool versionPicked;
         int offset;
         // Filters, kept for the whole visit.
         string search = "", scopeContinent = "", scopeCountry = "", kartFilter = "", characterFilter = "";
         int request;
         bool shownLoggedIn, shownModerator, shownOnline, offlineShown;
 
-        VisualElement lbList, lbMine, lbState, lbPager;
+        VisualElement lbList, lbMine, lbState, lbPager, lbStateIcon, boardChips;
         ScrollView lbScroll;
         Label lbStateLabel, lbRange;
-        VisualElement lbStateIcon;
         Button lbRetry, lbPrev, lbNext;
         TextField lbSearch;
-        SettingChoice boardChoice, scopeChoice, kartChoice, characterChoice;
+        SettingChoice versionChoice, scopeChoice, kartChoice, characterChoice;
         IVisualElementScheduledItem searchApply;
+        readonly List<VersionEntry> versions = new();
         readonly List<(RunEntry run, VisualElement row)> globalRows = new();
         readonly List<(string label, string continent, string country)> scopes = new();
         readonly List<KartDefinition> karts = new();
         readonly List<CharacterDefinition> characters = new();
         readonly List<string> kartNames = new(), characterNames = new();
+
+        long BoardId => version?.board?.boardId ?? 0;
 
         void BindLeaderboard()
         {
@@ -78,6 +101,7 @@ namespace MHK.UI
             lbStateLabel = Q<Label>("lb-state-label");
             lbStateIcon = Q<VisualElement>("lb-state-icon");
             lbRange = Q<Label>("lb-range");
+            boardChips = Q<VisualElement>("board-chips");
             LeaderRows.KeepFocusedRowInView(lbScroll, lbList);
             lbRetry = OnClick("lb-retry", () =>
             {
@@ -86,12 +110,23 @@ namespace MHK.UI
             });
             lbPrev = OnClick("lb-prev", () => Page(-1));
             lbNext = OnClick("lb-next", () => Page(1));
+            versionChoice = BindChoice("version", () => Mathf.Max(1, versions.Count), () => Mathf.Max(0, versions.IndexOf(version)), VersionText, i =>
+            {
+                if (i >= versions.Count) return;
+                version = versions[i];
+                versionPicked = true;
+                offset = 0;
+                FillLocal();
+                LoadPage();
+            }, VersionTip);
+            versionChoice.AlwaysList = true;
             BindFilters();
             shownLoggedIn = OnlineService.IsLoggedIn;
             shownModerator = OnlineService.IsModerator;
             shownOnline = OnlineService.State >= OnlineState.Connected;
             SetVisible("reports", shownModerator);
             OnlineService.Changed += OnOnlineChanged;
+            RefreshVersions();
             Reload();
         }
 
@@ -102,32 +137,131 @@ namespace MHK.UI
             searchApply = null;
             request++;
             globalRows.Clear();
-            lbList = lbMine = lbState = lbPager = lbStateIcon = null;
+            lbList = lbMine = lbState = lbPager = lbStateIcon = boardChips = null;
             lbScroll = null;
             lbStateLabel = lbRange = null;
             lbRetry = lbPrev = lbNext = null;
             lbSearch = null;
-            boardChoice = scopeChoice = kartChoice = characterChoice = null;
+            versionChoice = scopeChoice = kartChoice = characterChoice = null;
         }
 
         void ResetLeaderboard()
         {
             boards = null;
-            boardId = 0;
+            version = null;
+            versionPicked = false;
             offset = 0;
             request++;
         }
 
+        // ---- Versions ----
+
+        // Rebuilds the entries from the boards (when loaded) and the stored ghosts; keeps the chosen entry, else picks
+        // Current with the local track data, else the most active board of Current.
+        void RefreshVersions()
+        {
+            var known = Store.KnownTrackHash(trackId) ?? "";
+            var kept = version;
+            versions.Clear();
+            if (boards != null)
+                foreach (var b in boards)
+                {
+                    var v = Entry(b.simVersion, b.trackHash, b.laps);
+                    v.board = b;
+                    if (b.lastUpload > v.last) v.last = b.lastUpload;
+                }
+            foreach (var e in LocalEntries())
+            {
+                var v = Entry(e.header.simVersion, e.header.trackHash, e.header.laps);
+                if (e.header.Date > v.last) v.last = e.header.Date;
+            }
+            if (!versions.Exists(v => v.simVersion == SimulationVersion.Current))
+                versions.Add(new VersionEntry { simVersion = SimulationVersion.Current, trackHash = known });
+            versions.Sort((a, b) =>
+            {
+                if (a.simVersion != b.simVersion)
+                    return a.simVersion == SimulationVersion.Current ? -1 : b.simVersion == SimulationVersion.Current ? 1 : b.simVersion.CompareTo(a.simVersion);
+                var aKnown = known.Length > 0 && string.Equals(a.trackHash, known, StringComparison.OrdinalIgnoreCase);
+                var bKnown = known.Length > 0 && string.Equals(b.trackHash, known, StringComparison.OrdinalIgnoreCase);
+                if (aKnown != bKnown) return aKnown ? -1 : 1;
+                return (b.board?.players ?? 0).CompareTo(a.board?.players ?? 0);
+            });
+            version = versionPicked && kept != null ? versions.Find(v => v.Matches(kept.simVersion, kept.trackHash, kept.laps)) : null;
+            if (version == null)
+            {
+                version = versions[0];
+                versionPicked = false;
+            }
+            versionChoice?.Refresh();
+            ShowBoardChips();
+        }
+
+        VersionEntry Entry(int sim, string hash, int laps)
+        {
+            var v = versions.Find(x => x.Matches(sim, hash, laps));
+            if (v != null) return v;
+            v = new VersionEntry { simVersion = sim, trackHash = hash ?? "", laps = laps };
+            versions.Add(v);
+            return v;
+        }
+
+        // "Current version", "Current version · other track data", "Version 3 · Oct 2026".
+        string VersionText(int i)
+        {
+            if (i >= versions.Count) return currentVersionLabel;
+            var v = versions[i];
+            var current = v.simVersion == SimulationVersion.Current;
+            var text = current ? currentVersionLabel : string.Format(Invariant, olderVersionLabel, v.simVersion);
+            var siblings = versions.Where(o => o.simVersion == v.simVersion).ToList();
+            if (siblings.Count > 1)
+            {
+                var known = Store.KnownTrackHash(trackId);
+                if (siblings.Select(o => o.trackHash.ToLowerInvariant()).Distinct().Count() > 1
+                    && !string.Equals(v.trackHash, known, StringComparison.OrdinalIgnoreCase))
+                    text += versionPartSeparator + otherTrackLabel;
+                if (siblings.Select(o => o.laps).Distinct().Count() > 1) text += versionPartSeparator + string.Format(Invariant, boardLapsLabel, v.laps);
+            }
+            if (!current && v.last != default) text += versionPartSeparator + v.last.ToLocalTime().ToString("MMM yyyy", Invariant);
+            return text;
+        }
+
+        // Players (or that only this device has ghosts of it) and the last activity, as the entry's tooltip.
+        string VersionTip(int i)
+        {
+            if (i >= versions.Count) return "";
+            var v = versions[i];
+            var parts = new List<string>();
+            if (v.board != null) parts.Add(v.board.players == 1 ? onePlayerText : string.Format(Invariant, playersFormat, v.board.players));
+            else if (v.last != default) parts.Add(localOnlyText);
+            if (v.last != default) parts.Add(v.last.ToLocalTime().ToString("d MMM yyyy", Invariant));
+            return string.Join(versionPartSeparator, parts);
+        }
+
+        // A stored ghost shows when it belongs to the chosen version (and board).
+        bool InSelectedVersion(GhostEntry e)
+        {
+            if (version == null) return true;
+            var h = e.header;
+            return h.simVersion == version.simVersion
+                   && (version.trackHash.Length == 0 || string.Equals(h.trackHash, version.trackHash, StringComparison.OrdinalIgnoreCase))
+                   && (version.laps == 0 || h.laps == version.laps);
+        }
+
+        void ShowBoardChips()
+        {
+            if (boardChips == null) return;
+            boardChips.Clear();
+            var b = version?.board;
+            if (b == null) return;
+            InfoChips.Add(boardChips, "group", b.players.ToString(Invariant), playersTip);
+            if (b.lastUpload != default)
+                InfoChips.Add(boardChips, "history", b.lastUpload.ToLocalTime().ToString("d MMM", Invariant), lastUploadTip);
+        }
+
+        // ---- Filters ----
+
         void BindFilters()
         {
-            boardChoice = BindChoice("lb-board", () => Mathf.Max(1, boards?.Count ?? 0), () => Mathf.Max(0, boards?.FindIndex(b => b.boardId == boardId) ?? 0),
-                BoardText, i =>
-                {
-                    if (boards == null || i >= boards.Count) return;
-                    boardId = boards[i].boardId;
-                    offset = 0;
-                    LoadPage();
-                });
             BuildScopes();
             scopeChoice = BindChoice("lb-scope", () => scopes.Count, ScopeIndex, i => scopes[i].label, i =>
             {
@@ -149,9 +283,12 @@ namespace MHK.UI
                     characterFilter = i == 0 ? "" : characters[i - 1].Id;
                     FilterChanged();
                 });
+            scopeChoice.AlwaysList = kartChoice.AlwaysList = characterChoice.AlwaysList = true;
+            // Down from the filters goes to the first row (spatial navigation prefers the footer below the wide rows).
+            Root.Q(className: "lb-filters").RegisterCallback<NavigationMoveEvent>(DownToRows);
             lbSearch = Q<TextField>("lb-search");
             lbSearch.SetValueWithoutNotify(search);
-            lbSearch.textEdition.placeholder = searchPlaceholder;
+            lbSearch.textEdition.placeholder = searchHint;
             searchApply = Root.schedule.Execute(ApplySearch);
             searchApply.Pause();
             lbSearch.RegisterValueChangedCallback(_ => searchApply?.ExecuteLater(400));
@@ -162,6 +299,17 @@ namespace MHK.UI
                 searchApply?.Pause();
                 ApplySearch();
             }, TrickleDown.TrickleDown);
+        }
+
+        void DownToRows(NavigationMoveEvent e)
+        {
+            if (e.direction != NavigationMoveEvent.Direction.Down || e.target is not VisualElement from) return;
+            var first = lbMine.resolvedStyle.display != DisplayStyle.None ? lbMine.Q<Button>("lb-main") : null;
+            if (first == null && lbScroll.resolvedStyle.display != DisplayStyle.None) first = lbList.Q<Button>("lb-main");
+            if (first == null) return;
+            first.Focus();
+            e.StopPropagation();
+            from.focusController?.IgnoreEvent(e);
         }
 
         // Karts and drivers by name; packs reuse names (every game has a "Red Kart"), so those get their game added.
@@ -175,7 +323,7 @@ namespace MHK.UI
                 names.Add(counts[d.DisplayName] > 1 ? $"{d.DisplayName} ({UiText.GameName(d.SourceGame)})" : d.DisplayName);
         }
 
-        // World, the player's continent and country (account, else the IP's), then every country.
+        // World, the player's continent and country (account, else the IP's), then every continent and country.
         void BuildScopes()
         {
             scopes.Clear();
@@ -217,35 +365,6 @@ namespace MHK.UI
             LoadPage();
         }
 
-        string BoardText(int i)
-        {
-            if (boards == null) return offlineShown ? noBoardText : loadingBoardText;
-            if (boards.Count == 0) return noBoardText;
-            var b = boards[i];
-            if (IsCurrentBoard(b)) return string.Format(Invariant, currentBoardFormat, b.players);
-            var date = b.lastUpload == default ? "" : b.lastUpload.ToLocalTime().ToString("d MMM yyyy", Invariant);
-            return string.Format(Invariant, archivedBoardFormat, b.players, b.simVersion, date);
-        }
-
-        // A board of another simulation version or track content is archived; with no race on this track yet the
-        // content can't be compared, so only the version decides.
-        bool IsCurrentBoard(BoardInfo b)
-        {
-            if (b.simVersion != SimulationVersion.Current) return false;
-            var known = Store.KnownTrackHash(trackId);
-            return string.IsNullOrEmpty(known) || string.Equals(b.trackHash, known, StringComparison.OrdinalIgnoreCase);
-        }
-
-        BoardInfo DefaultBoard()
-        {
-            var known = Store.KnownTrackHash(trackId);
-            if (!string.IsNullOrEmpty(known))
-                foreach (var b in boards)
-                    if (b.simVersion == SimulationVersion.Current && string.Equals(b.trackHash, known, StringComparison.OrdinalIgnoreCase)) return b;
-            // Most recently active (the server lists the latest upload first).
-            return boards[0];
-        }
-
         LeaderboardFilter Filter() => new()
         {
             username = search,
@@ -255,6 +374,8 @@ namespace MHK.UI
             characterId = characterFilter,
             includeHidden = OnlineService.IsModerator,
         };
+
+        // ---- Loading ----
 
         void Reload()
         {
@@ -266,8 +387,7 @@ namespace MHK.UI
 
         async Awaitable LoadBoardsAsync(int id)
         {
-            ShowState("sync", loadingText, false);
-            boardChoice?.Refresh();
+            ShowState("sync", stateLoading, false);
             var r = await OnlineTimeTrials.ListBoards(trackId, (int)engineClass, 0);
             if (id != request || !IsBound) return;
             if (!r.Ok)
@@ -276,17 +396,10 @@ namespace MHK.UI
                 return;
             }
             boards = r.value ?? new List<BoardInfo>();
-            if (boards.Count == 0)
-            {
-                boardId = 0;
-                boardChoice.Refresh();
-                boardChoice.Button.SetEnabled(false);
-                ShowState("leaderboard", noRunsText, false);
-                return;
-            }
-            if (!boards.Exists(b => b.boardId == boardId)) boardId = DefaultBoard().boardId;
-            boardChoice.Refresh();
-            boardChoice.Button.SetEnabled(true);
+            var before = version;
+            RefreshVersions();
+            // The default may move to a board that just arrived; the shown ghosts follow it.
+            if (before == null || !version.Matches(before.simVersion, before.trackHash, before.laps)) FillLocal();
             await LoadPageAsync(id);
         }
 
@@ -298,10 +411,15 @@ namespace MHK.UI
 
         async Awaitable LoadPageAsync(int id)
         {
-            if (boards == null || !boards.Exists(b => b.boardId == boardId)) return;
-            ShowState("sync", loadingText, false);
+            ShowBoardChips();
+            if (BoardId == 0)
+            {
+                ShowState("leaderboard", stateNoRuns, false);
+                return;
+            }
+            ShowState("sync", stateLoading, false);
             var size = Mathf.Clamp(pageSize, 1, LeaderboardPage.MaxLimit);
-            var r = await OnlineTimeTrials.GetLeaderboard(boardId, offset, size, Filter());
+            var r = await OnlineTimeTrials.GetLeaderboard(BoardId, offset, size, Filter());
             if (id != request || !IsBound) return;
             if (!r.Ok)
             {
@@ -316,7 +434,7 @@ namespace MHK.UI
                 LoadPage();
                 return;
             }
-            FillRows(page, size);
+            FillRows(page);
         }
 
         void Page(int direction)
@@ -326,30 +444,28 @@ namespace MHK.UI
             LoadPage();
         }
 
-        void ShowState(string icon, string text, bool retry)
+        void ShowState(string icon, string text, bool retry, string tip = "")
         {
             if (lbState == null) return;
             offlineShown = retry;
             lbState.SetVisible(true);
             lbStateIcon.SetIcon(icon);
             lbStateLabel.text = text;
+            lbStateLabel.tooltip = tip ?? "";
             lbRetry.SetVisible(retry);
             lbScroll.SetVisible(false);
             lbMine.SetVisible(false);
             lbPager.SetVisible(false);
         }
 
+        // No answer: offline with the reason as tooltip; a refusal shows the server's message.
         void ShowOffline(OnlineResult result)
         {
-            if (result.status == null) ShowState("cloud_off", string.Format(offlineFormat, result.message), true);
+            if (result.status == null) ShowState("cloud_off", stateOffline, true, result.message);
             else ShowState("error", result.message, true);
-            // Without boards the picker has nothing to offer until Retry.
-            if (boards != null || boardChoice == null) return;
-            boardChoice.Refresh();
-            boardChoice.Button.SetEnabled(false);
         }
 
-        void FillRows(LeaderboardPage page, int size)
+        void FillRows(LeaderboardPage page)
         {
             lbList.Clear();
             lbMine.Clear();
@@ -357,11 +473,10 @@ namespace MHK.UI
             var mod = OnlineService.IsModerator;
             lbList.EnableInClassList("lb-list-mod", mod);
             lbMine.EnableInClassList("lb-list-mod", mod);
-            Root.Q(className: "lb-head").EnableInClassList("mod", mod);
             if (page.entries.Count == 0)
             {
                 var filtered = search.Length > 0 || scopeContinent.Length > 0 || scopeCountry.Length > 0 || kartFilter.Length > 0 || characterFilter.Length > 0;
-                ShowState("leaderboard", filtered ? noMatchText : noRunsText, false);
+                ShowState(filtered ? "search" : "leaderboard", filtered ? stateNoMatch : stateNoRuns, false);
                 return;
             }
             offlineShown = false;
@@ -373,7 +488,7 @@ namespace MHK.UI
             if (pinned) SpawnRunRow(lbMine, mine, false);
             lbMine.SetVisible(pinned);
             lbPager.SetVisible(page.total > page.entries.Count || offset > 0);
-            lbRange.text = string.Format(Invariant, rangeFormat, offset + 1, offset + page.entries.Count, page.total);
+            lbRange.text = string.Format(Invariant, pageRangeFormat, offset + 1, offset + page.entries.Count, page.total);
             lbPrev.SetEnabled(offset > 0);
             lbNext.SetEnabled(offset + page.entries.Count < page.total);
             lbScroll.scrollOffset = Vector2.zero;
@@ -417,7 +532,7 @@ namespace MHK.UI
         void ReloadBoardsAfterUpload(long uploadedBoard)
         {
             if (boards == null || !boards.Exists(b => b.boardId == uploadedBoard)) LoadBoards();
-            else if (uploadedBoard == boardId) LoadPage();
+            else if (uploadedBoard == BoardId) LoadPage();
         }
 
         // Login, logout and the role change the own row, hidden runs and the moderator buttons; a returning

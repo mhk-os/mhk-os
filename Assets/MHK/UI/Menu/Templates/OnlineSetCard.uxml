@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One public lobby category of the Online page: a mod set. Code fills set-logos (the packs' logos), set-name ("MHK", "MHK + TINcan", "MHK 2"), set-chips (players, lobbies) and .selected (its lobbies show below). Clicking or submitting the card joins the fullest lobby of the category with room (Quick join). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Button class="card onl-set-card">
+        <ui:VisualElement name="set-logos" class="onl-set-logos" picking-mode="Ignore">
+            <ui:VisualElement class="onl-set-logo" picking-mode="Ignore" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2.kart_icon.png&quot;);" />
+            <ui:VisualElement class="onl-set-logo" picking-mode="Ignore" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk3.kart_icon.png&quot;);" />
+        </ui:VisualElement>
+        <ui:Label name="set-name" text="MHK" class="onl-set-name" picking-mode="Ignore" />
+        <ui:VisualElement name="set-chips" class="info-chips onl-set-chips" picking-mode="Ignore" />
+        <ui:VisualElement class="onl-set-join" picking-mode="Ignore">
+            <ui:VisualElement class="icon i-bolt" picking-mode="Ignore" />
+            <ui:Label text="Quick join" class="onl-set-join-label" picking-mode="Ignore" />
+        </ui:VisualElement>
+    </ui:Button>
+</ui:UXML>

@@ -63,7 +63,7 @@ namespace MHK.Powerups
         bool done;
         float lastBounceTime = -1f;
         Effects.EffectLoopSound loop;
-        Vector3 correction;
+        Vector3 bodyCorrection;
 
         public bool Flying => body != null && !done && !body.isKinematic;
         public Vector3 NetPosition => body != null ? body.position : transform.position;
@@ -72,7 +72,7 @@ namespace MHK.Powerups
         public void Correct(Vector3 position, Vector3 velocity)
         {
             if (!Flying) return;
-            correction = position - body.position;
+            bodyCorrection = position - body.position;
             body.linearVelocity = velocity;
         }
 
@@ -204,12 +204,12 @@ namespace MHK.Powerups
 
         void ApplyBodyCorrection()
         {
-            if (correction == Vector3.zero) return;
-            var move = correction * CorrectionShare;
+            if (bodyCorrection == Vector3.zero) return;
+            var move = bodyCorrection * CorrectionShare;
             body.position += move;
             lastPosition += move;
-            correction -= move;
-            if (correction.sqrMagnitude < 1e-6f) correction = Vector3.zero;
+            bodyCorrection -= move;
+            if (bodyCorrection.sqrMagnitude < 1e-6f) bodyCorrection = Vector3.zero;
         }
 
         bool TryHit(Kart k, Vector3 at)

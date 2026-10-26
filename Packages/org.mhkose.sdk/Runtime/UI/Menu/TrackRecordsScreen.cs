@@ -32,12 +32,12 @@ namespace MHK.UI
         [Header("Texts")]
         [SerializeField, Tooltip("Section chips on narrow screens.")]
         string localTab = "Your ghosts", globalTab = "Leaderboard";
-        [SerializeField, Tooltip("Pick count ({0} = picked, {1} = most).")]
-        string countFormat = "{0} of {1} ghosts";
-        [SerializeField, Tooltip("Tooltip of the count once the most ghosts are picked ({0} = most).")]
-        string fullTipFormat = "Up to {0} ghosts can be raced.";
-        [SerializeField, Tooltip("The save's records of the track ({0} = best lap, {1} = best race).")]
-        string localRecordsFormat = "Best lap {0} | Best race {1} (all classes)";
+        [SerializeField, Tooltip("Pick pill ({0} = picked, {1} = most).")]
+        string pickFormat = "{0} / {1}";
+        [SerializeField, Tooltip("Tooltip of the pick pill ({0} = most).")]
+        string pickTipFormat = "Picked ghosts to race (up to {0})";
+        [SerializeField, Tooltip("Tooltips of the best race and best lap chips of your ghosts.")]
+        string bestRaceTip = "Your best race", bestLapTip = "Your best lap";
         [SerializeField, Tooltip("Tooltip of Race on a battle arena.")]
         string arenaTip = "Time trials run on circuits only.";
         [SerializeField, Tooltip("Status after an import ({0} = ghosts taken in).")]
@@ -68,8 +68,8 @@ namespace MHK.UI
             uploadedSlowerText = "Uploaded. Your best on this board stays faster.";
         [SerializeField, Tooltip("Status while picked ghosts download ({0} = done, {1} = all).")]
         string downloadingFormat = "Downloading ghosts: {0} of {1}";
-        [SerializeField, Tooltip("Status when downloads failed ({0} = failed, {1} = reason).")]
-        string downloadFailedFormat = "{0} ghost(s) could not be downloaded: {1}";
+        [SerializeField, Tooltip("Status when downloads failed ({0} = failed, {1} = all, {2} = reason).")]
+        string downloadsFailedFormat = "Downloads failed ({0} / {1}): {2}";
         [SerializeField, Tooltip("Status when a downloaded ghost can't be read.")]
         string unreadableDownloadText = "The downloaded ghost could not be read.";
 
@@ -120,7 +120,6 @@ namespace MHK.UI
             pickCount = Q<Label>("pick-count");
             race = OnClick("race", Race, click: false);
             SetStatus("");
-            Q<Label>("title").text = ContentDisplay.TrackName(trackId);
             Q<Label>("track-name").text = ContentDisplay.TrackName(trackId);
             Q<Label>("track-game").text = ContentDisplay.TrackGame(trackId);
             var track = Track;
@@ -137,6 +136,13 @@ namespace MHK.UI
             OnClick("open-import", () => GhostUi.Reveal(GhostUi.ImportFolder));
             OnClick("reports", () => Flow.Show<FlaggedRunsScreen>());
             page.RegisterCallback<GeometryChangedEvent>(_ => ApplyLayout());
+            // Up from the top of a column reaches the toolbar: the class chips, or the version from the leaderboard.
+            LeaderRows.NoWrap(Root);
+            LeaderRows.UpFromTopTo(Q<VisualElement>("local-panel"), () => LeaderRows.SelectedChip(Q<VisualElement>("classes")));
+            LeaderRows.UpFromTopTo(Q<VisualElement>("global-panel"), () => Q<VisualElement>("version").Q<Button>());
+            // Down from the class chips goes to your first ghost, from the version to the leaderboard search.
+            LeaderRows.DownFromTo(Q<VisualElement>("classes"), () => ghostList.Q<Button>("ghost-main"));
+            LeaderRows.DownFromTo(Q<VisualElement>("version"), () => Q<TextField>("lb-search"));
             OnlineTimeTrials.Changed += ShowUploadMarks;
             BindLeaderboard();
             FocusTarget = (VisualElement)FillLocal() ?? race;
@@ -186,8 +192,9 @@ namespace MHK.UI
                 // Ghosts of another class are not raced together.
                 ClearPicks();
                 SetStatus("");
-                FillLocal();
                 ResetLeaderboard();
+                RefreshVersions();
+                FillLocal();
                 LoadBoards();
                 UpdatePickCount();
             });
@@ -219,9 +226,8 @@ namespace MHK.UI
             if (ghostList == null) return null;
             ghostList.Clear();
             localRows.Clear();
-            Q<Label>("local-records").text = LocalRecordsText();
-            var entries = Store.List(trackId).Where(e => e.header.engineClass == (int)engineClass)
-                .OrderBy(e => e.header.finishTime).ToList();
+            var entries = LocalEntries().Where(InSelectedVersion).OrderBy(e => e.header.finishTime).ToList();
+            ShowLocalChips(entries);
             Button first = null;
             foreach (var entry in entries)
             {
@@ -234,12 +240,18 @@ namespace MHK.UI
             return first;
         }
 
-        string LocalRecordsText()
+        // The stored ghosts of the shown track and class, every version.
+        IEnumerable<GhostEntry> LocalEntries() => Store.List(trackId).Where(e => e.header.engineClass == (int)engineClass);
+
+        // Best race and best lap among the listed ghosts, as chips next to the section title.
+        void ShowLocalChips(List<GhostEntry> entries)
         {
-            var rec = Save.records.Find(r => r.trackId == trackId);
-            var lap = rec != null && rec.bestLap > 0f ? UiText.Clock(rec.bestLap) : UiText.NoClock;
-            var raceTime = rec != null && rec.bestRace > 0f ? UiText.Clock(rec.bestRace) : UiText.NoClock;
-            return string.Format(localRecordsFormat, lap, raceTime);
+            var chips = Q<VisualElement>("local-chips");
+            chips.Clear();
+            if (entries.Count == 0) return;
+            InfoChips.Add(chips, "sports_score", UiText.Clock(entries[0].header.finishTime), bestRaceTip, InfoChipState.On);
+            var lap = entries.SelectMany(e => e.header.lapTimes ?? System.Array.Empty<float>()).Where(t => t > 0f).DefaultIfEmpty(0f).Min();
+            if (lap > 0f) InfoChips.Add(chips, "timer", UiText.Clock(lap), bestLapTip);
         }
 
         VisualElement SpawnLocalRow(GhostEntry entry)
@@ -392,10 +404,11 @@ namespace MHK.UI
         void UpdatePickCount()
         {
             if (pickCount == null) return;
-            pickCount.text = string.Format(countFormat, pickOrder.Count, MaxGhosts);
+            pickCount.text = string.Format(pickFormat, pickOrder.Count, MaxGhosts);
             var full = pickOrder.Count >= MaxGhosts;
-            pickCount.EnableInClassList("full", full);
-            pickCount.tooltip = full ? string.Format(fullTipFormat, MaxGhosts) : "";
+            Q<VisualElement>("pick-pill").EnableInClassList("full", full);
+            Q<VisualElement>("pick-pill").EnableInClassList("empty", pickOrder.Count == 0);
+            Q<VisualElement>("pick-pill").tooltip = string.Format(pickTipFormat, MaxGhosts);
             Q<Button>("pick-clear").SetEnabled(pickOrder.Count > 0);
         }
 
@@ -467,7 +480,7 @@ namespace MHK.UI
                 }
                 if (IsBound) SetStatus(string.Format(downloadingFormat, all - pending.Count, all));
             }
-            return failed == 0 ? null : string.Format(downloadFailedFormat, failed, reason);
+            return failed == 0 ? null : string.Format(downloadsFailedFormat, failed, all, reason);
         }
 
         /// <summary>Downloads <paramref name="run"/> when needed and replays it.</summary>

@@ -16,6 +16,8 @@ namespace MHK.UI
         Vote,
         /// <summary>The room owner's track for the next race.</summary>
         OwnerPick,
+        /// <summary>A track (or Random) for a race against AI while the player is alone in the lobby.</summary>
+        Solo,
     }
 
     /// <summary>The player's choices while walking through the menu, and the race session built from them.</summary>

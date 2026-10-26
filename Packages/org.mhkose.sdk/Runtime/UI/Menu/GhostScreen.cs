@@ -26,10 +26,10 @@ namespace MHK.UI
         float rowFirst = 0.1f;
 
         [Header("Texts")]
-        [SerializeField, Tooltip("Picked count ({0} = picked, {1} = most).")]
-        string countFormat = "{0} of {1} ghosts";
-        [SerializeField, Tooltip("Tooltip of the count once the most ghosts are picked ({0} = most).")]
-        string fullTipFormat = "Up to {0} ghosts can be raced.";
+        [SerializeField, Tooltip("Pick pill ({0} = picked, {1} = most).")]
+        string pickFormat = "{0} / {1}";
+        [SerializeField, Tooltip("Tooltip of the pick pill ({0} = most).")]
+        string pickTipFormat = "Picked ghosts to race (up to {0})";
 
         const float FullPopScale = 1.4f;
         const int FullPopMs = 320;
@@ -77,6 +77,10 @@ namespace MHK.UI
             list = Q<VisualElement>("ghost-list");
             count = Q<Label>("ghost-count");
             KeepFocusedInView(Q<ScrollView>("ghost-scroll"), list);
+            LeaderRows.NoWrap(Root);
+            LeaderRows.NoScrollbarFocus(Q<ScrollView>("ghost-scroll"));
+            LeaderRows.UpFromTopTo(Q<ScrollView>("ghost-scroll"), () => LeaderRows.SelectedChip(Q<VisualElement>("classes")));
+            LeaderRows.DownFromTo(Q<VisualElement>("classes"), () => list.Q<Button>("ghost-main"));
             OnClick("race", StartRace);
             FillClasses();
             FocusTarget = FillList(false);
@@ -179,8 +183,11 @@ namespace MHK.UI
 
         void UpdateCount()
         {
-            count.text = string.Format(countFormat, picked.Count, MaxGhosts);
-            count.tooltip = picked.Count >= MaxGhosts ? string.Format(fullTipFormat, MaxGhosts) : "";
+            count.text = string.Format(pickFormat, picked.Count, MaxGhosts);
+            var pill = count.parent;
+            pill.tooltip = string.Format(pickTipFormat, MaxGhosts);
+            pill.EnableInClassList("full", picked.Count >= MaxGhosts);
+            pill.EnableInClassList("empty", picked.Count == 0);
         }
 
         void StartRace()

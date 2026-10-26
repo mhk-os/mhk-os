@@ -65,7 +65,8 @@ namespace MHK.Race
 
         /// <summary>
         /// Online results: the server's rows (place, time, race and set points, outcome) in its order. A solo race shows
-        /// the local ranking with the AI, the player's row taking the server's points.
+        /// the local ranking with the AI, the player's row taking the server's outcome; a player who did not finish
+        /// (ended early, left) is last, as the server ranks them.
         /// </summary>
         public static void BuildOnline(RaceManager race, IReadOnlyList<Kart> ranking, Online.OnlineRace online, List<RaceResult> results)
         {
@@ -75,13 +76,24 @@ namespace MHK.Race
             if (online.Solo)
             {
                 var mine = server != null ? server.rows.Find(r => r.slot == online.LocalSlot && !r.ai) : null;
+                RaceResult own = null;
                 for (var i = 0; i < ranking.Count; i++)
                 {
                     var k = ranking[i];
                     var result = FromKart(k, i + 1, battle);
-                    if (k == race.LocalPlayer && mine != null) TakeRow(result, mine, battle);
+                    if (k == race.LocalPlayer && mine != null)
+                    {
+                        TakeRow(result, mine, battle);
+                        if (mine.outcome != Online.RaceOutcome.Finished)
+                        {
+                            own = result;
+                            continue;
+                        }
+                    }
                     results.Add(result);
                 }
+                if (own != null) results.Add(own);
+                for (var i = 0; i < results.Count; i++) results[i].position = i + 1;
                 return;
             }
             if (server == null) return;
@@ -124,15 +136,8 @@ namespace MHK.Race
             result.time = row.finishMs > 0 ? row.finishMs / 1000f : 0f;
             result.pointsGained = row.points;
             result.totalPoints = row.setPoints;
-            result.status = row.outcome switch
-            {
-                Online.RaceOutcome.Dnf => battle ? null : "DNF",
-                Online.RaceOutcome.Left => "Left",
-                Online.RaceOutcome.KickedCheating => "Kicked",
-                Online.RaceOutcome.KickedModerator => "Removed",
-                Online.RaceOutcome.Desync => "Desync",
-                _ => null,
-            };
+            // A battle's DNF is a racer still in at the time limit: no badge, the status column says Survivor.
+            result.outcome = battle && row.outcome == Online.RaceOutcome.Dnf ? Online.RaceOutcome.Finished : row.outcome;
             if (battle && row.outcome != Online.RaceOutcome.Finished && row.outcome != Online.RaceOutcome.Dnf) result.survived = false;
         }
 

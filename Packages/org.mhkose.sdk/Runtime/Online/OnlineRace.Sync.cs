@@ -65,16 +65,38 @@ namespace MHK.Online
         public double LocalNowMs => udp != null ? udp.LocalNowMs : Time.realtimeSinceStartupAsDouble * 1000.0;
 
         /// <summary>
-        /// Other racers are in the race but no World arrived for over a second (the HUD shows a connection warning).
+        /// Other racers are in the race but nothing new comes from them for over a second (the HUD shows a connection
+        /// icon): no World at all, or after GO, Worlds whose states all stopped advancing (the server repeats the
+        /// latest state of a racer it hears nothing from).
         /// </summary>
         public bool ConnectionTrouble
         {
             get
             {
-                if (udp == null || Solo || Loaded == null || remotes.Count == 0) return false;
+                if (udp == null || Solo || Loaded == null || !AnyRemoteRacing()) return false;
+                var now = udp.LocalNowMs;
                 var last = udp.LastWorldMs;
-                return last < 0 ? HasGo : udp.LocalNowMs - last > StallMs;
+                if (last < 0 ? HasGo : now - last > StallMs) return true;
+                return HasGo && SecondsToGo < -StallMs / 1000.0 && lastFreshMs >= 0 && now - lastFreshMs > StallMs;
             }
+        }
+
+        bool AnyRemoteRacing()
+        {
+            foreach (var slot in remotes.Keys)
+                if (!leftSlots.Contains(slot)) return true;
+            return false;
+        }
+
+        // Newest tick per other racer and when any of them last advanced (receive clock), for ConnectionTrouble.
+        readonly Dictionary<int, int> newestTick = new();
+        double lastFreshMs = -1;
+
+        void NoteFresh(int slot, int tick, double receivedMs)
+        {
+            if (newestTick.TryGetValue(slot, out var known) && tick <= known) return;
+            newestTick[slot] = tick;
+            if (tick > 0) lastFreshMs = receivedMs;
         }
 
         /// <summary>
@@ -119,6 +141,7 @@ namespace MHK.Online
                 if (r.slot != LocalSlot)
                 {
                     rttBySlot[r.slot] = r.rttMs;
+                    NoteFresh(r.slot, r.state.tick, r.receivedMs);
                     if (remotes.TryGetValue(r.slot, out var remote) && remote != null)
                         remote.Push(r.state, gameClockKnown ? r.receivedMs / 1000.0 + gameMinusUdpSeconds : frame - System.Math.Max(0.0, (now - r.receivedMs) / 1000.0),
                             r.receivedMs);

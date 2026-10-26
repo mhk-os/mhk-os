@@ -281,8 +281,8 @@ namespace MHK.Ghosts
                 id = Guid.NewGuid().ToString("N"),
                 gameBuild = BuildInfo.Commit,
                 simVersion = SimulationVersion.Current,
-                // The account name once logged in: the server lists runs under it, the file should not disagree.
-                playerName = MHK.Online.OnlineService.Username ?? settings.SignatureName,
+                // The account name when there is one: the server lists runs under it, the file should not disagree.
+                playerName = settings.SignatureName,
                 playerId = settings.EnsurePlayerId(),
                 dateUtcTicks = DateTime.UtcNow.Ticks,
                 trackId = track.Id,
