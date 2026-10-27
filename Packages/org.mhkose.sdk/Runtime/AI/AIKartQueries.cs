@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using MHK.Core;
 using MHK.Karts;
 using MHK.Powerups;
 using MHK.Race;
@@ -12,7 +13,6 @@ namespace MHK.AI
     {
         const int LineOfSightMask = Physics.DefaultRaycastLayers;
         const float EyeHeight = 0.8f;
-        const float MinLaneWidth = 2f;
         const float AroundHeight = 2.5f, MinAhead = 2f;
         // Narrow: road below this share of the track's median width.
         const float NarrowShare = 0.7f;
@@ -32,11 +32,18 @@ namespace MHK.AI
         /// <summary>Last of the karts still racing (nobody behind to look for).</summary>
         public static bool IsLast(Kart kart)
         {
+            var racing = CountRacing();
+            return racing > 1 && kart.Progress.Position >= racing;
+        }
+
+        /// <summary>Karts still racing: not eliminated (battles count the karts left in).</summary>
+        public static int CountRacing()
+        {
             var racing = 0;
             var karts = Kart.All;
             for (var i = 0; i < karts.Count; i++)
                 if (karts[i].isActiveAndEnabled && !karts[i].Eliminated) racing++;
-            return racing > 1 && kart.Progress.Position >= racing;
+            return racing;
         }
 
         public static float Distance(Kart a, Kart b) => Vector3.Distance(a.transform.position, b.transform.position);
@@ -59,13 +66,14 @@ namespace MHK.AI
             return best;
         }
 
-        /// <summary>Road lane (0 = left edge, 1 = right edge) of <paramref name="o"/> on the main line.</summary>
+        /// <summary>Road lane (0 = left edge, 1 = right edge of the drivable road) of <paramref name="o"/> on the main line.</summary>
         public static float RoadLaneOf(Kart o)
         {
             var path = MainPath();
-            if (path == null) return AILanes.Centre;
-            var d = o.Progress.PathDistance;
-            return Mathf.Clamp01(path.GetRoadLane(o.transform.position, d, Mathf.Max(MinLaneWidth, path.GetWidth(d))));
+            var track = TrackRuntime.Current;
+            if (path == null || track == null) return AILanes.Centre;
+            var road = AIRacingLine.Of(track, path, GameRoot.Instance.Config.aiRacingLineMargin);
+            return Mathf.Clamp01(road.RoadLaneOf(o.transform.position, o.Progress.PathDistance));
         }
 
         /// <summary>Nearest opponent behind in the race within <paramref name="reach"/> metres along the track.</summary>

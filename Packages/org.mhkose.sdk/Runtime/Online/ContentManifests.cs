@@ -45,7 +45,7 @@ namespace MHK.Online
                 }
                 if (!byPack.TryGetValue(pack.packId, out var manifest))
                 {
-                    manifest = new PackManifest { packId = pack.packId, commit = Commit(pack), simVersion = SimulationVersion.Current };
+                    manifest = new PackManifest { packId = pack.packId, commit = Commit(pack), contentVersion = ContentVersion.Current };
                     byPack[pack.packId] = manifest;
                     list.Add(manifest);
                 }
@@ -187,6 +187,18 @@ namespace MHK.Online
                 }
             }
             return list;
+        }
+
+        /// <summary>
+        /// Id of the pack whose definition of <paramref name="id"/> is the effective one here when that is not the pack the
+        /// id names (a mod replaces it through the load order), else null. The server derives the same from the manifests.
+        /// </summary>
+        public static string OverriddenBy(ContentRegistry registry, string id)
+        {
+            var effective = string.IsNullOrEmpty(id) ? null : registry.Get<ContentDefinition>(id);
+            if (effective == null || effective.OwnerPackId.Length == 0
+                || string.Equals(effective.OwnerPackId, PackOf(id), StringComparison.OrdinalIgnoreCase)) return null;
+            return effective.OwnerPackId;
         }
 
         // The mod the player knows (Mods screen): the top-level pack of the replacing pack.

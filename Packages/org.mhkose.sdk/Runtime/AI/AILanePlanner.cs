@@ -7,17 +7,20 @@ using UnityEngine;
 namespace MHK.AI
 {
     /// <summary>
-    /// Lane choice of a computer driver: the MHK2 centre band with its wobble, item boxes, a lined-up shot, speed pads, a
-    /// missile yield, berths around melee holders, kart traffic (<see cref="AIPassPlanner"/>: passing, or flattening a
-    /// shrunk kart), planted traps and finally a lane free of walls and props.
+    /// Lane choice of a computer driver: the MHK2 centre band with its wobble, item boxes (a character special box
+    /// preferred), a lined-up shot, speed pads, a missile yield, berths around melee holders, kart traffic
+    /// (<see cref="AIPassPlanner"/>: passing, or flattening a shrunk kart), a dodge out of a rammer's way
+    /// (<see cref="AIRamThreat"/>), planted traps and finally a lane free of walls and props.
     /// </summary>
     internal sealed class AILanePlanner
     {
         const float WobbleRate = 0.2f, WobbleAmplitude = 0.3f;
         const float LookBase = 8f, LookPerSpeed = 1.5f, MinRoadWidth = 2f;
-        const float SlowLaneChange = 0.8f, FastLaneChange = 1.2f;
+        const float SlowLaneChange = 0.8f, FastLaneChange = 1.2f, LaneToleranceShare = 0.1f;
         const float YieldLeftLane = 0.8f, YieldRightLane = 0.2f;
         const float PickupReachShare = 0.7f, PickupDistanceCost = 0.2f;
+        // A box with the character's special costs this share of a normal one: preferred when about as easy to reach.
+        const float SpecialShare = 0.5f;
         const float PadLaneReach = 3.5f, MinPadAlignment = 0.7f, PadTangentSmoothing = 4f;
         const float HazardMargin = 0.6f;
         const float MeleeEdge = 0.15f, MeleeLead = 1.2f, MaxMeleeLead = 20f;
@@ -26,18 +29,20 @@ namespace MHK.AI
         readonly AIBlackboard board;
         readonly AIRouteFollower line;
         readonly AIFeelers feelers;
+        readonly AIRamThreat rams;
         readonly AIPassPlanner traffic;
         readonly int rollSeed;
         readonly float noiseSeed;
         float time;
 
-        public AILanePlanner(DifficultySettings difficulty, AIBlackboard board, AIRouteFollower line, AIFeelers feelers, int rollSeed,
-            float noiseSeed, float laneU)
+        public AILanePlanner(DifficultySettings difficulty, AIBlackboard board, AIRouteFollower line, AIFeelers feelers, AIRamThreat rams,
+            int rollSeed, float noiseSeed, float laneU)
         {
             this.difficulty = difficulty;
             this.board = board;
             this.line = line;
             this.feelers = feelers;
+            this.rams = rams;
             // Rolled once per driver and race (the roll seed is new every race).
             var seekFlatten = AIRolls.Roll01(rollSeed ^ AIRolls.FlattenSalt, 0) < difficulty.aiFlattenSeekChance;
             traffic = new AIPassPlanner(line, feelers, seekFlatten);
@@ -69,9 +74,10 @@ namespace MHK.AI
             var width = Mathf.Max(MinRoadWidth, line.Width(0f));
             var range = Mathf.Min(cfg.aiLookAheadRange, LookBase + Mathf.Abs(speed) * LookPerSpeed);
             var urgent = false;
-            var desired = Wish(kart, range, roadShift);
+            var desired = Wish(kart, range, roadShift, capSpeed);
             if (difficulty.aiAvoidHammerChance > 0f) desired = AvoidMelee(kart, speed, width, roadShift, desired);
             desired = traffic.Plan(kart, speed, capSpeed, width, roadShift, dt, cfg, ref urgent, desired);
+            desired = AvoidRam(width, roadShift, desired, ref urgent);
             desired = AvoidHazards(kart, range, desired, ref urgent);
             desired = feelers.ChooseLane(Mathf.Clamp(desired, AILanes.DriveMin - roadShift, AILanes.DriveMax - roadShift), width, out var clear,
                 out var obstructed);
@@ -80,23 +86,26 @@ namespace MHK.AI
             return clear;
         }
 
-        float Wish(Kart kart, float range, float roadShift)
+        // Speed pads only while nothing ahead needs braking (capSpeed at top speed): a boost into a bend is braked away
+        // or carries the kart into the wall.
+        float Wish(Kart kart, float range, float roadShift, float capSpeed)
         {
             var wobble = (Mathf.PerlinNoise(noiseSeed, time * WobbleRate) - 0.5f) * WobbleAmplitude * (1f - difficulty.aiPrecision);
             var desired = AILanes.Centre + wobble;
             if (WantsItem(kart) && FindPickup(kart, range, out var pickLane)) desired = pickLane;
             else if (board.aimRequested && line.Route == null) desired = line.FollowedRoadLane(board.aimLaneU) - roadShift;
-            else if (FindSpeedPad(kart, range, desired, out var padLane)) desired = padLane;
+            else if (capSpeed >= kart.NormalTopSpeed && FindSpeedPad(kart, range, desired, out var padLane)) desired = padLane;
             if (board.yieldRequested && board.yieldTo != null)
                 desired = (kart.transform.InverseTransformPoint(board.yieldTo.transform.position).x < 0f ? YieldLeftLane : YieldRightLane) - roadShift;
             return desired;
         }
 
         // Small lane wishes are ignored (not when keeping clear of a kart) and lane changes glide, so frame-to-frame lane
-        // picks don't make the kart weave.
+        // picks don't make the kart weave. On a narrow road the tolerance shrinks with its width: there a small offset
+        // already costs the racing line.
         void Glide(float desired, float width, bool urgent, bool exact, float dt, GameConfig cfg)
         {
-            if (!urgent && !exact && Mathf.Abs(desired - Lane) * width < cfg.aiLaneTolerance) desired = Lane;
+            if (!urgent && !exact && Mathf.Abs(desired - Lane) * width < Mathf.Min(cfg.aiLaneTolerance, LaneToleranceShare * width)) desired = Lane;
             var rate = cfg.aiLaneChangeSpeed / width * Mathf.Lerp(SlowLaneChange, FastLaneChange, difficulty.aiPrecision)
                        * (urgent ? cfg.aiLaneUrgentFactor : 1f);
             Lane = Mathf.MoveTowards(Lane, desired, dt * rate);
@@ -108,6 +117,7 @@ namespace MHK.AI
             return inv != null && inv.Held == null && !inv.Rolling && PowerupRoller.ItemsEnabled;
         }
 
+        // Boxes that give powerups (status effect boxes are no item) and fake boxes the driver does not see through.
         bool FindPickup(Kart kart, float range, out float lane)
         {
             lane = Lane;
@@ -117,24 +127,26 @@ namespace MHK.AI
             for (var i = 0; i < boxes.Count; i++)
             {
                 var box = boxes[i];
-                if (box.Available) ConsiderPickup(box.transform.position, pos, range, ref best, ref lane);
+                if (box.Available && box.GivesPowerups())
+                    ConsiderPickup(box.transform.position, pos, range, box.GivesSpecial(kart) ? SpecialShare : 1f, ref best, ref lane);
             }
             var hazards = PlantedHazards.All;
             for (var i = 0; i < hazards.Count; i++)
             {
                 var h = hazards[i];
-                if (h.LooksLikeItemBox && h.DangerRadius > 0f && !SeesThrough(h)) ConsiderPickup(h.Position, pos, range, ref best, ref lane);
+                if (h.LooksLikeItemBox && h.DangerRadius > 0f && !SeesThrough(h)) ConsiderPickup(h.Position, pos, range, 1f, ref best, ref lane);
             }
             return best < float.MaxValue;
         }
 
-        void ConsiderPickup(Vector3 p, Vector3 kartPos, float range, ref float best, ref float lane)
+        // costShare scales the cost of reaching the box (below 1: a preferred box).
+        void ConsiderPickup(Vector3 p, Vector3 kartPos, float range, float costShare, ref float best, ref float lane)
         {
             if ((p - kartPos).sqrMagnitude > range * range) return;
             if (!line.TryLocate(p, range, out var at) || at.RoadLane < AILanes.TargetMin || at.RoadLane > AILanes.TargetMax) return;
             var swerve = Mathf.Abs(at.Lane - Lane) * at.Width;
             if (swerve > at.Ahead * PickupReachShare) return;
-            var cost = swerve + at.Ahead * PickupDistanceCost;
+            var cost = (swerve + at.Ahead * PickupDistanceCost) * costShare;
             if (cost >= best) return;
             best = cost;
             lane = at.Lane;
@@ -229,7 +241,21 @@ namespace MHK.AI
             return AIRolls.PerLap(rollSeed ^ AIRolls.MeleeSalt, other, kart.Progress.Lap) < difficulty.aiAvoidHammerChance;
         }
 
-        // Road lane beside a melee holder: the side it is on unless that runs out of road, else as far out as the road allows.
+        // Out of the way of the opponent about to ram the kart (AIRamThreat), urgently: the danger distance beside where it
+        // would meet the kart, on the kart's side of it. Overrides passing, not trap and wall avoidance.
+        float AvoidRam(float width, float roadShift, float u, ref bool urgent)
+        {
+            if (rams.Rammer == null) return u;
+            var otherU = Lane + rams.Side / width + roadShift;
+            var half = rams.Danger / width;
+            var r = u + roadShift;
+            if (Mathf.Abs(r - otherU) >= half) return u;
+            urgent = true;
+            return BerthLane(r, otherU, half) - roadShift;
+        }
+
+        // Road lane beside a melee holder or a rammer: the side it is on unless that runs out of road, else as far out as
+        // the road allows.
         static float BerthLane(float r, float otherU, float half)
         {
             var right = otherU + half;

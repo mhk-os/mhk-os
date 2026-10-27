@@ -29,6 +29,7 @@ namespace MHK.Rendering
         public static readonly int VertexTint = Shader.PropertyToID("_VertexTint");
         public static readonly int AlphaClip = Shader.PropertyToID("_AlphaClip");
         public static readonly int Cutoff = Shader.PropertyToID("_Cutoff");
+        public static readonly int Fog = Shader.PropertyToID("_Fog");
         public static readonly int SrcBlend = Shader.PropertyToID("_SrcBlend");
         public static readonly int DstBlend = Shader.PropertyToID("_DstBlend");
         public static readonly int ZWrite = Shader.PropertyToID("_ZWrite");

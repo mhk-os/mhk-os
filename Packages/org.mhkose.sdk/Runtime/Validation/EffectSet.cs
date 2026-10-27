@@ -72,7 +72,7 @@ namespace MHK.Validation
                 fx.gravity *= d.gravityMultiplier;
                 fx.speedBoost |= d.maxSpeedMultiplier > 1f || d.accelerationMultiplier > 1f || d.forwardImpulse > 0f;
                 fx.movesKart |= d.forwardImpulse != 0f || d.upwardImpulse != 0f || d.velocityRetain != 1f || d.velocityDamping != 0f
-                                || d.snapToTopSpeed || d.freezeKart || d.respawnOnEnd || d.spinTurns != 0f || d.ghost || d.hideKart;
+                                || d.snapToTopSpeed || d.freezeKart || d.respawnOnEnd || d.Spins || d.ghost || d.hideKart;
             }
             return fx;
         }

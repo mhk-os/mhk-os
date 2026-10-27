@@ -10,10 +10,10 @@ namespace MHK.AI
     /// Finds the way of a computer driver in a battle to its goal (an opponent hunted, an arena spot or item box, or the
     /// line behind it when it turns around): straight across the ground when it is near (always in arenas), else along the
     /// racing line in whichever direction is shorter and along the alternative route a goal lies on, and around walls,
-    /// solid props and unsafe ground (<see cref="AIBattleArea"/>) by trying headings to both sides of the wanted one. Off
-    /// arenas it turns around on the road: first on to a wide stretch or a fork close ahead when the road is narrow, then
-    /// keeping to the road (its edges stop the kart like drops, so a narrow road gets a three-point turn). Offroad it
-    /// prefers headings back towards the road.
+    /// solid props, unsafe ground (<see cref="AIBattleArea"/>) and the course of an opponent about to ram it
+    /// (<see cref="AIRamThreat"/>) by trying headings to both sides of the wanted one. Off arenas it turns around on the
+    /// road: first on to a wide stretch or a fork close ahead when the road is narrow, then keeping to the road (its edges
+    /// stop the kart like drops, so a narrow road gets a three-point turn). Offroad it prefers headings back towards the road.
     /// </summary>
     internal sealed class AIBattleNavigator
     {
@@ -40,6 +40,7 @@ namespace MHK.AI
         [NoAutoStaticsCleanup] static readonly RaycastHit[] Hits = new RaycastHit[32];
 
         readonly float scanInterval;
+        readonly AIRamThreat rams;
         readonly AIBattleArea.Hints hints = new();
         readonly AIBattleArea.Hints goalHints = new();
         int goalRoute = -1;
@@ -52,8 +53,11 @@ namespace MHK.AI
         int turnSign;
         bool alongLine, turning, turnDelayed;
 
-        public AIBattleNavigator(DifficultySettings difficulty) =>
+        public AIBattleNavigator(DifficultySettings difficulty, AIRamThreat rams)
+        {
             scanInterval = Mathf.Lerp(SlowScanInterval, FastScanInterval, difficulty.aiPrecision);
+            this.rams = rams;
+        }
 
         /// <summary>World point the kart steers at this step.</summary>
         public Vector3 SteerPoint { get; private set; }
@@ -134,7 +138,7 @@ namespace MHK.AI
             }
             if (scan)
             {
-                Scan(kart, target, track, wantedDir, toWanted.magnitude, arena, leash, radius, cfg);
+                Scan(kart, target, track, wantedDir, toWanted.magnitude, speed, arena, leash, radius, cfg);
                 Hazard(kart, track, leash, radius, cfg);
             }
             WatchBlocked(toWanted.magnitude, dt);
@@ -176,21 +180,23 @@ namespace MHK.AI
             turnDelayTimer = TurnDelaySeconds;
         }
 
-        // A stretch at least TurnWidth wide or a fork up to TurnSearch metres ahead on the main line, short of a jump or
-        // the end of an open line. None when the road here is wide enough or the kart is on an alternative route.
+        // A stretch of drivable road at least TurnWidth wide or a fork up to TurnSearch metres ahead on the main line,
+        // short of a jump or the end of an open line. None when the road here is wide enough or the kart is on an
+        // alternative route.
         bool FindTurnSpot(Kart kart, TrackRuntime track, Vector3 forward)
         {
             if (AIBattleArea.RouteAt(track, kart.transform.position, hints, out _) >= 0) return false;
             var path = track.path;
+            var road = AIRacingLine.Of(track, path, GameRoot.Instance.Config.aiRacingLineMargin);
             var d = kart.Progress.PathDistance;
-            if (path.GetWidth(d) >= TurnWidth) return false;
+            if (road.Width(d) >= TurnWidth) return false;
             turnSign = Vector3.Dot(forward, path.GetFlatTangent(d, 1f)) >= 0f ? 1 : -1;
             for (var x = TurnSearchStep; x <= TurnSearch; x += TurnSearchStep)
             {
                 var at = d + turnSign * x;
                 if (!path.closed && (at < 0f || at > path.Length)) return false;
                 if (TrackGaps.IsGap(track, path, at)) return false;
-                if (path.GetWidth(at) < TurnWidth && !NearFork(track, at)) continue;
+                if (road.Width(at) < TurnWidth && !NearFork(track, at)) continue;
                 turnSpot = path.WrapDistance(at);
                 return true;
             }
@@ -219,7 +225,9 @@ namespace MHK.AI
             return turning && !turnDelayed ? Mathf.Min(pavedLeash, turnLeash) : pavedLeash;
         }
 
-        void Scan(Kart kart, Kart target, TrackRuntime track, Vector3 wantedDir, float toWanted, bool arena, float leash, float radius, GameConfig cfg)
+        // Headings are cut short at walls, unsafe ground, karts in the way and where a rammer would meet the kart.
+        void Scan(Kart kart, Kart target, TrackRuntime track, Vector3 wantedDir, float toWanted, float speed, bool arena, float leash, float radius,
+            GameConfig cfg)
         {
             AIObstacleClassifier.Prepare(cfg.aiPushableMass);
             var range = Mathf.Min(cfg.aiBattleLookRange, toWanted + SampleStep);
@@ -232,7 +240,8 @@ namespace MHK.AI
             {
                 var angle = Headings[i];
                 var dir = Quaternion.AngleAxis(angle, Vector3.up) * wantedDir;
-                var reach = KartsAlong(kart, target, origin, dir, Probe(track, origin, groundY, dir, range, leash, paved, radius, out _, out var endBeyond));
+                var reach = rams.Along(origin, dir, speed,
+                    KartsAlong(kart, target, origin, dir, Probe(track, origin, groundY, dir, range, leash, paved, radius, out _, out var endBeyond)));
                 var free = reach >= range - 0.01f;
                 var score = reach - Mathf.Abs(angle) * AngleCost + (angle == previous ? KeepBonus : 0f) + (free ? FreeBonus : 0f)
                     + (offroad ? RoadPull * (roadBeyond - endBeyond) : 0f);

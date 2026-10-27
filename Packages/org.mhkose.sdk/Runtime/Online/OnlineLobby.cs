@@ -141,7 +141,7 @@ namespace MHK.Online
             {
                 var manifests = ContentManifests.Build(registry);
                 var version = registry.Version;
-                var hello = new ContentHelloRequest { simVersion = SimulationVersion.Current };
+                var hello = new ContentHelloRequest { contentVersion = ContentVersion.Current };
                 foreach (var m in manifests) hello.packs.Add(new PackRef { packId = m.packId, commit = m.commit, manifestHash = m.manifestHash });
                 var r = await OnlineService.Call(LobbyMessageType.ContentHello, hello.Write, ContentHelloAnswer.Read, true);
                 if (!r.Ok) return Fail(r.result, account, version, forConnection);

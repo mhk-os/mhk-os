@@ -75,7 +75,7 @@ namespace MHK.Online
         }
     }
 
-    /// <summary>A leaderboard: runs of one track, engine class, lap count, simulation version and track content.</summary>
+    /// <summary>A leaderboard: runs of one track, engine class, lap count, content version and track hash.</summary>
     public sealed class BoardInfo
     {
         public const int MaxTrackId = 96, MaxTrackHash = 32, MaxList = 200;
@@ -86,7 +86,7 @@ namespace MHK.Online
         public string trackId = "";
         public int engineClass;
         public int laps;
-        public int simVersion;
+        public int contentVersion;
         public string trackHash = "";
         /// <summary>Accounts with a visible run.</summary>
         public int players;
@@ -101,7 +101,7 @@ namespace MHK.Online
             w.String(trackId, MaxTrackId);
             TimeTrialWire.U8(w, engineClass);
             TimeTrialWire.U8(w, laps);
-            w.I32(simVersion);
+            w.I32(contentVersion);
             w.String(trackHash, MaxTrackHash);
             TimeTrialWire.U32(w, players);
             w.I32(bestMs);
@@ -110,7 +110,7 @@ namespace MHK.Online
 
         public static BoardInfo Read(WireReader r) => new()
         {
-            boardId = r.I64(), trackId = r.String(MaxTrackId), engineClass = r.U8(), laps = r.U8(), simVersion = r.I32(),
+            boardId = r.I64(), trackId = r.String(MaxTrackId), engineClass = r.U8(), laps = r.U8(), contentVersion = r.I32(),
             trackHash = r.String(MaxTrackHash), players = TimeTrialWire.U32(r), bestMs = r.I32(), lastUpload = TimeTrialWire.Time(r),
         };
     }
@@ -359,16 +359,16 @@ namespace MHK.Online
         public string trackId = "";
         public byte engineClass = AnyEngineClass;
         /// <summary>0 = any.</summary>
-        public int simVersion;
+        public int contentVersion;
 
         public void Write(WireWriter w)
         {
             w.String(trackId, BoardInfo.MaxTrackId);
             w.U8(engineClass);
-            w.I32(simVersion);
+            w.I32(contentVersion);
         }
 
-        public static ListBoardsRequest Read(WireReader r) => new() { trackId = r.String(BoardInfo.MaxTrackId), engineClass = r.U8(), simVersion = r.I32() };
+        public static ListBoardsRequest Read(WireReader r) => new() { trackId = r.String(BoardInfo.MaxTrackId), engineClass = r.U8(), contentVersion = r.I32() };
 
         public static void WriteAnswer(WireWriter w, List<BoardInfo> boards)
         {

@@ -51,5 +51,19 @@ namespace MHK.Online
             var r = await Call(type, body, _ => true, needsLogin);
             return r.result;
         }
+
+        /// <summary>
+        /// Connects and resumes the stored session when an account is being logged in (as <see cref="Call{T}"/> does with
+        /// needsLogin), so callers that need <see cref="Account"/> before their first request can wait for it.
+        /// </summary>
+        internal static async Task<OnlineResult> EnsureLoggedIn()
+        {
+            var s = Instance;
+            if (s == null) return OnlineResult.Failed("The game is shutting down.");
+            if (s.state != OnlineState.LoggedIn && Username == null) return new OnlineResult(Status.NotLoggedIn, NotLoggedInMessage);
+            var error = await s.EnsureConnectedAsync();
+            if (error != null) return OnlineResult.Failed(error);
+            return s.state == OnlineState.LoggedIn ? OnlineResult.Success : new OnlineResult(Status.NotLoggedIn, NotLoggedInMessage);
+        }
     }
 }

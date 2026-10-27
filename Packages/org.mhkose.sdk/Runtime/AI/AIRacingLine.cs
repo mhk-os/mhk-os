@@ -6,8 +6,11 @@ using UnityEngine;
 namespace MHK.AI
 {
     /// <summary>
-    /// Racing line of one track line for computer drivers: the smoothest path within the measured drivable road, as a
-    /// lane, bend radius and ground friction per distance. Built once per track and line on first use.
+    /// Racing line of one track line for computer drivers: the line with the evenest curvature within the measured
+    /// drivable road (out, in to the apex, out again, using the width), as a lane, bend curvature and ground friction per
+    /// distance. Lanes span the road across a smoothed copy of the track line, so the sharp kinks of node polylines
+    /// (MHK2, MHK3) neither fold the lanes nor keep the line from cutting a corner. Built once per track and line on
+    /// first use.
     /// </summary>
     internal sealed partial class AIRacingLine
     {
@@ -15,7 +18,8 @@ namespace MHK.AI
         // The line keeps to the centre this far (m) before and after a gap (jump over a fall zone).
         const float GapRunIn = 20f, GapRunOut = 15f;
         const float StraightRadius = 1e4f;
-        const int RadiusSpan = 2;
+        // Bend curvature is measured on the line points this many samples before and after.
+        const int CurvatureSpan = 2;
 
         [AutoStaticsCleanup] static readonly Dictionary<TrackPath, AIRacingLine> Cache = new();
         [AutoStaticsCleanup] static TrackRuntime cacheTrack;
@@ -25,10 +29,14 @@ namespace MHK.AI
         readonly bool closed;
         readonly float length;
         readonly float sampleSpacing;
-        readonly float[] lane;
-        readonly float[] radius;
+        // Racing line and measured road edges (m right of the frame centre): lanes are taken of the interpolated offsets,
+        // so where the road's middle or width steps the line stays on the solved points.
+        readonly float[] lineOffset;
+        readonly float[] curvature;
         readonly float[] friction;
-        readonly float[] roadLeft, roadRight;
+        readonly float[] edgeLeft, edgeRight;
+        readonly float[] frameShift, frameWidth;
+        readonly Vector2[] frameCentre, frameSide;
 
         /// <summary>The racing line of <paramref name="line"/> on <paramref name="track"/> (built on first use).</summary>
         public static AIRacingLine Of(TrackRuntime track, TrackPath line, float margin)
@@ -45,11 +53,40 @@ namespace MHK.AI
             return result;
         }
 
-        /// <summary>Road lane (0 = left edge, 0.5 = centre, 1 = right edge) of the racing line at <paramref name="distance"/>.</summary>
-        public float Lane(float distance) => Sample(lane, distance);
+        /// <summary>Road lane (0 = left edge of the drivable road, 0.5 = its middle, 1 = right edge) of the racing line at <paramref name="distance"/>.</summary>
+        public float Lane(float distance) => LaneOf(Sample(lineOffset, distance), distance);
+
+        /// <summary>
+        /// Width (m) of the drivable road at <paramref name="distance"/>, which road lanes span: the track line's width cut
+        /// short at walls, drops and offroad ground on each side (where measured), so a track line much wider or off-centre
+        /// than its road does not spread the lanes beyond it.
+        /// </summary>
+        public float Width(float distance) => Sample(frameWidth, distance);
+
+        /// <summary>World point at road lane <paramref name="roadLane"/> at <paramref name="distance"/>.</summary>
+        public Vector3 PointAt(float distance, float roadLane)
+        {
+            Frame(distance, out var centre, out var side);
+            var p = centre + side * (Sample(frameShift, distance) + (roadLane - AILanes.Centre) * Width(distance));
+            return new Vector3(p.x, path.GetPoint(distance).y, p.y);
+        }
+
+        /// <summary>Road lane (unclamped) of <paramref name="position"/> beside <paramref name="distance"/>.</summary>
+        public float RoadLaneOf(Vector3 position, float distance)
+        {
+            Frame(distance, out var centre, out var side);
+            return AILanes.Centre + (Vector2.Dot(new Vector2(position.x, position.z) - centre, side) - Sample(frameShift, distance)) / Width(distance);
+        }
 
         /// <summary>Bend radius (m) of the racing line at <paramref name="distance"/> (large on straights).</summary>
-        public float Radius(float distance) => Sample(radius, distance);
+        public float Radius(float distance) => 1f / Mathf.Max(1f / StraightRadius, Mathf.Abs(Sample(curvature, distance)));
+
+        /// <summary>Side the racing line bends to at <paramref name="distance"/>: 1 = towards the right road edge, -1 = left, 0 = straight.</summary>
+        public int BendSide(float distance)
+        {
+            var k = Sample(curvature, distance);
+            return k > 1f / StraightRadius ? 1 : k < -1f / StraightRadius ? -1 : 0;
+        }
 
         /// <summary>Lateral friction of the ground under the racing line at <paramref name="distance"/> (1 = road).</summary>
         public float Friction(float distance) => Sample(friction, distance);
@@ -60,9 +97,12 @@ namespace MHK.AI
         /// </summary>
         public void RoadEdges(float distance, out float left, out float right)
         {
-            left = Sample(roadLeft, distance);
-            right = Sample(roadRight, distance);
+            left = LaneOf(Sample(edgeLeft, distance), distance);
+            right = LaneOf(Sample(edgeRight, distance), distance);
         }
+
+        // Road lane of a point offset (m right of the frame centre) across the frame at distance.
+        float LaneOf(float offset, float distance) => AILanes.Centre + (offset - Sample(frameShift, distance)) / Width(distance);
 
         AIRacingLine(TrackRuntime track, TrackPath line, float margin)
         {
@@ -78,25 +118,43 @@ namespace MHK.AI
             road.KeepCentreAroundGaps(Mathf.CeilToInt(GapRunIn / sampleSpacing), Mathf.CeilToInt(GapRunOut / sampleSpacing));
             if (!closed && track.path != null && track.path != line) PinRouteEnds(road, track, line, margin);
             road.Solve();
-            road.Edges(margin, out roadLeft, out roadRight);
+            road.Edges(margin, out edgeLeft, out edgeRight);
+            frameCentre = road.refCentre;
+            frameSide = road.refSide;
+            frameShift = road.middle;
+            frameWidth = road.roadWidth;
+            lineOffset = road.offset;
             var points = road.Points();
-            lane = road.Lanes();
             friction = Frictions(points, road.height, mask);
-            radius = Radii(points, closed);
+            curvature = road.Curvatures(CurvatureSpan);
         }
 
         float Sample(float[] values, float distance)
         {
-            var n = values.Length;
-            if (n == 1) return values[0];
-            var d = closed ? path.WrapDistance(distance) : Mathf.Clamp(distance, 0f, length);
-            var x = d / sampleSpacing;
-            var i = Mathf.Clamp((int)x, 0, n - 1);
-            var j = closed ? (i + 1) % n : Mathf.Min(i + 1, n - 1);
-            return Mathf.Lerp(values[i], values[j], x - (int)x);
+            Locate(distance, out var i, out var j, out var t);
+            return Mathf.Lerp(values[i], values[j], t);
         }
 
-        Vector3 WorldPoint(float distance) => path.GetPointAtLane(distance, Lane(distance), Mathf.Max(1f, path.GetWidth(distance)));
+        // Centre and right side direction of the smoothed frame lanes span at distance.
+        void Frame(float distance, out Vector2 centre, out Vector2 side)
+        {
+            Locate(distance, out var i, out var j, out var t);
+            centre = Vector2.Lerp(frameCentre[i], frameCentre[j], t);
+            side = Vector2.Lerp(frameSide[i], frameSide[j], t).normalized;
+        }
+
+        // Samples around distance and the share of the way from i to j.
+        void Locate(float distance, out int i, out int j, out float t)
+        {
+            var n = lineOffset.Length;
+            var d = closed ? path.WrapDistance(distance) : Mathf.Clamp(distance, 0f, length);
+            var x = d / sampleSpacing;
+            i = Mathf.Clamp((int)x, 0, n - 1);
+            j = closed ? (i + 1) % n : Mathf.Min(i + 1, n - 1);
+            t = x - (int)x;
+        }
+
+        Vector3 WorldPoint(float distance) => PointAt(distance, Lane(distance));
 
         // Alternative routes join the main racing line at both ends.
         static void PinRouteEnds(Road road, TrackRuntime track, TrackPath line, float margin)
@@ -123,48 +181,43 @@ namespace MHK.AI
             return result;
         }
 
-        static float[] Radii(Vector2[] p, bool closed)
-        {
-            var n = p.Length;
-            var result = new float[n];
-            for (var i = 0; i < n; i++)
-            {
-                int a = i - RadiusSpan, b = i + RadiusSpan;
-                if (closed) { a = (a + n) % n; b %= n; }
-                else if (a < 0 || b >= n) { result[i] = StraightRadius; continue; }
-                result[i] = Circumradius(p[a], p[i], p[b]);
-            }
-            if (!closed)
-            {
-                for (var i = 0; i < Mathf.Min(2, n); i++) result[i] = result[Mathf.Min(2, n - 1)];
-                for (var i = Mathf.Max(0, n - 2); i < n; i++) result[i] = result[Mathf.Max(0, n - 3)];
-            }
-            return result;
-        }
-
-        static float Circumradius(Vector2 a, Vector2 b, Vector2 c)
-        {
-            var ab = b - a;
-            var bc = c - b;
-            var ca = a - c;
-            var cross = Mathf.Abs(ab.x * bc.y - ab.y * bc.x);
-            if (cross < 1e-6f) return StraightRadius;
-            return Mathf.Min(StraightRadius, ab.magnitude * bc.magnitude * ca.magnitude / (2f * cross));
-        }
-
-        /// <summary>Road samples of a line being built: centre, side, measured bounds and the solved offsets.</summary>
+        /// <summary>
+        /// Road samples of a line being built: the track line, a smoothed copy of it (the frame), the drivable road measured
+        /// across that frame, and the line solved in it.
+        /// </summary>
         sealed class Road
         {
-            const int CoarsestStride = 8, MinLevelSamples = 5;
-            const int CoarseSweeps = 600, FineSweeps = 300;
-            const float Converged = 1e-3f;
+            const int CoarsestStride = 32, MinLevelSamples = 5;
+            // Sweeps per level: this times the square root of the level's stride.
+            const float SweepsPerStride = 100f;
+            const float Converged = 1e-4f;
+            // The frame is the track line smoothed over ±SmoothSamples samples (Gaussian, SmoothSigma samples), so the
+            // sharp kinks of 10 m node polylines (MHK2, MHK3) neither bend the line nor fold the frame.
+            const int SmoothSamples = 6;
+            const float SmoothSigma = 2f;
+            // Bounds stop this far (m) short of where the side lines of neighbouring samples cross (inside bends tighter
+            // than the road is wide), so lanes map onto the road without folding back.
+            const float FoldMargin = 1f;
+            // Coarse levels keep the spacing before times the spacing after over this (m) from the bounds.
+            const float SecurityScale = 800f;
+            const float NewtonStep = 1e-3f;
+            // Measured roads narrower than MinMeasuredWidth (m) count as unmeasured (the probes found no ground at the
+            // centre); lanes span at least MinRoadWidth.
+            const float MinMeasuredWidth = 1f, MinRoadWidth = 2f;
 
             public readonly int n;
             public readonly bool[] pinned;
             public readonly float[] height;
+            /// <summary>Smoothed centre and right side direction per sample: the frame lanes span.</summary>
+            public readonly Vector2[] refCentre, refSide;
+            /// <summary>Middle of the drivable road (m right of the frame centre) and its width per sample.</summary>
+            public readonly float[] middle, roadWidth;
             readonly bool closed;
             readonly Vector2[] centre, side;
-            readonly float[] width, lo, hi, offset;
+            /// <summary>Racing line per sample (m right of the frame centre), solved by <see cref="Solve"/>.</summary>
+            public readonly float[] offset;
+            // Track line (m right of the frame centre) and the bounds the line keeps, across the frame.
+            readonly float[] trackLine, width, lo, hi;
             readonly bool[] gap;
 
             public Road(int n, bool closed)
@@ -173,7 +226,12 @@ namespace MHK.AI
                 this.closed = closed;
                 centre = new Vector2[n];
                 side = new Vector2[n];
+                refCentre = new Vector2[n];
+                refSide = new Vector2[n];
+                trackLine = new float[n];
                 width = new float[n];
+                middle = new float[n];
+                roadWidth = new float[n];
                 height = new float[n];
                 lo = new float[n];
                 hi = new float[n];
@@ -182,6 +240,12 @@ namespace MHK.AI
                 pinned = new bool[n];
             }
 
+            /// <summary>
+            /// Samples the track line, smooths it into the frame and probes the drivable road from each track line point
+            /// along the frame's side direction: walls, drops, offroad ground and holes cut the track line's width short.
+            /// The bounds keep <paramref name="margin"/> from the edges (the middle of roads narrower than that) and stop
+            /// short of folds.
+            /// </summary>
             public void Measure(TrackRuntime track, TrackPath line, float spacing, float length, float margin, int mask)
             {
                 for (var i = 0; i < n; i++)
@@ -194,11 +258,30 @@ namespace MHK.AI
                     height[i] = c.y;
                     width[i] = Mathf.Max(1f, line.GetWidth(d));
                     gap[i] = TrackGaps.IsGap(track, line, d);
-                    var half = width[i] * 0.5f - margin;
-                    if (half <= 0f || gap[i]) continue;
-                    lo[i] = -Mathf.Max(0f, AIRoadProbe.Reach(c, -right, width[i] * 0.5f, mask) - margin);
-                    hi[i] = Mathf.Max(0f, AIRoadProbe.Reach(c, right, width[i] * 0.5f, mask) - margin);
                 }
+                SmoothCentre();
+                for (var i = 0; i < n; i++)
+                {
+                    var tangent = refCentre[Index(i + 1)] - refCentre[Index(i - 1)];
+                    var right = tangent.sqrMagnitude > 1e-8f ? new Vector2(tangent.y, -tangent.x).normalized : side[i];
+                    refSide[i] = Vector2.Dot(right, side[i]) < 0f ? -right : right;
+                    var s = trackLine[i] = Vector2.Dot(centre[i] - refCentre[i], refSide[i]);
+                    middle[i] = lo[i] = hi[i] = s;
+                    roadWidth[i] = width[i];
+                    if (width[i] * 0.5f - margin <= 0f || gap[i]) continue;
+                    var c = new Vector3(centre[i].x, height[i], centre[i].y);
+                    var across = new Vector3(refSide[i].x, 0f, refSide[i].y);
+                    var reachLeft = AIRoadProbe.Reach(c, -across, width[i] * 0.5f, mask);
+                    var reachRight = AIRoadProbe.Reach(c, across, width[i] * 0.5f, mask);
+                    lo[i] = s - reachLeft + margin;
+                    hi[i] = s + reachRight - margin;
+                    if (lo[i] > hi[i]) lo[i] = hi[i] = s + 0.5f * (reachRight - reachLeft);
+                    if (reachLeft + reachRight < MinMeasuredWidth) continue;
+                    middle[i] = s + 0.5f * (reachRight - reachLeft);
+                    roadWidth[i] = Mathf.Max(MinRoadWidth, reachLeft + reachRight);
+                }
+                LimitFolds();
+                for (var i = 0; i < n; i++) offset[i] = Mathf.Clamp(0f, lo[i], hi[i]);
             }
 
             public void KeepCentreAroundGaps(int before, int after)
@@ -211,19 +294,20 @@ namespace MHK.AI
                         var j = i + k;
                         if (closed) j = (j % n + n) % n;
                         else if (j < 0 || j >= n) continue;
-                        lo[j] = hi[j] = 0f;
+                        lo[j] = hi[j] = offset[j] = trackLine[j];
                     }
                 }
             }
 
             public void Pin(Vector3 world, int i)
             {
-                offset[i] = Mathf.Clamp(Vector2.Dot(new Vector2(world.x, world.z) - centre[i], side[i]), lo[i], hi[i]);
+                offset[i] = Mathf.Clamp(Vector2.Dot(new Vector2(world.x, world.z) - refCentre[i], refSide[i]), lo[i], hi[i]);
                 pinned[i] = true;
             }
 
-            // Offsets within [lo, hi] minimising the sum of squared second differences, by projected Gauss-Seidel sweeps
-            // of the biharmonic update on successively finer sample spacings.
+            // Curvature relaxation (K1999, R. Coulom) on successively finer sample spacings: each sample moves across the
+            // road to the curvature interpolated from its neighbours', within the bounds. Bends become arcs that use the
+            // width (out, in to the apex, out again) instead of following the track line's kinks.
             public void Solve()
             {
                 var levels = new List<int>(n);
@@ -231,7 +315,13 @@ namespace MHK.AI
                 {
                     LevelIndices(stride, levels);
                     if (levels.Count < MinLevelSamples) continue;
-                    RelaxLevel(levels, stride >= CoarsestStride ? CoarseSweeps : FineSweeps);
+                    var sweeps = Mathf.CeilToInt(SweepsPerStride * Mathf.Sqrt(stride));
+                    for (var sweep = 0; sweep < sweeps; sweep++)
+                    {
+                        var change = 0f;
+                        for (var k = 0; k < levels.Count; k++) Adjust(levels, k, ref change);
+                        if (change < Converged) break;
+                    }
                     if (stride > 1) FillBetween(levels);
                 }
             }
@@ -243,65 +333,113 @@ namespace MHK.AI
                 return p;
             }
 
-            public float[] Lanes()
-            {
-                var result = new float[n];
-                for (var i = 0; i < n; i++) result[i] = AILanes.Centre + offset[i] / width[i];
-                return result;
-            }
-
-            /// <summary>Road lanes of the measured edges: the bounds the line keeps plus its margin.</summary>
+            /// <summary>Measured road edges (m right of the frame centre): the bounds the line keeps plus its margin.</summary>
             public void Edges(float margin, out float[] left, out float[] right)
             {
                 left = new float[n];
                 right = new float[n];
                 for (var i = 0; i < n; i++)
                 {
-                    left[i] = AILanes.Centre + (lo[i] - margin) / width[i];
-                    right[i] = AILanes.Centre + (hi[i] + margin) / width[i];
+                    left[i] = lo[i] - margin;
+                    right[i] = hi[i] + margin;
                 }
             }
 
-            Vector2 Point(int i) => centre[i] + side[i] * offset[i];
+            /// <summary>
+            /// Signed bend curvature (1/m) of the line through the points <paramref name="span"/> samples before and after
+            /// each: positive when it bends towards the right road edge.
+            /// </summary>
+            public float[] Curvatures(int span)
+            {
+                var result = new float[n];
+                for (var i = 0; i < n; i++)
+                {
+                    int a = i - span, b = i + span;
+                    if (!closed && (a < 0 || b >= n)) continue;
+                    result[i] = SignedCurvature(Point(Index(a)), Point(i), Point(Index(b)), refSide[i]);
+                }
+                if (closed || n <= 2 * span) return result;
+                for (var i = 0; i < span; i++)
+                {
+                    result[i] = result[span];
+                    result[n - 1 - i] = result[n - 1 - span];
+                }
+                return result;
+            }
+
+            Vector2 Point(int i) => refCentre[i] + refSide[i] * offset[i];
+
+            int Index(int i) => closed ? (i % n + n) % n : Mathf.Clamp(i, 0, n - 1);
+
+            // In a bend tighter than the road is wide the side lines of neighbouring samples cross on its inside: lanes
+            // beyond that point would map back along the road.
+            void LimitFolds()
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    for (var step = -1; step <= 1; step += 2)
+                    {
+                        var j = i + step;
+                        if (closed) j = (j % n + n) % n;
+                        else if (j < 0 || j >= n) continue;
+                        var turn = Cross(refSide[i], refSide[j]);
+                        if (Mathf.Abs(turn) < 1e-6f) continue;
+                        var at = Cross(refCentre[j] - refCentre[i], refSide[j]) / turn;
+                        if (at > 0f) hi[i] = Mathf.Min(hi[i], at - FoldMargin);
+                        else lo[i] = Mathf.Max(lo[i], at + FoldMargin);
+                    }
+                    if (lo[i] > hi[i]) lo[i] = hi[i] = 0.5f * (lo[i] + hi[i]);
+                }
+            }
+
+            void SmoothCentre()
+            {
+                var weights = 0f;
+                for (var k = -SmoothSamples; k <= SmoothSamples; k++) weights += Weight(k);
+                for (var i = 0; i < n; i++)
+                {
+                    var sum = Vector2.zero;
+                    for (var k = -SmoothSamples; k <= SmoothSamples; k++) sum += centre[Index(i + k)] * Weight(k);
+                    refCentre[i] = sum / weights;
+                }
+            }
+
+            static float Weight(int k) => Mathf.Exp(-0.5f * (k / SmoothSigma) * (k / SmoothSigma));
+
+            // Sample k of the level: on the chord of its neighbours, then a Newton step to the curvature interpolated from
+            // theirs (the ends of an open line count as straight).
+            void Adjust(List<int> idx, int k, ref float change)
+            {
+                var m = idx.Count;
+                var i = idx[k];
+                if (pinned[i] || (!closed && (k == 0 || k == m - 1))) return;
+                var before = Point(idx[Wrap(k - 1, m)]);
+                var at = Point(i);
+                var after = Point(idx[Wrap(k + 1, m)]);
+                var bendBefore = !closed && k < 2 ? 0f : Bend(Point(idx[Wrap(k - 2, m)]), before, at);
+                var bendAfter = !closed && k > m - 3 ? 0f : Bend(at, after, Point(idx[Wrap(k + 2, m)]));
+                var lengthBefore = (at - before).magnitude;
+                var lengthAfter = (after - at).magnitude;
+                var target = (lengthAfter * bendBefore + lengthBefore * bendAfter) / Mathf.Max(1e-6f, lengthBefore + lengthAfter);
+                var chord = after - before;
+                var across = Cross(chord, refSide[i]);
+                if (Mathf.Abs(across) < 1e-6f) return;
+                var o = -Cross(chord, refCentre[i] - before) / across;
+                var slope = Bend(before, refCentre[i] + refSide[i] * (o + NewtonStep), after);
+                if (Mathf.Abs(slope) > 1e-9f) o += NewtonStep / slope * target;
+                var security = lengthBefore * lengthAfter / SecurityScale;
+                float low = lo[i] + security, high = hi[i] - security;
+                if (low > high) low = high = 0.5f * (lo[i] + hi[i]);
+                o = Mathf.Clamp(o, low, high);
+                change = Mathf.Max(change, Mathf.Abs(o - offset[i]));
+                offset[i] = o;
+            }
 
             void LevelIndices(int stride, List<int> into)
             {
                 into.Clear();
                 for (var i = 0; i < n; i += stride) into.Add(i);
                 if (!closed && into[into.Count - 1] != n - 1) into.Add(n - 1);
-            }
-
-            void RelaxLevel(List<int> idx, int sweeps)
-            {
-                for (var sweep = 0; sweep < sweeps; sweep++)
-                {
-                    var change = 0f;
-                    for (var k = 0; k < idx.Count; k++) RelaxSample(idx, k, ref change);
-                    if (change < Converged) break;
-                }
-            }
-
-            void RelaxSample(List<int> idx, int k, ref float change)
-            {
-                var m = idx.Count;
-                var i = idx[k];
-                if (pinned[i]) return;
-                if (!closed && (k < 2 || k > m - 3))
-                {
-                    // Next to the ends of an open line: the midpoint of the neighbours (a straight run-in).
-                    if (k == 0 || k == m - 1) return;
-                    Relax(i, 0.5f * (Point(idx[k - 1]) + Point(idx[k + 1])), ref change);
-                    return;
-                }
-                int a = idx[Wrap(k - 2, m)], b = idx[Wrap(k - 1, m)], c = idx[Wrap(k + 1, m)], d = idx[Wrap(k + 2, m)];
-                Relax(i, (4f * (Point(b) + Point(c)) - Point(a) - Point(d)) / 6f, ref change);
-            }
-
-            void Relax(int i, Vector2 target, ref float change)
-            {
-                var o = Mathf.Clamp(Vector2.Dot(target - centre[i], side[i]), lo[i], hi[i]);
-                change = Mathf.Max(change, Mathf.Abs(o - offset[i]));
-                offset[i] = o;
             }
 
             void FillBetween(List<int> idx)
@@ -322,6 +460,27 @@ namespace MHK.AI
             }
 
             int Wrap(int k, int m) => closed ? (k % m + m) % m : Mathf.Clamp(k, 0, m - 1);
+
+            static float Cross(Vector2 a, Vector2 b) => a.x * b.y - a.y * b.x;
+
+            // Signed curvature (1/m) of the circle through three points: the sign tells which way it turns, consistently
+            // for the solver's neighbours and its Newton step.
+            static float Bend(Vector2 prev, Vector2 at, Vector2 next)
+            {
+                var toNext = next - at;
+                var toPrev = prev - at;
+                var chord = next - prev;
+                var product = Mathf.Sqrt(toNext.sqrMagnitude * toPrev.sqrMagnitude * chord.sqrMagnitude);
+                return product > 1e-12f ? 2f * Cross(toNext, toPrev) / product : 0f;
+            }
+
+            // Curvature of the circle through a, b and c, positive when it bends towards right (the chord's middle lies
+            // on that side of b).
+            static float SignedCurvature(Vector2 a, Vector2 b, Vector2 c, Vector2 right)
+            {
+                var k = Mathf.Abs(Bend(a, b, c));
+                return Vector2.Dot(0.5f * (a + c) - b, right) >= 0f ? k : -k;
+            }
         }
     }
 }

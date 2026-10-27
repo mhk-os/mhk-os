@@ -13,7 +13,7 @@ namespace MHK.UI
     {
         [SerializeField, Tooltip("Role the driver and kart play on the turntable (races show Drive while driving).")]
         CharacterAnimRole pose = CharacterAnimRole.Drive;
-        [SerializeField, Tooltip("Playback rate of clips that follow the kart's speed (races: 0.2 when standing, 2.2 at full speed).")]
+        [SerializeField, Tooltip("Playback rate of clips that follow the kart's speed (races: 0.05 when standing, 0.55 at full speed).")]
         float poseRate = 0.6f;
 
         GameObject shown;

@@ -8,7 +8,8 @@ namespace MHK.Karts
 {
     /// <summary>
     /// Plays a character's clips by role through a PlayableGraph: per-frame locomotion plus prioritised action overlays,
-    /// with MHK2 playback modes and rest-pose restore for partially animated rigs.
+    /// with MHK2 playback modes and rest-pose restore for partially animated rigs. A kart-following drive loop (MHK2
+    /// bob) keeps running on an additive layer over the steering poses, on one clock with the drive clip itself.
     /// </summary>
     public class CharacterAnimator : MonoBehaviour
     {
@@ -43,9 +44,11 @@ namespace MHK.Karts
         IReadOnlyList<CharacterAnimBinding> animations;
         PlayableGraph graph;
         AnimationMixerPlayable mixer;
+        AnimationLayerMixerPlayable layers;
         Animator target;
         AnimatorCullingMode awakeCulling;
-        Layer current, previous;
+        Layer current, previous, bob;
+        float bobWeight;
         float fade = 1f, fadeDuration;
         bool paused;
 
@@ -80,10 +83,32 @@ namespace MHK.Karts
             graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
             var output = AnimationPlayableOutput.Create(graph, "Animation", animator);
             mixer = AnimationMixerPlayable.Create(graph, 2);
-            output.SetSourcePlayable(mixer);
+            if (CreateBobLayer()) output.SetSourcePlayable(layers);
+            else output.SetSourcePlayable(mixer);
             graph.Play();
             StartLocomotion();
             ApplyTimes();
+            UpdateBob(0f);
+        }
+
+        // The drive clip, when its speed follows the kart, also plays additively (offset from its first frame) over the
+        // turn poses, so the bob carries on while steering. Other drive clips (MHK3 'Fahren', TINcan) stay as they are.
+        bool CreateBobLayer()
+        {
+            if (!CharacterDefinition.TryResolve(animations, CharacterAnimRole.Drive, out var drive) || !drive.SpeedFollowsKart
+                || drive.Playback is not (CharacterAnimPlayback.Loop or CharacterAnimPlayback.PingPong))
+                return false;
+            layers = AnimationLayerMixerPlayable.Create(graph, 2);
+            graph.Connect(mixer, 0, layers, 0);
+            layers.SetInputWeight(0, 1f);
+            var playable = AnimationClipPlayable.Create(graph, drive.clip);
+            playable.SetApplyFootIK(false);
+            playable.SetSpeed(0);
+            graph.Connect(playable, 0, layers, 1);
+            layers.SetLayerAdditive(1, true);
+            layers.SetInputWeight(1, 0f);
+            bob = new Layer { playable = playable, role = CharacterAnimRole.Drive, binding = drive };
+            return true;
         }
 
         /// <summary>
@@ -121,6 +146,7 @@ namespace MHK.Karts
             else DropPrevious();
             restorePending = true;
             ApplyTimes();
+            UpdateBob(0f);
         }
 
         void CaptureRestPose(Transform root)
@@ -203,6 +229,7 @@ namespace MHK.Karts
             UpdateWeights();
             Advance(ref current, seconds);
             ApplyTimes();
+            UpdateBob(0f);
         }
 
         /// <summary>
@@ -255,6 +282,7 @@ namespace MHK.Karts
             if (fade >= 1f && previous.IsValid) DropPrevious();
 
             if (current.IsValid) Advance(ref current, dt);
+            if (bob.IsValid) Advance(ref bob, dt);
             if (actionActive)
             {
                 if (ActionFinished(true))
@@ -266,6 +294,7 @@ namespace MHK.Karts
             }
             else UpdateLocomotion();
             ApplyTimes();
+            UpdateBob(dt);
             // Runs before this frame's animation evaluation, which then poses everything the playing clips animate.
             if (restorePending) RestoreRestPose();
         }
@@ -393,6 +422,12 @@ namespace MHK.Karts
                 time = Mathf.Clamp(startTime, 0f, Mathf.Max(0f, binding.clip.length - EndEpsilon)), played = startTime,
             };
             if (current.Mode == CharacterAnimPlayback.SteerScrub) current.time = scrub * Mathf.Max(0f, binding.clip.length - EndEpsilon);
+            // The drive clip picks up the bob's clock, so the bob runs on without a jump between straight and steering.
+            if (!action && bob.IsValid && binding.clip == bob.binding.clip && current.Mode == bob.Mode)
+            {
+                current.time = bob.time;
+                current.played = bob.played;
+            }
             fadeDuration = fadeIn;
             fade = previous.IsValid && fadeIn > 0f ? 0f : 1f;
             if (fade >= 1f) DropPrevious();
@@ -413,6 +448,18 @@ namespace MHK.Karts
         {
             // The outgoing clip stays frozen on the pose it had: the cross-fade blends from that pose, like MHK2.
             if (current.IsValid) current.playable.SetTime(current.time);
+        }
+
+        // The bob fades in and out with the cross-fade into or out of a steering pose; it is off during actions.
+        void UpdateBob(float dt)
+        {
+            if (!bob.IsValid) return;
+            var target = current.IsValid && !current.action && current.Mode == CharacterAnimPlayback.SteerScrub
+                && current.role is (CharacterAnimRole.TurnLeft or CharacterAnimRole.TurnRight)
+                && current.binding.clip != bob.binding.clip ? 1f : 0f;
+            bobWeight = fade < 1f && fadeDuration > 0f ? Mathf.MoveTowards(bobWeight, target, dt / fadeDuration) : target;
+            bob.playable.SetTime(bob.time);
+            layers.SetInputWeight(1, bobWeight);
         }
 
         void UpdateWeights()

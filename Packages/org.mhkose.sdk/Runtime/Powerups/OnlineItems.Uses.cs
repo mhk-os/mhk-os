@@ -116,7 +116,7 @@ namespace MHK.Powerups
             {
                 t.SetPositionAndRotation(shownPosition, shownRotation);
             }
-            AudioManager.PlaySfx(def.useSound, m.pos);
+            AudioManager.PlaySfx(def.useSound, t);
             FastForward(m.useId, race.Tick - m.tick);
         }
 

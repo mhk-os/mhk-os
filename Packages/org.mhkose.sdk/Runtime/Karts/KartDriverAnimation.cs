@@ -23,6 +23,8 @@ namespace MHK.Karts
         const float ShoutWaitMin = 2f, ShoutWaitRange = 2f;
         const float ShoutReachAlong = 2f, ShoutReachSide = 6f;
         const float DriveRateMin = 0.2f, DriveRateRange = 2f, DriveRatePerSpeed = 0.02f;
+        // MHK2's drive clip packs four bobs into 1.2 s, over 7 bobs a second at full speed: the remake runs it at a quarter.
+        const float DriveRateScale = 0.25f;
 
         enum TurnSide { Left = -1, None, Right }
 
@@ -162,11 +164,12 @@ namespace MHK.Karts
         void ApplyLocomotion(CharacterAnimRole want, float v, bool restart)
         {
             // MHK2: turn pose time = |steer angle| / max steer angle × length, drive speed 0.2 + 2·min(|v|·0.02, 1).
-            // Remake: the smoothed pose replaces the steer angle, scaled by the turn pose intensity.
+            // Remake: the smoothed pose replaces the steer angle, scaled by the turn pose intensity; the drive speed
+            // (the bob, which also plays over the turn poses) is a quarter of MHK2's.
             var lean = poseSettings.intensity;
             var scrub = want is CharacterAnimRole.TurnLeft or CharacterAnimRole.BackwardTurnLeft ? Mathf.Max(0f, -pose) * lean
                 : want is CharacterAnimRole.TurnRight or CharacterAnimRole.BackwardTurnRight ? Mathf.Max(0f, pose) * lean : 0f;
-            var rate = DriveRateMin + DriveRateRange * Mathf.Min(Mathf.Abs(v) * DriveRatePerSpeed, 1f);
+            var rate = DriveRateScale * (DriveRateMin + DriveRateRange * Mathf.Min(Mathf.Abs(v) * DriveRatePerSpeed, 1f));
             if (driver != null) driver.SetLocomotion(want, scrub, rate, restart);
             if (kartModel != null) kartModel.SetLocomotion(want, scrub, rate, restart);
         }

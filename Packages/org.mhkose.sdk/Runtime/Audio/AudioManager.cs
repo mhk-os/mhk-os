@@ -7,8 +7,8 @@ using UnityEngine.Audio;
 namespace MHK.Audio
 {
     /// <summary>
-    /// Plays pooled 3D one-shots and 2D UI sounds and applies the volume settings to the audio mix (music:
-    /// <see cref="MusicPlayer"/>). Lives on the GameRoot object.
+    /// Plays pooled 3D one-shots (at a place, or following a transform such as a kart) and 2D UI sounds and applies the
+    /// volume settings to the audio mix (music: <see cref="MusicPlayer"/>). Lives on the GameRoot object.
     /// </summary>
     public partial class AudioManager : MonoBehaviour
     {
@@ -20,6 +20,8 @@ namespace MHK.Audio
         [AutoStaticsCleanup] static bool worldMuted;
         AudioSource ui;
         AudioSource[] pool;
+        // Transform each pooled one-shot follows while it plays, null for one placed in the world.
+        Transform[] follow;
         int next;
 
         static AudioManager Instance
@@ -47,6 +49,7 @@ namespace MHK.Audio
         void CreateSfxPool()
         {
             pool = new AudioSource[PoolSize];
+            follow = new Transform[PoolSize];
             for (var i = 0; i < PoolSize; i++)
             {
                 var go = new GameObject("Sfx" + i);
@@ -63,9 +66,24 @@ namespace MHK.Audio
         public static void PlaySfx(AudioResource sound, Vector3 position, float volume = 1f, float pitch = 1f, SoundRange range = null)
         {
             if (sound == null) return;
-            var inst = Instance;
-            var s = inst.pool[inst.next];
-            inst.next = (inst.next + 1) % PoolSize;
+            Instance.Play(sound, position, null, volume, pitch, range);
+        }
+
+        /// <summary>
+        /// <see cref="PlaySfx(AudioResource, Vector3, float, float, SoundRange)"/> that moves with <paramref name="target"/>
+        /// (a kart's own sounds: voices, effect sounds) and stops when it is destroyed.
+        /// </summary>
+        public static void PlaySfx(AudioResource sound, Transform target, float volume = 1f, float pitch = 1f, SoundRange range = null)
+        {
+            if (sound == null || target == null) return;
+            Instance.Play(sound, target.position, target, volume, pitch, range);
+        }
+
+        void Play(AudioResource sound, Vector3 position, Transform target, float volume, float pitch, SoundRange range)
+        {
+            var s = pool[next];
+            follow[next] = target;
+            next = (next + 1) % PoolSize;
             s.transform.position = position;
             s.pitch = pitch;
             s.volume = volume;
@@ -78,6 +96,24 @@ namespace MHK.Audio
             }
             s.resource = sound is AudioClip clip ? GameAssets.Audio(clip) : sound;
             s.Play();
+        }
+
+        // After the karts moved (interpolated) this frame. A paused game (AudioListener.pause) keeps its followers.
+        void LateUpdate()
+        {
+            for (var i = 0; i < PoolSize; i++)
+            {
+                var target = follow[i];
+                if (ReferenceEquals(target, null)) continue;
+                var s = pool[i];
+                if (target == null)
+                {
+                    s.Stop();
+                    follow[i] = null;
+                }
+                else if (!s.isPlaying && !AudioListener.pause) follow[i] = null;
+                else s.transform.position = target.position;
+            }
         }
 
         /// <summary>2D UI sound (button clicks). <paramref name="volume"/> is the sound's own level.</summary>
@@ -123,6 +159,7 @@ namespace MHK.Audio
         void StopPool()
         {
             foreach (var s in pool) s.Stop();
+            System.Array.Clear(follow, 0, PoolSize);
         }
     }
 }

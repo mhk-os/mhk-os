@@ -11,9 +11,9 @@ namespace MHK.Karts
         const float GhostRescanInterval = 0.5f;
 
         /// <summary>
-        /// The chassis passes through other karts, dropped items, movable (non-kinematic) props and track hazards, and
-        /// no wheel rests on them. Static track geometry and kinematic animated props still collide. Set while a ghost
-        /// effect is active and until the kart is clear of what it passed through.
+        /// The chassis passes through other karts, dropped items, movable (non-kinematic) props, track hazards and the
+        /// bodies animated props move (stomper walls), and no wheel rests on them. Static track geometry still collides.
+        /// Set while a ghost effect is active and until the kart is clear of what it passed through.
         /// </summary>
         public bool Intangible { get; private set; }
 
@@ -154,13 +154,14 @@ namespace MHK.Karts
             if (!any) passThroughLayersSet = false;
         }
 
-        // Movable things the chassis passes through: non-kinematic bodies and track hazards (other karts by layer).
+        // Movable things the chassis passes through: non-kinematic bodies, track hazards and the bodies animated props move
+        // (other karts by layer).
         void IgnoreMovables()
         {
             foreach (var rb in FindObjectsByType<Rigidbody>())
             {
                 if (rb == Body || (ghostExcludeLayers.value & (1 << rb.gameObject.layer)) != 0) continue;
-                if (rb.isKinematic && !rb.TryGetComponent<TrackHazard>(out _)) continue;
+                if (rb.isKinematic && !rb.TryGetComponent<TrackHazard>(out _) && rb.GetComponentInParent<PropAnimator>() == null) continue;
                 if (rb.gameObject.scene.GetPhysicsScene() != physicsScene) continue;
                 rb.GetComponentsInChildren(colliderScratch);
                 foreach (var c in colliderScratch)

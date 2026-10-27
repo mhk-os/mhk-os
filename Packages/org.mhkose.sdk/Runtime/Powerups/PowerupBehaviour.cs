@@ -195,6 +195,9 @@ namespace MHK.Powerups
         /// <summary>Plays a one-shot at <paramref name="at"/> with <see cref="soundVolume"/>, carrying as far as <paramref name="range"/> says.</summary>
         protected void PlaySfx(AudioClip clip, Vector3 at, SoundRange range = null) => AudioManager.PlaySfx(clip, at, soundVolume, 1f, range);
 
+        /// <summary><see cref="PlaySfx(AudioClip, Vector3, SoundRange)"/> following <paramref name="target"/> (a kart it belongs to).</summary>
+        protected void PlaySfx(AudioClip clip, Transform target, SoundRange range = null) => AudioManager.PlaySfx(clip, target, soundVolume, 1f, range);
+
         /// <summary>Spawns <paramref name="vfx"/> and <paramref name="sound"/> at <paramref name="at"/> and removes this object.</summary>
         protected void Despawn(GameObject vfx, Vector3 at, AudioClip sound, SoundRange range = null)
         {

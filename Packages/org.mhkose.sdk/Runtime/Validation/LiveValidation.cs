@@ -103,7 +103,7 @@ namespace MHK.Validation
             checks = new RemoteKartChecks(track, online.EffectIds, race.Laps, 1f / RaceProtocol.TickRate)
             {
                 Describe = Describe,
-                Eligible = slot => online.Anticheat && online.Eligible(online.LocalSlot, slot),
+                Eligible = (slot, reason) => online.Anticheat && online.Eligible(online.LocalSlot, slot, reason),
                 LocalPosition = LocalPosition,
             };
             checks.Report += OnReport;
@@ -152,7 +152,8 @@ namespace MHK.Validation
     /// <summary>
     /// Plausibility checks of remote karts in a live race: a <see cref="KartValidator"/> in <see cref="KartValidator.Live"/>
     /// mode per racer, fed with the states as received (30 Hz, never the interpolated poses the race shows). A detection
-    /// is a strike when the observer and the suspect are eligible (<see cref="Eligible"/>) and nothing explains it: not
+    /// is a strike when it counts (<see cref="Eligible"/>: the observer eligible, the suspect too unless the finding is a
+    /// speed or acceleration magnitude) and nothing explains it: not
     /// around a hit or the suspect's own item use (<see cref="Exempt"/>), not in contact with another kart. Strikes of one
     /// reason at least <see cref="StrikeSpacingSeconds"/> apart are separate incidents; three within ten seconds raise
     /// <see cref="Report"/>, then that reason cools down for that racer.
@@ -250,8 +251,8 @@ namespace MHK.Validation
 
         /// <summary>Physics and name of a racer, false while its kart is not spawned yet.</summary>
         public DescribeRacer Describe { get; set; }
-        /// <summary>Whether a strike about this racer counts now (anticheat on, this client and the racer eligible).</summary>
-        public Func<int, bool> Eligible { get; set; }
+        /// <summary>Whether a strike of this reason about this racer counts now (anticheat on, <see cref="OnlineRace.Eligible"/>).</summary>
+        public Func<int, FlagReason, bool> Eligible { get; set; }
         /// <summary>Where the local kart is, for contacts; false without one.</summary>
         public PositionOf LocalPosition { get; set; }
         /// <summary>A racer reached <see cref="StrikesToReport"/> strikes of one reason within <see cref="StrikeWindowSeconds"/>.</summary>
@@ -394,7 +395,7 @@ namespace MHK.Validation
         void OnFound(Suspect s, Violation v)
         {
             s.detections++;
-            if (Eligible != null && !Eligible(s.slot)) return;
+            if (Eligible != null && !Eligible(s.slot, v.reason)) return;
             if (Explained(s, v)) return;
             if (!s.strikes.TryGetValue(v.reason, out var st)) s.strikes.Add(v.reason, st = new Strikes());
             if (v.tick < st.cooldownUntil || v.tick - st.last < Ticks(StrikeSpacingSeconds)) return;

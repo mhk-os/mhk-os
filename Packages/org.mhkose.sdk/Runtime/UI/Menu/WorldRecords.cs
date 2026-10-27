@@ -9,7 +9,7 @@ using UnityEngine;
 namespace MHK.UI
 {
     /// <summary>
-    /// World records of the current simulation version per track and engine class for the Time Trials hub: one
+    /// World records of the current content version per track and engine class for the Time Trials hub: one
     /// ListBoards request for every track, kept for <see cref="MaxAgeSeconds"/> so visiting the hub does not ask again.
     /// A track with several boards of this version shows the one of this device's track data, else the most played.
     /// </summary>
@@ -47,7 +47,7 @@ namespace MHK.UI
 
         static async Task<bool> FetchAsync()
         {
-            var r = await OnlineTimeTrials.ListBoards("", ListBoardsRequest.AnyEngineClass, SimulationVersion.Current);
+            var r = await OnlineTimeTrials.ListBoards("", ListBoardsRequest.AnyEngineClass, ContentVersion.Current);
             if (!r.Ok)
             {
                 Online = false;

@@ -8,7 +8,7 @@ namespace MHK.Powerups
     /// </summary>
     public class HeldItemAnimation : MonoBehaviour
     {
-        const float LoopEndMargin = 0.0001f;
+        const float EndMargin = 0.0001f;
 
         [Tooltip("Must be a legacy clip: players and mod bundles keep no sampleable curves of a non-legacy clip, " +
                  "so the model would stay in its bind pose.")]
@@ -24,9 +24,10 @@ namespace MHK.Powerups
         public void Sample(float time)
         {
             if (clip == null) return;
-            // The imported clips loop, and SampleAnimation wraps a looping clip at its end time back to the first frame
-            // (the spike strip's rest pose would become the held pose). The end is sampled just before it.
-            var end = clip.isLooping ? Mathf.Max(0f, clip.length - LoopEndMargin) : clip.length;
+            // The imported clips are legacy clips with wrap mode Loop: SampleAnimation wraps their end time back to the first
+            // frame (the spike strip's rest pose would become the held pose). clip.isLooping cannot tell in a built bundle (it
+            // reads the loop time setting, which legacy clips do not keep), so the end is always sampled just before it.
+            var end = Mathf.Max(0f, clip.length - EndMargin);
             clip.SampleAnimation(gameObject, Mathf.Clamp(time, 0f, end));
         }
     }

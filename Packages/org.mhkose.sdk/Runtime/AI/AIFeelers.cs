@@ -6,15 +6,19 @@ namespace MHK.AI
 {
     /// <summary>
     /// Wall and solid-prop perception of a computer driver: sphere sweeps along candidate lanes of the followed line report
-    /// how far each lane is free of walls, solid bodies and loose props. A chord sweep shortens the steering look-ahead when
-    /// it cuts through a wall.
+    /// how far each lane is free of walls, solid bodies and loose props. The sweeps run in legs short enough in bends that
+    /// their chords keep to the lane (a chord cutting an apex is no wall ahead). A chord sweep shortens the steering
+    /// look-ahead when it cuts through a wall.
     /// </summary>
     internal sealed class AIFeelers
     {
         const int LaneCount = 7;
         const float GroundClearance = 0.25f, KerbHeight = 0.15f;
         const float GroundSearch = 1.5f, VoidDepth = 4f;
-        const float MaxLeg = 6f;
+        // Legs are at most MaxLeg (m) and at least MinLegs per scan; in bends shorter (not below MinLeg) so a leg's chord
+        // strays at most LegSag (m) inside the bend: length = √(8 · radius · LegSag).
+        const float MaxLeg = 6f, MinLeg = 1.5f, LegSag = 0.15f;
+        const int MinLegs = 3, MaxLegs = 64;
         // Walls met at a smaller angle (degrees) still run along a lane. A passage narrowing ahead counts (MHKE Canyon, about 13°).
         const float GrazeAngle = 10f;
         const float KartProbeAbove = 1f, KartProbeDepth = 2f, MaxLift = 2f;
@@ -31,6 +35,8 @@ namespace MHK.AI
         readonly float[] looseAhead = new float[LaneCount];
         readonly float[] wallDistance = new float[LaneCount];
         readonly float[] roadEdgeDistance = new float[LaneCount];
+        readonly float[] legEnds = new float[MaxLegs];
+        int legCount;
         bool valid;
         float laneShift;
 
@@ -61,8 +67,8 @@ namespace MHK.AI
             var origin = ground.point + Vector3.up * height;
             Range = range;
             laneShift = line.RoadShift(0f);
-            var scan = new ScanContext(origin, lift, height, radius, mask, range, laneU, Mathf.Max(3, Mathf.CeilToInt(range / MaxLeg)),
-                line.GapWithin(range + MaxLeg));
+            PlanLegs(range);
+            var scan = new ScanContext(origin, lift, height, radius, mask, range, laneU, line.GapWithin(range + MaxLeg));
             for (var i = 0; i < LaneCount; i++) ScanLane(i, scan);
             AheadScale = ChordScale(scan, steerAhead);
             valid = true;
@@ -106,10 +112,10 @@ namespace MHK.AI
             var from = s.Origin;
             var travelled = 0f;
             float free = s.Range, looseFree = s.Range, onRoad = s.Range;
-            for (var k = 1; k <= s.Legs; k++)
+            for (var k = 0; k < legCount; k++)
             {
-                var f = k / (float)s.Legs;
-                var to = FollowGround(line.Point(s.Range * f, Mathf.Lerp(s.LaneU, u, Mathf.Min(1f, f * LaneBlendRate))) + s.Lift, s.Height, s.Mask,
+                var f = legEnds[k] / s.Range;
+                var to = FollowGround(line.Point(legEnds[k], Mathf.Lerp(s.LaneU, u, Mathf.Min(1f, f * LaneBlendRate))) + s.Lift, s.Height, s.Mask,
                     out var solid);
                 var leg = to - from;
                 var length = leg.magnitude;
@@ -136,6 +142,20 @@ namespace MHK.AI
             roadEdgeDistance[i] = onRoad;
             clearance[i] = Mathf.Min(free, onRoad);
             looseAhead[i] = Mathf.Min(looseFree, free);
+        }
+
+        // Distances along the followed line where the legs of every lane end.
+        void PlanLegs(float range)
+        {
+            legCount = 0;
+            var longest = Mathf.Max(MinLeg, Mathf.Min(MaxLeg, range / MinLegs));
+            var ahead = 0f;
+            while (ahead < range - MinLegLength && legCount < MaxLegs)
+            {
+                var radius = line.Radius(ahead + 0.5f * MinLeg, out _, out _);
+                ahead = Mathf.Min(range, ahead + Mathf.Clamp(Mathf.Sqrt(8f * radius * LegSag), MinLeg, longest));
+                legEnds[legCount++] = ahead;
+            }
         }
 
         float ChordScale(in ScanContext s, float steerAhead)
@@ -222,10 +242,10 @@ namespace MHK.AI
         {
             public readonly Vector3 Origin, Lift;
             public readonly float Height, Radius, Range, LaneU;
-            public readonly int Mask, Legs;
+            public readonly int Mask;
             public readonly bool GapNear;
 
-            public ScanContext(Vector3 origin, Vector3 lift, float height, float radius, int mask, float range, float laneU, int legs, bool gapNear)
+            public ScanContext(Vector3 origin, Vector3 lift, float height, float radius, int mask, float range, float laneU, bool gapNear)
             {
                 Origin = origin;
                 Lift = lift;
@@ -234,7 +254,6 @@ namespace MHK.AI
                 Mask = mask;
                 Range = range;
                 LaneU = laneU;
-                Legs = legs;
                 GapNear = gapNear;
             }
         }

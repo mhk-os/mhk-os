@@ -9,7 +9,8 @@ using UnityEngine.Rendering;
 namespace MHK.Editor.Modding.Import
 {
     /// <summary>
-    /// Scene lighting from track.json "environment": sun, fill lights, ambient, fog, camera far clip and SkyDome.
+    /// Scene lighting from track.json "environment": sun, fill lights, ambient, fog, camera far clip and SkyDome (in the
+    /// world for <see cref="WorldSkyDome.IsWorldSkyGame"/> packs, else centred on the camera).
     /// Ambient and light intensities are scaled by the settings because the originals lit in gamma space.
     /// </summary>
     public static class TrackEnvironmentBuilder
@@ -100,7 +101,8 @@ namespace MHK.Editor.Modding.Import
             var skyModel = sky != null ? c.Model(sky, GlbLightingStyle.Sky) : null;
             if (skyModel == null) return;
             var dome = new GameObject("SkyDome");
-            dome.AddComponent<FollowCameraPosition>();
+            if (WorldSkyDome.IsWorldSkyGame(c.Settings.pack.packId)) dome.AddComponent<WorldSkyDome>();
+            else dome.AddComponent<FollowCameraPosition>();
             var inst = c.Instance(skyModel, dome.transform, Path.GetFileNameWithoutExtension(sky));
             ImportHierarchy.StripAnimation(inst);
             foreach (var col in inst.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(col);

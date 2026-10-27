@@ -65,9 +65,9 @@ namespace MHK.UI
         string notSavedText = "This run could not be saved.";
         [SerializeField, Tooltip("Note in a replay ({0} = date, {1} = version and commit it was recorded with).")]
         string recordedNoteFormat = "Recorded {0} | build {1}";
-        [SerializeField, Tooltip("Appended to the replay note for a ghost of another simulation version or content.")]
+        [SerializeField, Tooltip("Appended to the replay note for a ghost of another content version or other track or kart data.")]
         string otherVersionNote = " | Other version";
-        [SerializeField, Tooltip("Tooltip of the replay note of a ghost of another simulation version or content.")]
+        [SerializeField, Tooltip("Tooltip of the replay note of a ghost of another content version or other track or kart data.")]
         string otherVersionTip = "Recorded with another version. It can be raced but never counts as a record.";
         [SerializeField, Tooltip("Note after exporting ({0} = file).")]
         string exportedFormat = "Exported: {0}";

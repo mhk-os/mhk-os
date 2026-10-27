@@ -398,7 +398,7 @@ namespace MHK.UI
         async Awaitable WatchAsync(RunEntry run)
         {
             SetStatus(stateLoading, true);
-            var r = await OnlineTimeTrials.Download(run.runId);
+            var r = await OnlineTimeTrials.Download(run);
             if (list == null) return;
             if (!r.Ok)
             {

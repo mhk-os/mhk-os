@@ -41,9 +41,11 @@ namespace MHK.AI
         const int LapKeyStride = 64, ReverseKeyOffset = LapKeyStride / 2;
         const float SmoothSampleSpacing = 0.5f, MinSmoothAhead = 0.5f, MinSmoothWindow = 0.01f;
         const float GapSampleStep = 2f;
-        const float MinLocateAhead = 1f, LocateLevelHeight = 4f, MinLocateWidth = 2f;
+        // The line falling more than this share of a sample step is a drop (steeper than about 45°): no climbing it.
+        const float DropShare = 0.7f;
+        const float MinLocateAhead = 1f, LocateLevelHeight = 4f;
+        const float JoinSpan = 4f, MinJoinCross = 1e-4f, StraightRadius = 1e4f;
 
-        readonly DifficultySettings difficulty;
         readonly int rollSeed;
         TrackRuntime track;
         TrackPath main;
@@ -53,16 +55,11 @@ namespace MHK.AI
         int routeIndex = -1;
         float routeD;
         int routeHint = -1;
-        float[] routeMinWidth;
-        bool[] routeGaps;
+        bool[] routeOneWay;
         float lineMargin;
         int direction = 1;
 
-        public AIRouteFollower(DifficultySettings difficulty, int rollSeed)
-        {
-            this.difficulty = difficulty;
-            this.rollSeed = rollSeed;
-        }
+        public AIRouteFollower(int rollSeed) => this.rollSeed = rollSeed;
 
         /// <summary>Alternative route being followed, null on the main line.</summary>
         public TrackPath Route => route;
@@ -86,7 +83,7 @@ namespace MHK.AI
 
         /// <summary>
         /// Per step: tracks the kart on the followed line and, on the main line, rolls for each route whose fork is less
-        /// than <paramref name="reach"/> metres ahead (once per lap and route).
+        /// than <paramref name="reach"/> metres ahead (once per lap and route, <see cref="GameConfig.aiRouteChance"/>).
         /// </summary>
         public void Tick(Kart kart, TrackRuntime t, float reach, bool allowRoutes, GameConfig cfg)
         {
@@ -107,7 +104,7 @@ namespace MHK.AI
                 return;
             }
             if (TryAdoptBranch(prog)) return;
-            TryTakeFork(prog, reach, cfg.aiMinRouteWidth);
+            TryTakeFork(prog, reach, cfg.aiRouteChance);
         }
 
         /// <summary>Lane plus this is the road lane (0 = left road edge, 1 = right edge) <paramref name="ahead"/> metres along the followed line.</summary>
@@ -117,12 +114,17 @@ namespace MHK.AI
             return Shift(p, d);
         }
 
-        /// <summary>Bend radius (m) of the racing line <paramref name="ahead"/> metres along and the lateral friction of the ground there.</summary>
-        public float Radius(float ahead, out float friction)
+        /// <summary>
+        /// Bend radius (m) of the racing line <paramref name="ahead"/> metres along, the lateral friction of the ground
+        /// there and the side the bend turns to in this follower's lanes (1 = towards higher lanes, -1 = lower, 0 = straight).
+        /// </summary>
+        public float Radius(float ahead, out float friction, out int side)
         {
             Resolve(ahead, out var p, out var d);
-            var rl = AIRacingLine.Of(track, p, lineMargin);
+            var rl = Road(p);
             friction = rl.Friction(d);
+            if (NearJoin(ahead)) return JoinRadius(ahead, out side);
+            side = rl.BendSide(d) * direction;
             return rl.Radius(d);
         }
 
@@ -131,7 +133,7 @@ namespace MHK.AI
         {
             Resolve(ahead, out var p, out var d);
             var road = Mathf.Clamp01(u + Shift(p, d));
-            return p.GetPointAtLane(d, Mirror(road), p.GetWidth(d));
+            return Road(p).PointAt(d, Mirror(road));
         }
 
         /// <summary><see cref="Point"/> averaged over five samples within ±<paramref name="window"/> metres, so a steering target moves steadily.</summary>
@@ -150,11 +152,11 @@ namespace MHK.AI
             return p.GetTangent(d, smoothing) * direction;
         }
 
-        /// <summary>Road width (m) of the followed line <paramref name="ahead"/> metres along.</summary>
+        /// <summary>Width (m) of the drivable road the lanes span <paramref name="ahead"/> metres along the followed line.</summary>
         public float Width(float ahead)
         {
             Resolve(ahead, out var p, out var d);
-            return p.GetWidth(d);
+            return Road(p).Width(d);
         }
 
         /// <summary>A gap (<see cref="TrackGaps"/>, a jump over a fall zone) lies on the followed line within <paramref name="range"/> metres.</summary>
@@ -195,9 +197,9 @@ namespace MHK.AI
             at = default;
             if (ahead < MinLocateAhead || ahead > maxAhead) return false;
             if (Mathf.Abs(position.y - line.GetPoint(d).y) > LocateLevelHeight) return false;
-            var width = Mathf.Max(MinLocateWidth, line.GetWidth(d));
-            var roadLane = Mirror(line.GetRoadLane(position, d, width));
-            at = new LanePosition(ahead, roadLane - Shift(line, d), roadLane, width);
+            var road = Road(line);
+            var roadLane = Mirror(road.RoadLaneOf(position, d));
+            at = new LanePosition(ahead, roadLane - Shift(line, d), roadLane, road.Width(d));
             return true;
         }
 
@@ -205,14 +207,14 @@ namespace MHK.AI
         public float LaneHere(Vector3 position)
         {
             Resolve(0f, out var p, out var d);
-            return Mirror(p.GetRoadLane(position, d, Mathf.Max(MinLocateWidth, p.GetWidth(d)))) - Shift(p, d);
+            return Mirror(Road(p).RoadLaneOf(position, d)) - Shift(p, d);
         }
 
         /// <summary>Left and right edge of the drivable road (as the driving's lanes) <paramref name="ahead"/> metres along the followed line.</summary>
         public void RoadEdges(float ahead, out float left, out float right)
         {
             Resolve(ahead, out var p, out var d);
-            var rl = AIRacingLine.Of(track, p, lineMargin);
+            var rl = Road(p);
             rl.RoadEdges(d, out left, out right);
             if (direction < 0) (left, right) = (1f - right, 1f - left);
             var shift = Mirror(rl.Lane(d)) - AILanes.Centre;
@@ -230,7 +232,7 @@ namespace MHK.AI
             var prog = other.Progress;
             if (route != null || prog.CurrentBranch != null || main == null) return false;
             var d = prog.PathDistance;
-            lane = Mirror(main.GetRoadLane(other.transform.position, d, Mathf.Max(MinLocateWidth, main.GetWidth(d)))) - Shift(main, d);
+            lane = Mirror(Road(main).RoadLaneOf(other.transform.position, d)) - Shift(main, d);
             ahead = direction * main.Delta(mainD, d);
             return true;
         }
@@ -239,8 +241,7 @@ namespace MHK.AI
         {
             track = t;
             Drop();
-            routeMinWidth = null;
-            routeGaps = null;
+            routeOneWay = null;
         }
 
         // Respawned or pushed onto a route: follow it instead of fighting back to the main line.
@@ -253,11 +254,10 @@ namespace MHK.AI
             return true;
         }
 
-        // Against the track's direction a route starts at its join end and is driven from its end to its start; routes
-        // with a gap (jumped the other way) are never taken then.
-        void TryTakeFork(RacerProgress prog, float reach, float minRouteWidth)
+        // Against the track's direction a route starts at its join end and is driven from its end to its start; one-way
+        // routes (a gap jumped or a drop driven down the other way) are never taken then.
+        void TryTakeFork(RacerProgress prog, float reach, float chance)
         {
-            var chance = difficulty.aiShortcutChance;
             if (chance <= 0f) return;
             reach = Mathf.Min(reach, LostBeforeFork - ForkDecisionMargin);
             var alts = track.alternatePaths;
@@ -267,8 +267,7 @@ namespace MHK.AI
                 if (toFork <= MinForkAhead || toFork > reach) continue;
                 if (track.IsRouteCut(i)) continue; // collapsed bridge on it
                 if (AIRolls.Roll01(rollSeed, prog.Lap * LapKeyStride + i + 1 + (direction < 0 ? ReverseKeyOffset : 0)) >= chance) continue;
-                if (MinWidth(i) < minRouteWidth) continue;
-                if (direction < 0 && HasGap(i)) continue;
+                if (direction < 0 && OneWay(i)) continue;
                 Take(i);
                 routeD = direction > 0 ? -toFork : alts[i].Length + toFork;
                 return;
@@ -321,37 +320,22 @@ namespace MHK.AI
             routeHint = -1;
         }
 
-        float MinWidth(int index)
+        // A gap or a drop on the route: it can only be driven along the track's direction.
+        bool OneWay(int index)
         {
             var alts = track.alternatePaths;
-            if (routeMinWidth == null || routeMinWidth.Length != alts.Count)
+            if (routeOneWay == null || routeOneWay.Length != alts.Count)
             {
-                routeMinWidth = new float[alts.Count];
-                for (var i = 0; i < alts.Count; i++)
-                {
-                    var p = alts[i];
-                    var w = float.MaxValue;
-                    for (var k = 0; k < p.Count; k++) w = Mathf.Min(w, p.GetNodeWidth(k));
-                    routeMinWidth[i] = p.Count > 0 ? w : 0f;
-                }
-            }
-            return routeMinWidth[index];
-        }
-
-        bool HasGap(int index)
-        {
-            var alts = track.alternatePaths;
-            if (routeGaps == null || routeGaps.Length != alts.Count)
-            {
-                routeGaps = new bool[alts.Count];
+                routeOneWay = new bool[alts.Count];
                 for (var i = 0; i < alts.Count; i++)
                 {
                     var p = alts[i];
                     if (p == null) continue;
-                    for (var x = 0f; x <= p.Length && !routeGaps[i]; x += GapSampleStep) routeGaps[i] = TrackGaps.IsGap(track, p, x);
+                    for (var x = 0f; x <= p.Length && !routeOneWay[i]; x += GapSampleStep)
+                        routeOneWay[i] = TrackGaps.IsGap(track, p, x) || p.GetPoint(x).y - p.GetPoint(x + GapSampleStep).y > DropShare * GapSampleStep;
                 }
             }
-            return routeGaps[index];
+            return routeOneWay[index];
         }
 
         // Line and distance on it ahead metres further along the followed line (in the follower's direction).
@@ -375,7 +359,34 @@ namespace MHK.AI
             distance = mainD + direction * ahead;
         }
 
-        float Shift(TrackPath path, float distance) => Mirror(AIRacingLine.Of(track, path, lineMargin).Lane(distance)) - AILanes.Centre;
+        // A route's racing line meets the main line's at its ends at an angle neither line's own curvature sees (the
+        // turn into a side alley).
+        bool NearJoin(float ahead)
+        {
+            if (route == null) return false;
+            var x = routeD + direction * ahead;
+            return Mathf.Abs(x) < JoinSpan || Mathf.Abs(x - route.Length) < JoinSpan;
+        }
+
+        // Radius and side of the circle through the followed racing line JoinSpan before, at and after ahead.
+        float JoinRadius(float ahead, out int side)
+        {
+            var a = Point(ahead - JoinSpan, AILanes.Centre);
+            var b = Point(ahead, AILanes.Centre);
+            var c = Point(ahead + JoinSpan, AILanes.Centre);
+            Vector2 ab = new(b.x - a.x, b.z - a.z), ac = new(c.x - a.x, c.z - a.z), bc = new(c.x - b.x, c.z - b.z);
+            var cross = ab.x * ac.y - ab.y * ac.x;
+            side = 0;
+            if (Mathf.Abs(cross) < MinJoinCross) return StraightRadius;
+            // Clockwise seen from above (b left of the chord a→c): the line bends right.
+            side = cross < 0f ? 1 : -1;
+            return Mathf.Min(StraightRadius, ab.magnitude * bc.magnitude * ac.magnitude / (2f * Mathf.Abs(cross)));
+        }
+
+        float Shift(TrackPath path, float distance) => Mirror(Road(path).Lane(distance)) - AILanes.Centre;
+
+        // Racing line and drivable road of a line: lanes are measured across that road, not the track line's width.
+        AIRacingLine Road(TrackPath path) => AIRacingLine.Of(track, path, lineMargin);
 
         // Road lanes of the track's frame in the follower's frame and back (the same mapping both ways).
         float Mirror(float roadLane) => direction > 0 ? roadLane : 1f - roadLane;

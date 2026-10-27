@@ -10,7 +10,7 @@ namespace MHK.Online
         public ushort protocol = Protocol.Version;
         public string gameCommit = "";
         public int gameBuild;
-        public int simVersion;
+        public int contentVersion;
         public int modApi;
         public string platform = "";
 
@@ -20,7 +20,7 @@ namespace MHK.Online
             w.U16(protocol);
             w.String(Clip(gameCommit, MaxCommit), MaxCommit);
             w.I32(gameBuild);
-            w.I32(simVersion);
+            w.I32(contentVersion);
             w.I32(modApi);
             w.String(Clip(platform, MaxPlatform), MaxPlatform);
         }
@@ -30,7 +30,7 @@ namespace MHK.Online
             if (r.U32() != Protocol.Magic) throw new WireFormatException("Bad magic.");
             return new HelloRequest
             {
-                protocol = r.U16(), gameCommit = r.String(MaxCommit), gameBuild = r.I32(), simVersion = r.I32(),
+                protocol = r.U16(), gameCommit = r.String(MaxCommit), gameBuild = r.I32(), contentVersion = r.I32(),
                 modApi = r.I32(), platform = r.String(MaxPlatform),
             };
         }

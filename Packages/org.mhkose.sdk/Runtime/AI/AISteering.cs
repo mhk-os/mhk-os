@@ -4,7 +4,11 @@ using UnityEngine;
 
 namespace MHK.AI
 {
-    /// <summary>Steering of a computer driver towards its planned lane, with a calm player's tolerance and slide control.</summary>
+    /// <summary>
+    /// Steering of a computer driver. On its racing line it sets the wheel for the line's bend plus the arc that brings
+    /// it back onto its lane (pure pursuit measured against the lane), turned into a wheel angle with the kart's steering
+    /// geometry. Towards points off the line (battles) it steers with a calm player's tolerance. Both with slide control.
+    /// </summary>
     internal sealed class AISteering
     {
         // MHK2 look-ahead: (0.1 + speed / 200) of a 45 m plan, plus 2 m. Bends shorten it to about half their radius.
@@ -12,12 +16,19 @@ namespace MHK.AI
         const float MinBend = 0.05f, MinAhead = 3f, TangentSmoothing = 4f, NearTangent = 1f;
         const float YawRateSmoothing = 0.1f, MinPursuitReach = 1f, MinTargetDepth = 0.01f, MinFullLockError = 0.5f;
         const float MinSlideSpeedSqr = 4f;
+        // The lane's heading is taken over ±this (m) around the kart.
+        const float LaneHeadingSpan = 1f;
 
         readonly AIRouteFollower line;
+        readonly AITurnLimit turn;
         float smoothYawRate;
         bool correcting;
 
-        public AISteering(AIRouteFollower line) => this.line = line;
+        public AISteering(AIRouteFollower line, AITurnLimit turn)
+        {
+            this.line = line;
+            this.turn = turn;
+        }
 
         /// <summary>Look-ahead (m) of the steering target at <paramref name="speed"/>, shortened in bends so the AI does not cut into inner walls.</summary>
         public float Ahead(float speed)
@@ -31,14 +42,38 @@ namespace MHK.AI
         }
 
         /// <summary>
-        /// Steering wish towards lane <paramref name="laneU"/> <paramref name="ahead"/> metres along the line. The wheel stays
-        /// straight until the predicted heading error exceeds <see cref="GameConfig.aiSteerTolerance"/>, then corrects until
-        /// it is back within <see cref="GameConfig.aiSteerRelease"/>, and never steers further into a slide.
+        /// Steering wish towards lane <paramref name="laneU"/> of the line, <paramref name="ahead"/> metres along: the
+        /// line's bend where the wheel gets to (half its travel to full lock ahead) plus the pure-pursuit arc of the
+        /// target as seen against the lane's own heading, so a kart on its lane holds the bend and one beside it or
+        /// pointing off it steers back. Never further into a slide. Before the kart's steering is measured it steers
+        /// as <see cref="SteerAt"/>.
         /// </summary>
-        public void Steer(Kart kart, float ahead, float laneU, GameConfig cfg, float dt, ref KartInput input) =>
-            SteerAt(kart, line.SmoothPoint(ahead, laneU, ahead * cfg.aiSteerSmoothing), cfg, dt, ref input);
+        public void Steer(Kart kart, float ahead, float laneU, GameConfig cfg, float dt, ref KartInput input)
+        {
+            var target = line.SmoothPoint(ahead, laneU, ahead * cfg.aiSteerSmoothing);
+            if (!turn.Ready)
+            {
+                SteerAt(kart, target, cfg, dt, ref input);
+                return;
+            }
+            var from = line.Point(0f, laneU);
+            var heading = line.Point(LaneHeadingSpan, laneU) - line.Point(-LaneHeadingSpan, laneU);
+            var toTarget = target - from;
+            // Bearing of the target seen from the lane, along it: a kart on the lane in a bend sees it there, not ahead.
+            var arc = Vector3.SignedAngle(new Vector3(heading.x, 0f, heading.z), new Vector3(toTarget.x, 0f, toTarget.z), Vector3.up);
+            var alpha = Bearing(kart, target, out var reach);
+            var speed = kart.Physics.ForwardSpeed;
+            var radius = line.Radius(Mathf.Abs(speed) * turn.LockTime * 0.5f, out _, out var side);
+            var curvature = side / radius + 2f * Mathf.Sin((alpha - arc) * Mathf.Deg2Rad) / reach;
+            input.steer = turn.SteerShare(curvature, speed);
+            SuppressSlide(kart, cfg, ref input);
+        }
 
-        /// <summary>The same steering wish towards a world point (battles, where drivers leave the racing line).</summary>
+        /// <summary>
+        /// Steering wish towards a world point (battles, where drivers leave the racing line). The wheel stays straight
+        /// until the predicted heading error exceeds <see cref="GameConfig.aiSteerTolerance"/>, then corrects until it is
+        /// back within <see cref="GameConfig.aiSteerRelease"/>, and never steers further into a slide.
+        /// </summary>
         public void SteerAt(Kart kart, Vector3 target, GameConfig cfg, float dt, ref KartInput input)
         {
             var error = HeadingError(kart, target, cfg, dt);
@@ -49,15 +84,20 @@ namespace MHK.AI
             SuppressSlide(kart, cfg, ref input);
         }
 
+        // Angle (degrees, + = right) to the target from the kart's heading; reach: distance to it (m).
+        static float Bearing(Kart kart, Vector3 target, out float reach)
+        {
+            var local = kart.transform.InverseTransformPoint(target);
+            reach = Mathf.Max(MinPursuitReach, new Vector2(local.x, local.z).magnitude);
+            return local.z < 0f ? (local.x >= 0f ? 90f : -90f) : Mathf.Atan2(local.x, Mathf.Max(MinTargetDepth, local.z)) * Mathf.Rad2Deg;
+        }
+
         // Angle to the target minus how much faster the kart turns than the arc through the target (pure pursuit) needs,
         // judged aiSteerDamping seconds ahead.
         float HeadingError(Kart kart, Vector3 target, GameConfig cfg, float dt)
         {
-            var local = kart.transform.InverseTransformPoint(target);
-            var alpha = Mathf.Atan2(local.x, Mathf.Max(MinTargetDepth, local.z)) * Mathf.Rad2Deg;
-            if (local.z < 0f) alpha = local.x >= 0f ? 90f : -90f;
-            var reach = Mathf.Max(MinPursuitReach, new Vector2(local.x, local.z).magnitude);
-            var needed = kart.Physics.ForwardSpeed * 2f * Mathf.Sin(Mathf.Clamp(alpha, -90f, 90f) * Mathf.Deg2Rad) / reach * Mathf.Rad2Deg;
+            var alpha = Bearing(kart, target, out var reach);
+            var needed = kart.Physics.ForwardSpeed * 2f * Mathf.Sin(alpha * Mathf.Deg2Rad) / reach * Mathf.Rad2Deg;
             var yawRate = kart.Physics.Body.angularVelocity.y * Mathf.Rad2Deg;
             smoothYawRate = Mathf.Lerp(smoothYawRate, yawRate, 1f - Mathf.Exp(-dt / YawRateSmoothing));
             return alpha - (smoothYawRate - needed) * cfg.aiSteerDamping;

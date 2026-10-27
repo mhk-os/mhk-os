@@ -23,7 +23,7 @@ namespace MHK.AI
             throttleHeld += dt;
             brakeHeld += dt;
 
-            var steer = SteerKeyFor(Mathf.Clamp(input.steer, -1f, 1f), physics.SteerCommand01, steerKey);
+            var steer = SteerKeyFor(Mathf.Clamp(input.steer, -1f, 1f), physics.SteerCommand01, steerKey, ReleaseStep(physics.Profile, minHold));
             if (steer != steerKey && steerHeld >= minHold)
             {
                 steerKey = steer;
@@ -41,14 +41,20 @@ namespace MHK.AI
             input.throttle = throttleKey && !brakeKey ? 1f : 0f;
         }
 
-        // +1 = right for both the wish and the commanded wheel position. Releasing centres the wheel fastest.
-        static int SteerKeyFor(float wish, float wheel, int current)
+        // +1 = right for both the wish and the commanded wheel position. Releasing centres the wheel fastest, but within one
+        // key hold it swings back by releaseStep (share of full lock): smaller cuts tap the other key, as a player holds a
+        // partial lock.
+        static int SteerKeyFor(float wish, float wheel, int current, float releaseStep)
         {
             if (wheel * wish < 0f && Mathf.Abs(wheel) > Tolerance) return 0;
             if (Mathf.Abs(wish) > Mathf.Abs(wheel) + Tolerance) return wish > 0f ? 1 : -1;
-            if (Mathf.Abs(wish) < Mathf.Abs(wheel) - Tolerance) return 0;
+            if (Mathf.Abs(wish) < Mathf.Abs(wheel) - Tolerance)
+                return Mathf.Abs(wish) <= Tolerance || Mathf.Abs(wheel) - Mathf.Abs(wish) >= releaseStep ? 0 : wheel > 0f ? -1 : 1;
             return current;
         }
+
+        static float ReleaseStep(KartPhysicsProfile p, float minHold) =>
+            p != null && p.maxSteeringAngle > 0f ? p.steeringRestSpeed * minHold / p.maxSteeringAngle : 1f;
 
         static void Tap(ref bool key, ref float held, float wish, float current, float minHold)
         {

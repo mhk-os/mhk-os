@@ -4,7 +4,7 @@ using UnityEngine;
 namespace MHK.Ghosts
 {
     /// <summary>
-    /// Ghost metadata: who drove what where, the result, and the simulation version and content fingerprint it was
+    /// Ghost metadata: who drove what where, the result, and the content version and content fingerprint it was
     /// recorded with (ghosts of another version or content never count as records).
     /// </summary>
     [Serializable]
@@ -14,8 +14,8 @@ namespace MHK.Ghosts
         public string id;
         /// <summary>Commit of the recording game (<see cref="Core.BuildInfo.Commit"/>, version plus commit or a build number in older ghosts): a label only.</summary>
         public string gameBuild;
-        /// <summary>Simulation version of the recording build (<see cref="Core.SimulationVersion.Current"/>).</summary>
-        public int simVersion;
+        /// <summary>Content version of the recording build (<see cref="Core.ContentVersion.Current"/>).</summary>
+        public int contentVersion;
         public string playerName;
         /// <summary>Stable id of the recording player (<see cref="Core.UserSettings.playerId"/>).</summary>
         public string playerId;

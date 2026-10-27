@@ -25,7 +25,7 @@ namespace MHK.UI
         protected string importedTip = "Imported";
         [SerializeField, Tooltip("Tooltip of the icon of a ghost downloaded from the leaderboards.")]
         protected string onlineTip = "Downloaded from the leaderboard";
-        [SerializeField, Tooltip("Tooltip of the icon of a ghost recorded with another simulation version or other content (the game version doesn't matter).")]
+        [SerializeField, Tooltip("Tooltip of the icon of a ghost recorded with another content version or other track or kart data (the game version doesn't matter).")]
         protected string otherVersionTip = "Other version. It can be raced but never counts as a record.";
 
         // Indexed by GhostKind.

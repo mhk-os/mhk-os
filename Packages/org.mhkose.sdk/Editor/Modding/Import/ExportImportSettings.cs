@@ -138,8 +138,6 @@ namespace MHK.Editor.Modding.Import
         public bool routesOnMinimap = true;
         [Tooltip("Sun poses per track that replace the one derived from track.json (hand-tuned lighting survives re-imports).")]
         public List<TrackSunOverride> sunOverrides = new();
-        [Tooltip("Mass of dynamic props = their export mass × this.")]
-        public float propMassScale = 5f;
         [Tooltip("Ambient sounds (track \"sounds\", prop \"sound\"): volume when the entry has none.")]
         [Range(0f, 1f)] public float ambienceVolume = 0.6f;
         [Tooltip("Ambient sounds: full volume within this distance (m) when the entry has none.")]

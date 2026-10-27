@@ -93,7 +93,7 @@ namespace MHK.Powerups
             held.Add(k);
             var p = k.Physics.Body.position;
             leash = new Vector2(p.x - centre.x, p.z - centre.z).magnitude;
-            PlaySfx(catchSound, p);
+            PlaySfx(catchSound, k.transform);
         }
 
         Kart Nearest(Vector3 centre)

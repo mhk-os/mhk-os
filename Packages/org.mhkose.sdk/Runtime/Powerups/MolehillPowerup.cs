@@ -434,7 +434,7 @@ namespace MHK.Powerups
                 rb.linearVelocity = new Vector3(rb.linearVelocity.x, Mathf.Max(0f, rb.linearVelocity.y), rb.linearVelocity.z) + v;
                 rb.angularVelocity += forward * (-sign * TumbleRoll * sideways);
             }
-            PlaySfx(hitSound, k.transform.position);
+            PlaySfx(hitSound, k.transform);
             dirt.Burst(tunnel.Ground, normal, forward, SideBurstShare);
         }
     }

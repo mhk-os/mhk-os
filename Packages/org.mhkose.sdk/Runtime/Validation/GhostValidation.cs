@@ -29,6 +29,10 @@ namespace MHK.Validation
         const float LeadSeconds = 4f;
         const float BaseResimInterval = 3f;
         const int GhostsPerResimInterval = 8;
+        /// <summary>Speed and acceleration tolerance for ghosts whose setup hash differs: honest tuning differences between pack commits.</summary>
+        const float OtherSetupSlack = 1.35f;
+        /// <summary>Relative difference of a ghost's recorded speed scale from the local one that is a broken (or edited) recording.</summary>
+        const float SpeedScaleTolerance = 1e-4f;
 
         sealed class Entry
         {
@@ -51,6 +55,7 @@ namespace MHK.Validation
         Resimulator resim;
         EffectSet effects;
         readonly List<Entry> entries = new();
+        readonly Dictionary<(int, string, int), string> setupHashes = new();
         readonly Stopwatch watch = new();
         double costTotal, costMax;
         int costFrames;
@@ -106,11 +111,22 @@ namespace MHK.Validation
         {
             var data = ghost.Data;
             var h = data.header;
-            var checks = GhostCompatibilityRules.Evaluate(h, run.TrackHash) == GhostCompatibility.Current ? ValidationChecks.All : ValidationChecks.Kinematic;
+            var root = GameRoot.Instance;
+            var kart = root.Content.Get<KartDefinition>(h.kartId);
+            var (checks, basis) = ChecksFor(h, kart);
+            var setupMatches = (checks & ValidationChecks.Divergence) != 0;
+            var slack = (checks & ValidationChecks.Speed) != 0 && !setupMatches ? OtherSetupSlack : 1f;
             if (!Mathf.Approximately(h.tickSeconds, Time.fixedDeltaTime)) checks &= ~ValidationChecks.Divergence;
-            var spec = KartSpec.ForEngineClass(ProfileOf(h), h.engineClass, h.speedScale);
+            // Never the file's speed scale: a speed hack would write its own into the header.
+            var speedScale = root.Config.SpeedScale((Difficulty)h.engineClass);
+            var profile = kart != null && kart.physics != null ? kart.physics : root.Config.defaultPhysics;
+            var spec = KartSpec.ForEngineClass(profile, h.engineClass, speedScale);
             if ((checks & ValidationChecks.Divergence) != 0) track.Prepare(spec);
-            var validator = new KartValidator(track, spec, effects, h.laps, h.tickSeconds, checks, resim) { ResimInterval = resimInterval };
+            var validator = new KartValidator(track, spec, effects, h.laps, h.tickSeconds, checks, resim)
+            {
+                ResimInterval = resimInterval,
+                Slack = slack,
+            };
             if (h.lapTimes.Length == h.laps)
                 for (var lap = 0; lap <= h.laps; lap++) validator.ClaimLap(lap, h.LapEndTime(lap));
             var e = new Entry { ghost = ghost, data = data, validator = validator };
@@ -122,19 +138,32 @@ namespace MHK.Validation
             }
             validator.Found += v => OnFound(e, v);
             entries.Add(e);
+            Debug.Log($"[Validation] {h.playerName} ({h.id}, {h.kartId}): {checks}, speed/acceleration tolerance ×{slack:0.00} - {basis}.");
+            if (setupMatches && Mathf.Abs(h.speedScale - speedScale) > SpeedScaleTolerance * speedScale)
+                validator.Flag(FlagReason.Data, 0, $"recorded speed scale {h.speedScale:0.000000}, this class has {speedScale:0.000000}");
         }
 
-        static KartPhysicsProfile ProfileOf(GhostHeader h)
+        /// <summary>
+        /// Checks a ghost gets and why. Physics checks need the local track and kart to be what it drove: same content
+        /// version, this race's track from the same pack with the same track hash, the kart installed. The setup hash
+        /// (kart and class data, laps) then only decides re-simulation: a different one gets every other check against
+        /// the local kart with <see cref="OtherSetupSlack"/>, which also catches a client lying about its kart data.
+        /// </summary>
+        (ValidationChecks checks, string basis) ChecksFor(GhostHeader h, KartDefinition kart)
         {
-            var root = GameRoot.Instance;
-            var character = root.Content.Get<CharacterDefinition>(h.characterId);
-            if (character == null)
-            {
-                var all = root.Content.All<CharacterDefinition>();
-                character = all.Count > 0 ? all[0] : null;
-            }
-            var kart = root.Content.ResolveKart(h.kartId, character);
-            return kart != null && kart.physics != null ? kart.physics : root.Config.defaultPhysics;
+            if (h.contentVersion != ContentVersion.Current)
+                return (ValidationChecks.Kinematic, $"content version {h.contentVersion}, this game runs {ContentVersion.Current}");
+            var trackDef = race.Track;
+            if (!string.Equals(h.trackId, trackDef.Id, StringComparison.Ordinal)) return (ValidationChecks.Kinematic, $"recorded on {h.trackId}");
+            var pack = trackDef.OwnerPack;
+            if (pack != null && pack.packId != h.trackPackId) return (ValidationChecks.Kinematic, $"track from pack {h.trackPackId}, here {pack.packId}");
+            if (string.IsNullOrEmpty(run.TrackHash) || !string.Equals(run.TrackHash, h.trackHash, StringComparison.OrdinalIgnoreCase))
+                return (ValidationChecks.Kinematic, "track hash differs");
+            if (kart == null) return (ValidationChecks.Kinematic, $"kart {h.kartId} not installed");
+            var setup = GhostCompatibilityRules.SetupHash(h.engineClass, kart, trackDef.defaultLaps, setupHashes);
+            return setup == h.setupHash
+                ? (ValidationChecks.All, "setup matches")
+                : (ValidationChecks.All & ~ValidationChecks.Divergence, "setup differs (other kart, class or lap data)");
         }
 
         // The player's own uploads are never reported.
@@ -144,7 +173,7 @@ namespace MHK.Validation
             e.due.Add(v);
             var me = OnlineService.Account;
             if (e.runId != 0 && me != null && !string.Equals(me.username, e.uploader, StringComparison.OrdinalIgnoreCase))
-                _ = OnlineTimeTrials.ReportRun(e.runId, v.reason, v.time, v.detail);
+                _ = OnlineTimeTrials.ReportRun(e.data.header.id, e.runId, v.reason, v.time, v.detail);
         }
 
         void Update()

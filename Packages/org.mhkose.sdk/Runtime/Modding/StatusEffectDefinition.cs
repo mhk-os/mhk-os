@@ -60,8 +60,11 @@ namespace MHK.Modding
         public bool invertSteering;
         [Tooltip("Kart is held in place (velocities zeroed every tick) while active.")]
         public bool freezeKart;
-        [Tooltip("Number of full yaw spins performed over the duration (visual).")]
+        [Tooltip("Above 0: the kart model spins out when this effect starts or is re-applied, the same spin for every " +
+                 "effect (GameConfig.spinTurns over GameConfig.spinSeconds). The number itself no longer matters. Visual only.")]
         public float spinTurns;
+        /// <summary>The effect spins the kart model out (<see cref="spinTurns"/> above 0, the shared GameConfig spin).</summary>
+        public bool Spins => spinTurns > 0f;
         [Tooltip("Launch upwards (m/s) e.g. for explosions.")]
         public float upwardImpulse;
         [Tooltip("Respawn the kart on the track when the effect ends (MHK2 hits).")]

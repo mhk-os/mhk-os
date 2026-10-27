@@ -253,8 +253,11 @@ namespace MHK.Race
             UnityEngine.SceneManagement.Scene scene = default;
             yield return TrackSceneLoader.Load(Track.scene.Path, s => scene = s, p => LoadProgress = p * TrackLoadShare);
             TrackScene = scene;
+            PropMass.Apply(scene, GameRoot.Instance.Config);
             TrackRuntime = TrackSceneLoader.Find(scene);
-            if (TrackRuntime != null) SetUpCamera(RaceCamera);
+            if (TrackRuntime == null) yield break;
+            WorldSkyDome.Apply(scene, Track, TrackRuntime, GameRoot.Instance.Config);
+            SetUpCamera(RaceCamera);
         }
 
         void SetUpCamera(Camera cam)

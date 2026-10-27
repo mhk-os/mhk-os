@@ -72,7 +72,7 @@ namespace MHK.Editor.Modding.Import
             if (ExportJson.Str(p["sound"]) is { } sound) TrackAudioBuilder.AddLoopSound(c, inst, sound, p);
             if (!collides) return;
             ImportHierarchy.SetLayer(inst, GameLayers.Track);
-            if (dynamic) AddDynamicBody(c, inst, p);
+            if (dynamic) AddDynamicBody(c, inst);
             else if (animated == null) AddStaticMeshColliders(inst);
             else AddAnimatedColliders(c, inst, m, clip, p, animated);
         }
@@ -99,11 +99,10 @@ namespace MHK.Editor.Modding.Import
             return animated;
         }
 
-        static void AddDynamicBody(TrackImportContext c, GameObject inst, JToken p)
+        static void AddDynamicBody(TrackImportContext c, GameObject inst)
         {
             foreach (var mf in inst.GetComponentsInChildren<MeshFilter>(true)) mf.gameObject.AddComponent<BoxCollider>();
             var rb = inst.AddComponent<Rigidbody>();
-            rb.mass = ExportJson.F(p["body"]?["Mass"], ExportJson.F(p["mass"], 1f)) * c.Settings.propMassScale;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.sleepThreshold = c.Settings.dynamicPropSleepThreshold;
         }

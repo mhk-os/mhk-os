@@ -19,6 +19,7 @@ Shader "MHK/Lit"
         [Toggle(_VERTEX_TINT)] _VertexTint ("Vertex colour tint (effect geometry)", Float) = 0
         [Toggle(_ALPHATEST_ON)] _AlphaClip ("Alpha clip", Float) = 0
         _Cutoff ("Alpha cutoff", Range(0, 1)) = 0.5
+        _Fog ("Fog (0 = never fogged: sky domes)", Range(0, 1)) = 1
         [ToggleOff(_RECEIVE_SHADOWS_OFF)] _ReceiveShadows ("Receive realtime shadows", Float) = 1
         [Toggle(_IGNORE_SUN_SHADOWS)] _IgnoreSunShadows ("Ignore sun shadows (realtime and baked)", Float) = 0
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src blend", Float) = 1

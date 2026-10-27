@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using MHK.Karts;
 using MHK.Modding;
 using UnityEngine;
+using UnityEngine.Pool;
 
 namespace MHK.Powerups
 {
@@ -14,6 +15,7 @@ namespace MHK.Powerups
     {
         const float FieldRefreshSeconds = 0.25f;
         const float CentreGravityFactor = 2f;
+        const float FlatThickness = 0.001f;
 
         public float radius = 8f;
         [Tooltip("Acceleration (m/s²) towards the centre at the edge. It scales up towards the centre.")]
@@ -63,7 +65,29 @@ namespace MHK.Powerups
 
         bool Acting => !InFlight && active >= armDelay;
 
-        protected override void OnLaunch() => baseScale = transform.localScale;
+        protected override void OnLaunch()
+        {
+            baseScale = transform.localScale;
+            StampGroundVisuals();
+        }
+
+        // Flat visuals at or below the field's origin (its user's kart origin) lie on the track, like the signal jammer
+        // wave: stamped onto the ground under them (GroundStamp), not left in the plane of the kart's tilt at activation.
+        // Flat rings floating around the kart (flame thrower, electroshock) stay as modelled.
+        void StampGroundVisuals()
+        {
+            using (ListPool<MeshFilter>.Get(out var filters))
+            {
+                GetComponentsInChildren(filters);
+                foreach (var f in filters)
+                {
+                    var mesh = f.sharedMesh;
+                    if (mesh == null || mesh.bounds.extents.y > FlatThickness || !f.TryGetComponent<MeshRenderer>(out var r)) continue;
+                    if (transform.InverseTransformPoint(f.transform.TransformPoint(mesh.bounds.center)).y > 0f) continue;
+                    GroundStamp.Attach(f, r);
+                }
+            }
+        }
 
         void OnEnable() => PlantedHazards.Register(this);
 
@@ -89,7 +113,13 @@ namespace MHK.Powerups
             active += dt;
             if (active > lifetime)
             {
-                Despawn(null, transform.position, expireSound);
+                // A field carried by its user ends at the kart and its expire sound goes with it.
+                if (followOwner && Owner != null)
+                {
+                    PlaySfx(expireSound, Owner.transform);
+                    Remove();
+                }
+                else Despawn(null, transform.position, expireSound);
                 return;
             }
             if (active < armDelay) return;
@@ -138,7 +168,7 @@ namespace MHK.Powerups
         bool TryCoreHit(Kart k, float dist)
         {
             if (dist >= coreRadius || coreEffect == null || !coreHit.Add(k)) return false;
-            if (KartReactions.Apply(k, coreEffect, Owner, -1f, Usage)) PlaySfx(hitSound, k.transform.position);
+            if (KartReactions.Apply(k, coreEffect, Owner, -1f, Usage)) PlaySfx(hitSound, k.transform);
             if (!destroyOnCoreHit) return false;
             Remove();
             return true;

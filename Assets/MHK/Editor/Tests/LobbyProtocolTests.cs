@@ -69,11 +69,11 @@ namespace MHK.Tests
         [Test]
         public void ContentMessagesMatchGo()
         {
-            var hello = new ContentHelloRequest { simVersion = 7 };
+            var hello = new ContentHelloRequest { contentVersion = 7 };
             hello.packs.Add(new PackRef { packId = "game", commit = "abc", manifestHash = "ff" });
             hello.packs.Add(new PackRef { packId = "mhk2", commit = "", manifestHash = "00" });
             Assert.AreEqual(HelloHex, Hex(hello.Write));
-            var manifest = new PackManifest { packId = "mhk2", commit = "c", simVersion = 7, manifestHash = "h" };
+            var manifest = new PackManifest { packId = "mhk2", commit = "c", contentVersion = 7, manifestHash = "h" };
             manifest.items.Add(new ManifestItem(ContentKind.RaceTrack, "mhk2.rome", "f1"));
             manifest.items.Add(new ManifestItem(ContentKind.Arena, "mhk2.arena", ""));
             Assert.AreEqual(ManifestHex, Hex(manifest.Write));
