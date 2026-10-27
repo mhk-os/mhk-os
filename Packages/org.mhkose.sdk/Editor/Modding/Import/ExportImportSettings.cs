@@ -71,8 +71,8 @@ namespace MHK.Editor.Modding.Import
         public bool karts = true;
         [Tooltip("Import only the track / character / kart with this id (empty = all).")]
         public string onlyId;
-        [Tooltip("After the import, merge duplicate textures, audio and materials of the pack and optimize its model " +
-                 "libraries (animation keys, mesh Read/Write).")]
+        [Tooltip("After the import, merge the textures, audio and materials it added into identical ones of the pack and " +
+                 "optimize the model libraries it wrote (animation keys, mesh Read/Write). The rest of the pack stays as it is.")]
         public bool optimizeAfterImport = true;
 
         [Header("Scale")]
@@ -205,15 +205,21 @@ namespace MHK.Editor.Modding.Import
             return defaultKart;
         }
 
-        /// <summary>Fills the empty asset references with the SDK defaults (and the game's item box in the game project) and saves the settings.</summary>
+        /// <summary>Fills the empty asset references with the SDK defaults (and the game's item box in the game project) and saves the settings when that changed them.</summary>
         public void ApplyDefaultAssets()
         {
-            if (itemBoxPrefab == null) itemBoxPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SdkPaths.ItemBoxPrefab);
-            if (lightingSettings == null) lightingSettings = AssetDatabase.LoadAssetAtPath<LightingSettings>(SdkPaths.TrackLighting);
-            if (groundMaterial == null) groundMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(SdkPaths.TrackGroundMaterial);
-            if (wallMaterial == null) wallMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(SdkPaths.TrackWallMaterial);
+            if (!(Fill(ref itemBoxPrefab, SdkPaths.ItemBoxPrefab) | Fill(ref lightingSettings, SdkPaths.TrackLighting) |
+                  Fill(ref groundMaterial, SdkPaths.TrackGroundMaterial) | Fill(ref wallMaterial, SdkPaths.TrackWallMaterial)))
+                return;
             EditorUtility.SetDirty(this);
             AssetDatabase.SaveAssetIfDirty(this);
+        }
+
+        static bool Fill<T>(ref T field, string path) where T : UnityEngine.Object
+        {
+            if (field != null) return false;
+            field = AssetDatabase.LoadAssetAtPath<T>(path);
+            return field != null;
         }
 
         [ContextMenu("Import")]

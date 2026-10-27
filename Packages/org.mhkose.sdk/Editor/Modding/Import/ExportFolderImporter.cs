@@ -67,20 +67,28 @@ namespace MHK.Editor.Modding.Import
                 return;
             }
             s.ApplyDefaultAssets();
+            var folder = ImportAssets.PackFolder(s.pack);
             var errors = 0;
+            // The folders TrackImportContext, ExportCharacterImporter and TrackAudioBuilder write to.
+            var importerFolders = new[] { "Tracks", "Characters", "Karts", "Audio" }.Select(f => $"{folder}/{f}").ToList();
+            using var scope = new PackImportScope(folder, importerFolders);
             if (s.karts) errors += ImportEach(s, "karts", "kart.json", "kart", d => ExportCharacterImporter.ImportKart(d, s));
             if (s.characters) errors += ImportEach(s, "characters", "character.json", "character", d => ExportCharacterImporter.ImportCharacter(d, s));
             if (s.tracks) errors += ImportEach(s, "tracks", "track.json", "track", d => TrackImporter.Import(d, s));
             AssetDatabase.SaveAssets();
-            if (s.optimizeAfterImport) OptimizePack(s.pack);
+            if (s.optimizeAfterImport) OptimizePack(s.pack, scope);
             Debug.Log($"[Import] {s.exportFolder} → '{s.pack.packId}': {s.pack.content.Count} definitions" + (errors > 0 ? $", {errors} failed (see errors above)." : "."), s.pack);
         }
 
-        static void OptimizePack(ContentPack pack)
+        // Only what this import wrote: a re-import of one track leaves the rest of the pack as it is. Files it rewrote in
+        // place stay too (their names matter, e.g. to the lighting profiles' glow patterns).
+        static void OptimizePack(ContentPack pack, PackImportScope scope)
         {
             var folder = ImportAssets.PackFolder(pack);
-            Debug.Log($"[Import] '{pack.packId}' duplicates: {AssetDeduplicator.Deduplicate(folder)}");
-            Debug.Log($"[Import] '{pack.packId}' model libraries: {ModelLibraryOptimizer.OptimizeLibraries(EditorAssets.FindAll<ModelLibrary>(folder).ToList())}");
+            Debug.Log($"[Import] '{pack.packId}' duplicates: {AssetDeduplicator.Deduplicate(folder, AssetDeduplicator.Kinds.All, scope.Created(), scope.IsReusable)}");
+            var written = scope.Written();
+            var libraries = EditorAssets.FindAll<ModelLibrary>(folder).Where(l => written.Contains(PackImportScope.Key(AssetDatabase.GetAssetPath(l)))).ToList();
+            Debug.Log($"[Import] '{pack.packId}' model libraries: {ModelLibraryOptimizer.OptimizeLibraries(libraries)}");
         }
 
         static int ImportEach(ExportImportSettings s, string sub, string file, string label, Action<string> import)

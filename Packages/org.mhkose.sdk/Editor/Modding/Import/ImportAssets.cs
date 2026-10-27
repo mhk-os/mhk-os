@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using MHK.Editor.Content;
 using MHK.Modding;
@@ -14,13 +15,12 @@ namespace MHK.Editor.Modding.Import
         /// <summary>Folder of a pack asset.</summary>
         public static string PackFolder(ContentPack pack) => AssetPaths.DirectoryOf(pack);
 
-        /// <summary>Copies an external file to <paramref name="dest"/> (when changed), imports it and returns the asset path.</summary>
+        /// <summary>Copies an external file to <paramref name="dest"/> (when its content differs), imports it and returns the asset path.</summary>
         public static string CopyIn(string srcFile, string dest)
         {
             AssetPaths.EnsureFolder(AssetPaths.DirectoryOf(dest));
             var abs = Path.GetFullPath(dest);
-            var src = new FileInfo(srcFile);
-            if (!File.Exists(abs) || new FileInfo(abs).Length != src.Length || File.GetLastWriteTimeUtc(abs) < src.LastWriteTimeUtc)
+            if (!File.Exists(abs) || new FileInfo(abs).Length != new FileInfo(srcFile).Length || !File.ReadAllBytes(abs).AsSpan().SequenceEqual(File.ReadAllBytes(srcFile)))
             {
                 File.Copy(srcFile, abs, true);
                 AssetDatabase.ImportAsset(dest, ImportAssetOptions.ForceUpdate);
@@ -28,11 +28,19 @@ namespace MHK.Editor.Modding.Import
             return dest;
         }
 
-        /// <summary>Copies an export audio file in with the <see cref="AudioImportRules"/> and returns the clip (null when missing).</summary>
+        /// <summary>
+        /// Copies an export audio file in with the <see cref="AudioImportRules"/> and returns the clip (null when missing).
+        /// While nothing is at <paramref name="dest"/>, a clip of the same kind with the same bytes the pack already has
+        /// is used instead (<see cref="PackImportScope"/>).
+        /// </summary>
         public static AudioClip ImportAudio(string srcFile, string dest, bool music)
         {
             if (string.IsNullOrEmpty(srcFile) || !File.Exists(srcFile)) return null;
-            var path = CopyIn(srcFile, dest + Path.GetExtension(srcFile).ToLowerInvariant());
+            var path = dest + Path.GetExtension(srcFile).ToLowerInvariant();
+            var existing = File.Exists(Path.GetFullPath(path)) ? null
+                : PackImportScope.Current?.FindFile(File.ReadAllBytes(srcFile), Path.GetFileName(path),
+                    p => AssetImporter.GetAtPath(p) is AudioImporter other && (AudioImportRules.KindOf(other) == AudioImportRules.Kind.Music) == music);
+            path = existing ?? CopyIn(srcFile, path);
             if (AssetImporter.GetAtPath(path) is AudioImporter ai)
             {
                 if (music && ai.defaultSampleSettings.loadType != AudioClipLoadType.Streaming)
@@ -89,12 +97,16 @@ namespace MHK.Editor.Modding.Import
             so.ApplyModifiedPropertiesWithoutUndo();
         }
 
-        /// <summary>Adds <paramref name="def"/> to the pack's content once.</summary>
+        /// <summary>Adds <paramref name="def"/> to the pack's content once (the pack only changes when its list does).</summary>
         public static void AddToPack(ContentPack pack, ContentDefinition def)
         {
-            pack.content.RemoveAll(c => c == null);
-            if (!pack.content.Contains(def)) pack.content.Add(def);
-            EditorUtility.SetDirty(pack);
+            var changed = pack.content.RemoveAll(c => c == null) > 0;
+            if (!pack.content.Contains(def))
+            {
+                pack.content.Add(def);
+                changed = true;
+            }
+            if (changed) EditorUtility.SetDirty(pack);
         }
     }
 }
