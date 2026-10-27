@@ -83,6 +83,174 @@
             "guid": "825c27127b7ed4f4cb7b710933a118ef",
             "fileId": 11400000,
             "displayName": "Vanish"
+        },
+        {
+            "id": "core.achievement.first_win",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "9c0665dc1a5c14bbd8b9f104714d7128",
+            "fileId": 11400000,
+            "displayName": "First Victory"
+        },
+        {
+            "id": "core.achievement.wins_25",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "29c11eb507037484a99f9bace1e170b5",
+            "fileId": 11400000,
+            "displayName": "Serial Winner"
+        },
+        {
+            "id": "core.achievement.top3_10",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "eeab1f85d6aea42f191e54e307440d14",
+            "fileId": 11400000,
+            "displayName": "On the Podium"
+        },
+        {
+            "id": "core.achievement.top3_50",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "60805a9193bc843d5b42ebb723fb36cb",
+            "fileId": 11400000,
+            "displayName": "Podium Regular"
+        },
+        {
+            "id": "core.achievement.top3_100",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "554d9cf8e1ed2437faf2bcd60ff60bbd",
+            "fileId": 11400000,
+            "displayName": "Podium Legend"
+        },
+        {
+            "id": "core.achievement.races_100",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "e6213bf92df1140d0943c76624cdc016",
+            "fileId": 11400000,
+            "displayName": "Seasoned Racer"
+        },
+        {
+            "id": "core.achievement.perfect_championship",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "e12f8186149984d64a35c46202cc05c6",
+            "fileId": 11400000,
+            "displayName": "Flawless Championship"
+        },
+        {
+            "id": "core.achievement.all_championships",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "81318c84c41c1439ab9290d87bae69d4",
+            "fileId": 11400000,
+            "displayName": "Champion of Champions"
+        },
+        {
+            "id": "core.achievement.all_tracks",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "f9ace75ad1a874f1eb68c5ac9f2600f6",
+            "fileId": 11400000,
+            "displayName": "Grand Tour"
+        },
+        {
+            "id": "core.achievement.under_2min",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "50041b3ab53014591bec9a9f9653087f",
+            "fileId": 11400000,
+            "displayName": "Speed Demon"
+        },
+        {
+            "id": "core.achievement.distance_10",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "689e3a2102efb4fd880f90b95ff1bea1",
+            "fileId": 11400000,
+            "displayName": "Road Trip"
+        },
+        {
+            "id": "core.achievement.distance_100",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "9bb69ba15e3d3420a89c9e4382711677",
+            "fileId": 11400000,
+            "displayName": "Long Haul"
+        },
+        {
+            "id": "core.achievement.distance_1000",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "21b5a5dfb6be24ced8ba203da5c1e0e9",
+            "fileId": 11400000,
+            "displayName": "Around the World (Almost)"
+        },
+        {
+            "id": "core.achievement.crowd_control",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "cd804b4f7c41d4484a90e95b0c73b143",
+            "fileId": 11400000,
+            "displayName": "Crowd Control"
+        },
+        {
+            "id": "core.achievement.hammer_double",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "c2382e456f1eb4cfd975062c42df4a1d",
+            "fileId": 11400000,
+            "displayName": "Two for One"
+        },
+        {
+            "id": "core.achievement.own_trap",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "f04030c005af14bf4b1d4796963814ed",
+            "fileId": 11400000,
+            "displayName": "Oops!"
+        },
+        {
+            "id": "core.achievement.battle_first",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "f450a72d96d1c44a9a76e5f51236e627",
+            "fileId": 11400000,
+            "displayName": "Arena Debut"
+        },
+        {
+            "id": "core.achievement.battles_10",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "3213eb1705c0d4a4a9d20c4a1e50cb36",
+            "fileId": 11400000,
+            "displayName": "Last One Standing"
+        },
+        {
+            "id": "core.achievement.all_arenas",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "37a880eaa490148bbb3558b9358a7647",
+            "fileId": 11400000,
+            "displayName": "Arena Tourist"
+        },
+        {
+            "id": "core.achievement.online_win",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "6aae358cf5da242f5b351d569ce11e46",
+            "fileId": 11400000,
+            "displayName": "Online Champion"
+        },
+        {
+            "id": "core.achievement.upload_ghost",
+            "type": "MHK.Achievements.AchievementDefinition",
+            "pack": "game",
+            "guid": "a446ec4f0d5dc4922902cdcaf20630a0",
+            "fileId": 11400000,
+            "displayName": "Ghost Writer"
         }
     ]
 }

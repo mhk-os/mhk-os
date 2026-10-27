@@ -271,6 +271,7 @@ namespace MHK.Race
 
         void AttachModeRules()
         {
+            if (!IsAttract && !Session.IsReplay) gameObject.AddComponent<Achievements.RaceAchievements>().Begin(this);
             if (Session.mode == GameMode.TimeTrial)
             {
                 TimeTrial = gameObject.AddComponent<TimeTrialRun>();

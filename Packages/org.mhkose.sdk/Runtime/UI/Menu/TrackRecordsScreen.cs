@@ -347,7 +347,13 @@ namespace MHK.UI
             if (isUploaded)
             {
                 row.SetText("ghost-uploaded-label", run.rank > 0 ? string.Format(uploadedRankFormat, run.rank) : "");
-                uploaded.tooltip = run.hidden ? uploadedHiddenTip : run.rank > 0 ? string.Format(uploadedRankTip, run.rank) : uploadedSlowerTip;
+                if (run.hidden)
+                {
+                    HiddenReasons.Attach(uploaded, run.runId, uploadedHiddenTip, row);
+                    return;
+                }
+                HiddenReasons.Detach(uploaded);
+                uploaded.tooltip = run.rank > 0 ? string.Format(uploadedRankTip, run.rank) : uploadedSlowerTip;
                 return;
             }
             var running = uploading.Contains(entry.Id) ||

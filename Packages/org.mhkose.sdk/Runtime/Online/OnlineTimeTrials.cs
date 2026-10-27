@@ -79,6 +79,7 @@ namespace MHK.Online
             if (r.Ok)
             {
                 Remember(r.value.run);
+                Achievements.AchievementStats.Add(Achievements.AchievementStats.TimeTrialsUploaded);
                 Changed?.Invoke();
             }
             return r;
@@ -141,6 +142,10 @@ namespace MHK.Online
             }
             return r;
         }
+
+        /// <summary>Why run <paramref name="runId"/> is hidden: for moderators, and for the run's owner (NotFound otherwise).</summary>
+        public static Task<OnlineResult<RunHiddenInfo>> HiddenReason(long runId) =>
+            OnlineService.Call(MessageType.RunHiddenReason, new IdRequest { id = runId }.Write, RunHiddenInfo.Read, true);
 
         /// <summary>Every run of the logged-in account on <paramref name="trackId"/> (all boards, hidden ones too).</summary>
         public static async Task<OnlineResult<List<RunEntry>>> MyRuns(string trackId)

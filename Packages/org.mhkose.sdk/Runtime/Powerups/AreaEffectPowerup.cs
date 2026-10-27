@@ -161,14 +161,14 @@ namespace MHK.Powerups
         void ApplyField(Kart k)
         {
             if (fieldEffect == null) return;
-            if (!fieldEffectFullDuration) KartReactions.Apply(k, fieldEffect, Owner, FieldRefreshSeconds, Usage);
-            else if (!k.Effects.Has(fieldEffect)) KartReactions.Apply(k, fieldEffect, Owner, -1f, Usage);
+            if (!fieldEffectFullDuration) HitKart(k, fieldEffect, FieldRefreshSeconds);
+            else if (!k.Effects.Has(fieldEffect)) HitKart(k, fieldEffect);
         }
 
         bool TryCoreHit(Kart k, float dist)
         {
             if (dist >= coreRadius || coreEffect == null || !coreHit.Add(k)) return false;
-            if (KartReactions.Apply(k, coreEffect, Owner, -1f, Usage)) PlaySfx(hitSound, k.transform);
+            if (HitKart(k, coreEffect)) PlaySfx(hitSound, k.transform);
             if (!destroyOnCoreHit) return false;
             Remove();
             return true;

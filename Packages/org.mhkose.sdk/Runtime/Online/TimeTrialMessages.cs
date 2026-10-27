@@ -119,6 +119,8 @@ namespace MHK.Online
     public sealed class RunEntry
     {
         public const int MaxUsername = 20, MaxCountry = 2, MaxId = 96, MaxGhostId = 32, MaxLaps = 99;
+        /// <summary>The username of every run of a deleted account (reserved: no player can take it).</summary>
+        public const string AnonymousName = "Anonymous";
         // Fixed fields with empty strings and lists.
         internal const int MinBytes = 8 + 4 + 8 + 1 + 1 + 4 + 4 + 1 + 1 + 1 + 1 + 8 + 8 + 4 + 1 + 1 + 4 + 8 + 1 + 1;
 
@@ -142,7 +144,7 @@ namespace MHK.Online
         public int flags;
         /// <summary>Kart physics, engine class or laps differ from what most accounts used (display only).</summary>
         public bool setupMismatch;
-        /// <summary>Hidden by a moderator; only moderators ever see it set.</summary>
+        /// <summary>Hidden (by a moderator, the player's account deletion or a disabled account); only moderators and the owner see it set.</summary>
         public bool hidden;
         /// <summary>Compressed bytes of the ghost file.</summary>
         public int fileSize;
@@ -151,6 +153,9 @@ namespace MHK.Online
         public string trackId = "";
         /// <summary>The board's engine class (0-2).</summary>
         public int engineClass;
+
+        /// <summary>The run's player deleted the account: it belongs to an anonymous account without a profile.</summary>
+        public bool Anonymous => username == AnonymousName;
 
         public void Write(WireWriter w)
         {
@@ -347,6 +352,37 @@ namespace MHK.Online
             account = Account.Read(r), disabled = r.Bool(), disabledReason = r.String(MaxReason), runs = TimeTrialWire.U32(r),
             hiddenRuns = TimeTrialWire.U32(r), cheatKicks = TimeTrialWire.U32(r), created = TimeTrialWire.Time(r),
             lastLogin = TimeTrialWire.Time(r),
+        };
+    }
+
+    /// <summary>Answer of RunHiddenReason (request 135): why and by whom a run is hidden.</summary>
+    public sealed class RunHiddenInfo
+    {
+        /// <summary>default when the run is not hidden.</summary>
+        public DateTime hiddenAt;
+        /// <summary>The hiding moderator's username; empty for a sysadmin, a deletion by the player or a disabled owner.</summary>
+        public string moderator = "";
+        public string reason = "";
+        /// <summary>The player hid it when deleting the account.</summary>
+        public bool deletedByOwner;
+        /// <summary>Hidden because the owner's account is disabled; <see cref="reason"/> is the disable reason.</summary>
+        public bool accountDisabled;
+
+        public bool Hidden => hiddenAt != default;
+
+        public void Write(WireWriter w)
+        {
+            TimeTrialWire.Time(w, hiddenAt);
+            w.String(moderator, RunEntry.MaxUsername);
+            w.String(reason, ModAccountInfo.MaxReason);
+            w.Bool(deletedByOwner);
+            w.Bool(accountDisabled);
+        }
+
+        public static RunHiddenInfo Read(WireReader r) => new()
+        {
+            hiddenAt = TimeTrialWire.Time(r), moderator = r.String(RunEntry.MaxUsername), reason = r.String(ModAccountInfo.MaxReason),
+            deletedByOwner = r.Bool(), accountDisabled = r.Bool(),
         };
     }
 

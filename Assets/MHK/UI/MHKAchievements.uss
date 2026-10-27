@@ -1,0 +1,82 @@
+/* Achievements page (Menu/Achievements.uxml, cards from Templates/AchievementCard.uxml), the unlock toast
+ * (AchievementToasts, on menu pages and the race HUD) and the account deletion box of the Account page. Imported by
+ * MHKTheme.uss. */
+
+/* Page: toolbar (count, sync note), then the card grid. */
+.list-panel.ach-panel { max-width: 1400px; flex-grow: 1; padding: 14px 16px 16px 16px; }
+.ach-toolbar { flex-direction: row; align-items: center; margin: 0 4px 10px 4px; }
+.ach-count { -unity-font-definition: var(--font-display); font-size: 30px; color: var(--mhk-gray-900); padding: 0; margin: 0 16px 0 0; flex-shrink: 0; }
+.ach-sync { flex-direction: row; align-items: center; flex-grow: 1; flex-shrink: 1; justify-content: flex-end; }
+.icon.ach-sync-icon { width: 24px; height: 24px; margin-right: 8px; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.ach-sync.synced .ach-sync-icon { -unity-background-image-tint-color: var(--mhk-good-ink); }
+.ach-sync-label { font-size: 17px; color: var(--mhk-gray-600); padding: 0; margin: 0; flex-shrink: 1; white-space: normal; }
+.mhk-button.small.ach-login { margin: 0 0 0 12px; }
+.ach-scroll { flex-grow: 1; flex-shrink: 1; }
+.ach-list { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+.ach-state { font-size: 20px; color: var(--mhk-gray-500); -unity-text-align: middle-center; white-space: normal; margin: 32px 0; display: none; }
+
+/* One card: icon, texts, progress bar with its text and the share of players. Locked ones are dimmed. */
+.ach-card {
+    width: 49.4%; flex-direction: row; align-items: center;
+    padding: 12px 16px 12px 12px; margin-bottom: 10px;
+    border-radius: 12px; border-width: 2px; border-color: transparent;
+    background-color: var(--mhk-row);
+}
+.ach-card:hover { background-color: var(--mhk-row-hover); }
+.ach-card:focus { border-color: var(--mhk-accent); }
+.ach-card.unlocked, TemplateContainer.sample-unlocked > .ach-card { background-color: var(--mhk-accent-soft); }
+.ach-medal {
+    width: 72px; height: 72px; flex-shrink: 0; margin-right: 14px;
+    border-radius: 36px; align-items: center; justify-content: center;
+    background-color: var(--mhk-gray-200);
+}
+.ach-card.unlocked .ach-medal, TemplateContainer.sample-unlocked > .ach-card .ach-medal { background-color: var(--mhk-accent); }
+.icon.ach-icon { width: 44px; height: 44px; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.ach-card.unlocked .ach-icon, TemplateContainer.sample-unlocked > .ach-card .ach-icon { -unity-background-image-tint-color: var(--mhk-gray-900); }
+/* A mod's own picture fills the medal untinted (greyed while locked). */
+.icon.ach-icon.picture { width: 72px; height: 72px; border-radius: 36px; -unity-background-image-tint-color: rgba(255, 255, 255, 0.45); }
+.ach-card.unlocked .icon.ach-icon.picture, TemplateContainer.sample-unlocked > .ach-card .icon.ach-icon.picture { -unity-background-image-tint-color: var(--mhk-white); }
+.ach-text { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.ach-title-row { flex-direction: row; align-items: center; }
+.ach-title { -unity-font-definition: var(--font-display); font-size: 25px; color: var(--mhk-gray-900); padding: 0; margin: 0; flex-grow: 1; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ach-date { font-size: 15px; color: var(--mhk-good-ink); padding: 0; margin: 0 0 0 10px; flex-shrink: 0; display: none; }
+.ach-card.unlocked .ach-date, TemplateContainer.sample-unlocked > .ach-card .ach-date { display: flex; }
+.ach-desc { font-size: 17px; color: var(--mhk-gray-600); padding: 0; margin: 2px 0 6px 0; white-space: normal; }
+.ach-card.secret .ach-desc, TemplateContainer.sample-secret > .ach-card .ach-desc { -unity-font-style: italic; }
+.ach-progress-row { flex-direction: row; align-items: center; }
+.ach-bar { flex-grow: 1; height: 10px; border-radius: 5px; background-color: var(--mhk-gray-200); overflow: hidden; }
+.ach-bar-fill { height: 100%; width: 0; border-radius: 5px; background-color: var(--mhk-accent); }
+.ach-card.unlocked .ach-bar-fill, TemplateContainer.sample-unlocked > .ach-card .ach-bar-fill { background-color: var(--mhk-good-ink); }
+.ach-card.secret .ach-bar, .ach-card.secret .ach-progress, TemplateContainer.sample-secret > .ach-card .ach-bar, TemplateContainer.sample-secret > .ach-card .ach-progress { display: none; }
+.ach-card.secret .ach-share, TemplateContainer.sample-secret > .ach-card .ach-share { margin-left: 0; }
+.ach-progress { -unity-font-definition: var(--font-bold); font-size: 15px; color: var(--mhk-gray-700); padding: 0; margin: 0 0 0 10px; flex-shrink: 0; }
+.ach-share { font-size: 15px; color: var(--mhk-gray-500); padding: 0; margin: 0 0 0 12px; flex-shrink: 0; }
+
+/* Unlock toast: a dark plate at the top centre (lower in races, clear of the race notices). */
+.ach-toast-anchor { position: absolute; left: 0; right: 0; top: 24px; align-items: center; }
+.ach-toast-anchor.in-race { top: 132px; }
+.ach-toast {
+    flex-direction: row; align-items: center;
+    min-width: 420px; max-width: 70%;
+    padding: 12px 32px 14px 14px;
+    border-radius: 18px; border-width: 2px; border-color: var(--mhk-accent);
+    background-color: var(--mhk-glass-dark-lite-fill);
+}
+.ach-toast .ach-medal { width: 64px; height: 64px; border-radius: 32px; background-color: var(--mhk-accent); }
+.ach-toast .icon.ach-icon { width: 40px; height: 40px; -unity-background-image-tint-color: var(--mhk-gray-900); }
+.ach-toast .icon.ach-icon.picture { width: 64px; height: 64px; border-radius: 32px; -unity-background-image-tint-color: var(--mhk-white); }
+.ach-toast-head { -unity-font-definition: var(--font-bold); font-size: 17px; color: var(--mhk-accent); letter-spacing: 1px; padding: 0; margin: 0; }
+.ach-toast-title { -unity-font-definition: var(--font-display); font-size: 30px; color: var(--mhk-white); padding: 0; margin: 0; white-space: normal; }
+
+/* Account page: the red Delete account button and the box asking for the password. While it is open (.deleting on
+ * signed-in) it takes the place of the account rows and buttons. */
+.mhk-button.acc-delete { margin: 26px 0 0 0; }
+.acc-delete-box { display: none; margin-top: 8px; padding: 14px 16px 16px 16px; border-radius: 14px; border-width: 2px; border-color: var(--mhk-bad-ink); background-color: rgba(194, 54, 44, 0.08); }
+.acc-signed-in.deleting .acc-delete-box, .preview-delete .acc-delete-box { display: flex; }
+.acc-signed-in.deleting .acc-country, .acc-signed-in.deleting .acc-logout, .acc-signed-in.deleting .acc-delete,
+.preview-delete .acc-country, .preview-delete .acc-logout, .preview-delete .acc-delete { display: none; }
+.acc-delete-title { -unity-font-definition: var(--font-display); font-size: 28px; color: var(--mhk-bad-ink); padding: 0; margin: 0 0 4px 0; }
+.acc-delete-text { font-size: 16px; color: var(--mhk-gray-700); white-space: normal; padding: 0; margin: 0 4px 6px 4px; }
+.setting-row.acc-delete-runs { min-width: 0; margin-top: 8px; }
+.acc-delete-buttons { flex-direction: row; justify-content: flex-end; margin-top: 12px; }
+.acc-delete-buttons .mhk-button { margin: 0 0 0 10px; }

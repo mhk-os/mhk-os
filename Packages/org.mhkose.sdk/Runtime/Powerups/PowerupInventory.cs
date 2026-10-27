@@ -183,6 +183,7 @@ namespace MHK.Powerups
             if (Config.usingItemCancelsBuffs) kart.Effects.EndExclusiveBuffs();
             var online = OnlineItems.IsLocal(kart);
             var usage = online ? OnlineItems.NextUseId() : NextUsage();
+            Achievements.RaceAchievements.ItemUsed(kart, def, usage);
             transform.GetPositionAndRotation(out var position, out var rotation);
             GameObject spawned = null;
             if (def.usePrefab != null)

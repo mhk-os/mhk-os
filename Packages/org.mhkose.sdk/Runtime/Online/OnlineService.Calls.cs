@@ -65,5 +65,12 @@ namespace MHK.Online
             if (error != null) return OnlineResult.Failed(error);
             return s.state == OnlineState.LoggedIn ? OnlineResult.Success : new OnlineResult(Status.NotLoggedIn, NotLoggedInMessage);
         }
+
+        /// <summary>The server ended the session itself (account deleted): forgets it here; the connection stays, logged out.</summary>
+        internal static void ForgetSession()
+        {
+            var s = Instance;
+            if (s != null) s.SessionRevoked(null);
+        }
     }
 }

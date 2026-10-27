@@ -305,7 +305,7 @@ namespace MHK.UI
             InfoChips.Add(chips, "speed", ClassLabel(run.engineClass), classTip);
             InfoChips.Add(chips, "upload", Date(run.uploaded), uploadedTip);
             InfoChips.Add(chips, "flag", run.flags.ToString(Invariant), flagsTip, run.flags > 0 ? InfoChipState.Bad : InfoChipState.Normal);
-            if (run.hidden) InfoChips.Add(chips, "visibility_off", null, LeaderRows.HiddenTip, InfoChipState.Off);
+            if (run.hidden) HiddenReasons.Attach(InfoChips.Add(chips, "visibility_off", null, LeaderRows.HiddenTip, InfoChipState.Off), run.runId, LeaderRows.HiddenTip);
             Q<Label>("fr-hide-label").text = run.hidden ? unhideLabel : hideLabel;
             Q<VisualElement>("fr-hide-icon").SetIcon(run.hidden ? "visibility" : "visibility_off");
             Q<Button>("fr-watch").SetEnabled(Content.Get<TrackDefinition>(run.trackId) != null);

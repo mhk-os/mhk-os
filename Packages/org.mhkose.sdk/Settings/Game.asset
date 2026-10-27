@@ -23,6 +23,11 @@ MonoBehaviour:
   menuMusic: {fileID: 0}
   uiClick: {fileID: 0}
   sharedPowerups: []
+  itemBoxLook:
+    model: {fileID: 0}
+    spinSpeed: 0
+    trackHeight: 0
+    scale: 1
   preferredDefaults: 0
   engineLoop: {fileID: 0}
   skidLoop: {fileID: 0}
@@ -43,6 +48,29 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 1aa2377ba80624b5790ad3d9dc15929a, type: 2}
   - {fileID: 11400000, guid: 5621b7f845f3c4bc7a9c83d3d0604107, type: 2}
   - {fileID: 11400000, guid: 825c27127b7ed4f4cb7b710933a118ef, type: 2}
+  - {fileID: 11400000, guid: 9c0665dc1a5c14bbd8b9f104714d7128, type: 2}
+  - {fileID: 11400000, guid: 29c11eb507037484a99f9bace1e170b5, type: 2}
+  - {fileID: 11400000, guid: eeab1f85d6aea42f191e54e307440d14, type: 2}
+  - {fileID: 11400000, guid: 60805a9193bc843d5b42ebb723fb36cb, type: 2}
+  - {fileID: 11400000, guid: 554d9cf8e1ed2437faf2bcd60ff60bbd, type: 2}
+  - {fileID: 11400000, guid: e6213bf92df1140d0943c76624cdc016, type: 2}
+  - {fileID: 11400000, guid: e12f8186149984d64a35c46202cc05c6, type: 2}
+  - {fileID: 11400000, guid: 81318c84c41c1439ab9290d87bae69d4, type: 2}
+  - {fileID: 11400000, guid: f9ace75ad1a874f1eb68c5ac9f2600f6, type: 2}
+  - {fileID: 11400000, guid: 50041b3ab53014591bec9a9f9653087f, type: 2}
+  - {fileID: 11400000, guid: 689e3a2102efb4fd880f90b95ff1bea1, type: 2}
+  - {fileID: 11400000, guid: 9bb69ba15e3d3420a89c9e4382711677, type: 2}
+  - {fileID: 11400000, guid: 21b5a5dfb6be24ced8ba203da5c1e0e9, type: 2}
+  - {fileID: 11400000, guid: cd804b4f7c41d4484a90e95b0c73b143, type: 2}
+  - {fileID: 11400000, guid: c2382e456f1eb4cfd975062c42df4a1d, type: 2}
+  - {fileID: 11400000, guid: f04030c005af14bf4b1d4796963814ed, type: 2}
+  - {fileID: 11400000, guid: f450a72d96d1c44a9a76e5f51236e627, type: 2}
+  - {fileID: 11400000, guid: 3213eb1705c0d4a4a9d20c4a1e50cb36, type: 2}
+  - {fileID: 11400000, guid: 37a880eaa490148bbb3558b9358a7647, type: 2}
+  - {fileID: 11400000, guid: 6aae358cf5da242f5b351d569ce11e46, type: 2}
+  - {fileID: 11400000, guid: a446ec4f0d5dc4922902cdcaf20630a0, type: 2}
+  sdkApi: 0
   sdkVersion: 
   unityVersion: 
   buildTarget: 
+  assetIndex: {fileID: 0}

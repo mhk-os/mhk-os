@@ -125,6 +125,21 @@ namespace MHK.Online
         public static SetCountryRequest Read(WireReader r) => new() { country = r.String(Account.MaxCountry) };
     }
 
+    /// <summary>Request 26: the account's password, and whether its time-trial runs are hidden too (they are anonymized either way).</summary>
+    public sealed class DeleteAccountRequest
+    {
+        public string password = "";
+        public bool deleteRuns;
+
+        public void Write(WireWriter w)
+        {
+            w.String(password, CredentialsRequest.MaxPassword);
+            w.Bool(deleteRuns);
+        }
+
+        public static DeleteAccountRequest Read(WireReader r) => new() { password = r.String(CredentialsRequest.MaxPassword), deleteRuns = r.Bool() };
+    }
+
     /// <summary>An account as the server describes it.</summary>
     public sealed class Account
     {
