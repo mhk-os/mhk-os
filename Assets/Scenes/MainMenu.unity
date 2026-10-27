@@ -152,6 +152,10 @@ MonoBehaviour:
   showcaseVisible: 0
   allowBack: 1
   loginText: Log in
+  connectingTip: Connecting to the server...
+  offlineTip: 'Offline: {0}'
+  unknownOfflineReason: not connected
+  refusedTip: 'Not logged in: {0}'
   compactHeight: 1000
 --- !u!4 &142454102
 Transform:
@@ -531,6 +535,9 @@ MonoBehaviour:
   stateNoMatch: No matches
   stateOffline: Offline
   pageRangeFormat: '{0}-{1} / {2}'
+  leaderboardTab: Leaderboard
+  hiddenTab: Hidden
+  stateNoHidden: No hidden runs
   chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
   ghostRowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
   leaderRowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
@@ -623,6 +630,163 @@ PanelRenderer:
   m_PivotReferenceSize: 0
   m_Pivot: 0
   m_Position: 0
+--- !u!1 &502339084
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 502339085}
+  - component: {fileID: 502339087}
+  - component: {fileID: 502339086}
+  m_Layer: 0
+  m_Name: Players
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &502339085
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 502339084}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &502339086
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 502339084}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 88117d4f999cb4d299ba321676691a63, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.PlayersScreen
+  showcaseVisible: 0
+  allowBack: 1
+  chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
+  rowTemplate: {fileID: 9197481963319205126, guid: 437f35beac4fa4f7780801085931f48c, type: 3}
+  pageSize: 25
+  rankingTab: Ranking
+  allTab: All players
+  newestSort: Newest
+  nameSort: A-Z
+  searchHint: Player
+  stateLoading: Loading
+  stateNoRanked: Nobody ranked yet
+  stateNoPlayers: No players yet
+  stateNoMatch: No matches
+  stateOffline: Offline
+  pageRangeFormat: '{0}-{1} / {2}'
+  noRankText: '-'
+  registeredFormat: Registered {0}
+  onlineNowText: Online now
+  scoreFormat: '{0}'
+  scoreTip: Points from online races
+  dateFormat: d MMM yyyy
+  cardTexts:
+    rankFormat: '#{0}'
+    rankTipFormat: Rank {0} with {1} points
+    unrankedText: Unranked
+    scoreFormat: '{0} points'
+    scoreTip: 'Ranking: points from online races'
+    moderatorText: Moderator
+    onlineNowText: Online now
+    neverActiveText: Never
+    lastActiveTip: Last active
+    registeredTip: Registered
+    racesHeading: Online races
+    timeTrialsHeading: Time trials
+    moderationHeading: Moderation
+    racesTip: Online races raced
+    winsTip: Wins
+    podiumsTip: Podiums (top three)
+    ttRunsTip: Runs on the leaderboards
+    ttBoardsTip: Leaderboards with a run
+    ttBestTip: Best leaderboard rank
+    disabledText: Disabled
+    disabledTipFormat: 'Disabled: {0}'
+    cheatKicksTip: Kicked from races for cheating
+    contentStrikesTip: Content strikes (other game content in anticheat lobbies)
+    hiddenRunsTip: Hidden runs
+    flaggedRunsTip: Runs other players reported
+    loadingText: Loading
+    kickText: Kick
+    runsText: Time trial runs
+    disableText: Disable
+    enableText: Enable
+    dateFormat: d MMM yyyy
+--- !u!1931382934 &502339087
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 502339084}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: 57e11851a936942e3b3d95ceb799cb76, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
 --- !u!1 &556800089
 GameObject:
   m_ObjectHideFlags: 0
@@ -654,6 +818,124 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &593010135
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 593010136}
+  - component: {fileID: 593010138}
+  - component: {fileID: 593010137}
+  m_Layer: 0
+  m_Name: PlayerRuns
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &593010136
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 593010135}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &593010137
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 593010135}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21a4dd8cee7ac4c5fb46b6a2dde2c8f4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.PlayerRunsScreen
+  showcaseVisible: 0
+  allowBack: 1
+  rowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
+  maxRuns: 500
+  rowFormat: '{0} | {1}'
+  dateFormat: d MMM yyyy
+  openTrackTip: Open the track's leaderboard
+  trackRunsFormat: '{0} runs'
+  oneTrackRunText: 1 run
+  stateLoading: Loading
+  stateNone: No runs uploaded yet
+  stateOffline: Offline
+  truncatedFormat: Showing {0} of {1} runs
+  downloadingText: Downloading the ghost...
+  unreadableDownloadText: The downloaded ghost could not be read.
+--- !u!1931382934 &593010138
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 593010135}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: 75a647eada25d414db1ed4706c6ccb1a, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
 --- !u!1 &674734890
 GameObject:
   m_ObjectHideFlags: 0
@@ -1978,7 +2260,9 @@ Transform:
   - {fileID: 1515517134}
   - {fileID: 460173362}
   - {fileID: 1232056121}
+  - {fileID: 502339085}
   - {fileID: 1459417795}
+  - {fileID: 593010136}
   - {fileID: 155314628}
   - {fileID: 1017059796}
   - {fileID: 1524361512}
@@ -2069,6 +2353,10 @@ MonoBehaviour:
   offlineReasonFormat: 'Offline: {1}'
   retryFormat: ' Retrying in {0} s.'
   commandLineNote: The -server option on the command line sets the server ({0}). This field applies when the game starts without it.
+  listedOnText: On
+  listedOffText: Off
+  rankFormat: Rank #{0} with {1} points
+  unrankedFormat: 'Unranked: {0} points. Race online to climb the ranking.'
 --- !u!1931382934 &1459417797
 PanelRenderer:
   m_ObjectHideFlags: 0

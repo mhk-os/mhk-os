@@ -12,12 +12,13 @@ namespace MHK.UI
 {
     /// <summary>
     /// The online lobby the player is in (Lobby.uxml). Header: name, the room code with Copy code / Copy link and the
-    /// lobby's rules as chips. A banner with the phase and its countdown. One card per player (driver, kart, name,
-    /// country, ping, set points, owner / moderator / ready / waiting / voted badges, kick for the room owner and
-    /// moderators) and faint free slots up to the room size. Side: the player's driver and kart (the Character and Kart
-    /// pages limited to the lobby's content), Ready in private rooms, Vote while voting (the Track page with the lobby's
-    /// tracks and Random, opened by itself when voting starts), Race AI while the player is alone, the owner's Start and
-    /// Room settings, the last race's results and Leave. Races start from RaceSetup (OnlineRace) and come back here with
+    /// lobby's rules as chips. A banner with the phase and its countdown. One card per player (driver, kart, name with its
+    /// score rank and player card, country, ping, set points, owner / moderator / ready / waiting / voted badges, kick for
+    /// the room owner and moderators, also on the player card) and faint free slots up to the room size. Side: the
+    /// player's driver and kart (the Character and Kart pages limited to the lobby's content), Ready in private rooms,
+    /// Vote while voting (the Track page with the lobby's tracks and Random, opened by itself when voting starts), Race AI
+    /// while the player is alone, the owner's Start and Room settings, the last race's results (names with rank and
+    /// player card) and Leave. Races start from RaceSetup (OnlineRace) and come back here with
     /// <see cref="OnlineLobby.ReturnToLobby"/>.
     /// </summary>
     public class LobbyScreen : MenuScreen
@@ -63,6 +64,8 @@ namespace MHK.UI
         Label countdown, status;
         VisualElement members;
         IVisualElementScheduledItem tick;
+        readonly RankTags ranks = new();
+        PlayerCardOptions cardOptions;
         // Voting round (lobby and race of the set) the vote page already opened for by itself. Not the phase's end time:
         // the server may move it while the round runs, which reopened the page right after the player left it.
         static (long lobby, int race) autoVoteFor;
@@ -146,6 +149,8 @@ namespace MHK.UI
             OnClick("start", StartNext);
             OnClick("room-settings", () => Flow.Get<RoomSettingsScreen>().OpenEdit());
             SetStatus(null, false);
+            cardOptions = new PlayerCardOptions { report = SetStatus };
+            ranks.Attach(Root);
             OnlineLobby.Changed += Refresh;
             OnlineLobby.Left += OnLeft;
             tick = Root.schedule.Execute(Tick).Every(CountdownMs);
@@ -159,6 +164,9 @@ namespace MHK.UI
             OnlineLobby.Changed -= Refresh;
             OnlineLobby.Left -= OnLeft;
             tick?.Pause();
+            ranks.Detach();
+            PlayerCard.Close();
+            cardOptions = null;
             tick = null;
             countdown = status = null;
             members = null;
@@ -272,6 +280,7 @@ namespace MHK.UI
         {
             var focused = members.panel?.focusController?.focusedElement as VisualElement;
             long focusedId = 0;
+            var focusedName = focused is Label { name: "mem-name" };
             if (focused != null)
                 foreach (var card in members.Children())
                     if (card.Contains(focused) && card.userData is long id) focusedId = id;
@@ -285,7 +294,7 @@ namespace MHK.UI
             {
                 var card = SpawnMember(lobby, m, me, showPoints);
                 if (card == null) break;
-                if (m.accountId == focusedId) refocus = card.Q<Button>("mem-kick");
+                if (m.accountId == focusedId) refocus = card.Q(focusedName ? "mem-name" : "mem-kick");
             }
             var free = Mathf.Min(lobby.settings.maxPlayers, LobbyLimits.MaxPlayers) - list.Count;
             if (free > 0) members.Add(FreeTile(free));
@@ -368,7 +377,9 @@ namespace MHK.UI
             platform.SetVisible(platformIcon != null);
             if (platformIcon != null) platform.SetIcon(platformIcon);
             platform.tooltip = platformName ?? "";
-            card.SetText("mem-name", m.username);
+            var name = card.Q<Label>("mem-name");
+            name.text = m.username;
+            ranks.Add(card.Q<Label>("mem-rank"), m.accountId);
             ContentDisplay.SetDriver(card, m.characterId, m.kartId);
             var ping = card.Q("mem-ping");
             ping.Clear();
@@ -390,10 +401,11 @@ namespace MHK.UI
             var kickable = !mine && (OnlineService.IsModerator || OnlineLobby.IsOwner);
             kick.SetVisible(kickable);
             if (kickable) kick.clicked += () => AskKick(kick, m);
+            PlayerCard.Attach(name, m.accountId, m.username, cardOptions, kickable ? from => AskKick(from, m) : (Action<VisualElement>)null);
             return card;
         }
 
-        void AskKick(Button from, LobbyMember m)
+        void AskKick(VisualElement from, LobbyMember m)
         {
             Click();
             TextPrompt.Show(from, string.Format(kickQuestionFormat, m.username), kickLabel, async reason =>
@@ -452,7 +464,7 @@ namespace MHK.UI
         }
 
         // The last race: from the lobby (results phases) or the race's own result (solo races have no results phase).
-        // Solo races give no points: no points column then.
+        // Solo races give no points: no points column then. Human racers' names carry their rank and player card.
         void ShowResults(LobbyState lobby)
         {
             var list = Q<VisualElement>("result-list");
@@ -472,10 +484,18 @@ namespace MHK.UI
                 if (r.position <= 3) row.AddToClassList("medal-" + r.position.ToString(CultureInfo.InvariantCulture));
                 row.EnableInClassList("mine", r.accountId == OnlineLobby.MyAccountId && !r.ai);
                 row.Add(Cell(r.position.ToString(CultureInfo.InvariantCulture), "lob-result-pos"));
-                row.Add(Cell(r.username, "lob-result-name"));
+                var who = new VisualElement();
+                who.AddToClassList("lob-result-who");
+                var name = Cell(r.username, "lob-result-name");
+                who.Add(name);
+                row.Add(who);
                 row.Add(Cell(r.finishMs > 0 ? UiText.Clock(r.finishMs / 1000f) : dnfText, "lob-result-time"));
                 if (points) row.Add(Cell((setPhase ? r.setPoints : r.points).ToString(setPhase ? "0" : "+0;-0;0", CultureInfo.InvariantCulture), "lob-result-points"));
                 list.Add(row);
+                if (r.ai) continue;
+                ranks.AddAfter(name, r.accountId);
+                var member = r.accountId != OnlineLobby.MyAccountId && (OnlineService.IsModerator || OnlineLobby.IsOwner) ? lobby.Member(r.accountId) : null;
+                PlayerCard.Attach(name, r.accountId, r.username, cardOptions, member != null ? from => AskKick(from, member) : (Action<VisualElement>)null);
             }
         }
 

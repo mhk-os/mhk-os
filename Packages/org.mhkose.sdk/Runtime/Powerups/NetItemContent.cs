@@ -47,14 +47,19 @@ namespace MHK.Powerups
                 loaded.pool.Add(entry);
             }
 
+            // Only lobby content: a cross-pack special resolves only where its pack is installed (the server drops the
+            // others too).
             loaded.specials.Clear();
             var online = OnlineRace.Current;
+            var packs = OnlineLobby.Current != null ? OnlineLobby.Current.settings.packs : null;
             if (online != null)
                 foreach (var k in race.Karts)
                 {
                     var slot = online.SlotOf(k);
                     var special = k.Character != null ? k.Character.specialPowerup : null;
-                    if (slot >= 0 && special != null) loaded.specials.Add(new SpecialEntry { slot = slot, powerupId = special.Id });
+                    if (slot < 0 || special == null) continue;
+                    if (packs != null && !ContentManifests.IsLobbyContent(content, special, packs)) continue;
+                    loaded.specials.Add(new SpecialEntry { slot = slot, powerupId = special.Id });
                 }
             loaded.specials.Sort((a, b) => a.slot.CompareTo(b.slot));
 

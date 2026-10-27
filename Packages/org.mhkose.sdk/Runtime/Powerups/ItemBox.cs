@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using MHK.Core;
 using MHK.Karts;
 using MHK.Modding;
+using MHK.Online;
 using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 
@@ -117,7 +118,12 @@ namespace MHK.Powerups
         {
             if (string.IsNullOrEmpty(fixedPowerupId)) return PowerupRoller.Roll(k);
             if (fixedPowerupId != CharacterSpecialId) return content.Get<PowerupDefinition>(fixedPowerupId);
-            return k.Character != null && k.Character.specialPowerup != null ? k.Character.specialPowerup : PowerupRoller.Roll(k);
+            var special = k.Character != null ? k.Character.specialPowerup : null;
+            // Online (solo races roll here) only a special that is lobby content, like RaceLoaded.specials.
+            if (special != null && OnlineRace.Current != null && OnlineLobby.Current != null
+                && !ContentManifests.IsLobbyContent(content, special, OnlineLobby.Current.settings.packs))
+                special = null;
+            return special != null ? special : PowerupRoller.Roll(k);
         }
 
         void Collect()

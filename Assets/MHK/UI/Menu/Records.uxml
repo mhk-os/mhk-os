@@ -87,6 +87,10 @@
                 </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right">
+                <ui:Button name="players" tooltip="The ranking and every player" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-group" />
+                    <ui:Label text="Players" class="button-label" />
+                </ui:Button>
                 <ui:Button name="reports" class="mhk-button small secondary trk-reports">
                     <ui:VisualElement class="icon i-shield_person" />
                     <ui:Label text="Reports" class="button-label" />

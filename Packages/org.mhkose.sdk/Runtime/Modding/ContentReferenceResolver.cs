@@ -37,7 +37,8 @@ namespace MHK.Modding
         /// Rewires the references of every definition in <paramref name="pack"/>, returns how many changed.
         /// <paramref name="shared"/> packs outlive the mods (the game's own and project packs): their changes are recorded
         /// for <see cref="RestoreRecorded"/>. In the other (bundle) packs a reference to another pack's content that is
-        /// not registered (its mod is disabled or missing) is a bundle stub: it is removed and its id added to <paramref name="dropped"/>.
+        /// not registered (its mod is disabled or missing) is a bundle stub: it is removed, its id added to
+        /// <paramref name="dropped"/> and the field's declared ids kept on the definition (<see cref="ContentDefinition.TryGetUnresolved"/>).
         /// </summary>
         public static int Resolve(ContentRegistry registry, ContentPack pack, bool shared, List<string> dropped)
         {
@@ -79,6 +80,7 @@ namespace MHK.Modding
                 var resolved = Registered(ctx, single);
                 if (resolved == single) return 0;
                 if (ctx.shared) recorded.Add(new Change { def = def, field = f, index = -1, original = single });
+                if (resolved == null) def.RecordUnresolved(f.Name, new[] { single.Id });
                 f.SetValue(def, resolved);
                 return 1;
             }
@@ -96,10 +98,20 @@ namespace MHK.Modding
                 if (resolved == item) continue;
                 remapped++;
                 if (ctx.shared) recorded.Add(new Change { def = def, field = f, index = i, original = item });
+                // Before the first removal entries after i are unchanged or resolved to the same id: the list still
+                // holds the declared ids.
+                if (resolved == null && !def.TryGetUnresolved(f.Name, out _)) def.RecordUnresolved(f.Name, DeclaredIds(list));
                 if (resolved == null && !list.IsFixedSize) list.RemoveAt(i);
                 else list[i] = resolved;
             }
             return remapped;
+        }
+
+        static string[] DeclaredIds(IList list)
+        {
+            var ids = new string[list.Count];
+            for (var i = 0; i < ids.Length; i++) ids[i] = list[i] is ContentDefinition d && d != null ? d.Id : null;
+            return ids;
         }
 
         static ContentDefinition Registered(Context ctx, ContentDefinition d)

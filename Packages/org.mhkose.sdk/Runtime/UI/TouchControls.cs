@@ -33,8 +33,12 @@ namespace MHK.UI
         float stickTravel = 0.3f;
         [SerializeField, Tooltip("Wheel: finger distance from the centre (share of the size) below which the wheel ignores the finger's angle.")]
         float wheelHubShare = 0.12f;
+        [SerializeField, Tooltip("Seconds after a touch on the controls in which mouse and pen presses count as the copy of that " +
+                                 "touch some platforms and the Device Simulator also send, and are ignored.")]
+        float touchEchoSeconds = 0.5f;
 
         readonly List<Control> controls = new();
+        float lastTouchTime = float.NegativeInfinity;
 
         protected override bool InsetBySafeArea => true;
 
@@ -77,13 +81,16 @@ namespace MHK.UI
 
         void OnDown(Control c, int pointerId, Vector2 local)
         {
+            if (IsEcho(pointerId)) return;
             // A joystick or wheel follows one finger.
             if (c.Analog && c.Pressed) return;
+            // Pause and camera act once per press of the control, not once per pointer on it.
+            var first = !c.Pressed;
             c.pointers.Add(pointerId);
             c.element.CapturePointer(pointerId);
             c.element.AddToClassList(TouchControlElement.PressedClass);
-            if (c.Type == TouchControlType.Pause) Race.SetPaused(!Race.Paused);
-            else if (c.Type == TouchControlType.Camera) VirtualKartInput.PressCamera(playerIndex);
+            if (first && c.Type == TouchControlType.Pause) Race.SetPaused(!Race.Paused);
+            else if (first && c.Type == TouchControlType.Camera) VirtualKartInput.PressCamera(playerIndex);
             if (c.Analog)
             {
                 c.fingerAngleKnown = false;
@@ -92,9 +99,32 @@ namespace MHK.UI
             Apply();
         }
 
+        // One tap can reach the controls twice: as a touch and as the mouse click the platform (or the Device Simulator)
+        // also makes of it. The UI input drops that copy only when both arrive in the same frame, so a later one would
+        // press the control again (pause toggled back, a second camera switch or item). A mouse or pen press while a finger
+        // holds a control or shortly after a touch is such a copy.
+        bool IsEcho(int pointerId)
+        {
+            var now = Time.unscaledTime;
+            if (IsTouch(pointerId))
+            {
+                lastTouchTime = now;
+                return false;
+            }
+            if (now - lastTouchTime < touchEchoSeconds) return true;
+            for (var i = 0; i < controls.Count; i++)
+                foreach (var id in controls[i].pointers)
+                    if (IsTouch(id)) return true;
+            return false;
+        }
+
+        static bool IsTouch(int pointerId) =>
+            pointerId >= PointerId.touchPointerIdBase && pointerId < PointerId.touchPointerIdBase + PointerId.touchPointerCount;
+
         void OnRelease(Control c, int pointerId)
         {
             if (!c.pointers.Remove(pointerId)) return;
+            if (IsTouch(pointerId)) lastTouchTime = Time.unscaledTime;
             if (c.element.HasPointerCapture(pointerId)) c.element.ReleasePointer(pointerId);
             if (!c.Pressed) Reset(c);
             Apply();

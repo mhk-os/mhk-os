@@ -568,11 +568,12 @@ TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
     -unity-text-align: middle-center;
 }
 
-/* Touch controls. The default layout (UiLayoutSettings) ends the steering buttons 190px and the right-hand buttons
- * 330px above the bottom edge, so with touch controls (.touch on the speedometer and the minimap) those two move above
- * them by default (Minimap fits its height between its bottom offset and the lap text). Keep them in step. Code places
- * and sizes every control inline. Buttons are dark glass discs with a white rim (throttle and item white), pressed ones
- * take the accent. Joystick and wheel keep their glass and show the accent on the rim, the knob and the wheel. */
+/* Touch controls. With touch controls (.touch on the speedometer and the minimap) those two take the places below, clear
+ * of bottom corner buttons (Minimap fits its height between its bottom offset and the lap text). The default touch layout
+ * (UiLayoutSettings.DefaultTouchHud) places both elsewhere at these sizes; the places apply where a saved layout keeps
+ * them unplaced. Code places and sizes every control inline. Buttons are dark glass discs with a white rim
+ * (throttle and item white), pressed ones take the accent. Joystick and wheel keep their glass and show the accent on the
+ * rim, the knob and the wheel. */
 .hud-speedo.touch { left: 34px; bottom: 204px; width: 190px; height: 190px; }
 .hud-minimap.touch { right: 24px; bottom: 350px; }
 .touch-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }

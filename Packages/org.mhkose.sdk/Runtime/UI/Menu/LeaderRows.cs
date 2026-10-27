@@ -4,7 +4,10 @@ using UnityEngine.UIElements;
 
 namespace MHK.UI
 {
-    /// <summary>Fills Templates/LeaderRow.uxml rows (track records leaderboard, Reports page) from a <see cref="RunEntry"/>.</summary>
+    /// <summary>
+    /// Fills Templates/LeaderRow.uxml rows (track records leaderboard and Hidden tab, Reports page, player runs) from a
+    /// <see cref="RunEntry"/>.
+    /// </summary>
     public static class LeaderRows
     {
         public static string NoRankText { get; set; } = "-";
@@ -19,7 +22,8 @@ namespace MHK.UI
         /// <summary>
         /// Texts, pictures and state classes of <paramref name="row"/>: rank (medals for the top three), driver and kart
         /// pictures, name (and You when it is the logged-in account's), country, <paramref name="sub"/> (null hides the
-        /// line), flags, setup mismatch, hidden, time and best lap. <paramref name="alt"/> shades every second row.
+        /// line), flags (moderators only), setup mismatch, hidden, time and best lap. <paramref name="alt"/> shades every
+        /// second row.
         /// </summary>
         public static void Fill(VisualElement row, RunEntry run, bool alt, string sub = null)
         {
@@ -27,7 +31,7 @@ namespace MHK.UI
             var mine = me != null && (long)me.id == run.accountId;
             row.EnableInClassList("alt", alt);
             row.EnableInClassList("mine", mine);
-            row.EnableInClassList("flagged", run.flags > 0);
+            row.EnableInClassList("flagged", run.flags > 0 && OnlineService.IsModerator);
             row.EnableInClassList("mismatch", run.setupMismatch);
             row.EnableInClassList("hidden-run", run.hidden);
             var rank = row.Q<Label>("lb-rank");
@@ -38,6 +42,8 @@ namespace MHK.UI
             country.tooltip = Countries.Name(run.country);
             country.SetVisible(!string.IsNullOrEmpty(run.country));
             row.SetText("lb-name", run.username);
+            // Shown by AttachPlayer once the uploader's rank is known.
+            row.Q("lb-player-rank").SetVisible(false);
             var subLabel = row.Q<Label>("lb-sub");
             subLabel.text = sub ?? "";
             subLabel.SetVisible(!string.IsNullOrEmpty(sub));
@@ -49,6 +55,18 @@ namespace MHK.UI
             row.Q("lb-flags").tooltip = run.flags == 1 ? FlagsTipOne : string.Format(FlagsTipFormat, run.flags);
             row.Q("lb-hide-icon").SetIcon(run.hidden ? "visibility" : "visibility_off");
             row.Q("lb-hide").tooltip = run.hidden ? UnhideTip : HideTip;
+        }
+
+        /// <summary>
+        /// The uploader's rank tag (lb-player-rank, through <paramref name="ranks"/>) and player card: hovering or tapping
+        /// the name, or the row's lb-profile button (the gamepad's way), opens it with <paramref name="options"/>.
+        /// </summary>
+        public static void AttachPlayer(VisualElement row, RunEntry run, RankTags ranks, PlayerCardOptions options)
+        {
+            ranks.Add(row.Q<Label>("lb-player-rank"), run.accountId);
+            var name = row.Q<Label>("lb-name");
+            PlayerCard.Attach(name, run.accountId, run.username, options);
+            PlayerCard.Attach(row.Q<Button>("lb-profile"), name, run.accountId, run.username, options);
         }
 
         /// <summary>

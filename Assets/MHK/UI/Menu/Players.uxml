@@ -1,0 +1,89 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Players. Toolbar (pl-toolbar): the tabs (pl-tabs: Ranking / All players), the sort chips of All players (pl-sort: Newest / A-Z) and the name search (pl-search). Ranking (.pl-ranking on page): the score ranking with the player's own row pinned (pl-mine, when it is not on the shown page); All players (.pl-all): every listed account. Rows: Templates/PlayerRow.uxml in pl-list, or pl-state (loading, none, offline with pl-retry), and the pager. status: the last moderator action's result. Footer: Back, Refresh. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="PlayerRow" src="/Assets/MHK/UI/Menu/Templates/PlayerRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page pl-ranking">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Players" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement class="trk-columns">
+                    <ui:VisualElement name="pl-panel" class="panel pl-panel">
+                        <ui:VisualElement name="pl-toolbar" class="trk-section-head pl-toolbar">
+                            <ui:VisualElement name="pl-tabs" class="tabs fr-filter">
+                                <ui:Instance template="Chip" class="sample-selected">
+                                    <ui:AttributeOverrides element-name="chip" text="Ranking" />
+                                </ui:Instance>
+                                <ui:Instance template="Chip">
+                                    <ui:AttributeOverrides element-name="chip" text="All players" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                            <ui:VisualElement name="pl-sort" class="tabs fr-filter pl-sort">
+                                <ui:Instance template="Chip" class="sample-selected">
+                                    <ui:AttributeOverrides element-name="chip" text="Newest" />
+                                </ui:Instance>
+                                <ui:Instance template="Chip">
+                                    <ui:AttributeOverrides element-name="chip" text="A-Z" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                            <ui:VisualElement class="lb-search-box pl-search-box">
+                                <ui:VisualElement class="icon i-search lb-search-icon" />
+                                <ui:TextField name="pl-search" max-length="20" class="lb-search" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="pl-mine" class="lb-list lb-mine">
+                            <ui:Instance template="PlayerRow" class="sample-mine">
+                                <ui:AttributeOverrides element-name="pl-rank" text="27" />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                        <ui:ScrollView name="pl-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="trk-scroll">
+                            <ui:VisualElement name="pl-list" class="lb-list">
+                                <ui:Instance template="PlayerRow" class="sample-gold" />
+                                <ui:Instance template="PlayerRow">
+                                    <ui:AttributeOverrides element-name="pl-rank" text="2" />
+                                    <ui:AttributeOverrides element-name="pl-name" text="Lesshuhn-Fan" />
+                                    <ui:AttributeOverrides element-name="pl-score" text="1180" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:VisualElement name="pl-state" class="lb-state">
+                            <ui:VisualElement name="pl-state-icon" class="icon i-group lb-state-icon" />
+                            <ui:Label name="pl-state-label" text="Nobody ranked yet" class="lb-state-label" />
+                            <ui:Button name="pl-retry" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-sync" />
+                                <ui:Label text="Retry" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="pl-pager" class="lb-pager">
+                            <ui:Button name="pl-prev" tooltip="Previous page" class="mhk-button small secondary icon-only">
+                                <ui:VisualElement class="icon i-chevron_left" />
+                            </ui:Button>
+                            <ui:Label name="pl-range" text="1-25 / 312" class="lb-range" />
+                            <ui:Button name="pl-next" tooltip="Next page" class="mhk-button small secondary icon-only">
+                                <ui:VisualElement class="icon i-chevron_right" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Label name="status" text="SmokeRacer's account disabled." class="records-status trk-status" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="refresh" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-sync" />
+                    <ui:Label text="Refresh" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

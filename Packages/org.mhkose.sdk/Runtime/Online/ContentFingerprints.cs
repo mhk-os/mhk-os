@@ -58,8 +58,8 @@ namespace MHK.Online
                     break;
                 case CharacterDefinition c:
                     b.Add("character");
-                    b.Add(c.specialPowerup != null ? c.specialPowerup.Id : "");
-                    b.Add(c.defaultKart != null ? c.defaultKart.Id : "");
+                    b.Add(DeclaredId(c, nameof(CharacterDefinition.specialPowerup), c.specialPowerup));
+                    b.Add(DeclaredId(c, nameof(CharacterDefinition.defaultKart), c.defaultKart));
                     break;
                 case PowerupDefinition p:
                     b.Add("powerup");
@@ -71,13 +71,26 @@ namespace MHK.Online
                     break;
                 case CupDefinition cup:
                     b.Add("cup");
-                    b.Add(cup.tracks.Count);
-                    foreach (var t in cup.tracks) b.Add(t != null ? t.Id : "null");
+                    if (cup.TryGetUnresolved(nameof(CupDefinition.tracks), out var declared))
+                    {
+                        b.Add(declared.Length);
+                        foreach (var id in declared) b.Add(id ?? "null");
+                    }
+                    else
+                    {
+                        b.Add(cup.tracks.Count);
+                        foreach (var t in cup.tracks) b.Add(t != null ? t.Id : "null");
+                    }
                     b.Add(cup.lapsOverride);
                     break;
             }
             return b.Finish();
         }
+
+        // References to other packs' content count by their declared id, so the fingerprint does not depend on which
+        // other packs are installed (the loader removes references to packs that are not loaded).
+        static string DeclaredId(ContentDefinition owner, string field, ContentDefinition value) =>
+            value != null ? value.Id : owner.TryGetUnresolved(field, out var ids) ? ids[0] : "";
 
         static void AddPowerup(FingerprintBuilder b, PowerupDefinition p)
         {

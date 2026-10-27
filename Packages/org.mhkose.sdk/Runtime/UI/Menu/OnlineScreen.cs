@@ -15,7 +15,8 @@ namespace MHK.UI
     /// (mode, number, mod set, anticheat, engine class, players, phase; races first, then mod set, anticheat on first,
     /// then number), a row joins its lobby. The side panel joins a private room by code and creates one. Content warnings (packs that differ from other
     /// players'), refusals and why the player last left a lobby show in the status line. A room link
-    /// (<see cref="JoinLinks"/>) opens this page, which joins the room once logged in.
+    /// (<see cref="JoinLinks"/>) opens this page, which joins the room once logged in. The footer opens the Account and
+    /// Players pages.
     /// </summary>
     public class OnlineScreen : MenuScreen
     {
@@ -84,6 +85,7 @@ namespace MHK.UI
             statusLabel = Q<Label>("onl-status-label");
             OnClick("login", () => Flow.Show<AccountScreen>());
             OnClick("account", () => Flow.Show<AccountScreen>());
+            OnClick("players", () => Flow.Get<PlayersScreen>()?.Open(true));
             OnClick("refresh", () => Refresh(true));
             OnClick("create", CreateRoom);
             OnClick("join-code", JoinCode);

@@ -65,6 +65,11 @@
 .title-compact .logo { width: 450px; height: 221px; }
 .title-compact .logo-text { font-size: 72px; }
 .title-compact #logo-wrap { margin-top: -12px; margin-bottom: 14px; }
+/* Footer account button (TitleScreen) while a stored login is not online: faded while it reconnects, a red icon while
+ * offline or refused (white again on hover and focus like every button icon). */
+.title-account.connecting .icon, .title-account.connecting .button-label { opacity: 0.6; }
+.title-account.offline .icon { -unity-background-image-tint-color: var(--mhk-bad-ink); }
+.title-account.offline:hover .icon, .title-account.offline:focus .icon, .title-account.offline:active .icon { -unity-background-image-tint-color: var(--mhk-white); }
 
 .info-plate { width: 440px; }
 .info-name {

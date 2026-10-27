@@ -1,0 +1,26 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One player of the Players page. Code sets the texts and classes: .medal-1 / .medal-2 / .medal-3 on pl-rank (top three of the ranking), .mine (the player's own row: highlighted, the You tag), .alt (every second row). pl-rank shows on the Ranking tab (.pl-ranking on the page), pl-player-rank (the rank next to the name, hidden when unranked) on All players (.pl-all). pl-mod marks moderators, pl-online players online now; pl-sub says since when the player is registered (or Online now), pl-score the points. pl-main and hovering or tapping pl-name open the player card; pl-runs opens the player's time trial runs. Samples: sample-mine, sample-gold. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="lb-row pl-row">
+        <ui:Button name="pl-main" class="lb-main pl-main">
+            <ui:Label name="pl-rank" text="1" class="lb-rank pl-rank" />
+            <ui:VisualElement class="lb-who">
+                <ui:VisualElement class="lb-name-row">
+                    <ui:Label name="pl-name" text="SmokeRacer" class="lb-name" />
+                    <ui:Label name="pl-player-rank" text="#1" tooltip="Rank 1 with 1240 points" class="player-rank pl-player-rank" />
+                    <ui:Label name="pl-you" text="You" class="lb-you" />
+                    <ui:Label name="pl-country" text="DE" tooltip="Germany" class="lb-country" />
+                    <ui:VisualElement name="pl-mod" tooltip="Moderator" class="icon i-shield_person pl-mod" />
+                </ui:VisualElement>
+                <ui:Label name="pl-sub" text="Registered 26 Oct 2026" class="pl-sub" />
+            </ui:VisualElement>
+            <ui:VisualElement name="pl-online" tooltip="Online now" class="pl-online" />
+            <ui:Label name="pl-score" text="1240" tooltip="Points from online races" class="pl-score" />
+        </ui:Button>
+        <ui:VisualElement class="row lb-actions">
+            <ui:Button name="pl-runs" tooltip="Time trial runs" class="mhk-button small secondary icon-only">
+                <ui:VisualElement class="icon i-timer" />
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

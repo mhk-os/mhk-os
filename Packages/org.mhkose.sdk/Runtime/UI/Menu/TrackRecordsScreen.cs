@@ -141,11 +141,11 @@ namespace MHK.UI
             if (best != null && best.IsCurrent && !pickOrder.Contains(best.Id)) pickOrder.Add(best.Id);
         }
 
-        // The class of the fastest current personal best, else the one last raced.
+        // The class of the fastest current personal best, else the time trial default.
         Difficulty BestClass(string id)
         {
             var best = Store.List(id).Where(e => e.kind == GhostKind.Best && e.IsCurrent).OrderBy(e => e.header.finishTime).FirstOrDefault();
-            return best != null ? ClassOf(best.header.engineClass) : Selection.difficulty;
+            return ClassOf(best != null ? best.header.engineClass : (int)MenuSelection.TimeTrialClass);
         }
 
         static Difficulty ClassOf(int engineClass) =>

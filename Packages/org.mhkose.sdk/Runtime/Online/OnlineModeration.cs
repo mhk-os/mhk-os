@@ -42,6 +42,16 @@ namespace MHK.Online
         public static Task<OnlineResult<ModAccountInfo>> GetAccount(long accountId) =>
             OnlineService.Call(MessageType.ModGetAccount, new IdRequest { id = accountId }.Write, ModAccountInfo.Read, true);
 
+        /// <summary>Hidden runs of board <paramref name="boardId"/> (0 = every board), most recently hidden first; <paramref name="limit"/> 1-100.</summary>
+        public static Task<OnlineResult<(int total, List<RunEntry> runs)>> ListHidden(long boardId, int offset, int limit)
+        {
+            var request = new IdPageRequest
+            {
+                id = boardId, offset = offset < 0 ? 0 : offset, limit = (ushort)(limit < 1 ? 1 : limit > LeaderboardPage.MaxLimit ? LeaderboardPage.MaxLimit : limit),
+            };
+            return OnlineService.Call(MessageType.ModListHidden, request.Write, ModListFlaggedRequest.ReadAnswer, true);
+        }
+
         static string Reason(string reason) => OnlineTimeTrials.Clip(reason?.Trim(), ModAccountInfo.MaxReason);
     }
 }

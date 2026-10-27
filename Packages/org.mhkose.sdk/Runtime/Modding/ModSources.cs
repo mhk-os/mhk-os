@@ -328,14 +328,15 @@ namespace MHK.Modding
 
         /// <summary>
         /// Game start (called by <see cref="GameRoot"/> once mods are loaded): removes downloads of sources no longer listed
-        /// and, when <see cref="Enabled"/>, starts the one check of every source and of the game (<see cref="GameUpdate"/>).
+        /// and, when <see cref="Enabled"/>, starts the checks of the game (<see cref="GameUpdate"/>, first so it gets an API
+        /// request before the sources use up the hourly limit) and of every source.
         /// </summary>
         internal static void Startup(CancellationToken ct)
         {
             PruneDownloads();
             if (!Enabled) return;
-            CheckAllQuietlyAsync(false, InSession(ct)).LogExceptionsAndForget();
             GameUpdate.Check(InSession(ct));
+            CheckAllQuietlyAsync(false, InSession(ct)).LogExceptionsAndForget();
         }
 
         static UserSettings Settings

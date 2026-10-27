@@ -13,7 +13,8 @@ namespace MHK.UI
     /// Moderators' Reports page (FlaggedRuns.uxml), opened from the Records pages: runs other players' games reported
     /// while watching them, most flags first, a page of <see cref="pageSize"/> at a time, optionally with the hidden ones.
     /// The focused or clicked run shows its reports and its uploader's account on the side, with Watch, Hide / Unhide
-    /// and Disable / Enable (<see cref="ModerationPrompts"/>). Leaving moderator rights (logout) goes back.
+    /// and Disable / Enable (<see cref="ModerationPrompts"/>). The names carry rank tags and player cards. Leaving
+    /// moderator rights (logout) goes back.
     /// </summary>
     public class FlaggedRunsScreen : MenuScreen
     {
@@ -60,6 +61,8 @@ namespace MHK.UI
         IVisualElementScheduledItem detailLater;
         RunEntry pendingDetail;
         readonly List<(RunEntry run, VisualElement row)> rows = new();
+        readonly RankTags ranks = new();
+        PlayerCardOptions cardOptions;
 
         void Reset() => showcaseVisible = false;
 
@@ -117,6 +120,8 @@ namespace MHK.UI
             detailLater = Root.schedule.Execute(() => ShowDetail(pendingDetail));
             detailLater.Pause();
             OnlineService.Changed += OnOnlineChanged;
+            cardOptions = new PlayerCardOptions { runsFlow = Flow, report = SetStatus, changed = AfterChange };
+            ranks.Attach(Root);
             focusFirst = true;
             ShowDetail(shown);
             Load();
@@ -126,6 +131,9 @@ namespace MHK.UI
         {
             base.Unbind();
             OnlineService.Changed -= OnOnlineChanged;
+            ranks.Detach();
+            PlayerCard.Close();
+            cardOptions = null;
             detailLater?.Pause();
             detailLater = null;
             request++;
@@ -240,6 +248,7 @@ namespace MHK.UI
             if (row == null) return;
             LeaderRows.Fill(row, run, alt, string.Format(reportRowFormat, ContentDisplay.TrackName(run.trackId), ClassLabel(run.engineClass)));
             rows.Add((run, row));
+            LeaderRows.AttachPlayer(row, run, ranks, cardOptions);
             var main = row.Q<Button>("lb-main");
             main.clicked += () =>
             {

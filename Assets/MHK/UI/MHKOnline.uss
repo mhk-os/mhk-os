@@ -1,7 +1,8 @@
 /* Online pages (imported by MHKTheme.uss): the shared info chips and segmented chips, the Online page (mod set cards of
- * the public categories, private room panel), the room settings (mod toggle cards, rule rows) and the lobby (player cards,
- * phase banner, side panel). Elements code shows only in some states are hidden here; preview-* classes on a page root and
- * sample-* classes on template instances show those states in UI Builder. */
+ * the public categories, private room panel), the room settings (mod toggle cards, rule rows), the lobby (player cards,
+ * phase banner, side panel), the rank tags and player cards on names, the Players and player runs pages. Elements code
+ * shows only in some states are hidden here; preview-* classes on a page root and sample-* classes on template instances
+ * show those states in UI Builder. */
 
 /* Info chips (shared by every screen: InfoChips.Add in code): an icon and 1-3 words summarizing a setting or state, the
  * explanation in the tooltip. .info-chips is the row container. Variants: .on (accent: the setting is on and matters),
@@ -238,3 +239,52 @@
 .lob-result-name { flex-grow: 1; flex-shrink: 1; -unity-font-definition: var(--font-bold); font-size: 18px; color: var(--mhk-gray-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; margin: 0; }
 .lob-result-time { width: 100px; flex-shrink: 0; font-size: 17px; color: var(--mhk-gray-600); -unity-text-align: middle-right; padding: 0; margin: 0; }
 .lob-result-points { width: 54px; flex-shrink: 0; -unity-font-definition: var(--font-display); font-size: 20px; color: var(--mhk-gray-900); -unity-text-align: middle-right; padding: 0; margin: 0; }
+.lob-result-who { flex-grow: 1; flex-shrink: 1; min-width: 0; flex-direction: row; align-items: center; }
+.lob-result-who .lob-result-name { flex-grow: 0; }
+.mem-name-row { flex-direction: row; align-items: center; justify-content: center; max-width: 100%; margin-top: 8px; }
+.mem-name-row .mem-name { margin: 0; flex-shrink: 1; }
+.mem-card.compact .mem-name-row { margin-top: 4px; }
+
+/* Player names (PlayerCard): hover, tap or focus opens the card. The rank tag next to a name (RankTags): #12. */
+.player-name { border-radius: 6px; border-bottom-width: 2px; border-color: transparent; }
+.player-name:hover { border-color: var(--mhk-gray-400); }
+.player-name:focus { border-color: var(--mhk-accent); background-color: var(--mhk-accent-soft); }
+.player-rank { flex-shrink: 0; margin: 0 0 0 6px; padding: 0 7px 1px 7px; border-radius: 9px; background-color: var(--mhk-gray-800); -unity-font-definition: var(--font-bold); font-size: 13px; color: var(--mhk-accent); white-space: nowrap; }
+/* The card: a glass panel floating below (or above) the name, over the screen. */
+.panel.pcard { position: absolute; width: 400px; padding: 14px 16px 12px 16px; opacity: 0; transition-property: opacity; transition-duration: 0.12s; }
+.panel.pcard.shown { opacity: 1; }
+.pcard-head { flex-direction: row; align-items: center; flex-wrap: wrap; }
+.pcard-name { -unity-font-definition: var(--font-display); font-size: 28px; color: var(--mhk-gray-900); padding: 0; margin: 0 8px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
+.info-chips.pcard-badges { flex-shrink: 0; }
+.pcard-rank-row { flex-direction: row; align-items: flex-end; margin: 4px 0; }
+.pcard-rank { -unity-font-definition: var(--font-display); font-size: 34px; color: var(--mhk-accent-deep); padding: 0; margin: 0 10px 0 0; }
+.pcard-score { -unity-font-definition: var(--font-bold); font-size: 18px; color: var(--mhk-gray-700); padding: 0 0 6px 0; margin: 0; }
+.pcard-heading { -unity-font-definition: var(--font-bold); font-size: 14px; color: var(--mhk-gray-500); padding: 0; margin: 8px 0 2px 0; }
+.pcard-note { font-size: 15px; color: var(--mhk-gray-600); white-space: normal; padding: 0; margin: 6px 0 0 0; }
+.pcard-actions { flex-direction: row; flex-wrap: wrap; margin-top: 10px; }
+.pcard-actions .mhk-button { margin: 4px 8px 0 0; }
+
+/* Track records: the moderators' Leaderboard | Hidden tabs. */
+.tabs.lb-tabs { display: none; }
+.preview-mod .tabs.lb-tabs { display: flex; }
+
+/* Players page and one player's runs: one wide panel with the leaderboard row look (MHKRecords.uss lb-*). */
+.panel.pl-panel { flex-grow: 1; flex-shrink: 1; flex-basis: 0; padding: 12px; }
+.pl-toolbar { flex-wrap: wrap; }
+.lb-search-box.pl-search-box { max-width: 420px; margin-left: 6px; }
+.pl-rank { display: none; }
+.pl-ranking .pl-rank { display: flex; }
+.pl-ranking .pl-player-rank { display: none; }
+.icon.pl-mod { width: 20px; height: 20px; margin-left: 6px; flex-shrink: 0; -unity-background-image-tint-color: var(--mhk-gray-600); }
+.pl-sub { font-size: 14px; color: var(--mhk-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; margin: 0; -unity-text-align: middle-left; }
+.pl-online { width: 12px; height: 12px; margin: 0 10px; flex-shrink: 0; border-radius: 6px; background-color: var(--mhk-good-ink); }
+.pl-score { width: 120px; flex-shrink: 0; -unity-font-definition: var(--font-display); font-size: 26px; color: var(--mhk-gray-900); padding: 0; margin: 0; -unity-text-align: middle-right; }
+.icon.pr-head-icon { width: 26px; height: 26px; margin-right: 6px; -unity-background-image-tint-color: var(--mhk-gray-600); }
+.pr-note { flex-grow: 1; font-size: 14px; color: var(--mhk-gray-500); -unity-text-align: middle-right; padding: 0; margin: 0; }
+.pr-group { flex-direction: row; align-items: flex-end; margin: 12px 4px 2px 4px; padding-bottom: 3px; border-bottom-width: 1px; border-color: var(--mhk-divider); }
+.pr-group.first { margin-top: 0; }
+.pr-group-name { -unity-font-definition: var(--font-bold); font-size: 20px; color: var(--mhk-gray-900); padding: 0; margin: 0 8px 0 0; }
+.pr-group-game { flex-grow: 1; font-size: 14px; color: var(--mhk-gray-500); padding: 0 0 2px 0; margin: 0; }
+.pr-group-count { font-size: 14px; color: var(--mhk-gray-500); padding: 0 0 2px 0; margin: 0; }
+/* Runs are watched or opened here, not picked to race: no pick circle. */
+#pr-list .lb-check { display: none; }

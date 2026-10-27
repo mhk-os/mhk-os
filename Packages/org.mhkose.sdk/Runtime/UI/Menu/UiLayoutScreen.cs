@@ -91,7 +91,7 @@ namespace MHK.UI
             OnClick("reset", () => ConfirmPrompt.Show(Q<Button>("reset"), resetMessage, resetLabel, ResetLayout));
             OnClick("save", Save, click: false);
             var saved = Settings.uiLayout;
-            Load(saved.CopyHud(), saved.Controls);
+            Load(saved.CopyHud(touchMode), saved.Controls);
             isDefault = !saved.custom;
             FocusTarget = Q<Button>("ul-next");
             ticker = Root.schedule.Execute(Tick).Every(0);
@@ -400,7 +400,7 @@ namespace MHK.UI
 
         void ResetLayout()
         {
-            Load(new UiLayoutSettings().CopyHud(), UiLayoutSettings.DefaultControls);
+            Load(new UiLayoutSettings().CopyHud(touchMode), UiLayoutSettings.DefaultControls);
             isDefault = true;
         }
 
