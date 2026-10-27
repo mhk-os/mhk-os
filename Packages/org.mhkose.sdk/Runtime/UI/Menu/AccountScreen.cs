@@ -9,9 +9,11 @@ namespace MHK.UI
     /// <summary>
     /// Online account (Account.uxml): log in or register (username, password, confirmation, checked against the server's
     /// rules first), or, logged in, the account with its score rank, its country, the players list switch
-    /// (<see cref="OnlineProfiles.SetListed"/>), Your profile (the Players page) and Log out. Below, the connection to the
-    /// server and, behind the server button, the server address (<see cref="UserSettings.onlineServer"/>). Opening it
-    /// connects (<see cref="OnlineService.Connect"/>).
+    /// (<see cref="OnlineProfiles.SetListed"/>), Your profile (the Players page), Log out and Delete account (a box in place
+    /// of the account rows asks for the password and whether the time-trial runs go too, <see cref="OnlineAccount.Delete"/>).
+    /// Below, the connection to the server and, behind the server button, the server address
+    /// (<see cref="UserSettings.onlineServer"/>). The footer opens the <see cref="AchievementsScreen"/>. Opening it connects
+    /// (<see cref="OnlineService.Connect"/>).
     /// </summary>
     public class AccountScreen : MenuScreen
     {
@@ -42,15 +44,20 @@ namespace MHK.UI
         string listedOnText = "On", listedOffText = "Off";
         [SerializeField, Tooltip("Rank line: ranked ({0} = rank, {1} = points), unranked ({0} = points).")]
         string rankFormat = "Rank #{0} with {1} points", unrankedFormat = "Unranked: {0} points. Race online to climb the ranking.";
+        [SerializeField, Tooltip("Delete account: the confirm button while the server is asked, the error of an empty password, the status after deleting (runs kept as Anonymous, runs deleted too).")]
+        string deletingText = "Deleting...", deletePasswordMissing = "Enter your password to confirm.",
+            deletedText = "Your account was deleted. Your time trial runs stay on the leaderboards as Anonymous.",
+            deletedWithRunsText = "Your account and your time trial runs were deleted.";
 
-        bool register;
+        bool register, deleteBusy, deleteRuns;
         bool serverOpen;
-        TextField username, password, confirm, server;
-        Button submit, reconnect;
-        VisualElement signedOut, signedIn, confirmBlock, status, statusIcon, connectionBar, connectionIcon, serverBox;
-        Label submitLabel, statusLabel, connectionLabel;
+        TextField username, password, confirm, server, deletePassword;
+        Button submit, reconnect, deleteConfirm, deleteCancel;
+        VisualElement signedOut, signedIn, confirmBlock, status, statusIcon, connectionBar, connectionIcon, serverBox, deleteStatus;
+        Label submitLabel, statusLabel, connectionLabel, deleteConfirmLabel, deleteStatusLabel;
         VisualElement submitIcon;
-        SettingChoice country;
+        SettingChoice country, deleteRunsChoice;
+        string deleteConfirmText;
         IVisualElementScheduledItem tick, countryApply;
         bool busy, shownLoggedIn;
         // Country picked but not sent yet, and the one sent and not answered yet (-1: none); both show as the value.
@@ -98,9 +105,11 @@ namespace MHK.UI
             country = BindChoice("country", () => Countries.All.Count + 1, CountryIndex, CountryText, SelectCountry);
             listed = BindChoice("listed", () => 2, () => Listed ? 0 : 1, i => i == 0 ? listedOnText : listedOffText, i => SetListed(i == 0));
             OnClick("profile", () => Flow.Get<PlayersScreen>()?.OpenMine());
+            OnClick("achievements", () => Flow.Show<AchievementsScreen>());
             countryApply = Root.schedule.Execute(ApplyCountry);
             countryApply.Pause();
             BindServer();
+            BindDelete();
             OnlineService.Changed += ShowState;
             tick = Root.schedule.Execute(ShowConnection).Every(500);
             shownLoggedIn = OnlineService.IsLoggedIn;
@@ -120,16 +129,122 @@ namespace MHK.UI
             // A country picked just before leaving is still sent.
             ApplyCountry();
             tick = countryApply = null;
-            username = password = confirm = server = null;
-            submit = reconnect = null;
-            signedOut = signedIn = confirmBlock = status = statusIcon = connectionBar = connectionIcon = serverBox = submitIcon = null;
-            submitLabel = statusLabel = connectionLabel = null;
+            username = password = confirm = server = deletePassword = null;
+            submit = reconnect = deleteConfirm = deleteCancel = null;
+            signedOut = signedIn = confirmBlock = status = statusIcon = connectionBar = connectionIcon = serverBox = submitIcon = deleteStatus = null;
+            submitLabel = statusLabel = connectionLabel = deleteConfirmLabel = deleteStatusLabel = null;
+            deleteRunsChoice = null;
             country = null;
             listed = null;
             profile = null;
             profileFor = 0;
             profileRequests++;
-            busy = false;
+            busy = deleteBusy = false;
+        }
+
+        void BindDelete()
+        {
+            OnClick("delete", OpenDelete);
+            deleteCancel = OnClick("delete-cancel", CloseDelete);
+            deleteConfirm = OnClick("delete-confirm", ConfirmDelete);
+            deleteConfirmLabel = Q<Label>("delete-confirm-label");
+            deleteConfirmText = deleteConfirmLabel.text;
+            deleteStatus = Q<VisualElement>("delete-status");
+            deleteStatusLabel = Q<Label>("delete-status-label");
+            deletePassword = Q<TextField>("delete-password");
+            deletePassword.RegisterCallback<KeyDownEvent>(OnDeleteKey, TrickleDown.TrickleDown);
+            deletePassword.RegisterValueChangedCallback(_ => ShowDeleteStatus(null));
+            deleteRunsChoice = BindChoice("delete-runs", () => 2, () => deleteRuns ? 1 : 0, i => i == 1 ? listedOnText : listedOffText, i => deleteRuns = i == 1);
+            ShowDeleteStatus(null);
+        }
+
+        bool DeleteOpen => signedIn != null && signedIn.ClassListContains("deleting");
+
+        // The box takes the place of the account rows (USS .deleting); it starts empty with the runs kept.
+        void OpenDelete()
+        {
+            deleteRuns = false;
+            deleteRunsChoice.Refresh();
+            deletePassword.SetValueWithoutNotify("");
+            ShowDeleteStatus(null);
+            ShowStatus(null, false);
+            signedIn.AddToClassList("deleting");
+            FocusLater(deletePassword);
+        }
+
+        void CloseDelete()
+        {
+            if (deleteBusy) return;
+            deletePassword.SetValueWithoutNotify("");
+            signedIn.RemoveFromClassList("deleting");
+            FocusLater(Q<Button>("delete"));
+        }
+
+        // Back or Escape closes the open box first.
+        protected override void GoBack()
+        {
+            if (DeleteOpen) CloseDelete();
+            else base.GoBack();
+        }
+
+        void OnDeleteKey(KeyDownEvent e)
+        {
+            if (e.keyCode != KeyCode.Return && e.keyCode != KeyCode.KeypadEnter) return;
+            e.StopPropagation();
+            Click();
+            ConfirmDelete();
+        }
+
+        void ConfirmDelete()
+        {
+            if (deleteBusy) return;
+            if (string.IsNullOrEmpty(deletePassword.value))
+            {
+                ShowDeleteStatus(deletePasswordMissing);
+                FocusLater(deletePassword);
+                return;
+            }
+            DeleteAsync(deletePassword.value, deleteRuns).LogExceptionsAndForget();
+        }
+
+        async Awaitable DeleteAsync(string pass, bool runs)
+        {
+            var root = Root;
+            ShowDeleteStatus(null);
+            SetDeleteBusy(true);
+            var r = await OnlineAccount.Delete(pass, runs);
+            if (Root != root || root == null) return;
+            SetDeleteBusy(false);
+            deletePassword.SetValueWithoutNotify("");
+            if (!r.Ok)
+            {
+                ShowDeleteStatus(r.message);
+                FocusLater(r.status == Status.InvalidCredentials ? deletePassword : deleteConfirm);
+                return;
+            }
+            // The session is gone (ShowState switched to the login form): nothing of the account stays in the form either.
+            signedIn.RemoveFromClassList("deleting");
+            username.SetValueWithoutNotify("");
+            ClearPasswords();
+            ShowStatus(runs ? deletedWithRunsText : deletedText, true);
+            FocusLater(username);
+        }
+
+        void SetDeleteBusy(bool on)
+        {
+            deleteBusy = on;
+            deletePassword.SetEnabled(!on);
+            deleteConfirm.SetEnabled(!on);
+            deleteCancel.SetEnabled(!on);
+            deleteRunsChoice.Button.SetEnabled(!on);
+            deleteConfirmLabel.text = on ? deletingText : deleteConfirmText;
+        }
+
+        void ShowDeleteStatus(string text)
+        {
+            if (deleteStatus == null) return;
+            deleteStatus.SetVisible(!string.IsNullOrEmpty(text));
+            deleteStatusLabel.text = text ?? "";
         }
 
         void BindServer()
@@ -301,7 +416,11 @@ namespace MHK.UI
                 country.Refresh();
                 if (profileFor != account.id) LoadProfile(account.id);
             }
-            else profileFor = 0;
+            else
+            {
+                profileFor = 0;
+                signedIn.RemoveFromClassList("deleting");
+            }
             if (loggedIn != shownLoggedIn)
             {
                 shownLoggedIn = loggedIn;

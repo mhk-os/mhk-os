@@ -140,7 +140,7 @@ namespace MHK.Ghosts
             var best = File.Exists(bestPath) ? ReadEntry(bestPath, known) : null;
             var result = new GhostSaveResult { newRecord = best == null || !best.IsCurrent || h.finishTime < best.header.finishTime };
             if (best != null && best.IsCurrent) result.previousBest = best.header.finishTime;
-            // A record needs a current best to compare with: a best of another simulation version or content is kept aside.
+            // A record needs a current best to compare with: a best of another content version or fingerprint is kept aside.
             if (result.newRecord && best != null && !best.IsCurrent)
             {
                 var savedPath = Path.Combine(dir, GhostPaths.Saved(best.Id));
@@ -289,12 +289,12 @@ namespace MHK.Ghosts
             foreach (var path in gone) Unindex(path);
         }
 
-        // A remembered track hash holds while the fingerprint scheme, the simulation version and the track's pack stay:
+        // A remembered track hash holds while the fingerprint scheme, the content version and the track's pack stay:
         // it outlives builds, so a menu knows it before the track is raced again (a race always computes it anew).
         static string HashKey(string trackId)
         {
             var track = GameRoot.Instance.Content.Get<TrackDefinition>(trackId);
-            return $"{GhostFingerprint.Scheme} sim{SimulationVersion.Current} {(track != null ? track.OwnerPackId : "")}";
+            return $"{GhostFingerprint.Scheme} content{ContentVersion.Current} {(track != null ? track.OwnerPackId : "")}";
         }
 
         static GhostEntry ReadEntry(string path, string knownTrackHash, Dictionary<(int, string, int), string> setupHashes = null)

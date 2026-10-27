@@ -14,6 +14,7 @@ CBUFFER_START(UnityPerMaterial)
     float4 _UVScroll;
     half _Cutoff;
     float4 _Flipbook;
+    half _Fog;
 CBUFFER_END
 
 TEXTURE2D(_BaseMap);

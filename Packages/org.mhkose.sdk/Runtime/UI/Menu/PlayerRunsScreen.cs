@@ -257,7 +257,7 @@ namespace MHK.UI
         {
             busy = true;
             SetStatus(downloadingText, true);
-            var r = await OnlineTimeTrials.Download(run.runId);
+            var r = await OnlineTimeTrials.Download(run);
             busy = false;
             if (list == null) return;
             if (!r.Ok)

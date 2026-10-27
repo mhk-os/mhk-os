@@ -41,6 +41,17 @@ namespace MHK.Powerups
             }
         }
 
+        /// <summary>
+        /// Moves the decal to <paramref name="position"/> and <paramref name="rotation"/> (its up is the projection axis)
+        /// and re-projects it at <paramref name="radius"/>, also when the radius is unchanged (a decal that moves).
+        /// </summary>
+        public void Stamp(Vector3 position, Quaternion rotation, float radius)
+        {
+            transform.SetPositionAndRotation(position, rotation);
+            this.radius = Mathf.Max(0f, radius);
+            Project();
+        }
+
         void Awake()
         {
             meshRenderer = GetComponent<MeshRenderer>();

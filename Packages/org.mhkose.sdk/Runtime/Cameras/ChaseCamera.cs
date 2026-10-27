@@ -3,6 +3,8 @@ using MHK.Core;
 using MHK.Effects;
 using MHK.Input;
 using MHK.Karts;
+using MHK.Race;
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 
 namespace MHK.Cameras
@@ -50,6 +52,7 @@ namespace MHK.Cameras
         const float BoomUnset = -1f;
         const float TravelMinSpeed = 3f, TravelMaxSpeed = 150f, TravelMaxSlip = 90f;
         static readonly int ViewCount = Enum.GetValues(typeof(CameraMode)).Length;
+        [NoAutoStaticsCleanup] static readonly RaycastHit[] obstacleHits = new RaycastHit[16];
 
         [Tooltip("Close (default) view: behind and above the kart, the whole kart and the track ahead in view.")]
         [SerializeField] private ViewPreset close = new() { offset = new Vector3(0f, 0.75f, -4.2f), focusPoint = new Vector3(0f, 0.6f, 0f), pitch = 7f, speedFov = 5f, speedLines = 0.6f };
@@ -320,13 +323,29 @@ namespace MHK.Cameras
             return curDist < maxDist ? offset.normalized * curDist : offset;
         }
 
+        // The nearest wall between focus and camera. Fall zones and reset bounds only catch karts: the camera passes them.
         bool ResolveObstacle(Vector3 focus, ref Vector3 point)
         {
             var toPoint = point - focus;
-            if (!Physics.Raycast(focus, toPoint.normalized, out var hit, toPoint.magnitude, obstacleRayMask, QueryTriggerInteraction.Ignore))
-                return false;
-            point = hit.point + hit.normal * wallSkin;
+            var count = Physics.RaycastNonAlloc(focus, toPoint.normalized, obstacleHits, toPoint.magnitude, obstacleRayMask, QueryTriggerInteraction.Ignore);
+            var found = false;
+            var nearest = default(RaycastHit);
+            for (var i = 0; i < count; i++)
+            {
+                var hit = obstacleHits[i];
+                if ((found && hit.distance >= nearest.distance) || CameraPassesThrough(hit.collider)) continue;
+                nearest = hit;
+                found = true;
+            }
+            if (!found) return false;
+            point = nearest.point + nearest.normal * wallSkin;
             return true;
+        }
+
+        static bool CameraPassesThrough(Collider c)
+        {
+            var surface = TrackSurface.Of(c);
+            return surface != null && surface.kind is SurfaceKind.Drop or SurfaceKind.Deadly;
         }
 
         void SetKartHidden(bool hidden)

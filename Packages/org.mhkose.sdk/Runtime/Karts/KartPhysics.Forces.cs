@@ -9,6 +9,8 @@ namespace MHK.Karts
         const float FreeWheelSpinDecay = 0.995f;
         const float LandingMinAirTime = 0.3f;
         const float AirAlignMinSpeedSq = 4f, AirAlignMinNoseSq = 0.04f;
+        // Share of the boosted top speed over which a speed boost's drive lift fades out (DrivePitchShare).
+        const float BoostPitchFadeStart = 0.85f, BoostPitchFadeEnd = 0.95f;
 
         /// <summary>Values of one <see cref="Step"/> shared by its phases.</summary>
         struct StepFrame
@@ -19,7 +21,7 @@ namespace MHK.Karts
             public Quaternion rot;
             public Vector3 fwd, up, v, w, g, force, torqueW, com;
             public int contacts;
-            public float avgLoad, resMax, gripShare;
+            public float avgLoad, resMax, gripShare, drivePitchShare;
             public Vector3 groundNormal;
         }
 
@@ -141,6 +143,7 @@ namespace MHK.Karts
         void ApplyDriveAndLimits(ref StepFrame s)
         {
             s.com = Body.worldCenterOfMass;
+            s.drivePitchShare = DrivePitchShare(in s);
             for (var i = 0; i < WheelCount; i++)
             {
                 ref var wh = ref wheels[i];
@@ -154,6 +157,18 @@ namespace MHK.Karts
                 ComputeFrictionLimits(ref wh, s.p, n, s.fx.grip, out var matRoll);
                 ApplyWheelDrive(ref s, in wh, n, matRoll);
             }
+        }
+
+        // Remake: the drive force acts at the contact patches below the centre of mass, so it lifts the nose. Only its
+        // unboosted share (÷ the acceleration multiplier) does: a boost's extra force speeds the kart up without standing
+        // it on its rear wheels. During a speed boost the remaining lift fades out from 85 % to 95 % of the boosted top
+        // speed (RedlineSpeed × max speed multiplier), so the kart is back on four wheels once it got there.
+        float DrivePitchShare(in StepFrame s)
+        {
+            var share = 1f / Mathf.Max(1f, s.fx.acceleration);
+            if (!s.fx.speedBoost) return share;
+            var reached = ForwardSpeed / RedlineSpeed(Mathf.Max(1f, s.fx.maxSpeed));
+            return share * (1f - Mathf.InverseLerp(BoostPitchFadeStart, BoostPitchFadeEnd, reached));
         }
 
         void ComputeFrictionLimits(ref Wheel wh, KartPhysicsProfile p, float n, float grip, out float matRoll)
@@ -182,7 +197,13 @@ namespace MHK.Karts
             fd = Mathf.Clamp(fd, -lim, lim);
             var df = s.fwd * fd;
             s.force += df;
-            s.torqueW += Vector3.Cross(wh.point - s.com, df);
+            var moment = Vector3.Cross(wh.point - s.com, df);
+            if (s.drivePitchShare < 1f)
+            {
+                var right = Vector3.Cross(s.up, s.fwd);
+                moment -= right * (Vector3.Dot(moment, right) * (1f - s.drivePitchShare));
+            }
+            s.torqueW += moment;
         }
 
         void Integrate(ref StepFrame s)

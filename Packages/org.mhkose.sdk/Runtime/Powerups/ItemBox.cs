@@ -57,6 +57,9 @@ namespace MHK.Powerups
             string.IsNullOrEmpty(fixedPowerupId) || fixedPowerupId == CharacterSpecialId ||
             GameRoot.Instance.Content.Get<StatusEffectDefinition>(fixedPowerupId) == null;
 
+        /// <summary>The box gives <paramref name="k"/> its character's special (a '@special' box, not its random fallback).</summary>
+        public bool GivesSpecial(Kart k) => fixedPowerupId == CharacterSpecialId && SpecialFor(k, GameRoot.Instance.Content) != null;
+
         void FixedUpdate()
         {
             if (hiddenTimer > 0f)
@@ -118,12 +121,18 @@ namespace MHK.Powerups
         {
             if (string.IsNullOrEmpty(fixedPowerupId)) return PowerupRoller.Roll(k);
             if (fixedPowerupId != CharacterSpecialId) return content.Get<PowerupDefinition>(fixedPowerupId);
+            var special = SpecialFor(k, content);
+            return special != null ? special : PowerupRoller.Roll(k);
+        }
+
+        static PowerupDefinition SpecialFor(Kart k, ContentRegistry content)
+        {
             var special = k.Character != null ? k.Character.specialPowerup : null;
             // Online (solo races roll here) only a special that is lobby content, like RaceLoaded.specials.
             if (special != null && OnlineRace.Current != null && OnlineLobby.Current != null
                 && !ContentManifests.IsLobbyContent(content, special, OnlineLobby.Current.settings.packs))
                 special = null;
-            return special != null ? special : PowerupRoller.Roll(k);
+            return special;
         }
 
         void Collect()

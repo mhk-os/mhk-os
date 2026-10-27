@@ -15,46 +15,52 @@ namespace MHK.AI
         const float BendSpeedFloor = 12f;
 
         readonly AIRouteFollower line;
-        readonly AITurnLimit turn = new();
+        readonly AITurnLimit turn;
 
-        public AICornerPlanner(AIRouteFollower line) => this.line = line;
+        public AICornerPlanner(AIRouteFollower line, AITurnLimit turn)
+        {
+            this.line = line;
+            this.turn = turn;
+        }
 
-        /// <summary>Updates what the kart can turn and grip (<see cref="AITurnLimit"/>) for the driver's engine class.</summary>
+        /// <summary>Updates what the kart can turn, grip and brake (<see cref="AITurnLimit"/>) for the driver's engine class.</summary>
         public void Refresh(Kart kart, DifficultySettings difficulty, GameConfig cfg) =>
             turn.Refresh(kart, kart.NormalTopSpeed, cfg.aiTurnRadiusMargin * Mathf.Lerp(cfg.aiImpreciseTurnMargin, 1f, difficulty.aiPrecision),
-                cfg.aiCornerGrip);
+                cfg.aiCornerGrip, cfg.aiBrakeGrip);
 
         /// <summary>
-        /// Highest speed now from which the kart can still slow, at <see cref="GameConfig.aiPlanBraking"/>, to every bend of
-        /// the followed racing line up to the braking horizon, less the distance its lane <paramref name="laneU"/> runs
-        /// inside the line. Infinity when nothing ahead needs braking.
+        /// Highest speed now from which the kart can still slow, braking as hard as <see cref="GameConfig.aiBrakeGrip"/>
+        /// allows, to every bend of the followed racing line up to the braking horizon, reaching each bend's speed as long
+        /// before it as the wheel needs to turn to full lock (braking while turning in pushes the kart wide). A lane
+        /// <paramref name="laneU"/> inside a bend counts as that much tighter, as does the distance the kart is off its
+        /// lane. Infinity when nothing ahead needs braking.
         /// </summary>
-        public float CornerSpeed(Kart kart, float speed, float speedScale, float laneU, GameConfig cfg)
+        public float CornerSpeed(Kart kart, float speed, float speedScale, float laneU)
         {
             if (!turn.Ready) return float.PositiveInfinity;
-            var decel = Mathf.Max(1f, cfg.aiPlanBraking);
-            var horizon = Mathf.Max(MinHorizon, speed * speed / (2f * decel) + HorizonMargin);
-            var aside = OffRacingLine(kart, laneU);
             var floor = BendSpeedFloor * speedScale;
+            var turnIn = turn.LockTime;
+            var horizon = Mathf.Max(MinHorizon, turn.BrakingDistance(speed, floor) + speed * turnIn + HorizonMargin);
+            var aside = (laneU - AILanes.Centre) * line.Width(0f);
+            var miss = OffLane(kart, laneU);
             var best = float.PositiveInfinity;
             for (var d = Step; d <= horizon; d += Step)
             {
-                var radius = line.Radius(d, out var friction);
-                var bend = turn.SpeedFor(Mathf.Max(MinBendRadius, radius - aside), friction);
+                var radius = line.Radius(d, out var friction, out var side);
+                // Inside the racing line the arc is tighter; a lane outside it is not counted on (the lane may return).
+                var bend = turn.SpeedFor(Mathf.Max(MinBendRadius, radius - Mathf.Max(0f, aside * side) - miss), friction);
                 if (float.IsPositiveInfinity(bend)) continue;
                 bend = Mathf.Max(floor, bend);
-                best = Mathf.Min(best, Mathf.Sqrt(bend * bend + 2f * decel * (d - Step)));
+                best = Mathf.Min(best, turn.SpeedBefore(bend, d - Step - bend * turnIn));
             }
             return best;
         }
 
-        // The planned lane's distance from the racing line plus how far the kart is off its planned lane (it ran wide and
-        // still has to get back, MHK3 Rome).
-        float OffRacingLine(Kart kart, float laneU)
+        // How far the kart is off its planned lane (it ran wide and still has to get back, MHK3 Rome).
+        float OffLane(Kart kart, float laneU)
         {
             var side = TrackPath.RightOf(line.Tangent(0f, SideTangentSmoothing));
-            var miss = Mathf.Abs(Vector3.Dot(kart.transform.position - line.Point(0f, laneU), side));
-            return Mathf.Abs(laneU - AILanes.Centre) * line.Width(0f) + miss;
+            return Mathf.Abs(Vector3.Dot(kart.transform.position - line.Point(0f, laneU), side));
         }
     }
 }

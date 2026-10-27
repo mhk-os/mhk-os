@@ -1,0 +1,51 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Achievements of the enabled mods. ach-count: unlocked / shown. ach-sync (class synced while the account mirror is loaded): the sync state (not logged in, syncing, synced with the account) with ach-login (logged out only: opens the Account page). ach-list: one AchievementCard per achievement in the mods' order; ach-state instead when no enabled mod has achievements. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="AchievementCard" src="/Assets/MHK/UI/Menu/Templates/AchievementCard.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Achievements" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide center anim from-left">
+                <ui:VisualElement name="ach-panel" class="panel list-panel ach-panel">
+                    <ui:VisualElement class="ach-toolbar">
+                        <ui:Label name="ach-count" text="7 / 24 unlocked" class="ach-count" />
+                        <ui:VisualElement name="ach-sync" class="ach-sync">
+                            <ui:VisualElement name="ach-sync-icon" class="icon i-cloud_off ach-sync-icon" />
+                            <ui:Label name="ach-sync-label" text="Log in to sync your achievements" class="ach-sync-label" />
+                            <ui:Button name="ach-login" class="mhk-button small secondary ach-login">
+                                <ui:VisualElement class="icon i-login" />
+                                <ui:Label text="Log in" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <ui:ScrollView name="ach-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll ach-scroll">
+                        <ui:VisualElement name="ach-list" class="ach-list">
+                            <ui:Instance template="AchievementCard" class="sample-unlocked" />
+                            <ui:Instance template="AchievementCard">
+                                <ui:AttributeOverrides element-name="ach-title" text="Road Warrior" />
+                                <ui:AttributeOverrides element-name="ach-desc" text="Drive 1000 km." />
+                                <ui:AttributeOverrides element-name="ach-progress" text="312.4 / 1000 km" />
+                            </ui:Instance>
+                            <ui:Instance template="AchievementCard" class="sample-secret">
+                                <ui:AttributeOverrides element-name="ach-title" text="Secret achievement" />
+                                <ui:AttributeOverrides element-name="ach-desc" text="Keep playing to find out." />
+                            </ui:Instance>
+                        </ui:VisualElement>
+                        <ui:Label name="ach-state" text="None of the enabled mods has achievements." class="ach-state" />
+                    </ui:ScrollView>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

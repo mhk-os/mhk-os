@@ -23,8 +23,6 @@ namespace MHK.Core
         public float topSpeedKmh = 90f;
 
         [Header("AI behaviour (engine class)")]
-        [Tooltip("Chance to take an alternative route / shortcut, rolled each time the AI reaches its fork.")]
-        [Range(0, 1)] public float aiShortcutChance;
         [Tooltip("Chance to steer around a planted trap (mine, black hole, x-field, puddle, ...) seen ahead, rolled per trap. " +
                  "Keep it below 1: traps must still catch the best computer drivers now and then.")]
         [Range(0, 1)] public float aiAvoidTrapChance;
@@ -46,5 +44,9 @@ namespace MHK.Core
                  "per driver and race: it steers into such a kart close ahead on the road (a few tens of metres, within " +
                  "reach of its lane) instead of passing it. Never chases karts far away or behind and never leaves the road.")]
         [Range(0, 1)] public float aiFlattenSeekChance;
+        [Tooltip("Chance to steer out of the way of an opponent ramming with a hostile aura (TINcan ram, Thunder panzer) " +
+                 "that would reach this kart within about two seconds, rolled per ram: an urgent lane change in races, a " +
+                 "heading away from its course in battle manoeuvres.")]
+        [Range(0, 1)] public float aiAvoidRamChance = 0.8f;
     }
 }

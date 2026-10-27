@@ -11,7 +11,7 @@ namespace MHK.Ghosts
         {
             w.Write(h.id ?? "");
             w.Write(h.gameBuild ?? "");
-            w.Write(h.simVersion);
+            w.Write(h.contentVersion);
             w.Write(h.playerName ?? "");
             w.Write(h.playerId ?? "");
             w.Write(h.dateUtcTicks);
@@ -40,7 +40,7 @@ namespace MHK.Ghosts
             {
                 id = r.ReadString(),
                 gameBuild = r.ReadString(),
-                simVersion = r.ReadInt32(),
+                contentVersion = r.ReadInt32(),
                 playerName = r.ReadString(),
                 playerId = r.ReadString(),
                 dateUtcTicks = r.ReadInt64(),

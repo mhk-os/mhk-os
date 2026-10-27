@@ -28,10 +28,10 @@ namespace MHK.AI
         bool backingUp, navigating;
         Vector3 backUpStart;
 
-        public AIBattleDriving(DifficultySettings difficulty, BattleAiSettings skill, bool arena, AIBlackboard board, int seed)
+        public AIBattleDriving(DifficultySettings difficulty, BattleAiSettings skill, bool arena, AIBlackboard board, AIRamThreat rams, int seed)
         {
             planner = new AIBattlePlanner(skill, board, arena, seed);
-            navigator = new AIBattleNavigator(difficulty);
+            navigator = new AIBattleNavigator(difficulty, rams);
             this.arena = arena;
         }
 

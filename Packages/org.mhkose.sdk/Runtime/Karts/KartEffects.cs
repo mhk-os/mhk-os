@@ -51,6 +51,8 @@ namespace MHK.Karts
         readonly List<ActiveEffect> expired = new();
         readonly List<StatusEffectDefinition> landingEffects = new();
         Kart kart;
+        // Spin-out: seconds since it started, its length (0 = not spinning), the angle it started at and how far it turns.
+        float spinTime, spinSeconds, spinFrom, spinSweep;
 
         public IReadOnlyList<ActiveEffect> Active => active;
 
@@ -103,7 +105,10 @@ namespace MHK.Karts
         public float Opacity => Modifiers.opacity;
         /// <summary>A vanish effect (<see cref="StatusEffectDefinition.hideKart"/>) has hidden the kart: not drawn, no item pickups.</summary>
         public bool Hidden => Modifiers.hidden;
-        /// <summary>Visual yaw offset (degrees) of spinning effects.</summary>
+        /// <summary>
+        /// Visual yaw offset (degrees, 0–360) of the spin-out (<see cref="StatusEffectDefinition.Spins"/>), advanced every
+        /// rendered frame. Visual only.
+        /// </summary>
         public float SpinAngle { get; private set; }
         /// <summary>
         /// Hostile effects are ignored before this race tick (<see cref="Race.RaceClock.Ticks"/>, respawn protection).
@@ -122,7 +127,12 @@ namespace MHK.Karts
         public event Action<StatusEffectDefinition, Kart> Started;
         public event Action<StatusEffectDefinition> Ended;
 
-        void Awake() => kart = GetComponent<Kart>();
+        void Awake()
+        {
+            kart = GetComponent<Kart>();
+            // A respawn puts the kart down facing forward: the teleport hides the cut.
+            if (kart != null) kart.Respawned += _ => StopSpin();
+        }
 
         /// <summary>Hostile effects are blocked: shield, ghost or respawn protection.</summary>
         public bool IsProtected => Shielded || Ghost || RespawnProtected;
@@ -156,7 +166,8 @@ namespace MHK.Karts
 
             ApplyImpulses(def);
             ApplyHealthAndInventory(def, source, usage);
-            if (existing == null && def.applySound != null) AudioManager.PlaySfx(def.applySound, transform.position);
+            if (def.Spins) StartSpin();
+            if (existing == null && def.applySound != null) AudioManager.PlaySfx(def.applySound, transform);
 
             Recalculate();
             // After Recalculate: the top speed includes this effect's maxSpeedMultiplier (within its start grace).
@@ -201,8 +212,9 @@ namespace MHK.Karts
                     for (var i = active.Count - 1; i >= 0; i--)
                         if (active[i].Definition.exclusiveBuff) End(i, false);
                 active.Add(new ActiveEffect(def, duration, SpawnAttachedVfx(def), usage));
-                if (def.applySound != null) AudioManager.PlaySfx(def.applySound, transform.position);
+                if (def.applySound != null) AudioManager.PlaySfx(def.applySound, transform);
             }
+            if (def.Spins) StartSpin();
             Recalculate();
             Applied?.Invoke(def, source);
             if (existing == null) Started?.Invoke(def, source);
@@ -368,7 +380,7 @@ namespace MHK.Karts
                 if (natural) ReleaseWorldParticles(e.Vfx);
                 Destroy(e.Vfx);
             }
-            if (natural && d.endSound != null) AudioManager.PlaySfx(d.endSound, transform.position);
+            if (natural && d.endSound != null) AudioManager.PlaySfx(d.endSound, transform);
             Ended?.Invoke(d);
             if (natural && d.respawnOnEnd && kart != null && !kart.IsRemote) kart.RespawnBehind(d.respawnBackDistance);
         }
@@ -393,7 +405,6 @@ namespace MHK.Karts
             if (kart != null && kart.Physics != null && kart.Physics.JustLanded) Land();
             Recalculate();
             if (kart == null || !kart.IsRemote) ApplyContinuous(dt);
-            UpdateSpin();
             ApplyAuras();
         }
 
@@ -406,7 +417,7 @@ namespace MHK.Karts
                 e.TimeLeft -= dt;
                 var lead = e.Definition.expiringSoundLead;
                 if (e.Definition.expiringSound != null && before > lead && e.TimeLeft <= lead)
-                    AudioManager.PlaySfx(e.Definition.expiringSound, transform.position);
+                    AudioManager.PlaySfx(e.Definition.expiringSound, transform);
                 if (e.TimeLeft <= 0f) expired.Add(e);
             }
             // Ending can respawn the kart, which clears the list: resolve indices one at a time.
@@ -465,17 +476,35 @@ namespace MHK.Karts
             }
         }
 
-        void UpdateSpin()
+        void Update()
         {
-            var spin = 0f;
-            foreach (var e in active)
+            if (spinSeconds <= 0f) return;
+            spinTime += Time.deltaTime;
+            if (spinTime >= spinSeconds)
             {
-                if (e.Definition.spinTurns <= 0f) continue;
-                // Ease-out: fast at the start, settling to a full multiple of 360°.
-                var t = 1f - Mathf.Pow(1f - e.Progress, 2f);
-                spin += t * e.Definition.spinTurns * 360f;
+                StopSpin();
+                return;
             }
-            SpinAngle = spin % 360f;
+            // Ease-out: fast at the start, slowing to a stop on a whole turn (spinFrom + spinSweep), facing forward.
+            var left = 1f - spinTime / spinSeconds;
+            SpinAngle = Mathf.Repeat(spinFrom + (1f - left * left) * spinSweep, 360f);
+        }
+
+        // Every spin-out is the same (GameConfig.spinTurns over spinSeconds), runs on after its effect ended and is
+        // independent of the effect's timer. A new one during a spin continues from the current angle and stops facing forward.
+        void StartSpin()
+        {
+            var cfg = Core.GameRoot.Instance.Config;
+            spinFrom = SpinAngle;
+            spinSweep = cfg.spinTurns * 360f - spinFrom;
+            spinSeconds = cfg.spinSeconds;
+            spinTime = 0f;
+        }
+
+        void StopSpin()
+        {
+            spinSeconds = 0f;
+            SpinAngle = 0f;
         }
 
         void Recalculate()
@@ -484,7 +513,6 @@ namespace MHK.Karts
             var m = StatusModifiers.Identity;
             foreach (var e in active) m.Accumulate(e, forwardSpeed);
             Modifiers = m;
-            if (active.Count == 0) SpinAngle = 0f;
         }
 
         /// <summary>Whether <paramref name="t"/> belongs to the attached visual of an active effect (stays opaque when the kart fades).</summary>

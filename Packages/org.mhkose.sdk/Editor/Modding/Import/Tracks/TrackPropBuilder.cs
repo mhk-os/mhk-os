@@ -67,12 +67,19 @@ namespace MHK.Editor.Modding.Import
             var dynamic = ExportJson.B(p["dynamic"]);
             var animated = clip != null && !dynamic ? AttachAnimator(inst, m, clip, p, collides) : null;
             if (animated == null) ImportHierarchy.StripAnimation(inst);
+            // The scene shows the clip's first frame, the pose PropAnimator plays at race time 0.
+            else clip.SampleAnimation(inst, 0f);
             if (ExportJson.B(p["invisible"]))
                 foreach (var r in inst.GetComponentsInChildren<Renderer>(true)) Object.DestroyImmediate(r);
-            if (ExportJson.Str(p["sound"]) is { } sound) TrackAudioBuilder.AddLoopSound(c, inst, sound, p);
+            if (ExportJson.Str(p["sound"]) is { } sound)
+            {
+                // A moving emitter's loop follows its animated node (the instance root stays at the track origin).
+                var host = animated != null ? AnimatedNodes(inst.transform, m, clip).FirstOrDefault() : null;
+                TrackAudioBuilder.AddLoopSound(c, host != null ? host.gameObject : inst, sound, p);
+            }
             if (!collides) return;
             ImportHierarchy.SetLayer(inst, GameLayers.Track);
-            if (dynamic) AddDynamicBody(c, inst, p);
+            if (dynamic) AddDynamicBody(c, inst);
             else if (animated == null) AddStaticMeshColliders(inst);
             else AddAnimatedColliders(c, inst, m, clip, p, animated);
         }
@@ -99,11 +106,10 @@ namespace MHK.Editor.Modding.Import
             return animated;
         }
 
-        static void AddDynamicBody(TrackImportContext c, GameObject inst, JToken p)
+        static void AddDynamicBody(TrackImportContext c, GameObject inst)
         {
             foreach (var mf in inst.GetComponentsInChildren<MeshFilter>(true)) mf.gameObject.AddComponent<BoxCollider>();
             var rb = inst.AddComponent<Rigidbody>();
-            rb.mass = ExportJson.F(p["body"]?["Mass"], ExportJson.F(p["mass"], 1f)) * c.Settings.propMassScale;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.sleepThreshold = c.Settings.dynamicPropSleepThreshold;
         }

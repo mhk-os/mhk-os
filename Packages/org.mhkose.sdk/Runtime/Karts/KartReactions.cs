@@ -33,7 +33,11 @@ namespace MHK.Karts
         /// <paramref name="usage"/> is the powerup use the hit belongs to (<see cref="Powerups.PowerupContext.usage"/>, 0 =
         /// none): a victim loses health once per use, every hit still applies the reaction.
         /// </summary>
-        public static bool Apply(Kart victim, StatusEffectDefinition reaction, Kart source = null, float durationOverride = -1f, int usage = 0) =>
-            victim != null && reaction != null && victim.Effects.Apply(reaction, source, durationOverride, usage);
+        public static bool Apply(Kart victim, StatusEffectDefinition reaction, Kart source = null, float durationOverride = -1f, int usage = 0)
+        {
+            if (victim == null || reaction == null || !victim.Effects.Apply(reaction, source, durationOverride, usage)) return false;
+            if (reaction.hostile) Achievements.RaceAchievements.KartHit(victim, source, usage);
+            return true;
+        }
     }
 }

@@ -18,7 +18,7 @@ namespace MHK.Online
     [DefaultExecutionOrder(-90)]
     public sealed partial class OnlineRace : MonoBehaviour
     {
-        /// <summary>Observer and observed RTT at most this (server-measured) for a check or report to count.</summary>
+        /// <summary>Observer and observed RTT at most this (server-measured) for a check or report to count (<see cref="Eligible"/>).</summary>
         public const int EligibleRttMs = 200;
 
         [AutoStaticsCleanup] public static OnlineRace Current { get; private set; }
@@ -114,9 +114,18 @@ namespace MHK.Online
         /// </summary>
         public bool IsLoaded(int slot) => slot == LocalSlot ? Loaded != null : rttBySlot.ContainsKey(slot) && !leftSlots.Contains(slot);
 
-        /// <summary>Both racers' RTTs are known and at most <see cref="EligibleRttMs"/>: a check of one by the other counts.</summary>
-        public bool Eligible(int observerSlot, int observedSlot) =>
-            RttKnown(observerSlot) && RttKnown(observedSlot) && RttMs(observerSlot) <= EligibleRttMs && RttMs(observedSlot) <= EligibleRttMs;
+        /// <summary>
+        /// A check of <paramref name="observedSlot"/> by <paramref name="observerSlot"/> for <paramref name="reason"/> counts:
+        /// the observer's RTT is known and at most <see cref="EligibleRttMs"/>, and so is the observed racer's unless the
+        /// reason is a speed or acceleration magnitude, which latency does not change (<see cref="LatencyFree"/>).
+        /// </summary>
+        public bool Eligible(int observerSlot, int observedSlot, FlagReason reason) =>
+            RttEligible(observerSlot) && (LatencyFree(reason) || RttEligible(observedSlot));
+
+        /// <summary>Speed and acceleration findings: magnitudes of the received velocities, the same at any latency.</summary>
+        public static bool LatencyFree(FlagReason reason) => reason is FlagReason.Speed or FlagReason.Acceleration;
+
+        bool RttEligible(int slot) => RttKnown(slot) && RttMs(slot) <= EligibleRttMs;
 
         /// <summary>Sends a race notify of this race. Dropped while not connected (the server then removes the racer anyway).</summary>
         public void Notify(IRaceNotify m)

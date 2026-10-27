@@ -75,7 +75,7 @@ namespace MHK.Online
         }
     }
 
-    /// <summary>A leaderboard: runs of one track, engine class, lap count, simulation version and track content.</summary>
+    /// <summary>A leaderboard: runs of one track, engine class, lap count, content version and track hash.</summary>
     public sealed class BoardInfo
     {
         public const int MaxTrackId = 96, MaxTrackHash = 32, MaxList = 200;
@@ -86,7 +86,7 @@ namespace MHK.Online
         public string trackId = "";
         public int engineClass;
         public int laps;
-        public int simVersion;
+        public int contentVersion;
         public string trackHash = "";
         /// <summary>Accounts with a visible run.</summary>
         public int players;
@@ -101,7 +101,7 @@ namespace MHK.Online
             w.String(trackId, MaxTrackId);
             TimeTrialWire.U8(w, engineClass);
             TimeTrialWire.U8(w, laps);
-            w.I32(simVersion);
+            w.I32(contentVersion);
             w.String(trackHash, MaxTrackHash);
             TimeTrialWire.U32(w, players);
             w.I32(bestMs);
@@ -110,7 +110,7 @@ namespace MHK.Online
 
         public static BoardInfo Read(WireReader r) => new()
         {
-            boardId = r.I64(), trackId = r.String(MaxTrackId), engineClass = r.U8(), laps = r.U8(), simVersion = r.I32(),
+            boardId = r.I64(), trackId = r.String(MaxTrackId), engineClass = r.U8(), laps = r.U8(), contentVersion = r.I32(),
             trackHash = r.String(MaxTrackHash), players = TimeTrialWire.U32(r), bestMs = r.I32(), lastUpload = TimeTrialWire.Time(r),
         };
     }
@@ -119,6 +119,8 @@ namespace MHK.Online
     public sealed class RunEntry
     {
         public const int MaxUsername = 20, MaxCountry = 2, MaxId = 96, MaxGhostId = 32, MaxLaps = 99;
+        /// <summary>The username of every run of a deleted account (reserved: no player can take it).</summary>
+        public const string AnonymousName = "Anonymous";
         // Fixed fields with empty strings and lists.
         internal const int MinBytes = 8 + 4 + 8 + 1 + 1 + 4 + 4 + 1 + 1 + 1 + 1 + 8 + 8 + 4 + 1 + 1 + 4 + 8 + 1 + 1;
 
@@ -142,7 +144,7 @@ namespace MHK.Online
         public int flags;
         /// <summary>Kart physics, engine class or laps differ from what most accounts used (display only).</summary>
         public bool setupMismatch;
-        /// <summary>Hidden by a moderator; only moderators ever see it set.</summary>
+        /// <summary>Hidden (by a moderator, the player's account deletion or a disabled account); only moderators and the owner see it set.</summary>
         public bool hidden;
         /// <summary>Compressed bytes of the ghost file.</summary>
         public int fileSize;
@@ -151,6 +153,9 @@ namespace MHK.Online
         public string trackId = "";
         /// <summary>The board's engine class (0-2).</summary>
         public int engineClass;
+
+        /// <summary>The run's player deleted the account: it belongs to an anonymous account without a profile.</summary>
+        public bool Anonymous => username == AnonymousName;
 
         public void Write(WireWriter w)
         {
@@ -350,6 +355,37 @@ namespace MHK.Online
         };
     }
 
+    /// <summary>Answer of RunHiddenReason (request 135): why and by whom a run is hidden.</summary>
+    public sealed class RunHiddenInfo
+    {
+        /// <summary>default when the run is not hidden.</summary>
+        public DateTime hiddenAt;
+        /// <summary>The hiding moderator's username; empty for a sysadmin, a deletion by the player or a disabled owner.</summary>
+        public string moderator = "";
+        public string reason = "";
+        /// <summary>The player hid it when deleting the account.</summary>
+        public bool deletedByOwner;
+        /// <summary>Hidden because the owner's account is disabled; <see cref="reason"/> is the disable reason.</summary>
+        public bool accountDisabled;
+
+        public bool Hidden => hiddenAt != default;
+
+        public void Write(WireWriter w)
+        {
+            TimeTrialWire.Time(w, hiddenAt);
+            w.String(moderator, RunEntry.MaxUsername);
+            w.String(reason, ModAccountInfo.MaxReason);
+            w.Bool(deletedByOwner);
+            w.Bool(accountDisabled);
+        }
+
+        public static RunHiddenInfo Read(WireReader r) => new()
+        {
+            hiddenAt = TimeTrialWire.Time(r), moderator = r.String(RunEntry.MaxUsername), reason = r.String(ModAccountInfo.MaxReason),
+            deletedByOwner = r.Bool(), accountDisabled = r.Bool(),
+        };
+    }
+
     /// <summary>Request 128.</summary>
     public sealed class ListBoardsRequest
     {
@@ -359,16 +395,16 @@ namespace MHK.Online
         public string trackId = "";
         public byte engineClass = AnyEngineClass;
         /// <summary>0 = any.</summary>
-        public int simVersion;
+        public int contentVersion;
 
         public void Write(WireWriter w)
         {
             w.String(trackId, BoardInfo.MaxTrackId);
             w.U8(engineClass);
-            w.I32(simVersion);
+            w.I32(contentVersion);
         }
 
-        public static ListBoardsRequest Read(WireReader r) => new() { trackId = r.String(BoardInfo.MaxTrackId), engineClass = r.U8(), simVersion = r.I32() };
+        public static ListBoardsRequest Read(WireReader r) => new() { trackId = r.String(BoardInfo.MaxTrackId), engineClass = r.U8(), contentVersion = r.I32() };
 
         public static void WriteAnswer(WireWriter w, List<BoardInfo> boards)
         {

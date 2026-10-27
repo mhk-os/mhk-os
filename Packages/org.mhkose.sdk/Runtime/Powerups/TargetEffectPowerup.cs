@@ -56,7 +56,7 @@ namespace MHK.Powerups
             victims = SelectVictims();
             ChosenTarget = victims.Count > 0 ? victims[0] : null;
             visuals = SpawnDropVisuals(victims);
-            PlaySfx(activationSound, victims.Count > 0 ? victims[0].transform.position : Owner.transform.position);
+            PlaySfx(activationSound, victims.Count > 0 ? victims[0].transform : Owner.transform);
             hang = Mathf.Clamp(hangTime, 0f, delay);
         }
 
@@ -68,7 +68,7 @@ namespace MHK.Powerups
             applied = true;
             MoveDropVisuals(1f, 0f);
             ApplyToVictims();
-            if (victims.Count == 0 && Owner != null) PlaySfx(failSound, Owner.transform.position);
+            if (victims.Count == 0 && Owner != null) PlaySfx(failSound, Owner.transform);
             Destroy(gameObject, SelfDestroyDelay);
         }
 

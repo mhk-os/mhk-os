@@ -73,6 +73,12 @@ namespace MHK.Online
         public const ushort GetProfile = 24;
         /// <summary><see cref="PlayerListRequest"/> (no sort) → <see cref="PlayerPage"/> with the own row.</summary>
         public const ushort ScoreLeaderboard = 25;
+        /// <summary><see cref="DeleteAccountRequest"/> → empty. Needs login; the connection stays open, logged out.</summary>
+        public const ushort DeleteAccount = 26;
+        /// <summary><see cref="SyncAchievementsRequest"/> → <see cref="AchievementTotals"/>. Needs login.</summary>
+        public const ushort SyncAchievements = 27;
+        /// <summary><see cref="AchievementSharesRequest"/> → <see cref="AchievementShareCounts"/>.</summary>
+        public const ushort AchievementShares = 28;
 
         /// <summary><see cref="IdRequest"/> (run, reason) → empty. Moderators only, like every type up to 127.</summary>
         public const ushort ModHideRun = 64;
@@ -105,6 +111,8 @@ namespace MHK.Online
         public const ushort MyRuns = 133;
         /// <summary><see cref="IdPageRequest"/> (account) → total, the account's runs on every board.</summary>
         public const ushort PlayerRuns = 134;
+        /// <summary><see cref="IdRequest"/> (run) → <see cref="RunHiddenInfo"/>. Moderators, or the run's owner.</summary>
+        public const ushort RunHiddenReason = 135;
     }
 
     /// <summary>Push types: their own numbering in the ranges of <see cref="MessageType"/>.</summary>
@@ -146,5 +154,7 @@ namespace MHK.Online
         Player = 0,
         /// <summary>Moderates in game (phase 2 and 3). Server administration is the server's command line.</summary>
         Moderator = 1,
+        /// <summary>Holds the anonymized runs of a deleted account ("anon-…", never logs in; rows say "Anonymous").</summary>
+        Anonymous = 2,
     }
 }

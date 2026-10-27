@@ -86,7 +86,7 @@ namespace MHK.Editor.Content
         {
             var report = new Report();
             foreach (var pack in libraries.GroupBy(PackFolder))
-                report.clipsMerged += Math.Max(0, MergeIdenticalClips(pack));
+                report.clipsMerged += Math.Max(0, MergeIdenticalClips(pack, pack.Key));
             foreach (var family in Families(libraries))
                 OptimizeClips(family.clips, family.rigsKnown ? family.rigs : Array.Empty<GameObject>(), report);
             if (meshes) UpdateMeshReadability(libraries, report);
@@ -110,10 +110,11 @@ namespace MHK.Editor.Content
 
         /// <summary>
         /// Merges clips with identical curves and settings across <paramref name="libraries"/> (one pack: mods stay
-        /// self-contained). References move to the first copy in library path order and the other copies are deleted.
-        /// Returns the number of removed clips, -1 when an open scene blocked the merge.
+        /// self-contained, so references are repointed under its folder <paramref name="packFolder"/>). References move
+        /// to the first copy in library path order and the other copies are deleted. Returns the number of removed clips,
+        /// -1 when an open scene blocked the merge.
         /// </summary>
-        public static int MergeIdenticalClips(IEnumerable<ModelLibrary> libraries)
+        public static int MergeIdenticalClips(IEnumerable<ModelLibrary> libraries, string packFolder)
         {
             var survivors = new Dictionary<Hash128, AnimationClip>();
             var map = new Dictionary<AssetReferences.Ref, AssetReferences.Ref>();
@@ -131,7 +132,7 @@ namespace MHK.Editor.Content
                 copies.Add(clip);
             }
             if (copies.Count == 0) return 0;
-            if (!AssetReferences.Repoint(map, out _)) return -1;
+            if (!AssetReferences.Repoint(map, out _, packFolder)) return -1;
             foreach (var clip in copies)
             {
                 var library = AssetDatabase.LoadMainAssetAtPath(AssetDatabase.GetAssetPath(clip));
@@ -179,8 +180,12 @@ namespace MHK.Editor.Content
         static IEnumerable<T> SubAssets<T>(ModelLibrary library) where T : Object =>
             AssetDatabase.LoadAllAssetsAtPath(AssetDatabase.GetAssetPath(library)).OfType<T>().OrderBy(o => o.name, StringComparer.Ordinal);
 
-        static string PackFolder(ModelLibrary library) =>
-            string.Join("/", AssetDatabase.GetAssetPath(library).Split('/').Take(3));
+        // "Assets/Mods/<pack>" or "Packages/<package>".
+        static string PackFolder(ModelLibrary library)
+        {
+            var parts = AssetDatabase.GetAssetPath(library).Split('/');
+            return string.Join("/", parts.Take(parts[0] == "Packages" ? 2 : 3));
+        }
 
         // ------------------------------------------------------------------ families
 

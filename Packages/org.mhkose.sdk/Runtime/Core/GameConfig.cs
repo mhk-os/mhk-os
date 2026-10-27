@@ -34,6 +34,11 @@ namespace MHK.Core
                  "menus (UiGlassBlur). Empty: the plates are plain gray.")]
         public Shader uiGlassShader;
 
+        [Header("Rendering")]
+        [Tooltip("MHK/Lit as built with the game. World sky domes (WorldSkyDome) switch to it, so their fog can be turned " +
+                 "off also when a mod bundle carries an older copy of the shader. Empty: they keep their own shader.")]
+        public Shader litShader;
+
         [Header("Audio mix")]
         [Tooltip("Gain of every sound effect (engines, skids, surfaces, collisions, voices, items, hazards, ambience and " +
                  "prop loops, UI clicks, also AudioSources placed in scenes or prefabs without code) on top of the " +
@@ -69,12 +74,22 @@ namespace MHK.Core
                  "the classes' topSpeedKmh: the speed scale is solved with it. Engine braking and traction limits are " +
                  "unchanged. Offroad slows less unless offroadResistance grows with it.")]
         [Min(0.1f)] public float driveTorqueScale = 2f;
+        [Tooltip("Masses of loose track props (non-kinematic rigidbodies), set when a track loads (MHK.Race.PropMass): the " +
+                 "bounding volume of their colliders × their material's density, between shares of defaultPhysics' mass. " +
+                 "A kart hitting or pushing one loses speed by the mass ratio, so these change lap times.")]
+        public Race.PropMassSettings propMass = new();
 
         [Header("Kart visuals")]
         [Tooltip("Turn pose: how the driver and kart lean into a bend (the original turn animations). Smoothed and " +
                  "partly driven by the kart's actual turning, so it follows what the kart does instead of snapping with " +
                  "the steering key.")]
         public KartDriverAnimation.TurnPoseSettings kartTurnPose = new();
+        [Tooltip("Spin-out of effects that spin (StatusEffectDefinition.Spins): the kart model turns this many full times, " +
+                 "fast at first and settling facing forward. Visual only, the kart's heading and motion are unchanged.")]
+        [Min(1)] public int spinTurns = 5;
+        [Tooltip("Length of the spin-out (s), however long the effect lasts. A spinning hit during a spin starts a new " +
+                 "one from the current angle.")]
+        [Min(0.1f)] public float spinSeconds = 3f;
 
         [Header("Race (defaults = Moorhuhn Kart 2 rules)")]
         [Tooltip("Countdown length. MHK2: 3.999 s (1 s wait, then the 3-2-1 beeps, GO at 0).")]
@@ -189,9 +204,9 @@ namespace MHK.Core
         public float aiLookAheadRange = 35f;
         [Tooltip("The wall / solid prop scan covers this many seconds of driving (at least 10 m, at most aiLookAheadRange).")]
         public float aiObstacleLookSeconds = 1.3f;
-        [Tooltip("Deceleration (m/s²) computer drivers plan with: braking for bends ahead (tighter than the kart turns at " +
-                 "that speed, on the racing line they follow, shortcut turns included) and for walls or solid bodies " +
-                 "blocking every lane. Full brakes manage 15-25 m/s². The margin covers late reactions.")]
+        [Tooltip("Deceleration (m/s²) computer drivers plan with for walls or solid bodies blocking every lane, karts they " +
+                 "follow and stops in battles (bends use aiBrakeGrip). Full brakes manage 15-25 m/s². The margin covers " +
+                 "late reactions.")]
         public float aiPlanBraking = 7f;
         [Tooltip("Computer drivers only brake for bends tighter than the kart's full-lock turn radius at its speed (steering " +
                  "angle washed out with speed, or sliding when the grip runs out) times this: the rest is taken at full " +
@@ -203,15 +218,21 @@ namespace MHK.Core
         [Tooltip("Share of the kart's lateral grip (rear tyre friction × grip effects × (gravity + downforce)) computer " +
                  "drivers plan to use in bends. The bend limit is the larger of the sliding radius and the full-lock radius.")]
         public float aiCornerGrip = 1.05f;
-        [Tooltip("Computer drivers follow a racing line: the smoothest path within the road (the track line's width, cut " +
-                 "short at walls, offroad ground and missing ground), keeping this far (m) from its edges.")]
-        public float aiRacingLineMargin = 1.5f;
-        [Tooltip("Alternative routes whose narrowest road (m) is below this are never taken by computer drivers (a kart " +
-                 "is about 1.2 m wide).")]
-        public float aiMinRouteWidth = 2f;
-        [Tooltip("Loose props (dynamic rigidbodies) up to this mass (kg) are pushed through, not braked for: computer " +
-                 "drivers steer around them when there is room, else plough through at speed (MHK2 straw bales and boxes, " +
-                 "MHK3 crates). Heavier ones (barrels) and kinematic bodies count as solid.")]
+        [Tooltip("Share of the kart's full braking (brake friction of its wheels × (gravity + downforce), so stronger at " +
+                 "speed) computer drivers plan with before bends: they brake as late as this allows.")]
+        [Range(0.1f, 1f)] public float aiBrakeGrip = 0.8f;
+        [Tooltip("Computer drivers follow a racing line: the line with the evenest curvature within the road (the track " +
+                 "line's width, cut short at walls, offroad ground and missing ground), out, in to the apex and out again, " +
+                 "keeping this far (m) from the road's edges.")]
+        public float aiRacingLineMargin = 1.2f;
+        [Tooltip("Chance a computer driver takes an alternative route / shortcut, rolled per route and lap when it nears " +
+                 "the fork, the same in every engine class. In battles routes with a gap or a drop are only taken along " +
+                 "the track's direction.")]
+        [Range(0, 1)] public float aiRouteChance = 0.5f;
+        [Tooltip("Loose props (dynamic rigidbodies) up to this mass (kg, see propMass) are pushed through, not braked for: " +
+                 "computer drivers steer around them when there is room, else plough through at speed (straw bales, " +
+                 "cones, cartons, most crates, small rocks). Heavier ones (rocks, mailboxes, hydrants, metal barrels, big " +
+                 "crates) and kinematic bodies count as solid.")]
         public float aiPushableMass = 15f;
         [Tooltip("Computer drivers press the player's keys (steering, throttle, brake: MHK.AI.AIKeys) and change a key at " +
                  "most this often (s): part steering or part throttle is tapped like a quick player does (0.05 s ≈ 10 " +
@@ -220,7 +241,9 @@ namespace MHK.Core
         [Tooltip("Computer drivers steer towards the racing line averaged over this share of their look-ahead distance " +
                  "(around the target point): node kinks and road-width steps don't make them twitch.")]
         public float aiSteerSmoothing = 0.3f;
-        [Tooltip("Heading error (degrees) computer drivers accept without steering: below it the wheel stays straight.")]
+        [Tooltip("Heading error (degrees) computer drivers accept without steering when they steer towards a point off the " +
+                 "racing line (battles): below it the wheel stays straight. On the racing line they set the wheel for the " +
+                 "line's bend plus the arc back onto their lane, from the kart's steering geometry.")]
         public float aiSteerTolerance = 3f;
         [Tooltip("Once correcting, they steer until the heading error is back within this (degrees).")]
         public float aiSteerRelease = 0.75f;

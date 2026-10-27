@@ -13,7 +13,7 @@ namespace MHK.UI
 {
     /// <summary>
     /// The Version dropdown and the leaderboard of the track records page. Versions come from the track's boards in the
-    /// shown class and from the stored ghosts: one entry per simulation version, Current first, or one per board when a
+    /// shown class and from the stored ghosts: one entry per content version, Current first, or one per board when a
     /// version has several (other track data or lap count). The chosen one filters both lists. The leaderboard has
     /// filters, pages of <see cref="pageSize"/> rows with the player's own row pinned, Watch and picking, rank tags and
     /// player cards on the names, and for moderators a Hidden tab (the board's hidden runs with Unhide) and the row
@@ -25,7 +25,7 @@ namespace MHK.UI
         [Header("Leaderboard")]
         [SerializeField, Tooltip("Rows per leaderboard page (1-100).")]
         int pageSize = 25;
-        [SerializeField, Tooltip("Version entries: the current simulation version, an older one ({0} = version), the separator before extra parts.")]
+        [SerializeField, Tooltip("Version entries: the current content version, an older one ({0} = version), the separator before extra parts.")]
         string currentVersionLabel = "Current version", olderVersionLabel = "Version {0}", versionPartSeparator = " · ";
         [SerializeField, Tooltip("Version entry parts when a version has several boards: other track data than this device's, a lap count ({0} = laps).")]
         string otherTrackLabel = "other track data", boardLapsLabel = "{0} laps";
@@ -54,10 +54,10 @@ namespace MHK.UI
             ("AF", "Africa"), ("AN", "Antarctica"), ("AS", "Asia"), ("EU", "Europe"), ("NA", "North America"), ("OC", "Oceania"), ("SA", "South America"),
         };
 
-        /// <summary>One entry of the Version dropdown: a simulation version, or one board of it.</summary>
+        /// <summary>One entry of the Version dropdown: a content version, or one board of it.</summary>
         sealed class VersionEntry
         {
-            public int simVersion;
+            public int contentVersion;
             /// <summary>Track data of the board or ghosts, empty = any.</summary>
             public string trackHash = "";
             /// <summary>Laps of the board or ghosts, 0 = any.</summary>
@@ -66,8 +66,8 @@ namespace MHK.UI
             public BoardInfo board;
             public DateTime last;
 
-            public bool Matches(int sim, string hash, int lapCount) =>
-                simVersion == sim && string.Equals(trackHash, hash ?? "", StringComparison.OrdinalIgnoreCase) && laps == lapCount;
+            public bool Matches(int versionNumber, string hash, int lapCount) =>
+                contentVersion == versionNumber && string.Equals(trackHash, hash ?? "", StringComparison.OrdinalIgnoreCase) && laps == lapCount;
         }
 
         // Kept while the page is left for a race and back; reset per track and class.
@@ -207,27 +207,27 @@ namespace MHK.UI
             if (boards != null)
                 foreach (var b in boards)
                 {
-                    var v = Entry(b.simVersion, b.trackHash, b.laps);
+                    var v = Entry(b.contentVersion, b.trackHash, b.laps);
                     v.board = b;
                     if (b.lastUpload > v.last) v.last = b.lastUpload;
                 }
             foreach (var e in LocalEntries())
             {
-                var v = Entry(e.header.simVersion, e.header.trackHash, e.header.laps);
+                var v = Entry(e.header.contentVersion, e.header.trackHash, e.header.laps);
                 if (e.header.Date > v.last) v.last = e.header.Date;
             }
-            if (!versions.Exists(v => v.simVersion == SimulationVersion.Current))
-                versions.Add(new VersionEntry { simVersion = SimulationVersion.Current, trackHash = known });
+            if (!versions.Exists(v => v.contentVersion == ContentVersion.Current))
+                versions.Add(new VersionEntry { contentVersion = ContentVersion.Current, trackHash = known });
             versions.Sort((a, b) =>
             {
-                if (a.simVersion != b.simVersion)
-                    return a.simVersion == SimulationVersion.Current ? -1 : b.simVersion == SimulationVersion.Current ? 1 : b.simVersion.CompareTo(a.simVersion);
+                if (a.contentVersion != b.contentVersion)
+                    return a.contentVersion == ContentVersion.Current ? -1 : b.contentVersion == ContentVersion.Current ? 1 : b.contentVersion.CompareTo(a.contentVersion);
                 var aKnown = known.Length > 0 && string.Equals(a.trackHash, known, StringComparison.OrdinalIgnoreCase);
                 var bKnown = known.Length > 0 && string.Equals(b.trackHash, known, StringComparison.OrdinalIgnoreCase);
                 if (aKnown != bKnown) return aKnown ? -1 : 1;
                 return (b.board?.players ?? 0).CompareTo(a.board?.players ?? 0);
             });
-            version = versionPicked && kept != null ? versions.Find(v => v.Matches(kept.simVersion, kept.trackHash, kept.laps)) : null;
+            version = versionPicked && kept != null ? versions.Find(v => v.Matches(kept.contentVersion, kept.trackHash, kept.laps)) : null;
             if (version == null)
             {
                 version = versions[0];
@@ -237,11 +237,11 @@ namespace MHK.UI
             ShowBoardChips();
         }
 
-        VersionEntry Entry(int sim, string hash, int laps)
+        VersionEntry Entry(int contentVersion, string hash, int laps)
         {
-            var v = versions.Find(x => x.Matches(sim, hash, laps));
+            var v = versions.Find(x => x.Matches(contentVersion, hash, laps));
             if (v != null) return v;
-            v = new VersionEntry { simVersion = sim, trackHash = hash ?? "", laps = laps };
+            v = new VersionEntry { contentVersion = contentVersion, trackHash = hash ?? "", laps = laps };
             versions.Add(v);
             return v;
         }
@@ -251,9 +251,9 @@ namespace MHK.UI
         {
             if (i >= versions.Count) return currentVersionLabel;
             var v = versions[i];
-            var current = v.simVersion == SimulationVersion.Current;
-            var text = current ? currentVersionLabel : string.Format(Invariant, olderVersionLabel, v.simVersion);
-            var siblings = versions.Where(o => o.simVersion == v.simVersion).ToList();
+            var current = v.contentVersion == ContentVersion.Current;
+            var text = current ? currentVersionLabel : string.Format(Invariant, olderVersionLabel, v.contentVersion);
+            var siblings = versions.Where(o => o.contentVersion == v.contentVersion).ToList();
             if (siblings.Count > 1)
             {
                 var known = Store.KnownTrackHash(trackId);
@@ -283,7 +283,7 @@ namespace MHK.UI
         {
             if (version == null) return true;
             var h = e.header;
-            return h.simVersion == version.simVersion
+            return h.contentVersion == version.contentVersion
                    && (version.trackHash.Length == 0 || string.Equals(h.trackHash, version.trackHash, StringComparison.OrdinalIgnoreCase))
                    && (version.laps == 0 || h.laps == version.laps);
         }
@@ -441,7 +441,7 @@ namespace MHK.UI
             var before = version;
             RefreshVersions();
             // The default may move to a board that just arrived; the shown ghosts follow it.
-            if (before == null || !version.Matches(before.simVersion, before.trackHash, before.laps)) FillLocal();
+            if (before == null || !version.Matches(before.contentVersion, before.trackHash, before.laps)) FillLocal();
             await LoadPageAsync(id);
         }
 

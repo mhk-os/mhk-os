@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MHK.Editor.Content;
 using MHK.Rendering;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
@@ -73,7 +74,7 @@ namespace MHK.Editor.Modding.Import
             var baseName = GlbReader.Str(json?["name"]) ?? (index < 0 ? "default" : $"{prefix}_material{index}");
             var name = AssetPaths.SafeFileName(baseName) + (vertexTint ? "_vc" : "") +
                        (o.lighting == GlbLightingStyle.World ? "" : "_" + o.lighting.ToString().ToLowerInvariant());
-            var mat = LoadOrResetMaterial(name, out var path, out var isNew);
+            var mat = new Material(shader) { name = name };
             ApplyBaseColour(mat, json, baseName);
             var extras = json?["extras"] as JObject;
             ApplyEmission(mat, extras);
@@ -81,11 +82,7 @@ namespace MHK.Editor.Modding.Import
             SetKeyword(mat, MHKLitIds.VertexTintKeyword, vertexTint);
             ApplyAnimation(mat, extras);
             ApplyAlphaMode(mat, json, GlbReader.B(extras?["additive"]));
-            if (path != null)
-            {
-                if (isNew) AssetDatabase.CreateAsset(mat, path);
-                else EditorUtility.SetDirty(mat);
-            }
+            if (!string.IsNullOrEmpty(o.materialFolder)) mat = Store(mat, o.materialFolder.TrimEnd('/'), name);
             cache[key] = mat;
             if (!vertexTint) byIndex[index] = mat;
             else byIndex.TryAdd(index, mat);
@@ -100,18 +97,46 @@ namespace MHK.Editor.Modding.Import
             return (JObject)mats[index];
         }
 
-        Material LoadOrResetMaterial(string name, out string path, out bool isNew)
+        // Models of one import that give one material name different content get name_2, name_3, … (else the last one
+        // would overwrite the others' material).
+        static Material Store(Material built, string folder, string name)
         {
-            path = string.IsNullOrEmpty(o.materialFolder) ? null : $"{o.materialFolder.TrimEnd('/')}/{name}.mat";
-            var mat = path != null ? AssetDatabase.LoadAssetAtPath<Material>(path) : null;
-            isNew = mat == null;
-            if (isNew) return new Material(shader) { name = name };
-            // Start from a clean material (keeps the asset GUID): drops properties and keywords of older versions.
-            var fresh = new Material(shader);
-            EditorUtility.CopySerialized(fresh, mat);
-            Object.DestroyImmediate(fresh);
-            mat.name = name;
+            var scope = PackImportScope.Current;
+            if (scope == null) return Persist(built, $"{folder}/{name}.mat");
+            var key = AssetDeduplicator.MaterialKey(built);
+            var path = scope.MaterialPath(folder, name, key, out var claimed);
+            if (claimed != null)
+            {
+                Object.DestroyImmediate(built);
+                return claimed;
+            }
+            built.name = Path.GetFileNameWithoutExtension(path);
+            var mat = Persist(built, path);
+            scope.Claim(path, key, mat);
             return mat;
+        }
+
+        // The asset at <path> is updated in place when it differs (keeping its GUID, dropping properties and keywords of
+        // older versions). Without one, an equal material the pack already has is reused before a new asset is made.
+        static Material Persist(Material built, string path)
+        {
+            var stored = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (stored == null)
+            {
+                stored = PackImportScope.Current?.FindMaterial(built);
+                if (stored == null)
+                {
+                    AssetDatabase.CreateAsset(built, path);
+                    return built;
+                }
+            }
+            else if (AssetDeduplicator.MaterialKey(stored) != AssetDeduplicator.MaterialKey(built))
+            {
+                EditorUtility.CopySerialized(built, stored);
+                EditorUtility.SetDirty(stored);
+            }
+            Object.DestroyImmediate(built);
+            return stored;
         }
 
         void ApplyBaseColour(Material mat, JObject json, string baseName)
@@ -238,7 +263,9 @@ namespace MHK.Editor.Modding.Import
 
         Texture2D TextureAsset(byte[] bytes, string name, string ext, TextureWrapMode wrapU, TextureWrapMode wrapV, FilterMode filter)
         {
-            var path = FindOrWriteImage(o.textureFolder.TrimEnd('/'), name, ext, bytes, out var written);
+            var path = FindOrWriteImage(o.textureFolder.TrimEnd('/'), name, ext, bytes, p =>
+                AssetImporter.GetAtPath(p) is TextureImporter { textureType: TextureImporterType.Default, textureShape: TextureImporterShape.Texture2D, mipmapEnabled: true } other &&
+                other.wrapModeU == wrapU && other.wrapModeV == wrapV && other.filterMode == filter, out var written);
             if (AssetImporter.GetAtPath(path) is TextureImporter ti && (written || ti.wrapModeU != wrapU || ti.wrapModeV != wrapV || ti.filterMode != filter))
             {
                 ConfigureColourTexture(ti, written ? HasTranslucentPixel(bytes) : ti.alphaIsTransparency, MaxTextureSize, AndroidMaxTextureSize);
@@ -250,7 +277,9 @@ namespace MHK.Editor.Modding.Import
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
         }
 
-        static string FindOrWriteImage(string folder, string name, string ext, byte[] bytes, out bool written)
+        // The image in <folder> under its name (or name_hash when another image has it), else an equal one elsewhere in the
+        // pack that <reusable> accepts, else written to <folder>.
+        static string FindOrWriteImage(string folder, string name, string ext, byte[] bytes, System.Func<string, bool> reusable, out bool written)
         {
             written = false;
             var plain = $"{folder}/{name}{ext}";
@@ -263,6 +292,8 @@ namespace MHK.Editor.Modding.Import
                     AssetDatabase.ImportAsset(candidate, ImportAssetOptions.ForceSynchronousImport);
                 return candidate;
             }
+            var existing = PackImportScope.Current?.FindFile(bytes, name + ext, reusable);
+            if (existing != null) return existing;
             var target = File.Exists(Path.GetFullPath(plain)) ? hashed : plain;
             File.WriteAllBytes(Path.GetFullPath(target), bytes);
             AssetDatabase.ImportAsset(target, ImportAssetOptions.ForceSynchronousImport);
@@ -357,15 +388,20 @@ namespace MHK.Editor.Modding.Import
             if (flipbooks.TryGetValue(signature, out var array)) return array;
             var seq = AssetPaths.SafeFileName(GlbReader.Str(anim["sequence"], Path.GetFileNameWithoutExtension(files[0])).ToLowerInvariant());
             var dir = o.textureFolder.TrimEnd('/') + "/Flipbooks";
-            AssetPaths.EnsureFolder(dir);
             var path = $"{dir}/{seq}_{files.Length}.png";
             array = AssetDatabase.LoadAssetAtPath<Texture2DArray>(path);
-            if (array == null || AssetImporter.GetAtPath(path) is not TextureImporter ti || ti.userData != signature)
+            if (array != null && AssetImporter.GetAtPath(path) is TextureImporter ti && ti.userData == signature) return flipbooks[signature] = array;
+            // Without a sheet here, one the pack keeps elsewhere from the same frames will do.
+            var existing = array == null
+                ? PackImportScope.Current?.FindFile(".png", p => AssetImporter.GetAtPath(p) is TextureImporter other && other.userData == signature)
+                : null;
+            if (existing == null)
             {
+                AssetPaths.EnsureFolder(dir);
                 WriteFlipbook(files, path, signature);
-                array = AssetDatabase.LoadAssetAtPath<Texture2DArray>(path);
+                existing = path;
             }
-            return flipbooks[signature] = array;
+            return flipbooks[signature] = AssetDatabase.LoadAssetAtPath<Texture2DArray>(existing);
         }
 
         static void WriteFlipbook(string[] files, string path, string signature)

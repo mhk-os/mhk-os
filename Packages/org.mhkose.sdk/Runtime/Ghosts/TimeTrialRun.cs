@@ -280,7 +280,7 @@ namespace MHK.Ghosts
             {
                 id = Guid.NewGuid().ToString("N"),
                 gameBuild = BuildInfo.Commit,
-                simVersion = SimulationVersion.Current,
+                contentVersion = ContentVersion.Current,
                 // The account name when there is one: the server lists runs under it, the file should not disagree.
                 playerName = settings.SignatureName,
                 playerId = settings.EnsurePlayerId(),

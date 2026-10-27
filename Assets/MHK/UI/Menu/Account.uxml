@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Online account. Logged out (signed-out): the mode chips (modes: Log in, Register), username, password and, when registering, confirm (confirm-block) and the rules line; submit sends (Enter too) and shows busy while it waits. Logged in (signed-in): the username, the moderator badge (role 1), the member-since line, the score rank line (account-rank), the country row (dropdown: Auto from the IP, then every country), the players list switch (listed: On / Off), Your profile (profile: the Players page on the own row) and Log out. form-status shows the last error or result (class good for a success). The connection line (connection-icon, class online on connection-bar while connected) names the server and its state; server-toggle opens server-box: the server address field (placeholder = built-in server, empty = built-in), server-apply saves it and reconnects, server-note says when the command line overrides it. reconnect (footer) connects again while offline. Preview classes on page: preview-signed-in (the logged-in view), preview-register (register mode), preview-status (the status line), preview-server (server box open), preview-offline (Reconnect). -->
+    <!-- Online account. Logged out (signed-out): the mode chips (modes: Log in, Register), username, password and, when registering, confirm (confirm-block) and the rules line; submit sends (Enter too) and shows busy while it waits. Logged in (signed-in): the username, the moderator badge (role 1), the member-since line, the score rank line (account-rank), the country row (dropdown: Auto from the IP, then every country), the players list switch (listed: On / Off), Your profile (profile: the Players page on the own row), Log out and the red Delete account (delete). delete opens delete-box in place of the rows and buttons (class deleting on signed-in): the password (delete-password, Enter confirms), the runs switch (delete-runs: Off keeps the time trial runs as Anonymous, On hides them too), delete-status with the server's error, Cancel (delete-cancel, Back too) and delete-confirm. form-status shows the last error or result (class good for a success). The connection line (connection-icon, class online on connection-bar while connected) names the server and its state; server-toggle opens server-box: the server address field (placeholder = built-in server, empty = built-in), server-apply saves it and reconnects, server-note says when the command line overrides it. achievements (footer) opens the Achievements page; reconnect (footer) connects again while offline. Preview classes on page: preview-signed-in (the logged-in view), preview-register (register mode), preview-status (the status line), preview-server (server box open), preview-offline (Reconnect), preview-delete (with preview-signed-in: the delete box open). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
@@ -64,6 +64,33 @@
                             <ui:VisualElement class="icon i-logout" />
                             <ui:Label text="Log out" class="button-label" />
                         </ui:Button>
+                        <ui:Button name="delete" class="mhk-button danger acc-delete">
+                            <ui:VisualElement class="icon i-delete" />
+                            <ui:Label text="Delete account" class="button-label" />
+                        </ui:Button>
+                        <ui:VisualElement name="delete-box" class="acc-delete-box">
+                            <ui:Label text="Delete your account?" class="acc-delete-title" />
+                            <ui:Label text="Your account, its score, achievements and votes are deleted for good. Enter your password to confirm." class="acc-delete-text" />
+                            <ui:TextField name="delete-password" password="true" max-length="128" class="acc-input" />
+                            <ui:Instance template="SettingRow" name="delete-runs" class="setting-row acc-delete-runs">
+                                <ui:AttributeOverrides element-name="setting-label" text="Also delete my time trial runs" />
+                                <ui:AttributeOverrides element-name="setting-value-label" text="Off" />
+                            </ui:Instance>
+                            <ui:Label name="delete-runs-note" text="Otherwise they stay on the leaderboards as Anonymous." class="acc-delete-text" />
+                            <ui:VisualElement name="delete-status" class="acc-status">
+                                <ui:VisualElement class="icon i-error" />
+                                <ui:Label name="delete-status-label" text="Wrong password." class="acc-status-label" />
+                            </ui:VisualElement>
+                            <ui:VisualElement class="acc-delete-buttons">
+                                <ui:Button name="delete-cancel" class="mhk-button small secondary">
+                                    <ui:Label text="Cancel" class="button-label" />
+                                </ui:Button>
+                                <ui:Button name="delete-confirm" class="mhk-button small danger">
+                                    <ui:VisualElement class="icon i-delete" />
+                                    <ui:Label name="delete-confirm-label" text="Delete forever" class="button-label" />
+                                </ui:Button>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
                     </ui:VisualElement>
                     <ui:VisualElement name="form-status" class="acc-status">
                         <ui:VisualElement name="form-status-icon" class="icon i-error" />
@@ -100,6 +127,10 @@
                 </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right">
+                <ui:Button name="achievements" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-emoji_events" />
+                    <ui:Label text="Achievements" class="button-label" />
+                </ui:Button>
                 <ui:Button name="reconnect" class="mhk-button small secondary acc-reconnect">
                     <ui:VisualElement class="icon i-sync" />
                     <ui:Label text="Reconnect" class="button-label" />

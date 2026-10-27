@@ -347,7 +347,13 @@ namespace MHK.UI
             if (isUploaded)
             {
                 row.SetText("ghost-uploaded-label", run.rank > 0 ? string.Format(uploadedRankFormat, run.rank) : "");
-                uploaded.tooltip = run.hidden ? uploadedHiddenTip : run.rank > 0 ? string.Format(uploadedRankTip, run.rank) : uploadedSlowerTip;
+                if (run.hidden)
+                {
+                    HiddenReasons.Attach(uploaded, run.runId, uploadedHiddenTip, row);
+                    return;
+                }
+                HiddenReasons.Detach(uploaded);
+                uploaded.tooltip = run.rank > 0 ? string.Format(uploadedRankTip, run.rank) : uploadedSlowerTip;
                 return;
             }
             var running = uploading.Contains(entry.Id) ||
@@ -478,7 +484,7 @@ namespace MHK.UI
         async Awaitable RaceAsync(TrackDefinition track)
         {
             // The player's own uploads are stored ghosts already; only the others' runs need their file.
-            var missing = pickOrder.Where(id => pickedRuns.ContainsKey(id) && !localRows.Exists(l => l.entry.Id == id) && !OnlineGhostCache.TryGet(id, out _))
+            var missing = pickOrder.Where(id => pickedRuns.ContainsKey(id) && !localRows.Exists(l => l.entry.Id == id) && !OnlineTimeTrials.IsCached(pickedRuns[id]))
                 .Select(id => pickedRuns[id]).ToList();
             if (missing.Count > 0)
             {
@@ -512,7 +518,7 @@ namespace MHK.UI
         // Downloads every run (OnlineTimeTrials runs a few at a time), showing the progress; null when all arrived.
         async Task<string> DownloadAll(List<RunEntry> runs)
         {
-            var pending = runs.Select(r => OnlineTimeTrials.Download(r.runId)).ToList();
+            var pending = runs.Select(OnlineTimeTrials.Download).ToList();
             var all = pending.Count;
             var failed = 0;
             string reason = null;
@@ -550,7 +556,7 @@ namespace MHK.UI
             busy = true;
             UpdateRace();
             SetStatus(string.Format(downloadingFormat, 0, 1));
-            var r = await OnlineTimeTrials.Download(run.runId);
+            var r = await OnlineTimeTrials.Download(run);
             busy = false;
             if (!IsBound) return;
             UpdateRace();

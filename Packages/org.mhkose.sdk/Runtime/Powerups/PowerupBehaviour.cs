@@ -155,8 +155,18 @@ namespace MHK.Powerups
         /// <summary>The kart exists, races and is not a ghost, so items can hit it.</summary>
         protected static bool IsTangible(Kart k) => k != null && !k.Eliminated && !k.Effects.Ghost;
 
-        /// <summary>Applies <paramref name="effect"/> from the owner as this item's use. True when it landed or there is no effect.</summary>
-        protected bool HitKart(Kart k, StatusEffectDefinition effect) => effect == null || KartReactions.Apply(k, effect, Owner, -1f, Usage);
+        /// <summary>
+        /// Applies <paramref name="effect"/> from the owner as this item's use (for <paramref name="durationOverride"/>
+        /// seconds, negative = its own). True when it landed or there is no effect. A planted hazard
+        /// (<see cref="IPlantedHazard"/>) that catches its owner counts for the owner's achievements.
+        /// </summary>
+        protected bool HitKart(Kart k, StatusEffectDefinition effect, float durationOverride = -1f)
+        {
+            if (effect == null) return true;
+            if (!KartReactions.Apply(k, effect, Owner, durationOverride, Usage)) return false;
+            if (k == Owner && this is IPlantedHazard) Achievements.RaceAchievements.OwnHazard(k, Usage);
+            return true;
+        }
 
         /// <summary>This item's use (<see cref="PowerupContext.usage"/>): pass it to <see cref="KartReactions.Apply"/> hits.</summary>
         protected int Usage => Context.usage;
@@ -194,6 +204,9 @@ namespace MHK.Powerups
 
         /// <summary>Plays a one-shot at <paramref name="at"/> with <see cref="soundVolume"/>, carrying as far as <paramref name="range"/> says.</summary>
         protected void PlaySfx(AudioClip clip, Vector3 at, SoundRange range = null) => AudioManager.PlaySfx(clip, at, soundVolume, 1f, range);
+
+        /// <summary><see cref="PlaySfx(AudioClip, Vector3, SoundRange)"/> following <paramref name="target"/> (a kart it belongs to).</summary>
+        protected void PlaySfx(AudioClip clip, Transform target, SoundRange range = null) => AudioManager.PlaySfx(clip, target, soundVolume, 1f, range);
 
         /// <summary>Spawns <paramref name="vfx"/> and <paramref name="sound"/> at <paramref name="at"/> and removes this object.</summary>
         protected void Despawn(GameObject vfx, Vector3 at, AudioClip sound, SoundRange range = null)

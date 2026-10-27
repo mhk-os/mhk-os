@@ -183,13 +183,14 @@ namespace MHK.Powerups
             if (Config.usingItemCancelsBuffs) kart.Effects.EndExclusiveBuffs();
             var online = OnlineItems.IsLocal(kart);
             var usage = online ? OnlineItems.NextUseId() : NextUsage();
+            Achievements.RaceAchievements.ItemUsed(kart, def, usage);
             transform.GetPositionAndRotation(out var position, out var rotation);
             GameObject spawned = null;
             if (def.usePrefab != null)
                 spawned = PowerupFx.SpawnAndLaunch(def.usePrefab, position, rotation, new PowerupContext(kart, def, backwards, usage));
             else Debug.LogWarning($"[Powerups] '{def.Id}' has no use prefab.");
             if (online) OnlineItems.SendUse(usage, position, rotation, backwards, spawned);
-            Audio.AudioManager.PlaySfx(def.useSound, position);
+            Audio.AudioManager.PlaySfx(def.useSound, transform);
             Charges--;
             if (Charges <= 0) Clear();
             else cooldownUntilTick = RaceClock.Ticks + StepsOf(def.useCooldown);

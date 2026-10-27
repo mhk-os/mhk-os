@@ -206,12 +206,12 @@ namespace MHK.Online
     /// <summary>Request 256: the gameplay content of every enabled pack, as manifest hashes.</summary>
     public sealed class ContentHelloRequest
     {
-        public int simVersion;
+        public int contentVersion;
         public List<PackRef> packs = new();
 
         public void Write(WireWriter w)
         {
-            w.I32(simVersion);
+            w.I32(contentVersion);
             w.ListCount(packs.Count, LobbyLimits.AnnouncedPacks);
             foreach (var p in packs) p.Write(w);
         }
@@ -262,7 +262,7 @@ namespace MHK.Online
     {
         public string packId = "";
         public string commit = "";
-        public int simVersion;
+        public int contentVersion;
         public string manifestHash = "";
         public List<ManifestItem> items = new();
 
@@ -270,7 +270,7 @@ namespace MHK.Online
         {
             w.String(packId, LobbyLimits.PackId);
             w.String(commit, LobbyLimits.Commit);
-            w.I32(simVersion);
+            w.I32(contentVersion);
             w.String(manifestHash, LobbyLimits.Hash);
             w.ListCount(items.Count, LobbyLimits.ManifestItems);
             foreach (var item in items)
@@ -369,7 +369,7 @@ namespace MHK.Online
         public int players;
         public int maxPlayers;
         public LobbyPhase phase;
-        public int simVersion;
+        public int contentVersion;
         /// <summary>0-2 (<see cref="Difficulty"/>).</summary>
         public int engineClass;
         /// <summary>Race of the running set (1-based), 0 when no set runs.</summary>
@@ -390,7 +390,7 @@ namespace MHK.Online
             TimeTrialWire.U8(w, players);
             TimeTrialWire.U8(w, maxPlayers);
             w.U8((byte)phase);
-            w.I32(simVersion);
+            w.I32(contentVersion);
             TimeTrialWire.U8(w, engineClass);
             TimeTrialWire.U8(w, setRace);
             TimeTrialWire.U8(w, setSize);
@@ -400,7 +400,7 @@ namespace MHK.Online
         {
             lobbyId = r.I64(), isPublic = r.U8() == 0, category = r.U8(), instance = r.U16(), name = r.String(LobbyLimits.LobbyName),
             mode = (RoomMode)r.U8(), anticheat = r.Bool(), packs = LobbyWire.Strings(r, LobbyLimits.RoomPacks, LobbyLimits.PackId),
-            players = r.U8(), maxPlayers = r.U8(), phase = (LobbyPhase)r.U8(), simVersion = r.I32(), engineClass = r.U8(), setRace = r.U8(),
+            players = r.U8(), maxPlayers = r.U8(), phase = (LobbyPhase)r.U8(), contentVersion = r.I32(), engineClass = r.U8(), setRace = r.U8(),
             setSize = r.U8(),
         };
 

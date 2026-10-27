@@ -15,15 +15,16 @@ namespace MHK.UI
         public static string FlagsTipOne { get; set; } = "Reported by 1 player";
         public static string HideTip { get; set; } = "Hide this run";
         public static string UnhideTip { get; set; } = "Show this run again";
-        public static string HiddenTip { get; set; } = "Hidden by a moderator";
+        /// <summary>Tooltip of a hidden run until <see cref="HiddenReasons"/> knows why.</summary>
+        public static string HiddenTip { get; set; } = "Hidden";
 
         static readonly string[] MedalClasses = { "medal-1", "medal-2", "medal-3" };
 
         /// <summary>
         /// Texts, pictures and state classes of <paramref name="row"/>: rank (medals for the top three), driver and kart
         /// pictures, name (and You when it is the logged-in account's), country, <paramref name="sub"/> (null hides the
-        /// line), flags (moderators only), setup mismatch, hidden, time and best lap. <paramref name="alt"/> shades every
-        /// second row.
+        /// line), flags (moderators only), setup mismatch, hidden (its reason loaded on hover or focus), time and best lap.
+        /// <paramref name="alt"/> shades every second row.
         /// </summary>
         public static void Fill(VisualElement row, RunEntry run, bool alt, string sub = null)
         {
@@ -34,6 +35,7 @@ namespace MHK.UI
             row.EnableInClassList("flagged", run.flags > 0 && OnlineService.IsModerator);
             row.EnableInClassList("mismatch", run.setupMismatch);
             row.EnableInClassList("hidden-run", run.hidden);
+            if (run.hidden) HiddenReasons.Attach(row.Q("lb-hidden"), run.runId, HiddenTip, row);
             var rank = row.Q<Label>("lb-rank");
             rank.text = run.rank > 0 ? run.rank.ToString(System.Globalization.CultureInfo.InvariantCulture) : NoRankText;
             rank.SetExclusiveClass(run.rank - 1, MedalClasses);
@@ -59,14 +61,21 @@ namespace MHK.UI
 
         /// <summary>
         /// The uploader's rank tag (lb-player-rank, through <paramref name="ranks"/>) and player card: hovering or tapping
-        /// the name, or the row's lb-profile button (the gamepad's way), opens it with <paramref name="options"/>.
+        /// the name, or the row's lb-profile button (the gamepad's way), opens it with <paramref name="options"/>. Runs of
+        /// deleted accounts (<see cref="RunEntry.Anonymous"/>) have neither, except for moderators.
         /// </summary>
         public static void AttachPlayer(VisualElement row, RunEntry run, RankTags ranks, PlayerCardOptions options)
         {
+            var profile = row.Q<Button>("lb-profile");
+            if (run.Anonymous && !OnlineService.IsModerator)
+            {
+                profile.SetVisible(false);
+                return;
+            }
             ranks.Add(row.Q<Label>("lb-player-rank"), run.accountId);
             var name = row.Q<Label>("lb-name");
             PlayerCard.Attach(name, run.accountId, run.username, options);
-            PlayerCard.Attach(row.Q<Button>("lb-profile"), name, run.accountId, run.username, options);
+            PlayerCard.Attach(profile, name, run.accountId, run.username, options);
         }
 
         /// <summary>

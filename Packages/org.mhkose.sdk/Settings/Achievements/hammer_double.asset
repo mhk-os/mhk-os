@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a6c37a748ec94154a94b863e44489a1, type: 3}
+  m_Name: hammer_double
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Achievements.AchievementDefinition
+  id: core.achievement.hammer_double
+  displayName: Two for One
+  sourceGame: core
+  icon: {fileID: 0}
+  hidden: 0
+  description: Hit 2 karts with a single swing of the Wooden Hammer.
+  iconName: repeat
+  secret: 0
+  secretTitle: Secret achievement
+  secretDescription: Keep playing to find out.
+  order: 71
+  kind: 1
+  stats:
+  - use.mhke.wooden_hammer.hits
+  target: 2
+  stat: 
+  collect: 0
+  requiredPacks:
+  - mhke
+  unit: 
+  displayScale: 1

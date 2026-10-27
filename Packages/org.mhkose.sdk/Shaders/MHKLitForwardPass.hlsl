@@ -140,7 +140,7 @@ half4 frag(Varyings i) : SV_Target
     #ifdef _GLOW
         col += MHKGlow(i.uv, tex.rgb) * _Tint.rgb;
     #endif
-    col = MixFog(col, i.fogFactor);
+    col = lerp(col, MixFog(col, i.fogFactor), _Fog);
     return half4(col, tex.a * _Tint.a);
 }
 

@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing and nothing downloads, the dot on mods (notify-dot: class on, red for an update, downloading blue while something downloads), game-update next to the version when a newer game release exists, quit is hidden on mobile (desktop-only) and in WebGL builds. online opens the Online page (which offers the Account page while logged out). account (footer) opens the Account page; its label is the online username, or Log in. While a stored login is not online, account gets class connecting (account-icon sync) or offline (account-icon cloud_off, error when the server refused the session) and a tooltip with the reason. -->
+    <!-- Title screen. Code fills logo (GameConfig.gameLogo, logo-text instead when there is none) and version, shows get-mods while built-in mods are missing and nothing downloads, the dot on mods (notify-dot: class on, red for an update, downloading blue while something downloads), game-update next to the version when a newer game release exists, quit is hidden on mobile (desktop-only) and in WebGL builds. online opens the Online page (which offers the Account page while logged out). achievements (footer, trophy) opens the Achievements page. account (footer) opens the Account page; its label is the online username, or Log in. While a stored login is not online, account gets class connecting (account-icon sync) or offline (account-icon cloud_off, error when the server refused the session) and a tooltip with the reason. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="page" class="title-page">
         <ui:VisualElement class="title-body">
@@ -69,6 +69,9 @@
                 </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right">
+                <ui:Button name="achievements" tooltip="Achievements" class="mhk-button small secondary icon-only">
+                    <ui:VisualElement class="icon i-emoji_events"/>
+                </ui:Button>
                 <ui:Button name="account" tooltip="Your online account: log in, register, country." class="mhk-button small secondary title-account">
                     <ui:VisualElement name="account-icon" class="icon i-account_circle"/>
                     <ui:Label name="account-label" text="Log in" class="button-label"/>

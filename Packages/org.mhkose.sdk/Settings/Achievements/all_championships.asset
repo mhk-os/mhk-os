@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a6c37a748ec94154a94b863e44489a1, type: 3}
+  m_Name: all_championships
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Achievements.AchievementDefinition
+  id: core.achievement.all_championships
+  displayName: Champion of Champions
+  sourceGame: core
+  icon: {fileID: 0}
+  hidden: 0
+  description: Win every race of every championship of Moorhuhn Kart 2, 3, Extra and Thunder.
+  iconName: stadium
+  secret: 0
+  secretTitle: Secret achievement
+  secretDescription: Keep playing to find out.
+  order: 31
+  kind: 2
+  stats: []
+  target: 0
+  stat: cups.perfect
+  collect: 2
+  requiredPacks:
+  - mhk2
+  - mhk3
+  - mhke
+  - mhkt
+  unit: championships
+  displayScale: 1

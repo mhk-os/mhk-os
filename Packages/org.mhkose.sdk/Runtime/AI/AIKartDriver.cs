@@ -37,6 +37,7 @@ namespace MHK.AI
         readonly AISteering steering;
         readonly AICornerPlanner corners;
         readonly AIStuckRecovery stuck;
+        readonly AIRamThreat rams;
         float scanTimer;
         float halfWidth;
         int obstacleMask;
@@ -64,11 +65,13 @@ namespace MHK.AI
             var rollSeed = rng.Next();
             battleSeed = rollSeed ^ BattleSalt;
             scanTimer = rng.NextFloat() * ScanSpread;
-            line = new AIRouteFollower(difficulty, rollSeed);
+            rams = new AIRamThreat(difficulty, rollSeed);
+            line = new AIRouteFollower(rollSeed);
             feelers = new AIFeelers(line);
-            lanes = new AILanePlanner(difficulty, board, line, feelers, rollSeed, noiseSeed, laneU);
-            steering = new AISteering(line);
-            corners = new AICornerPlanner(line);
+            lanes = new AILanePlanner(difficulty, board, line, feelers, rams, rollSeed, noiseSeed, laneU);
+            var turn = new AITurnLimit();
+            steering = new AISteering(line, turn);
+            corners = new AICornerPlanner(line, turn);
             stuck = new AIStuckRecovery(line);
         }
 
@@ -106,6 +109,7 @@ namespace MHK.AI
                 input.brake = speed > CoastBrakeSpeed * s ? CoastBrake : 0f;
                 return;
             }
+            rams.Tick(kart, halfWidth);
             if (battle != null)
                 stuck.SetBattleAim(battle.Navigating ? battle.SteerPoint : line.Point(StuckAimAhead, AILanes.Centre), !battle.Navigating || battle.ForwardSafe);
             if (stuck.Tick(kart, dt, cfg, ref input)) return;
@@ -118,11 +122,12 @@ namespace MHK.AI
 
             var steerAhead = steering.Ahead(speed);
             ScanIfDue(kart, speed, steerAhead, dt, cfg);
-            var clear = lanes.Plan(kart, speed, Kart.All.Count > 1 ? FreeSpeed(kart, speed, s, cfg) : 0f, dt, roadShift, cfg);
+            var corner = corners.CornerSpeed(kart, speed, s, lanes.Lane);
+            var clear = lanes.Plan(kart, speed, Mathf.Min(kart.NormalTopSpeed, corner), dt, roadShift, cfg);
             steering.Steer(kart, Mathf.Max(MinSteerAhead, steerAhead * feelers.AheadScale), lanes.Lane, cfg, dt, ref input);
             // Always full throttle (no speed cap below the player's): only bends, walls and blocked karts ahead brake.
             var throttle = 1f;
-            ApplyBrakes(speed, BrakeSpeed(kart, speed, s, clear, cfg), s, ref input, ref throttle);
+            ApplyBrakes(speed, BrakeSpeed(corner, s, clear, cfg), s, ref input, ref throttle);
             input.throttle = throttle;
             items.Tick(kart, ref input, dt, cfg);
         }
@@ -143,7 +148,7 @@ namespace MHK.AI
             var race = RaceManager.Current;
             if (race == null || !race.IsBattle) return;
             var arena = race.Track != null && race.Track.layout == TrackLayout.Arena;
-            battle = new AIBattleDriving(difficulty, cfg.GetBattleAi(race.Session.difficulty), arena, board, battleSeed);
+            battle = new AIBattleDriving(difficulty, cfg.GetBattleAi(race.Session.difficulty), arena, board, rams, battleSeed);
         }
 
         void FollowLine(Kart kart, TrackRuntime track, float speed, GameConfig cfg)
@@ -164,13 +169,10 @@ namespace MHK.AI
             feelers.Scan(kart.transform, range, steerAhead, lanes.Lane, FeelerRadius, obstacleMask, cfg.aiPushableMass);
         }
 
-        // Speed without traffic: the kart's top speed, or less for a bend ahead.
-        float FreeSpeed(Kart kart, float speed, float s, GameConfig cfg) =>
-            Mathf.Min(kart.NormalTopSpeed, corners.CornerSpeed(kart, speed, s, lanes.Lane, cfg));
-
-        float BrakeSpeed(Kart kart, float speed, float s, float clear, GameConfig cfg)
+        // corner: the bend planner's speed (AICornerPlanner.CornerSpeed).
+        float BrakeSpeed(float corner, float s, float clear, GameConfig cfg)
         {
-            var vmax = corners.CornerSpeed(kart, speed, s, lanes.Lane, cfg);
+            var vmax = corner;
             // Walls or solid bodies block every lane ahead: slow enough to stop or squeeze past. Loose props are not braked for.
             if (clear < feelers.Range - 0.01f)
                 vmax = Mathf.Min(vmax, Mathf.Sqrt(2f * cfg.aiPlanBraking * Mathf.Max(0f, clear - WallStopMargin)) + SqueezeSpeed * s);

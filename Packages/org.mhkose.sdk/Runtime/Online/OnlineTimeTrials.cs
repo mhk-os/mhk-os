@@ -27,17 +27,16 @@ namespace MHK.Online
         // Runs of the logged-in account by ghost id, from uploads and MyRuns; valid for uploadedFor only.
         [AutoStaticsCleanup] static Dictionary<string, RunEntry> uploaded;
         [AutoStaticsCleanup] static ulong uploadedFor;
-        [AutoStaticsCleanup] static Dictionary<long, string> ghostOfRun;
-        [AutoStaticsCleanup] static Dictionary<long, Task<OnlineResult<OnlineGhostInfo>>> downloads;
+        [AutoStaticsCleanup] static Dictionary<string, Task<OnlineResult<OnlineGhostInfo>>> downloads;
         [AutoStaticsCleanup] static Queue<TaskCompletionSource<bool>> waitingDownloads;
         [AutoStaticsCleanup] static int activeDownloads;
         [AutoStaticsCleanup] static string autoUploadGhost;
         [AutoStaticsCleanup] static Task<OnlineResult<UploadResult>> autoUpload;
 
-        /// <summary>Boards of <paramref name="trackId"/>, most recent upload first. 255 = any engine class, simVersion 0 = any.</summary>
-        public static Task<OnlineResult<List<BoardInfo>>> ListBoards(string trackId, int engineClass, int simVersion)
+        /// <summary>Boards of <paramref name="trackId"/>, most recent upload first. 255 = any engine class, contentVersion 0 = any.</summary>
+        public static Task<OnlineResult<List<BoardInfo>>> ListBoards(string trackId, int engineClass, int contentVersion)
         {
-            var request = new ListBoardsRequest { trackId = trackId ?? "", engineClass = (byte)Mathf.Clamp(engineClass, 0, 255), simVersion = simVersion };
+            var request = new ListBoardsRequest { trackId = trackId ?? "", engineClass = (byte)Mathf.Clamp(engineClass, 0, 255), contentVersion = contentVersion };
             return OnlineService.Call(MessageType.ListBoards, request.Write, ListBoardsRequest.ReadAnswer, false);
         }
 
@@ -52,10 +51,20 @@ namespace MHK.Online
             return OnlineService.Call(MessageType.GetLeaderboard, request.Write, LeaderboardPage.Read, false);
         }
 
-        /// <summary>Uploads the stored file of a local ghost; remembers the run for <see cref="TryGetUploaded"/>.</summary>
+        /// <summary>
+        /// Uploads the stored file of a local ghost; remembers the run for <see cref="TryGetUploaded"/>. Refused here when the
+        /// run's kart, character or track is replaced by a mod (as the server would), and only sent once the content is
+        /// announced: the server checks the run against it.
+        /// </summary>
         public static async Task<OnlineResult<UploadResult>> Upload(GhostEntry entry)
         {
             if (entry == null || string.IsNullOrEmpty(entry.location)) return OnlineResult.Failed("This ghost has no file to upload.");
+            var modified = ModifiedContent(entry.header);
+            if (modified != null) return new OnlineResult(Status.Forbidden, modified);
+            var login = await OnlineService.EnsureLoggedIn();
+            if (!login.Ok) return login;
+            var content = await OnlineLobby.EnsureContent();
+            if (!content.Ok) return content;
             byte[] file;
             try
             {
@@ -70,41 +79,73 @@ namespace MHK.Online
             if (r.Ok)
             {
                 Remember(r.value.run);
+                Achievements.AchievementStats.Add(Achievements.AchievementStats.TimeTrialsUploaded);
                 Changed?.Invoke();
             }
             return r;
         }
 
-        /// <summary>
-        /// The ghost of run <paramref name="runId"/> in <see cref="OnlineGhostCache"/>: at once when cached, else downloaded
-        /// (at most <see cref="MaxConcurrentDownloads"/> at a time, one download per run however often it is asked for),
-        /// checked to be a ghost file and stored with the uploader's name.
-        /// </summary>
-        public static Task<OnlineResult<OnlineGhostInfo>> Download(long runId)
+        // Why the server refuses this run for its content, as far as this game can tell (replaced ids), null when it would not.
+        static string ModifiedContent(GhostHeader h)
         {
-            if (TryGetCached(runId, out var info)) return Task.FromResult(new OnlineResult<OnlineGhostInfo>(OnlineResult.Success, info));
-            downloads ??= new Dictionary<long, Task<OnlineResult<OnlineGhostInfo>>>();
-            if (downloads.TryGetValue(runId, out var running)) return running;
-            var task = DownloadAsync(runId);
-            if (!task.IsCompleted) downloads[runId] = task;
+            var registry = GameRoot.Instance != null ? GameRoot.Instance.Content : null;
+            if (registry == null || h == null) return null;
+            return Replaced(registry, h.kartId) ?? Replaced(registry, h.characterId) ?? Replaced(registry, h.trackId);
+        }
+
+        static string Replaced(Modding.ContentRegistry registry, string id)
+        {
+            var by = ContentManifests.OverriddenBy(registry, id);
+            return by != null ? $"This run uses {id} replaced by {by}. Runs with modified content can't be uploaded." : null;
+        }
+
+        /// <summary>
+        /// The ghost of <paramref name="run"/> in <see cref="OnlineGhostCache"/>: at once when cached for this run, else
+        /// downloaded (at most <see cref="MaxConcurrentDownloads"/> at a time, one download per run however often it is
+        /// asked for), checked to be a ghost file and stored with the uploader's name.
+        /// </summary>
+        public static Task<OnlineResult<OnlineGhostInfo>> Download(RunEntry run)
+        {
+            if (IsCached(run)) return Task.FromResult(new OnlineResult<OnlineGhostInfo>(OnlineResult.Success, CachedInfo(run)));
+            downloads ??= new Dictionary<string, Task<OnlineResult<OnlineGhostInfo>>>(StringComparer.OrdinalIgnoreCase);
+            if (downloads.TryGetValue(run.ghostId, out var running)) return running;
+            var task = DownloadAsync(run);
+            if (!task.IsCompleted) downloads[run.ghostId] = task;
             return task;
         }
 
-        /// <summary>Reports what the ghost validator found in run <paramref name="runId"/>; the answer is the run's flag count.</summary>
-        public static async Task<OnlineResult<int>> ReportRun(long runId, FlagReason reason, float atSeconds, string detail)
+        /// <summary>
+        /// Whether the cache holds <paramref name="run"/>'s ghost as this run: run ids repeat across servers (and a reset
+        /// database), so a cached ghost of the same id with another run id is downloaded again, which also keeps reports of
+        /// it going to the right run.
+        /// </summary>
+        public static bool IsCached(RunEntry run) => CachedInfo(run) != null;
+
+        static OnlineGhostInfo CachedInfo(RunEntry run) =>
+            run != null && OnlineGhostCache.TryGet(run.ghostId, out var info) && info.runId == run.runId ? info : null;
+
+        /// <summary>
+        /// Reports what the ghost validator found in run <paramref name="runId"/> (the downloaded ghost
+        /// <paramref name="ghostId"/>); the answer is the run's flag count.
+        /// </summary>
+        public static async Task<OnlineResult<int>> ReportRun(string ghostId, long runId, FlagReason reason, float atSeconds, string detail)
         {
             var request = new ReportRunRequest
             {
                 runId = runId, reason = reason, atSeconds = float.IsFinite(atSeconds) ? atSeconds : 0f, detail = Clip(detail, RunReport.MaxDetail),
             };
             var r = await OnlineService.Call<int>(MessageType.ReportRun, request.Write, TimeTrialWire.U32, true);
-            if (r.Ok && TryGetCached(runId, out var info) && info.flags != r.value)
+            if (r.Ok && OnlineGhostCache.TryGet(ghostId, out var info) && info.runId == runId && info.flags != r.value)
             {
                 info.flags = r.value;
                 OnlineGhostCache.Update(info);
             }
             return r;
         }
+
+        /// <summary>Why run <paramref name="runId"/> is hidden: for moderators, and for the run's owner (NotFound otherwise).</summary>
+        public static Task<OnlineResult<RunHiddenInfo>> HiddenReason(long runId) =>
+            OnlineService.Call(MessageType.RunHiddenReason, new IdRequest { id = runId }.Write, RunHiddenInfo.Read, true);
 
         /// <summary>Every run of the logged-in account on <paramref name="trackId"/> (all boards, hidden ones too).</summary>
         public static async Task<OnlineResult<List<RunEntry>>> MyRuns(string trackId)
@@ -167,19 +208,7 @@ namespace MHK.Online
             uploaded[run.ghostId] = run;
         }
 
-        static bool TryGetCached(long runId, out OnlineGhostInfo info)
-        {
-            info = null;
-            if (ghostOfRun == null)
-            {
-                ghostOfRun = new Dictionary<long, string>();
-                foreach (var g in OnlineGhostCache.All)
-                    if (g != null) ghostOfRun[g.runId] = g.ghostId;
-            }
-            return ghostOfRun.TryGetValue(runId, out var ghostId) && OnlineGhostCache.TryGet(ghostId, out info) && info.runId == runId;
-        }
-
-        static async Task<OnlineResult<OnlineGhostInfo>> DownloadAsync(long runId)
+        static async Task<OnlineResult<OnlineGhostInfo>> DownloadAsync(RunEntry run)
         {
             try
             {
@@ -187,7 +216,7 @@ namespace MHK.Online
                 OnlineResult<DownloadRunResponse> r;
                 try
                 {
-                    r = await OnlineService.Call(MessageType.DownloadRun, new IdRequest { id = runId }.Write, DownloadRunResponse.Read, false, TransferTimeout);
+                    r = await OnlineService.Call(MessageType.DownloadRun, new IdRequest { id = run.runId }.Write, DownloadRunResponse.Read, false, TransferTimeout);
                 }
                 finally
                 {
@@ -197,7 +226,7 @@ namespace MHK.Online
             }
             finally
             {
-                downloads?.Remove(runId);
+                downloads?.Remove(run.ghostId);
             }
         }
 
@@ -228,8 +257,6 @@ namespace MHK.Online
             {
                 return OnlineResult.Failed($"Could not store the ghost: {e.Message}");
             }
-            ghostOfRun ??= new Dictionary<long, string>();
-            ghostOfRun[info.runId] = info.ghostId;
             return new OnlineResult<OnlineGhostInfo>(OnlineResult.Success, info);
         }
 

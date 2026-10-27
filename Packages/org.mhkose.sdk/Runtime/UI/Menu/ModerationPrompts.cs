@@ -90,7 +90,9 @@ namespace MHK.UI
         {
             var r = await call;
             report(r.Ok ? success : r.message, r.Ok);
-            if (r.Ok) done?.Invoke();
+            if (!r.Ok) return;
+            HiddenReasons.Clear();
+            done?.Invoke();
         }
     }
 }

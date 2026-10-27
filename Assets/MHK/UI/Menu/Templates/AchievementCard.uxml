@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One achievement on the Achievements page (focusable for keyboard and gamepad). Code sets the icon (ach-icon: class i-<name>, or the mod's picture with class picture), the title, the description, the unlock date (ach-date, shown with .unlocked), the progress bar width (ach-bar-fill), the progress text, the share of players (ach-share, hidden while unknown) and the classes .unlocked (highlighted, date shown) and .secret (a locked secret one: its texts are the secret placeholders, no progress). UI Builder previews: sample-unlocked, sample-secret on the instance. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement name="ach-card" focusable="true" class="ach-card">
+        <ui:VisualElement class="ach-medal">
+            <ui:VisualElement name="ach-icon" class="icon i-emoji_events ach-icon" />
+        </ui:VisualElement>
+        <ui:VisualElement class="ach-text">
+            <ui:VisualElement class="ach-title-row">
+                <ui:Label name="ach-title" text="Podium Regular" class="ach-title" />
+                <ui:Label name="ach-date" text="Unlocked 27 Oct 2026" class="ach-date" />
+            </ui:VisualElement>
+            <ui:Label name="ach-desc" text="Finish 50 races in the top three." class="ach-desc" />
+            <ui:VisualElement name="ach-progress-row" class="ach-progress-row">
+                <ui:VisualElement class="ach-bar">
+                    <ui:VisualElement name="ach-bar-fill" class="ach-bar-fill" style="width: 46%;" />
+                </ui:VisualElement>
+                <ui:Label name="ach-progress" text="23 / 50" class="ach-progress" />
+                <ui:Label name="ach-share" text="12% of players" class="ach-share" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

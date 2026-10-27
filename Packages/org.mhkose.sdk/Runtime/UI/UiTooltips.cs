@@ -5,7 +5,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Shows the <see cref="VisualElement.tooltip"/> of hovered elements (disabled ones included) and, after a longer
-    /// delay, of the keyboard or gamepad focus, in a themed bubble (<c>.mhk-tooltip</c>) kept inside the screen.
+    /// delay, of the keyboard or gamepad focus, in a themed bubble (<c>.mhk-tooltip</c>) kept inside the screen. A shown
+    /// bubble follows later changes of its tooltip (texts loaded on hover).
     /// </summary>
     public sealed class UiTooltips
     {
@@ -14,11 +15,12 @@ namespace MHK.UI
         const long HoverDelayMs = 350;
         const long FocusDelayMs = 700;
         const float Gap = 10f;
+        const long FollowMs = 200;
         const float EdgeMargin = 12f;
 
         readonly VisualElement root;
         readonly Label bubble;
-        readonly IVisualElementScheduledItem showLater;
+        readonly IVisualElementScheduledItem showLater, follow;
         VisualElement owner;
         VisualElement hovered;
 
@@ -34,6 +36,8 @@ namespace MHK.UI
             bubble.RegisterCallback<GeometryChangedEvent>(OnBubbleLayout);
             showLater = root.schedule.Execute(Show);
             showLater.Pause();
+            follow = root.schedule.Execute(Follow).Every(FollowMs);
+            follow.Pause();
             root.RegisterCallback<PointerOverEvent>(OnPointerOver, TrickleDown.TrickleDown);
             root.RegisterCallback<PointerLeaveEvent>(OnPointerLeave);
             root.RegisterCallback<PointerDownEvent>(OnAct, TrickleDown.TrickleDown);
@@ -46,6 +50,7 @@ namespace MHK.UI
         public void Hide()
         {
             showLater.Pause();
+            follow.Pause();
             owner = null;
             bubble.RemoveFromClassList(ShownClass);
             bubble.style.display = DisplayStyle.None;
@@ -100,6 +105,17 @@ namespace MHK.UI
             bubble.text = owner.tooltip;
             bubble.style.display = DisplayStyle.Flex;
             Place();
+            follow.Resume();
+        }
+
+        void Follow()
+        {
+            if (owner == null || owner.panel == null || string.IsNullOrEmpty(owner.tooltip))
+            {
+                Hide();
+                return;
+            }
+            if (bubble.text != owner.tooltip) bubble.text = owner.tooltip;
         }
 
         void OnBubbleLayout(GeometryChangedEvent e) => Place();

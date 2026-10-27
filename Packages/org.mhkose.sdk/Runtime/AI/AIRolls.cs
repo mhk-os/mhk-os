@@ -5,10 +5,10 @@ namespace MHK.AI
     /// <summary>Random decisions of a computer driver: repeatable hash rolls per object and the seeded draws of a race.</summary>
     internal static class AIRolls
     {
-        // Salts of the per-driver rolls: one decision per trap, fake box, speed pad, melee holder and lap, and the race's
-        // flatten-seeking decision.
+        // Salts of the per-driver rolls: one decision per trap, fake box, speed pad, melee holder and lap, ram use, and the
+        // race's flatten-seeking decision.
         public const int TrapSalt = 0x2545F491, FakeSalt = 0x6C8E9CF5, PadSalt = 0x1B873593, MeleeSalt = 0x3C6EF372,
-            FlattenSalt = 0x7F4A7C15;
+            FlattenSalt = 0x7F4A7C15, RamSalt = 0x5851F42D;
         public const int KeyPrime = 7919;
 
         /// <summary>Uniform 0..1 from a seed and a key: the same decision every time it is asked.</summary>

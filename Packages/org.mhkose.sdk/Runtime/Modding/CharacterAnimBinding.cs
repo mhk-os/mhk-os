@@ -31,7 +31,10 @@ namespace MHK.Modding
 
         public CharacterAnimPlayback Playback => playback != CharacterAnimPlayback.Auto ? playback : DefaultPlayback(role);
         public float Speed => speed > 0f ? speed : DefaultSpeed(role);
-        /// <summary>MHK2 drive: the loop runs at 0.2 + 2·min(|v|·0.02, 1) × real time (only with the default speed).</summary>
+        /// <summary>
+        /// MHK2 drive: the loop runs at 0.2 + 2·min(|v|·0.02, 1) × real time, a quarter of that in the remake (only with
+        /// the default speed). Such a drive loop also bobs additively over the turn poses.
+        /// </summary>
         public bool SpeedFollowsKart => speed <= 0f && role == CharacterAnimRole.Drive;
         /// <summary>Real-time length of one play-through.</summary>
         public float Duration => clip != null ? clip.length / Mathf.Max(MinSpeed, Speed) : 0f;

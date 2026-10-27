@@ -119,12 +119,12 @@ namespace MHK.Karts
             AudioManager.PlaySfx(impact.IsScratch && scratchSound != null ? scratchSound : crashSound, impact.contact.point);
         }
 
-        /// <summary>Plays one of the character's voice samples at the kart (no-op when the character has none).</summary>
+        /// <summary>Plays one of the character's voice samples, following the kart (no-op when the character has none).</summary>
         public void Voice(CharacterVoice voice)
         {
             if (kart.Character == null) return;
             var clip = kart.Character.GetVoice(voice);
-            if (clip != null) AudioManager.PlaySfx(clip, transform.position);
+            if (clip != null) AudioManager.PlaySfx(clip, transform);
         }
 
         /// <summary>Plays the character's win or lose voice line.</summary>
@@ -139,7 +139,7 @@ namespace MHK.Karts
             UpdateGroundLoops(phys);
             collisionCooldown -= dt;
 
-            if (phys.JustLanded) AudioManager.PlaySfx(landSound, transform.position, landVolume);
+            if (phys.JustLanded) AudioManager.PlaySfx(landSound, transform, landVolume);
 
             hornCooldown -= dt;
             if (kart.CurrentInput.horn && hornCooldown <= 0f)

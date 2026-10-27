@@ -7,7 +7,7 @@ namespace MHK.Ghosts
         Best,
         /// <summary>The latest finished run of its track and engine class that was not a new best.</summary>
         LastRun,
-        /// <summary>Kept aside: a best of another simulation version or content that a run of this one replaced.</summary>
+        /// <summary>Kept aside: a best of another content version or content fingerprint that a run of this one replaced.</summary>
         Saved,
         /// <summary>Imported from a file.</summary>
         Imported,

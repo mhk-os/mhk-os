@@ -10,7 +10,7 @@ namespace MHK.Online
         public ushort protocol = Protocol.Version;
         public string gameCommit = "";
         public int gameBuild;
-        public int simVersion;
+        public int contentVersion;
         public int modApi;
         public string platform = "";
 
@@ -20,7 +20,7 @@ namespace MHK.Online
             w.U16(protocol);
             w.String(Clip(gameCommit, MaxCommit), MaxCommit);
             w.I32(gameBuild);
-            w.I32(simVersion);
+            w.I32(contentVersion);
             w.I32(modApi);
             w.String(Clip(platform, MaxPlatform), MaxPlatform);
         }
@@ -30,7 +30,7 @@ namespace MHK.Online
             if (r.U32() != Protocol.Magic) throw new WireFormatException("Bad magic.");
             return new HelloRequest
             {
-                protocol = r.U16(), gameCommit = r.String(MaxCommit), gameBuild = r.I32(), simVersion = r.I32(),
+                protocol = r.U16(), gameCommit = r.String(MaxCommit), gameBuild = r.I32(), contentVersion = r.I32(),
                 modApi = r.I32(), platform = r.String(MaxPlatform),
             };
         }
@@ -123,6 +123,21 @@ namespace MHK.Online
         public void Write(WireWriter w) => w.String(country, Account.MaxCountry);
 
         public static SetCountryRequest Read(WireReader r) => new() { country = r.String(Account.MaxCountry) };
+    }
+
+    /// <summary>Request 26: the account's password, and whether its time-trial runs are hidden too (they are anonymized either way).</summary>
+    public sealed class DeleteAccountRequest
+    {
+        public string password = "";
+        public bool deleteRuns;
+
+        public void Write(WireWriter w)
+        {
+            w.String(password, CredentialsRequest.MaxPassword);
+            w.Bool(deleteRuns);
+        }
+
+        public static DeleteAccountRequest Read(WireReader r) => new() { password = r.String(CredentialsRequest.MaxPassword), deleteRuns = r.Bool() };
     }
 
     /// <summary>An account as the server describes it.</summary>
