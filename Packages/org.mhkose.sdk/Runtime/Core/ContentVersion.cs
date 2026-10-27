@@ -7,6 +7,6 @@ namespace MHK.Core
     /// </summary>
     public static class ContentVersion
     {
-        public const int Current = 5;
+        public const int Current = 6;
     }
 }

@@ -33,24 +33,27 @@ namespace MHK.Race
     {
         [Tooltip("Light props (cones, bollards, barrier frames, cartons): kg per m³ of the bounding box of their colliders. " +
                  "The densities are relative to the 20 kg reference kart, not real-world ones.")]
-        [Min(0f)] public float light = 1.5f;
+        [Min(0f)] public float light = 0.5f;
         [Tooltip("Hay and straw bales: kg per m³ of collider bounding box.")]
-        [Min(0f)] public float straw = 8f;
+        [Min(0f)] public float straw = 3f;
         [Tooltip("Crates, wooden barrels, planks, furniture, and props whose material is not recognised: kg per m³ of " +
                  "collider bounding box.")]
-        [Min(0f)] public float wood = 14f;
+        [Min(0f)] public float wood = 4f;
         [Tooltip("Hollow metal (mailboxes, bins, metal barrels, tools): kg per m³ of collider bounding box.")]
-        [Min(0f)] public float sheetMetal = 14f;
+        [Min(0f)] public float sheetMetal = 4f;
         [Tooltip("Solid or filled metal (hydrants, metal crates): kg per m³ of collider bounding box.")]
-        [Min(0f)] public float iron = 40f;
+        [Min(0f)] public float iron = 10f;
         [Tooltip("Rocks and boulders (about half their bounding box): kg per m³ of collider bounding box.")]
         [Min(0f)] public float stone = 16f;
         [Tooltip("Lightest prop, as a share of the reference kart's mass (GameConfig.defaultPhysics).")]
         [Min(0f)] public float minKartShare = 0.05f;
-        [Tooltip("Heaviest prop, as a share of the reference kart's mass. Below about 1.8 a kart can still push it slowly " +
-                 "(its rear tyres grip harder than the prop's ground friction holds). A head-on hit at speed leaves the kart " +
+        [Tooltip("Heaviest prop other than rocks and boulders, as a share of the reference kart's mass: crates, barrels, " +
+                 "mailboxes, hydrants and the like stay light enough to shove aside. A head-on hit at speed leaves the kart " +
                  "with 1 / (1 + share) of its speed.")]
-        [Min(0f)] public float maxKartShare = 1.5f;
+        [Min(0f)] public float maxKartShare = 0.4f;
+        [Tooltip("Heaviest rock or boulder, as a share of the reference kart's mass. Below about 1.8 a kart can still push " +
+                 "it slowly (its rear tyres grip harder than the prop's ground friction holds).")]
+        [Min(0f)] public float stoneMaxKartShare = 1.5f;
 
         /// <summary>Density (kg per m³ of collider bounding box) of <paramref name="material"/>.</summary>
         public float Density(PropMaterial material) => material switch
@@ -62,6 +65,9 @@ namespace MHK.Race
             PropMaterial.Stone => stone,
             _ => wood,
         };
+
+        /// <summary>Heaviest <paramref name="material"/> prop, as a share of the reference kart's mass.</summary>
+        public float MaxKartShare(PropMaterial material) => material == PropMaterial.Stone ? stoneMaxKartShare : maxKartShare;
     }
 
     /// <summary>
@@ -112,7 +118,7 @@ namespace MHK.Race
                     var material = MaterialOf(body);
                     if (material == PropMaterial.Authored) continue;
                     var volume = BoundingVolume(body);
-                    if (volume > 0f) body.mass = Mathf.Clamp(volume * s.Density(material), s.minKartShare * kart, s.maxKartShare * kart);
+                    if (volume > 0f) body.mass = Mathf.Clamp(volume * s.Density(material), s.minKartShare * kart, s.MaxKartShare(material) * kart);
                 }
             }
             Bodies.Clear();

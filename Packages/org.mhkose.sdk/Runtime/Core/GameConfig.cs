@@ -231,8 +231,8 @@ namespace MHK.Core
         [Range(0, 1)] public float aiRouteChance = 0.5f;
         [Tooltip("Loose props (dynamic rigidbodies) up to this mass (kg, see propMass) are pushed through, not braked for: " +
                  "computer drivers steer around them when there is room, else plough through at speed (straw bales, " +
-                 "cones, cartons, most crates, small rocks). Heavier ones (rocks, mailboxes, hydrants, metal barrels, big " +
-                 "crates) and kinematic bodies count as solid.")]
+                 "cones, cartons, crates, barrels, mailboxes, hydrants, small rocks). Heavier ones (rocks and boulders) and " +
+                 "kinematic bodies count as solid.")]
         public float aiPushableMass = 15f;
         [Tooltip("Computer drivers press the player's keys (steering, throttle, brake: MHK.AI.AIKeys) and change a key at " +
                  "most this often (s): part steering or part throttle is tapped like a quick player does (0.05 s ≈ 10 " +
