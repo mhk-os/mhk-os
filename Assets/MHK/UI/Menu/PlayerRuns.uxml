@@ -1,0 +1,65 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One player's time trial runs. Head: the player's name (hover, tap or focus opens the player card) with the score rank (pr-rank, hidden when unranked) and pr-note when more runs exist than listed. pr-list: per track a group line (.pr-group: track, game, run count) and its runs (LeaderRow with lb-sub = class and upload date; lb-list-mod for moderators adds Hide / Unhide). A row opens the track's records searched for the player; Watch replays the run. pr-state: loading, none, offline with pr-retry. status: download and moderation results. Footer: Back, Refresh. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="LeaderRow" src="/Assets/MHK/UI/Menu/Templates/LeaderRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Time trial runs" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide anim from-left">
+                <ui:VisualElement class="trk-columns">
+                    <ui:VisualElement name="pr-panel" class="panel pl-panel">
+                        <ui:VisualElement class="trk-section-head">
+                            <ui:VisualElement class="icon i-person pr-head-icon" />
+                            <ui:Label name="pr-name" text="SmokeRacer" class="trk-section-title" />
+                            <ui:Label name="pr-rank" text="#12" class="player-rank" />
+                            <ui:Label name="pr-note" text="Showing 500 of 612 runs" class="pr-note" />
+                        </ui:VisualElement>
+                        <ui:ScrollView name="pr-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="trk-scroll">
+                            <ui:VisualElement name="pr-list" class="lb-list">
+                                <ui:VisualElement class="pr-group">
+                                    <ui:Label text="Scribble Blocks" class="pr-group-name" />
+                                    <ui:Label text="Moorhuhn Kart Extra" class="pr-group-game" />
+                                    <ui:Label text="2 runs" class="pr-group-count" />
+                                </ui:VisualElement>
+                                <ui:Instance template="LeaderRow" class="sample-gold">
+                                    <ui:AttributeOverrides element-name="lb-sub" text="150cc | 26 Oct 2026" />
+                                </ui:Instance>
+                                <ui:Instance template="LeaderRow">
+                                    <ui:AttributeOverrides element-name="lb-rank" text="-" />
+                                    <ui:AttributeOverrides element-name="lb-sub" text="150cc | 20 Oct 2026" />
+                                    <ui:AttributeOverrides element-name="lb-time" text="03:25.02" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:VisualElement name="pr-state" class="lb-state">
+                            <ui:VisualElement name="pr-state-icon" class="icon i-timer lb-state-icon" />
+                            <ui:Label name="pr-state-label" text="No runs uploaded yet" class="lb-state-label" />
+                            <ui:Button name="pr-retry" class="mhk-button small secondary">
+                                <ui:VisualElement class="icon i-sync" />
+                                <ui:Label text="Retry" class="button-label" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:Label name="status" text="Downloading the ghost..." class="records-status trk-status" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="refresh" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-sync" />
+                    <ui:Label text="Refresh" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

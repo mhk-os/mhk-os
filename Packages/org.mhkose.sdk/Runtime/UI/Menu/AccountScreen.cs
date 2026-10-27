@@ -8,9 +8,10 @@ namespace MHK.UI
 {
     /// <summary>
     /// Online account (Account.uxml): log in or register (username, password, confirmation, checked against the server's
-    /// rules first), or, logged in, the account with its country and Log out. Below, the connection to the server and,
-    /// behind the server button, the server address (<see cref="UserSettings.onlineServer"/>). Opening it connects
-    /// (<see cref="OnlineService.Connect"/>).
+    /// rules first), or, logged in, the account with its score rank, its country, the players list switch
+    /// (<see cref="OnlineProfiles.SetListed"/>), Your profile (the Players page) and Log out. Below, the connection to the
+    /// server and, behind the server button, the server address (<see cref="UserSettings.onlineServer"/>). Opening it
+    /// connects (<see cref="OnlineService.Connect"/>).
     /// </summary>
     public class AccountScreen : MenuScreen
     {
@@ -37,6 +38,10 @@ namespace MHK.UI
         string retryFormat = " Retrying in {0} s.";
         [SerializeField, Tooltip("Server note while the -server command-line option sets the server. {0} = that server.")]
         string commandLineNote = "The -server option on the command line sets the server ({0}). This field applies when the game starts without it.";
+        [SerializeField, Tooltip("Players list switch values.")]
+        string listedOnText = "On", listedOffText = "Off";
+        [SerializeField, Tooltip("Rank line: ranked ({0} = rank, {1} = points), unranked ({0} = points).")]
+        string rankFormat = "Rank #{0} with {1} points", unrankedFormat = "Unranked: {0} points. Race online to climb the ranking.";
 
         bool register;
         bool serverOpen;
@@ -50,6 +55,12 @@ namespace MHK.UI
         bool busy, shownLoggedIn;
         // Country picked but not sent yet, and the one sent and not answered yet (-1: none); both show as the value.
         int pendingCountry = -1, sentCountry = -1, countryRequests;
+        SettingChoice listed;
+        PlayerProfile profile;
+        // The switch value sent and not answered yet (null: none); profileFor: the account the profile is of.
+        bool? sentListed;
+        ulong profileFor;
+        int profileRequests;
 
         void Reset() => showcaseVisible = false;
 
@@ -85,6 +96,8 @@ namespace MHK.UI
                 field.RegisterValueChangedCallback(_ => ShowStatus(null, false));
             }
             country = BindChoice("country", () => Countries.All.Count + 1, CountryIndex, CountryText, SelectCountry);
+            listed = BindChoice("listed", () => 2, () => Listed ? 0 : 1, i => i == 0 ? listedOnText : listedOffText, i => SetListed(i == 0));
+            OnClick("profile", () => Flow.Get<PlayersScreen>()?.OpenMine());
             countryApply = Root.schedule.Execute(ApplyCountry);
             countryApply.Pause();
             BindServer();
@@ -112,6 +125,10 @@ namespace MHK.UI
             signedOut = signedIn = confirmBlock = status = statusIcon = connectionBar = connectionIcon = serverBox = submitIcon = null;
             submitLabel = statusLabel = connectionLabel = null;
             country = null;
+            listed = null;
+            profile = null;
+            profileFor = 0;
+            profileRequests++;
             busy = false;
         }
 
@@ -282,7 +299,9 @@ namespace MHK.UI
                 SetVisible("moderator-badge", account.IsModerator);
                 Q<Label>("account-since").text = string.Format(sinceFormat, account.created.ToLocalTime().ToString("d MMMM yyyy", CultureInfo.InvariantCulture));
                 country.Refresh();
+                if (profileFor != account.id) LoadProfile(account.id);
             }
+            else profileFor = 0;
             if (loggedIn != shownLoggedIn)
             {
                 shownLoggedIn = loggedIn;
@@ -319,6 +338,51 @@ namespace MHK.UI
             connectionBar.EnableInClassList("online", online);
             connectionIcon.SetIcon(online ? "cloud_done" : OnlineService.State == OnlineState.Connecting ? "sync" : "cloud_off");
             reconnect.SetVisible(OnlineService.State == OnlineState.Offline && OnlineService.EndpointError == null);
+        }
+
+        bool Listed => sentListed ?? profile?.listed ?? true;
+
+        void LoadProfile(ulong id)
+        {
+            profileFor = id;
+            profile = null;
+            Q<Label>("account-rank").SetVisible(false);
+            listed.Refresh();
+            LoadProfileAsync(id, ++profileRequests).LogExceptionsAndForget();
+        }
+
+        async Awaitable LoadProfileAsync(ulong id, int request)
+        {
+            var r = await OnlineProfiles.Get((long)id, true);
+            if (request != profileRequests || listed == null) return;
+            if (!r.Ok)
+            {
+                ShowStatus(r.result.message, false);
+                return;
+            }
+            profile = r.value;
+            var p = profile.player;
+            var rank = Q<Label>("account-rank");
+            rank.text = p.rank > 0 ? string.Format(CultureInfo.InvariantCulture, rankFormat, p.rank, p.score)
+                : string.Format(CultureInfo.InvariantCulture, unrankedFormat, p.score);
+            rank.SetVisible(true);
+            listed.Refresh();
+        }
+
+        void SetListed(bool on)
+        {
+            sentListed = on;
+            SetListedAsync(on).LogExceptionsAndForget();
+        }
+
+        async Awaitable SetListedAsync(bool on)
+        {
+            var r = await OnlineProfiles.SetListed(on);
+            if (listed == null) return;
+            sentListed = null;
+            if (r.Ok && profile != null) profile.listed = on;
+            listed.Refresh();
+            if (!r.Ok) ShowStatus(r.message, false);
         }
 
         int CountryIndex()

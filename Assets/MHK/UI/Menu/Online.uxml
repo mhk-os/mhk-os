@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Online play. Logged out (class onl-logged-out on page): onl-login with Log in (the Account page). Logged in: one table of every public lobby (onl-head names the columns; lobby-list holds one Templates/OnlineInstanceRow.uxml per lobby, sorted races first, then mod set, anticheat on first, then number; a row joins its lobby). The side panel joins a private room by code (code field, join-code) and creates one (create). onl-status shows content warnings and errors (class good for progress). -->
+    <!-- Online play. Logged out (class onl-logged-out on page): onl-login with Log in (the Account page). Logged in: one table of every public lobby (onl-head names the columns; lobby-list holds one Templates/OnlineInstanceRow.uxml per lobby, sorted races first, then mod set, anticheat on first, then number; a row joins its lobby). The side panel joins a private room by code (code field, join-code) and creates one (create). onl-status shows content warnings and errors (class good for progress). Footer: Back, the account, Players (the ranking and players list), Refresh. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="OnlineInstanceRow" src="/Assets/MHK/UI/Menu/Templates/OnlineInstanceRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
@@ -77,6 +77,10 @@
                 <ui:Button name="account" class="mhk-button small secondary">
                     <ui:VisualElement class="icon i-account_circle" />
                     <ui:Label name="account-label" text="SmokeRacer" class="button-label" />
+                </ui:Button>
+                <ui:Button name="players" tooltip="The ranking and every player" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-group" />
+                    <ui:Label text="Players" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
             <ui:VisualElement class="footer-right">

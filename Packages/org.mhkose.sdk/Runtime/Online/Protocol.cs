@@ -63,6 +63,16 @@ namespace MHK.Online
         public const ushort Logout = 19;
         /// <summary><see cref="SetCountryRequest"/> → <see cref="Account"/>.</summary>
         public const ushort SetCountry = 20;
+        /// <summary>listed bool → empty. Needs login.</summary>
+        public const ushort SetProfileListed = 21;
+        /// <summary><see cref="PlayerListRequest"/> (with sort) → <see cref="PlayerPage"/> (listed accounts).</summary>
+        public const ushort ListPlayers = 22;
+        /// <summary><see cref="GetProfilesRequest"/> → list of <see cref="PlayerSummary"/>.</summary>
+        public const ushort GetProfiles = 23;
+        /// <summary>accountId u64 → <see cref="PlayerProfile"/>.</summary>
+        public const ushort GetProfile = 24;
+        /// <summary><see cref="PlayerListRequest"/> (no sort) → <see cref="PlayerPage"/> with the own row.</summary>
+        public const ushort ScoreLeaderboard = 25;
 
         /// <summary><see cref="IdRequest"/> (run, reason) → empty. Moderators only, like every type up to 127.</summary>
         public const ushort ModHideRun = 64;
@@ -78,6 +88,8 @@ namespace MHK.Online
         public const ushort ModRunReports = 69;
         /// <summary><see cref="IdRequest"/> (account) → <see cref="ModAccountInfo"/>.</summary>
         public const ushort ModGetAccount = 70;
+        /// <summary><see cref="IdPageRequest"/> (board, 0 = all) → total, hidden runs.</summary>
+        public const ushort ModListHidden = 71;
 
         /// <summary><see cref="ListBoardsRequest"/> → list of <see cref="BoardInfo"/>.</summary>
         public const ushort ListBoards = 128;
@@ -91,6 +103,8 @@ namespace MHK.Online
         public const ushort ReportRun = 132;
         /// <summary>trackId string → list of <see cref="RunEntry"/> (the account's runs on the track).</summary>
         public const ushort MyRuns = 133;
+        /// <summary><see cref="IdPageRequest"/> (account) → total, the account's runs on every board.</summary>
+        public const ushort PlayerRuns = 134;
     }
 
     /// <summary>Push types: their own numbering in the ranges of <see cref="MessageType"/>.</summary>

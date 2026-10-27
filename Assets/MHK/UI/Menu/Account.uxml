@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Online account. Logged out (signed-out): the mode chips (modes: Log in, Register), username, password and, when registering, confirm (confirm-block) and the rules line; submit sends (Enter too) and shows busy while it waits. Logged in (signed-in): the username, the moderator badge (role 1), the member-since line, the country row (dropdown: Auto from the IP, then every country) and Log out. form-status shows the last error or result (class good for a success). The connection line (connection-icon, class online on connection-bar while connected) names the server and its state; server-toggle opens server-box: the server address field (placeholder = built-in server, empty = built-in), server-apply saves it and reconnects, server-note says when the command line overrides it. reconnect (footer) connects again while offline. Preview classes on page: preview-signed-in (the logged-in view), preview-register (register mode), preview-status (the status line), preview-server (server box open), preview-offline (Reconnect). -->
+    <!-- Online account. Logged out (signed-out): the mode chips (modes: Log in, Register), username, password and, when registering, confirm (confirm-block) and the rules line; submit sends (Enter too) and shows busy while it waits. Logged in (signed-in): the username, the moderator badge (role 1), the member-since line, the score rank line (account-rank), the country row (dropdown: Auto from the IP, then every country), the players list switch (listed: On / Off), Your profile (profile: the Players page on the own row) and Log out. form-status shows the last error or result (class good for a success). The connection line (connection-icon, class online on connection-bar while connected) names the server and its state; server-toggle opens server-box: the server address field (placeholder = built-in server, empty = built-in), server-apply saves it and reconnects, server-note says when the command line overrides it. reconnect (footer) connects again while offline. Preview classes on page: preview-signed-in (the logged-in view), preview-register (register mode), preview-status (the status line), preview-server (server box open), preview-offline (Reconnect). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
@@ -45,12 +45,21 @@
                                     </ui:VisualElement>
                                 </ui:VisualElement>
                                 <ui:Label name="account-since" text="Racing online since 26 October 2026" class="acc-since" />
+                                <ui:Label name="account-rank" text="Rank #12 with 840 points" class="acc-since acc-rank" />
                             </ui:VisualElement>
                         </ui:VisualElement>
                         <ui:Instance template="SettingRow" name="country" class="setting-row setting-dropdown acc-country">
                             <ui:AttributeOverrides element-name="setting-label" text="Country" />
                             <ui:AttributeOverrides element-name="setting-value-label" text="Auto (from IP: DE)" />
                         </ui:Instance>
+                        <ui:Instance template="SettingRow" name="listed" tooltip="Others find you on the Players page. Your name still shows in lobbies and on leaderboards." class="setting-row acc-country">
+                            <ui:AttributeOverrides element-name="setting-label" text="Show me in the players list" />
+                            <ui:AttributeOverrides element-name="setting-value-label" text="On" />
+                        </ui:Instance>
+                        <ui:Button name="profile" class="mhk-button secondary acc-logout">
+                            <ui:VisualElement class="icon i-person" />
+                            <ui:Label text="Your profile" class="button-label" />
+                        </ui:Button>
                         <ui:Button name="logout" class="mhk-button secondary acc-logout">
                             <ui:VisualElement class="icon i-logout" />
                             <ui:Label text="Log out" class="button-label" />

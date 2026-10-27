@@ -23,6 +23,9 @@ namespace MHK.UI
     /// <summary>The player's choices while walking through the menu, and the race session built from them.</summary>
     public sealed class MenuSelection
     {
+        /// <summary>Engine class time trials start in while no personal best picks one (the hub, a track's page): 150cc.</summary>
+        public const Difficulty TimeTrialClass = Difficulty.Hard;
+
         public GameMode mode;
         public CharacterDefinition character;
         public KartDefinition kart;

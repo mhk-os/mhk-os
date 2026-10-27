@@ -69,7 +69,8 @@ namespace MHK.Core
 
     /// <summary>
     /// The player's race screen layout (UI Layout screen): the HUD elements and the touch controls. Until the player saves
-    /// one, the default layout applies (the HUD as the stylesheet places it and the default touch controls).
+    /// one, the default layout applies: <see cref="DefaultHud"/> or, with touch controls, <see cref="DefaultTouchHud"/>,
+    /// and <see cref="DefaultControls"/>. A saved layout applies with and without touch controls.
     /// </summary>
     [Serializable]
     public class UiLayoutSettings
@@ -78,6 +79,7 @@ namespace MHK.Core
         public const float DefaultDeadZone = 0.15f, MaxDeadZone = 0.6f;
         const int CurrentVersion = 1;
         const float LegacyMinimapOff = 0.05f;
+        const float DesktopSpeedometerScale = 0.75f;
 
         [Tooltip("Layout of the stored data, 0 = from before the UI Layout screen (Upgrade reads the old touch layout).")]
         public int version;
@@ -109,20 +111,23 @@ namespace MHK.Core
         /// <summary>Whether <see cref="Upgrade"/> still has to read the old settings.</summary>
         public bool NeedsUpgrade => version < CurrentVersion;
 
-        /// <summary>The setup of the HUD element <paramref name="type"/> in use (never null).</summary>
-        public HudElementSetup Hud(HudElementType type)
+        /// <summary>
+        /// The setup of the HUD element <paramref name="type"/> in use (never null): the saved one, else the default for
+        /// touch controls on or off (<paramref name="touch"/>).
+        /// </summary>
+        public HudElementSetup Hud(HudElementType type, bool touch)
         {
             if (custom)
                 for (var i = 0; i < hud.Count; i++)
                     if (hud[i] != null && hud[i].type == type) return hud[i];
-            return DefaultHud[(int)type];
+            return (touch ? DefaultTouchHud : DefaultHud)[(int)type];
         }
 
-        /// <summary>Every HUD element's setup in use, in <see cref="HudElementType"/> order (copies).</summary>
-        public List<HudElementSetup> CopyHud()
+        /// <summary>Every HUD element's setup in use (<see cref="Hud"/>), in <see cref="HudElementType"/> order (copies).</summary>
+        public List<HudElementSetup> CopyHud(bool touch)
         {
             var copy = new List<HudElementSetup>(HudTypes.Length);
-            for (var i = 0; i < HudTypes.Length; i++) copy.Add(Hud(HudTypes[i]).Clone());
+            for (var i = 0; i < HudTypes.Length; i++) copy.Add(Hud(HudTypes[i], touch).Clone());
             return copy;
         }
 
@@ -147,6 +152,7 @@ namespace MHK.Core
         /// <summary>
         /// Takes over the custom touch layout and the minimap size of older settings (<paramref name="old"/>, the same file
         /// read as <see cref="Legacy"/>): a minimap size other than 100 % becomes the minimap's scale, below 5 % it is hidden.
+        /// The HUD keeps the stylesheet places it had then.
         /// </summary>
         public void Upgrade(Legacy old)
         {
@@ -156,7 +162,7 @@ namespace MHK.Core
             var minimap = old.minimapScale;
             var touch = old.touchLayout != null && old.touchLayout.custom;
             if (!touch && Mathf.Approximately(minimap, 1f)) return;
-            var hudLayout = CopyHud();
+            var hudLayout = StylesheetHud();
             var map = hudLayout[(int)HudElementType.Minimap];
             if (minimap < LegacyMinimapOff) map.visible = false;
             else map.scale = Vector2.one * Mathf.Clamp(minimap, MinScale, MaxScale);
@@ -175,24 +181,69 @@ namespace MHK.Core
         /// <summary>Every HUD element type in declaration order.</summary>
         public static readonly HudElementType[] HudTypes = (HudElementType[])Enum.GetValues(typeof(HudElementType));
 
-        /// <summary>Default HUD: every element shown at its stylesheet place, indexed by <see cref="HudElementType"/>.</summary>
-        public static readonly IReadOnlyList<HudElementSetup> DefaultHud = Array.ConvertAll(HudTypes, t => new HudElementSetup { type = t });
+        /// <summary>
+        /// Default HUD without touch controls, indexed by <see cref="HudElementType"/>: every element at its stylesheet
+        /// place (speedometer bottom left, minimap bottom right), the speedometer at 75 %.
+        /// </summary>
+        public static readonly IReadOnlyList<HudElementSetup> DefaultHud = DesktopHud();
 
-        /// <summary>Default layout: steering buttons bottom left, throttle, brake, item and look back bottom right, respawn, camera and pause top right.</summary>
+        /// <summary>
+        /// Default HUD with touch controls, indexed by <see cref="HudElementType"/>: item slot and replay plate top left,
+        /// race position beside them, speedometer below, battle health bar large at the top centre, best lap and split
+        /// below the lap and time (top right), minimap bottom left. The other elements keep their stylesheet places.
+        /// </summary>
+        public static readonly IReadOnlyList<HudElementSetup> DefaultTouchHud = TouchHud();
+
+        /// <summary>
+        /// Default touch controls: big steering buttons at mid height on the left and right edges, brake, item and look back
+        /// along the bottom right, throttle above the item (hidden, an invisible touch area: touch play accelerates by
+        /// itself), respawn, camera and pause top right.
+        /// </summary>
         public static readonly IReadOnlyList<TouchControlSetup> DefaultControls = new[]
         {
-            Control(TouchControlType.SteerLeft, 0f, 1f, 105f, -115f),
-            Control(TouchControlType.SteerRight, 0f, 1f, 275f, -115f),
-            Control(TouchControlType.Throttle, 1f, 1f, -105f, -225f),
-            Control(TouchControlType.Brake, 1f, 1f, -85f, -65f),
-            Control(TouchControlType.Item, 1f, 1f, -275f, -135f),
-            Control(TouchControlType.LookBack, 1f, 1f, -255f, -275f),
-            Control(TouchControlType.Pause, 1f, 0f, -380f, 58f),
-            Control(TouchControlType.Camera, 1f, 0f, -480f, 58f),
-            Control(TouchControlType.Respawn, 1f, 0f, -580f, 58f),
+            Control(TouchControlType.SteerLeft, 0f, 1f, 159.50693f, -409.4519f, 2f),
+            Control(TouchControlType.SteerRight, 1f, 1f, -160f, -409.4519f, 2f),
+            Control(TouchControlType.Throttle, 1f, 1f, -404.70178f, -354.1537f, 1.2626904f, false),
+            Control(TouchControlType.Brake, 1f, 1f, -138.21033f, -122.14563f, 2f),
+            Control(TouchControlType.Item, 1f, 1f, -402.6156f, -122.14563f, 1.5737858f),
+            Control(TouchControlType.LookBack, 1f, 1f, -671.8275f, -122.14563f, 2f),
+            Control(TouchControlType.Pause, 1f, 0f, -298.87646f, 69.12358f, 1.2528087f),
+            Control(TouchControlType.Camera, 1f, 0f, -464.98877f, 69.6608f, 1.2650182f),
+            Control(TouchControlType.Respawn, 1f, 0f, -591.9989f, 69.998825f, 1.2727005f),
         };
 
-        static TouchControlSetup Control(TouchControlType type, float anchorX, float anchorY, float x, float y) =>
-            new() { type = type, anchor = new Vector2(anchorX, anchorY), offset = new Vector2(x, y) };
+        static HudElementSetup[] StylesheetHud() => Array.ConvertAll(HudTypes, t => new HudElementSetup { type = t });
+
+        static HudElementSetup[] DesktopHud()
+        {
+            var layout = StylesheetHud();
+            layout[(int)HudElementType.Speedometer].scale = Vector2.one * DesktopSpeedometerScale;
+            return layout;
+        }
+
+        static HudElementSetup[] TouchHud()
+        {
+            var layout = StylesheetHud();
+            Place(layout, HudElementType.Position, 0f, 0f, 195.85988f, 22.971222f);
+            Place(layout, HudElementType.BestLap, 1f, 0f, -28.210327f, 140.24536f);
+            Place(layout, HudElementType.Split, 1f, 0f, -28.210327f, 176.51572f);
+            Place(layout, HudElementType.Health, 0.5f, 0f, 0.40301514f, 14.508148f, 1.6883382f);
+            Place(layout, HudElementType.Speedometer, 0f, 0f, 21.762222f, 212.78607f);
+            Place(layout, HudElementType.Minimap, 0f, 1f, 9.672092f, 0f);
+            Place(layout, HudElementType.Replay, 0f, 0f, 21.762222f, 16.523167f);
+            return layout;
+        }
+
+        static void Place(HudElementSetup[] layout, HudElementType type, float anchorX, float anchorY, float x, float y, float scale = 1f)
+        {
+            var s = layout[(int)type];
+            s.placed = true;
+            s.anchor = new Vector2(anchorX, anchorY);
+            s.offset = new Vector2(x, y);
+            s.scale = Vector2.one * scale;
+        }
+
+        static TouchControlSetup Control(TouchControlType type, float anchorX, float anchorY, float x, float y, float scale, bool visible = true) =>
+            new() { type = type, anchor = new Vector2(anchorX, anchorY), offset = new Vector2(x, y), scale = scale, visible = visible };
     }
 }

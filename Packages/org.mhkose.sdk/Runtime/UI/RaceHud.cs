@@ -132,7 +132,7 @@ namespace MHK.UI
             timeTrial.Bind();
             online.Bind();
             hud.NoPick();
-            BindLayout();
+            BindLayout(touchActive);
 
             race.CountdownTick += OnCountdown;
             race.ResultsReady += ShowResults;
@@ -150,11 +150,11 @@ namespace MHK.UI
             speedometer.SetSpeed(0);
         }
 
-        void BindLayout()
+        void BindLayout(bool touchActive)
         {
             var layout = GameRoot.Instance.Settings.uiLayout;
-            new HudLayout(hud).ApplyAll(layout);
-            minimapSetup = layout.Hud(HudElementType.Minimap);
+            new HudLayout(hud).ApplyAll(layout, touchActive);
+            minimapSetup = layout.Hud(HudElementType.Minimap, touchActive);
         }
 
         void BindLayers(bool touchActive)
@@ -207,7 +207,7 @@ namespace MHK.UI
             hud.EnableInClassList("touch", touchActive);
             minimap.TouchMode = touchActive;
             speedometer.TouchMode = touchActive;
-            BindLayout();
+            BindLayout(touchActive);
             var showTouch = touchActive && !resultsShown;
             // Open touch controls rebuild from the (maybe changed) control layout.
             if (showTouch && touch != null && touch.gameObject.activeSelf) touch.Rebuild();

@@ -65,7 +65,7 @@ namespace MHK.UI
 
         protected override void Bind()
         {
-            if (!classChosen) hubClass = Selection.difficulty;
+            if (!classChosen) hubClass = MenuSelection.TimeTrialClass;
             classChosen = true;
             status = Q<Label>("ghost-status");
             open = OnClick("open", OpenTrack, click: false);
@@ -77,6 +77,7 @@ namespace MHK.UI
             });
             OnClick("rec-account", () => Flow.Show<AccountScreen>());
             OnClick("reports", () => Flow.Show<FlaggedRunsScreen>());
+            OnClick("players", () => Flow.Get<PlayersScreen>()?.Open(false));
             OnClick("reload", () => ImportNow(true));
             OnClick("open-import", () => GhostUi.Reveal(GhostUi.ImportFolder));
             BindClasses();

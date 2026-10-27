@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
-    <!-- One track's records, opened from the Records page. Toolbar: track picture, name and game, the engine class chips (classes), the Version dropdown (version: Current first, then older simulation versions; a version with several boards lists each as its own entry), on narrow screens the section chips (sections: .narrow on page shows one section at a time) and the pick pill (pick-count with pick-clear). Your ghosts (local-panel): best race / best lap chips (local-chips) and the stored ghosts of the class and version (GhostRow with check, Watch, Upload or the uploaded rank, Export, Delete; ghost-empty when none). Leaderboard (global-panel): board chips (board-chips: players, last upload), filters (lb-search with its icon, lb-scope region, lb-kart, lb-character dropdowns), the player's own row pinned (lb-mine, when it is not on the shown page), the page of rows (LeaderRow; lb-list gets .lb-list-mod for moderators) or lb-state (icon and one line: loading, none, offline with lb-retry), and the pager. status: the last action's result. Footer: Back, Import folder, Reload, Reports (moderators), Race (with the picked ghosts: downloads the missing ones, then driver and kart). Preview classes on page: preview-narrow, preview-state, preview-mod. -->
+    <!-- One track's records, opened from the Records page. Toolbar: track picture, name and game, the engine class chips (classes), the Version dropdown (version: Current first, then older simulation versions; a version with several boards lists each as its own entry), on narrow screens the section chips (sections: .narrow on page shows one section at a time) and the pick pill (pick-count with pick-clear). Your ghosts (local-panel): best race / best lap chips (local-chips) and the stored ghosts of the class and version (GhostRow with check, Watch, Upload or the uploaded rank, Export, Delete; ghost-empty when none). Leaderboard (global-panel): the moderators' tabs (lb-tabs: Leaderboard / Hidden, hidden for others; Hidden lists the board's hidden runs and hides the filters), board chips (board-chips: players, last upload), filters (lb-filters: lb-search with its icon, lb-scope region, lb-kart, lb-character dropdowns), the player's own row pinned (lb-mine, when it is not on the shown page), the page of rows (LeaderRow with rank tags and player cards; lb-list gets .lb-list-mod for moderators) or lb-state (icon and one line: loading, none, offline with lb-retry), and the pager. status: the last action's result. Footer: Back, Import folder, Reload, Reports (moderators), Race (with the picked ghosts: downloads the missing ones, then driver and kart). Preview classes on page: preview-narrow, preview-state, preview-mod. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="GhostRow" src="/Assets/MHK/UI/Menu/Templates/GhostRow.uxml" />
@@ -74,9 +74,17 @@
                         <ui:VisualElement name="global-panel" class="panel trk-global">
                             <ui:VisualElement class="trk-section-head">
                                 <ui:Label text="Leaderboard" class="trk-section-title" />
+                                <ui:VisualElement name="lb-tabs" class="tabs fr-filter lb-tabs">
+                                    <ui:Instance template="Chip" class="sample-selected">
+                                        <ui:AttributeOverrides element-name="chip" text="Leaderboard" />
+                                    </ui:Instance>
+                                    <ui:Instance template="Chip">
+                                        <ui:AttributeOverrides element-name="chip" text="Hidden" />
+                                    </ui:Instance>
+                                </ui:VisualElement>
                                 <ui:VisualElement name="board-chips" class="info-chips trk-head-chips" />
                             </ui:VisualElement>
-                            <ui:VisualElement class="lb-filters">
+                            <ui:VisualElement name="lb-filters" class="lb-filters">
                                 <ui:VisualElement class="lb-search-box">
                                     <ui:VisualElement class="icon i-search lb-search-icon" />
                                     <ui:TextField name="lb-search" max-length="20" class="lb-search" />

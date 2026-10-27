@@ -15,9 +15,10 @@ namespace MHK.UI
     /// The Version dropdown and the leaderboard of the track records page. Versions come from the track's boards in the
     /// shown class and from the stored ghosts: one entry per simulation version, Current first, or one per board when a
     /// version has several (other track data or lap count). The chosen one filters both lists. The leaderboard has
-    /// filters, pages of <see cref="pageSize"/> rows with the player's own row pinned, Watch and picking, and for
-    /// moderators hidden runs and their actions. Browsing needs no login; an unreachable server shows inline with Retry,
-    /// and the board reloads when the connection or login changes.
+    /// filters, pages of <see cref="pageSize"/> rows with the player's own row pinned, Watch and picking, rank tags and
+    /// player cards on the names, and for moderators a Hidden tab (the board's hidden runs with Unhide) and the row
+    /// actions. Browsing needs no login; an unreachable server shows inline with Retry, and the board reloads when the
+    /// connection or login changes.
     /// </summary>
     public partial class TrackRecordsScreen
     {
@@ -42,6 +43,10 @@ namespace MHK.UI
         string stateLoading = "Loading", stateNoRuns = "No runs yet", stateNoMatch = "No matches", stateOffline = "Offline";
         [SerializeField, Tooltip("Pager text ({0} = first row, {1} = last row, {2} = all rows).")]
         string pageRangeFormat = "{0}-{1} / {2}";
+        [SerializeField, Tooltip("Moderators' tabs of the leaderboard: visible runs, hidden runs.")]
+        string leaderboardTab = "Leaderboard", hiddenTab = "Hidden";
+        [SerializeField, Tooltip("Hidden tab state without hidden runs on the board.")]
+        string stateNoHidden = "No hidden runs";
 
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
         static readonly (string code, string name)[] Continents =
@@ -73,7 +78,9 @@ namespace MHK.UI
         // Filters, kept for the whole visit.
         string search = "", scopeContinent = "", scopeCountry = "", kartFilter = "", characterFilter = "";
         int request;
-        bool shownLoggedIn, shownModerator, shownOnline, offlineShown;
+        bool shownLoggedIn, shownModerator, shownOnline, offlineShown, showHidden;
+        readonly RankTags ranks = new();
+        PlayerCardOptions cardOptions;
 
         VisualElement lbList, lbMine, lbState, lbPager, lbStateIcon, boardChips;
         ScrollView lbScroll;
@@ -90,6 +97,18 @@ namespace MHK.UI
         readonly List<string> kartNames = new(), characterNames = new();
 
         long BoardId => version?.board?.boardId ?? 0;
+
+        /// <summary>
+        /// Opens the records of <paramref name="id"/> in <paramref name="engineClass"/> with the leaderboard searched for
+        /// <paramref name="username"/> (the player runs page's Open track).
+        /// </summary>
+        public void OpenSearched(string id, Difficulty engineClass, string username)
+        {
+            search = OnlineTimeTrials.Clip(username?.Trim(), RunEntry.MaxUsername);
+            showHidden = false;
+            offset = 0;
+            Open(id, engineClass);
+        }
 
         void BindLeaderboard()
         {
@@ -125,14 +144,36 @@ namespace MHK.UI
             shownModerator = OnlineService.IsModerator;
             shownOnline = OnlineService.State >= OnlineState.Connected;
             SetVisible("reports", shownModerator);
+            cardOptions = new PlayerCardOptions { runsFlow = Flow, report = Report, changed = LoadPage };
+            ranks.Attach(Root);
+            BindTabs();
             OnlineService.Changed += OnOnlineChanged;
             RefreshVersions();
             Reload();
         }
 
+        // Moderators: Leaderboard | Hidden. The Hidden tab lists the board's hidden runs (no filters, no own row).
+        void BindTabs()
+        {
+            if (!shownModerator) showHidden = false;
+            var tabs = Q<VisualElement>("lb-tabs");
+            tabs.SetVisible(shownModerator);
+            ChipGroup.Fill(tabs, chipTemplate, new[] { leaderboardTab, hiddenTab }, showHidden ? 1 : 0, index =>
+            {
+                Click();
+                if (showHidden == (index == 1)) return;
+                showHidden = index == 1;
+                FilterChanged();
+            });
+            Q<VisualElement>("lb-filters").SetVisible(!showHidden);
+        }
+
         void UnbindLeaderboard()
         {
             OnlineService.Changed -= OnOnlineChanged;
+            ranks.Detach();
+            PlayerCard.Close();
+            cardOptions = null;
             searchApply?.Pause();
             searchApply = null;
             request++;
@@ -285,7 +326,7 @@ namespace MHK.UI
                 });
             scopeChoice.AlwaysList = kartChoice.AlwaysList = characterChoice.AlwaysList = true;
             // Down from the filters goes to the first row (spatial navigation prefers the footer below the wide rows).
-            Root.Q(className: "lb-filters").RegisterCallback<NavigationMoveEvent>(DownToRows);
+            Q<VisualElement>("lb-filters").RegisterCallback<NavigationMoveEvent>(DownToRows);
             lbSearch = Q<TextField>("lb-search");
             lbSearch.SetValueWithoutNotify(search);
             lbSearch.textEdition.placeholder = searchHint;
@@ -362,6 +403,7 @@ namespace MHK.UI
         void FilterChanged()
         {
             offset = 0;
+            if (lbList != null) Q<VisualElement>("lb-filters").SetVisible(!showHidden);
             LoadPage();
         }
 
@@ -372,7 +414,7 @@ namespace MHK.UI
             country = scopeCountry,
             kartId = kartFilter,
             characterId = characterFilter,
-            includeHidden = OnlineService.IsModerator,
+            includeHidden = false,
         };
 
         // ---- Loading ----
@@ -419,14 +461,29 @@ namespace MHK.UI
             }
             ShowState("sync", stateLoading, false);
             var size = Mathf.Clamp(pageSize, 1, LeaderboardPage.MaxLimit);
-            var r = await OnlineTimeTrials.GetLeaderboard(BoardId, offset, size, Filter());
-            if (id != request || !IsBound) return;
-            if (!r.Ok)
+            LeaderboardPage page;
+            if (showHidden)
             {
-                ShowOffline(r.result);
-                return;
+                var hidden = await OnlineModeration.ListHidden(BoardId, offset, size);
+                if (id != request || !IsBound) return;
+                if (!hidden.Ok)
+                {
+                    ShowOffline(hidden.result);
+                    return;
+                }
+                page = new LeaderboardPage { total = hidden.value.total, entries = hidden.value.runs };
             }
-            var page = r.value;
+            else
+            {
+                var r = await OnlineTimeTrials.GetLeaderboard(BoardId, offset, size, Filter());
+                if (id != request || !IsBound) return;
+                if (!r.Ok)
+                {
+                    ShowOffline(r.result);
+                    return;
+                }
+                page = r.value;
+            }
             // A page that emptied (rows hidden or filtered away meanwhile) steps back to the last one.
             if (page.entries.Count == 0 && offset > 0 && page.total > 0)
             {
@@ -476,7 +533,8 @@ namespace MHK.UI
             if (page.entries.Count == 0)
             {
                 var filtered = search.Length > 0 || scopeContinent.Length > 0 || scopeCountry.Length > 0 || kartFilter.Length > 0 || characterFilter.Length > 0;
-                ShowState(filtered ? "search" : "leaderboard", filtered ? stateNoMatch : stateNoRuns, false);
+                if (showHidden) ShowState("visibility", stateNoHidden, false);
+                else ShowState(filtered ? "search" : "leaderboard", filtered ? stateNoMatch : stateNoRuns, false);
                 return;
             }
             offlineShown = false;
@@ -500,6 +558,7 @@ namespace MHK.UI
             var row = UiTree.Spawn<VisualElement>(leaderRowTemplate, parent);
             if (row == null) return;
             LeaderRows.Fill(row, run, alt);
+            LeaderRows.AttachPlayer(row, run, ranks, cardOptions);
             globalRows.Add((run, row));
             row.Q<Button>("lb-main").clicked += () =>
             {
@@ -556,6 +615,7 @@ namespace MHK.UI
                 shownLoggedIn = loggedIn;
                 shownModerator = mod;
                 SetVisible("reports", mod);
+                BindTabs();
                 BuildScopes();
                 scopeChoice.Refresh();
                 ShowUploadMarks();

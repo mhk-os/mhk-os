@@ -7,9 +7,9 @@ namespace MHK.UI
 {
     /// <summary>
     /// Applies the HUD part of a <see cref="UiLayoutSettings"/> to a RaceHud.uxml tree: moves (translate), scales and fades
-    /// the elements named by <see cref="ElementName"/>. An element that was never placed keeps its stylesheet place, so
-    /// the default layout writes no styles. The minimap keeps its own size (<see cref="ScalesBox"/>). Shared by the race
-    /// HUD and the UI Layout screen. Positions are in the HUD element's coordinates (UI reference pixels).
+    /// the elements named by <see cref="ElementName"/>. An element that was never placed keeps its stylesheet place and,
+    /// at scale 1, gets no styles. The minimap keeps its own size (<see cref="ScalesBox"/>). Shared by the race HUD and
+    /// the UI Layout screen. Positions are in the HUD element's coordinates (UI reference pixels).
     /// </summary>
     public sealed class HudLayout
     {
@@ -64,10 +64,10 @@ namespace MHK.UI
         /// <summary>The element of <paramref name="type"/>, null when the tree has none.</summary>
         public VisualElement Element(HudElementType type) => elements[(int)type];
 
-        /// <summary>Applies every HUD element of <paramref name="layout"/>.</summary>
-        public void ApplyAll(UiLayoutSettings layout)
+        /// <summary>Applies every HUD element of <paramref name="layout"/> (its defaults for touch controls on or off, <paramref name="touch"/>).</summary>
+        public void ApplyAll(UiLayoutSettings layout, bool touch)
         {
-            for (var i = 0; i < elements.Length; i++) Apply(layout.Hud(UiLayoutSettings.HudTypes[i]));
+            for (var i = 0; i < elements.Length; i++) Apply(layout.Hud(UiLayoutSettings.HudTypes[i], touch));
         }
 
         /// <summary>Applies the HUD elements in <paramref name="layout"/>.</summary>

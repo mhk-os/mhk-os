@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using MHK.Core;
 using MHK.Ghosts;
+using MHK.Online;
 using MHK.Race;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -155,7 +156,7 @@ namespace MHK.UI
             }
 
             // Tags of the ghosts shown in full (the nearest few) and the reference; any ghost while its latest problem
-            // shows, at any distance. The others are on the minimap.
+            // shows, at any distance. The others are on the minimap. Problems show to moderators only (like the server's flags).
             void UpdateTags()
             {
                 var race = hud.race;
@@ -163,12 +164,14 @@ namespace MHK.UI
                 var range = GameRoot.Instance.Config.ghostTagDistance;
                 var size = ghostTags.layout.size;
                 var now = Time.unscaledTime;
+                var moderator = OnlineService.IsModerator;
                 var reference = bound != null ? bound.Reference : null;
                 foreach (var tag in tags)
                 {
                     var ghost = tag.ghost;
                     var top = Vector3.zero;
-                    var flagFresh = ghost != null && ghost.FlagCount > 0 && now - ghost.LastFlagTime < FlagShowSeconds;
+                    var flags = ghost != null && moderator ? ghost.FlagCount : 0;
+                    var flagFresh = flags > 0 && now - ghost.LastFlagTime < FlagShowSeconds;
                     var visible = cam != null && ghost != null && ghost.isActiveAndEnabled && race.Phase != RacePhase.Results
                                   && (flagFresh || ghost.Detailed || ghost == reference)
                                   && TryTagPoint(ghost, cam, flagFresh ? float.PositiveInfinity : range, out top);
@@ -178,7 +181,7 @@ namespace MHK.UI
                         tag.visible = false;
                         continue;
                     }
-                    UpdateFlags(tag, flagFresh);
+                    UpdateFlags(tag, flags, flagFresh);
                     // Viewport coordinates, not screen pixels: the race camera may render at a lower resolution than the
                     // screen (GraphicsQuality render scale), which CameraTransformWorldToPanel's pixel mapping ignores.
                     var v = cam.WorldToViewportPoint(top);
@@ -189,15 +192,14 @@ namespace MHK.UI
                 }
             }
 
-            static void UpdateFlags(Tag tag, bool flagFresh)
+            static void UpdateFlags(Tag tag, int flags, bool flagFresh)
             {
-                var ghost = tag.ghost;
-                if (ghost.FlagCount != tag.shownFlags)
+                if (flags != tag.shownFlags)
                 {
-                    tag.shownFlags = ghost.FlagCount;
-                    tag.flagCount.text = ghost.FlagCount.ToString();
-                    tag.flagText.text = ghost.LastFlag;
-                    tag.badge.SetVisible(ghost.FlagCount > 0);
+                    tag.shownFlags = flags;
+                    tag.flagCount.text = flags.ToString();
+                    tag.flagText.text = tag.ghost.LastFlag;
+                    tag.badge.SetVisible(flags > 0);
                 }
                 if (flagFresh == tag.flagShown) return;
                 tag.flagShown = flagFresh;

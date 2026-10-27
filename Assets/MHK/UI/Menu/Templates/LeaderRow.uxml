@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
-    <!-- One online run (track records leaderboard, Reports page). Code sets the texts, the driver portrait and kart icon (names as tooltips) and classes: .medal-1 / .medal-2 / .medal-3 on lb-rank (top three), .selected (picked to race: check mark), .mine (the player's own run: highlighted, the You tag), .hidden-run (hidden by a moderator: dimmed, the hidden icon), .flagged (lb-flags with the count), .mismatch (lb-mismatch), .alt (every second row). lb-sub (track and class) shows on the Reports page only (.lb-list-reports on the list). lb-main toggles the pick (Reports page: shows the run's details); lb-watch downloads and replays. Moderators (.lb-list-mod on the list) also get lb-hide and lb-account. Samples add sample-selected / sample-mine / sample-hidden / sample-flagged / sample-mismatch / sample-gold on their Instance. -->
+    <!-- One online run (track records leaderboard and Hidden tab, Reports page, player runs page). Code sets the texts, the driver portrait and kart icon (names as tooltips) and classes: .medal-1 / .medal-2 / .medal-3 on lb-rank (top three), .selected (picked to race: check mark), .mine (the player's own run: highlighted, the You tag), .hidden-run (hidden by a moderator: dimmed, the hidden icon), .flagged (lb-flags with the count, moderators only), .mismatch (lb-mismatch), .alt (every second row). lb-player-rank is the uploader's score rank (hidden when unranked). lb-sub (track and class) shows on the Reports page only (.lb-list-reports on the list). lb-main toggles the pick (Reports page: shows the run's details; player runs: opens the track); hovering or tapping lb-name and lb-profile open the player card; lb-watch downloads and replays. Moderators (.lb-list-mod on the list) also get lb-hide and lb-account. Samples add sample-selected / sample-mine / sample-hidden / sample-flagged / sample-mismatch / sample-gold on their Instance. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="lb-row">
         <ui:Button name="lb-main" class="lb-main">
@@ -14,6 +14,7 @@
             <ui:VisualElement class="lb-who">
                 <ui:VisualElement class="lb-name-row">
                     <ui:Label name="lb-name" text="SmokeRacer" class="lb-name" />
+                    <ui:Label name="lb-player-rank" text="#12" tooltip="Rank 12 with 840 points" class="player-rank lb-player-rank" />
                     <ui:Label name="lb-you" text="You" class="lb-you" />
                     <ui:Label name="lb-country" text="DE" tooltip="Germany" class="lb-country" />
                 </ui:VisualElement>
@@ -40,6 +41,9 @@
             </ui:VisualElement>
         </ui:Button>
         <ui:VisualElement name="lb-actions" class="row lb-actions">
+            <ui:Button name="lb-profile" tooltip="Player card" class="mhk-button small secondary icon-only">
+                <ui:VisualElement class="icon i-person" />
+            </ui:Button>
             <ui:Button name="lb-watch" tooltip="Watch" class="mhk-button small secondary icon-only">
                 <ui:VisualElement class="icon i-visibility" />
             </ui:Button>
