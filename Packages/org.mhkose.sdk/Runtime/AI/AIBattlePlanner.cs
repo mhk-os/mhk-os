@@ -453,7 +453,7 @@ namespace MHK.AI
                 roamTimer = Mathf.Max(MinRoamSeconds, distance / RoamSpeed);
                 return;
             }
-            var path = track.path;
+            var path = track.MainPath;
             roamPoint = path.GetPoint(path.WrapDistance(kart.Progress.PathDistance + cfg.aiBattleWanderRadius));
             roamTimer = MinRoamSeconds;
         }
@@ -485,7 +485,7 @@ namespace MHK.AI
         {
             var prog = kart.Progress;
             var route = prog.CurrentBranch;
-            return route != null ? route.GetTangent(prog.BranchDistance) : track.path.GetTangent(prog.PathDistance);
+            return route != null ? route.GetTangent(prog.BranchDistance) : track.MainPath.GetTangent(prog.PathDistance);
         }
 
         static Vector3 Flat(Vector3 v) => new(v.x, 0f, v.z);

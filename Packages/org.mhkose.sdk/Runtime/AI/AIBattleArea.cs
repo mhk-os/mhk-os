@@ -63,8 +63,8 @@ namespace MHK.AI
         /// </summary>
         public static float BeyondRoad(TrackRuntime track, Vector3 p, Hints hints)
         {
-            var beyond = BeyondLine(track, track.path, p, ref hints.main, out _);
-            var routes = track.alternatePaths;
+            var beyond = BeyondLine(track, track.MainPath, p, ref hints.main, out _);
+            var routes = track.Routes;
             if (beyond <= 0f || routes.Count == 0) return beyond;
             hints.Fit(routes.Count);
             for (var i = 0; i < routes.Count; i++) beyond = Mathf.Min(beyond, BeyondRoute(track, routes[i], p, ref hints.routes[i], out _));
@@ -78,8 +78,8 @@ namespace MHK.AI
         public static int RouteAt(TrackRuntime track, Vector3 p, Hints hints, out float distance)
         {
             distance = 0f;
-            var routes = track.alternatePaths;
-            if (routes.Count == 0 || BeyondLine(track, track.path, p, ref hints.main, out _) <= 0f) return -1;
+            var routes = track.Routes;
+            if (routes.Count == 0 || BeyondLine(track, track.MainPath, p, ref hints.main, out _) <= 0f) return -1;
             hints.Fit(routes.Count);
             var best = -1;
             var bestBeyond = 0f;
@@ -97,8 +97,8 @@ namespace MHK.AI
         /// <summary>How far (m) <paramref name="p"/> lies beyond the road edges of alternative route <paramref name="route"/>.</summary>
         public static float BeyondRoute(TrackRuntime track, int route, Vector3 p, Hints hints, out float distance)
         {
-            hints.Fit(track.alternatePaths.Count);
-            return BeyondRoute(track, track.alternatePaths[route], p, ref hints.routes[route], out distance);
+            hints.Fit(track.Routes.Count);
+            return BeyondRoute(track, track.Routes[route], p, ref hints.routes[route], out distance);
         }
 
         // Beyond the nearer measured road edge, in metres across the line.
@@ -134,7 +134,7 @@ namespace MHK.AI
             if (floorTrack == track) return floor;
             floorTrack = track;
             var lowest = float.PositiveInfinity;
-            var path = track.path;
+            var path = track.MainPath;
             for (var i = 0; i < path.Count; i++) lowest = Mathf.Min(lowest, path.GetNodePosition(i).y);
             floor = Mathf.Min(track.killHeight + KillHeightMargin, lowest - LineFloorMargin);
             return floor;

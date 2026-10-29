@@ -129,12 +129,12 @@ namespace MHK.Powerups
             var waiting = target != null && target.Effects.RespawnProtected;
             if (!waiting) life -= dt;
             var track = TrackRuntime.Current;
-            if (life < 0f || track == null || track.path == null)
+            if (life < 0f || track == null || track.MainPath == null)
             {
                 Finish(null);
                 return;
             }
-            var path = track.path;
+            var path = track.MainPath;
             var myD = path.Project(transform.position, ref segment, out _);
             Vector3 aim;
             if (target == null) aim = CruiseAim(path, myD, dt);

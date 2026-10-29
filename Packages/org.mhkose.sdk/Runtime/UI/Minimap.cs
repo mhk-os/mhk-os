@@ -162,8 +162,8 @@ namespace MHK.UI
         static int CountNodes(TrackRuntime track)
         {
             if (track == null) return -1;
-            var n = track.path != null ? track.path.Count : 0;
-            var alternates = track.alternatePaths;
+            var n = track.MainPath != null ? track.MainPath.Count : 0;
+            var alternates = track.Routes;
             if (alternates != null)
                 for (var i = 0; i < alternates.Count; i++)
                     if (Shows(alternates[i])) n += alternates[i].Count;
@@ -179,9 +179,9 @@ namespace MHK.UI
             lines.Clear();
             appliedScale = -Vector2.one;
             if (track == null) return;
-            AddPath(track.path);
-            medianWidth = MedianWidth(track.path);
-            var alternates = track.alternatePaths;
+            AddPath(track.MainPath);
+            medianWidth = MedianWidth(track.MainPath);
+            var alternates = track.Routes;
             if (alternates != null)
                 for (var i = 0; i < alternates.Count; i++)
                     if (Shows(alternates[i])) AddPath(alternates[i]);

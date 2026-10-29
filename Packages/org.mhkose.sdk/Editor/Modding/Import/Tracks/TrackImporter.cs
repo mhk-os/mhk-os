@@ -66,7 +66,7 @@ namespace MHK.Editor.Modding.Import
             if (!EditorSceneManager.SaveScene(scene, c.ScenePath)) throw new IOException("cannot save " + c.ScenePath);
             if (c.Settings.chunkLargeMeshes && MeshChunker.ChunkScene(scene).chunked.Count > 0) EditorSceneManager.SaveScene(scene);
             TrackDefinitionWriter.Write(c);
-            Debug.Log($"[Import] Track {c.Id}: {path.Count} path nodes ({path.Length:0} m), {runtime.alternatePaths.Count} routes, " +
+            Debug.Log($"[Import] Track {c.Id}: {path.Count} path nodes ({path.Length:0} m), {runtime.Routes.Count} routes, " +
                       $"{slots} grid slots, {items} item boxes, kill height {runtime.killHeight:0.0} → {c.ScenePath}");
         }
 

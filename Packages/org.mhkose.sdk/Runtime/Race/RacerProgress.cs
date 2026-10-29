@@ -35,7 +35,7 @@ namespace MHK.Race
         /// <summary>Main-line segment of the projection.</summary>
         public int PathSegment => segment;
         /// <summary>Alternative route the kart is on, null on the main line.</summary>
-        public TrackPath CurrentBranch => branch >= 0 && track != null ? track.alternatePaths[branch] : null;
+        public TrackPath CurrentBranch => branch >= 0 && track != null ? track.Routes[branch] : null;
         /// <summary>Distance along <see cref="CurrentBranch"/>.</summary>
         public float BranchDistance => branchDistance;
         public List<float> LapTimes { get; } = new();
@@ -146,7 +146,7 @@ namespace MHK.Race
             safeBranch = -1;
             relocate = false;
             Locate(true);
-            var len = track.path.Length;
+            var len = track.MainPath.Length;
             var rawLap = PathDistance;
             lineSide = SideOfLine(rawLap);
             lapDistance = DistanceInLap(rawLap, lineSide);
@@ -164,7 +164,7 @@ namespace MHK.Race
 
         void InitLapState(float len)
         {
-            var path = track.path;
+            var path = track.MainPath;
             if (lapDistance > len * 0.5f)
             {
                 crossings = 0;
@@ -209,7 +209,7 @@ namespace MHK.Race
 
         void UpdateWrongWay(TrackPath line, float dt)
         {
-            var tangent = line != null ? line.GetTangent(branchDistance, TangentSmoothing) : track.path.GetTangent(PathDistance, TangentSmoothing);
+            var tangent = line != null ? line.GetTangent(branchDistance, TangentSmoothing) : track.MainPath.GetTangent(PathDistance, TangentSmoothing);
             var facing = Vector3.Dot(transform.forward, tangent);
             if (facing < WrongWayCos) wrongWayTimer += dt;
             else wrongWayTimer = 0f;
@@ -220,7 +220,7 @@ namespace MHK.Race
 
         void UpdateSafePoint(TrackPath line)
         {
-            var width = line != null ? line.GetWidth(branchDistance) : track.path.GetWidth(PathDistance);
+            var width = line != null ? line.GetWidth(branchDistance) : track.MainPath.GetWidth(PathDistance);
             OffRouteDistance = Mathf.Max(0f, routeScore - 0.5f * width);
             // Battles have no wrong way (karts drive both directions): respawns there come back where the kart last was.
             if (kart == null || !kart.Physics.IsGrounded || !(LateralOffset < width * SafeLateralWidths) || (WrongWay && !InBattle)) return;
@@ -232,9 +232,9 @@ namespace MHK.Race
 
         void Locate(bool reset)
         {
-            var path = track.path;
+            var path = track.MainPath;
             var pos = transform.position;
-            var alts = track.alternatePaths;
+            var alts = track.Routes;
             if (branch >= 0 && branch < alts.Count) segment = path.SegmentAt(track.MapToMain(branch, branchDistance));
             else branch = -1;
             var allowance = ProjectionAllowance();
@@ -283,7 +283,7 @@ namespace MHK.Race
 
         bool TryEnterBranch(TrackPath path, Vector3 pos, bool reset, float dMain, float latMain, float scoreMain)
         {
-            var alts = track.alternatePaths;
+            var alts = track.Routes;
             var best = -1;
             var bestScore = scoreMain - RouteHysteresis;
             float bestD = 0f, bestLat = 0f;
@@ -329,26 +329,26 @@ namespace MHK.Race
 
         float SignedLapOffset(float lap)
         {
-            var len = track.path.Length;
+            var len = track.MainPath.Length;
             return lap > len * 0.5f ? lap - len : lap;
         }
 
         float SideOfLine(float lap)
         {
             var s = SignedLapOffset(lap);
-            return Mathf.Abs(s) < LineZone ? track.path.SignedDistanceToFinish(transform.position) : s;
+            return Mathf.Abs(s) < LineZone ? track.MainPath.SignedDistanceToFinish(transform.position) : s;
         }
 
         float DistanceInLap(float lap, float side)
         {
-            var len = track.path.Length;
+            var len = track.MainPath.Length;
             if (Mathf.Abs(SignedLapOffset(lap)) >= LineZone) return lap;
             return side >= 0f ? side : len + side;
         }
 
         void UpdateLap(float prevLap, float prevSide, float dt)
         {
-            var len = track.path.Length;
+            var len = track.MainPath.Length;
             var rawLap = PathDistance;
             lineSide = SideOfLine(rawLap);
             // Near the line the lap distance follows the line plane, so it wraps exactly at the crossing.
@@ -369,7 +369,7 @@ namespace MHK.Race
         void UpdateKeys(float prevLap, float lap, float len)
         {
             if (Mathf.Abs(lap - prevLap) > len * 0.5f) return;
-            var path = track.path;
+            var path = track.MainPath;
             var n = path.CheckpointCount;
             while (stage < n && prevLap < path.GetCheckpointDistance(stage) && lap >= path.GetCheckpointDistance(stage)) stage++;
             while (stage > 0 && lap < path.GetCheckpointDistance(stage - 1) - KeyHysteresis) stage--;
@@ -378,7 +378,7 @@ namespace MHK.Race
         void CrossForward(float crossTime)
         {
             lastCrossForward = true;
-            if (stage < track.path.CheckpointCount)
+            if (stage < track.MainPath.CheckpointCount)
             {
                 undoStage = stage;
                 stage = 0;
@@ -411,7 +411,7 @@ namespace MHK.Race
         {
             Finished = true;
             FinishTime = crossTime;
-            RaceDistance = totalLaps * track.path.Length;
+            RaceDistance = totalLaps * track.MainPath.Length;
             FinishedRace?.Invoke(this);
         }
 
@@ -422,7 +422,7 @@ namespace MHK.Race
                 if (undoStage < 0)
                 {
                     crossings--;
-                    stage = track.path.CheckpointCount;
+                    stage = track.MainPath.CheckpointCount;
                 }
                 else stage = undoStage;
             }
@@ -463,8 +463,8 @@ namespace MHK.Race
 
         void ResolveSafeLine(float distance, out TrackPath line, out float lineDistance)
         {
-            var alts = track.alternatePaths;
-            line = track.path;
+            var alts = track.Routes;
+            line = track.MainPath;
             lineDistance = distance;
             if (safeBranch < 0 || safeBranch >= alts.Count || alts[safeBranch] == null) return;
             var d = safeBranchDistance + (distance - LastSafeDistance);
@@ -482,7 +482,7 @@ namespace MHK.Race
             branch = safeBranch;
             branchDistance = safeBranchDistance;
             branchSegment = -1;
-            segment = track.path.SegmentAt(LastSafeDistance);
+            segment = track.MainPath.SegmentAt(LastSafeDistance);
         }
 
         /// <summary>Ends the race for this racer at <paramref name="estimatedTime"/> (it did not cross the line).</summary>

@@ -26,6 +26,12 @@ namespace MHK.Editor.Tracks
         const float MinCheckpointSpacingMetres = 1f;
         const float NodeMergeToleranceMetres = 0.25f;
         const string MergeRoutesLabel = "Merge chained routes";
+        const string NewRouteLabel = "New alternative route";
+        /// <summary>Child of the main racing line that holds the alternative routes.</summary>
+        public const string RoutesGroup = "Routes";
+        const string RouteNamePrefix = "Route ";
+        const float NewRouteMinMetres = 40f;
+        const float NewRouteLapFraction = 0.02f;
 
         /// <summary>Rotates a closed node list so <paramref name="index"/> becomes node 0 and the only finish node.</summary>
         public static void MakeFinish(List<TrackPath.Node> nodes, int index)
@@ -49,7 +55,7 @@ namespace MHK.Editor.Tracks
         /// </summary>
         public static void PlaceKeyCheckpoints(TrackRuntime runtime)
         {
-            var path = runtime.path;
+            var path = runtime.MainPath;
             var nodes = NodesWithoutCheckpoints(path);
             foreach (var d in KeyCheckpointDistances(Length(nodes), RouteSections(runtime)))
             {
@@ -60,7 +66,7 @@ namespace MHK.Editor.Tracks
                 nodes[index] = node;
             }
             path.SetNodes(nodes);
-            runtime.InvalidateJoins();
+            runtime.InvalidateLines();
         }
 
         /// <summary>Removes every key checkpoint flag of a path.</summary>
@@ -81,6 +87,52 @@ namespace MHK.Editor.Tracks
             route.SetNodes(nodes);
         }
 
+        /// <summary>Reverses the node order of an alternative route: it is driven from its first node to its last.</summary>
+        public static void Reverse(TrackPath route) => route.SetNodes(route.Nodes.Reverse().ToList());
+
+        /// <summary>
+        /// Creates an alternative route (undoable): an open racing line in the main line's Routes group that forks off
+        /// the main line at <paramref name="fromDistance"/> and rejoins it a little further on, ready to be dragged
+        /// where the route goes. Returns it.
+        /// </summary>
+        public static TrackPath CreateRoute(TrackRuntime runtime, float fromDistance)
+        {
+            var main = runtime.MainPath;
+            var group = main.transform.Find(RoutesGroup);
+            if (group == null)
+            {
+                group = new GameObject(RoutesGroup).transform;
+                group.SetParent(main.transform, false);
+                Undo.RegisterCreatedObjectUndo(group.gameObject, NewRouteLabel);
+            }
+            var go = new GameObject(NextRouteName(group));
+            go.transform.SetParent(group, false);
+            var route = go.AddComponent<TrackPath>();
+            route.closed = false;
+            route.showOnMinimap = runtime.Routes.Count == 0 || runtime.Routes[0].showOnMinimap;
+            var length = Mathf.Max(NewRouteMinMetres, NewRouteLapFraction * main.Length);
+            var nodes = new List<TrackPath.Node>();
+            for (var i = 0; i < 3; i++)
+            {
+                var d = main.WrapDistance(fromDistance + length * i * 0.5f);
+                nodes.Add(new TrackPath.Node { position = route.transform.InverseTransformPoint(main.GetPoint(d)), width = main.GetWidth(d) });
+            }
+            route.SetNodes(nodes);
+            Undo.RegisterCreatedObjectUndo(go, NewRouteLabel);
+            runtime.InvalidateLines();
+            return route;
+        }
+
+        // "Route n" after the highest number in the group.
+        static string NextRouteName(Transform group)
+        {
+            var highest = 0;
+            foreach (Transform child in group)
+                if (child.name.StartsWith(RouteNamePrefix) && int.TryParse(child.name.Substring(RouteNamePrefix.Length), out var n))
+                    highest = Mathf.Max(highest, n);
+            return RouteNamePrefix + (highest + 1);
+        }
+
         /// <summary>
         /// Joins alternative routes split where they pass over or under the main line: route B starts within
         /// <paramref name="maxGap"/> m of route A's end and both junction neighbours lie over <paramref name="minHeight"/> m
@@ -88,7 +140,7 @@ namespace MHK.Editor.Tracks
         /// </summary>
         public static int MergeChainedRoutes(TrackRuntime runtime, float maxGap = DefaultChainMaxGapMetres, float minHeight = DefaultChainMinHeightMetres)
         {
-            var main = runtime != null ? runtime.path : null;
+            var main = runtime != null ? runtime.MainPath : null;
             if (main == null || main.Count < 2) return 0;
             var merged = 0;
             while (TryFindChainedPair(runtime, main, maxGap, minHeight, out var a, out var b))
@@ -109,11 +161,11 @@ namespace MHK.Editor.Tracks
         {
             if (runtime == null) return 0;
             var changed = 0;
-            var paths = new List<TrackPath> { runtime.path };
-            paths.AddRange(runtime.alternatePaths);
+            var paths = new List<TrackPath> { runtime.MainPath };
+            paths.AddRange(runtime.Routes);
             foreach (var path in paths)
                 if (path != null && path.Count >= 3) changed += ClampPathSpikes(path, factor, minSpike, window);
-            if (changed > 0) runtime.InvalidateJoins();
+            if (changed > 0) runtime.InvalidateLines();
             return changed;
         }
 
@@ -216,10 +268,10 @@ namespace MHK.Editor.Tracks
         static List<Vector2> RouteSections(TrackRuntime runtime)
         {
             var sections = new List<Vector2>();
-            foreach (var alt in runtime.alternatePaths)
+            foreach (var alt in runtime.Routes)
             {
                 if (alt == null) continue;
-                TrackRuntime.ComputeJoin(runtime.path, alt, out var start, out var span);
+                TrackRuntime.ComputeJoin(runtime.MainPath, alt, out var start, out var span);
                 sections.Add(new Vector2(start, span));
             }
             return sections;
@@ -230,7 +282,7 @@ namespace MHK.Editor.Tracks
 
         static bool TryFindChainedPair(TrackRuntime runtime, TrackPath main, float maxGap, float minHeight, out int a, out int b)
         {
-            var routes = runtime.alternatePaths;
+            var routes = runtime.Routes;
             for (a = 0; a < routes.Count; a++)
             for (b = 0; b < routes.Count; b++)
                 if (a != b && IsChained(main, routes[a], routes[b], maxGap, minHeight)) return true;
@@ -252,15 +304,14 @@ namespace MHK.Editor.Tracks
 
         static void JoinRoutes(TrackRuntime runtime, int a, int b)
         {
-            var ra = runtime.alternatePaths[a];
-            var rb = runtime.alternatePaths[b];
+            var ra = runtime.Routes[a];
+            var rb = runtime.Routes[b];
             var nodes = new List<TrackPath.Node>();
             for (var i = 0; i < ra.Count - 1; i++) nodes.Add(WorldNode(ra, ra.Nodes[i], ra));
             for (var i = 1; i < rb.Count; i++) nodes.Add(WorldNode(rb, rb.Nodes[i], ra));
             TrackPathUndo.Edit(ra, MergeRoutesLabel, p => p.SetNodes(nodes));
-            TrackPathUndo.Record(runtime, MergeRoutesLabel, r => r.alternatePaths.RemoveAt(b));
             Undo.DestroyObjectImmediate(rb.gameObject);
-            runtime.InvalidateJoins();
+            runtime.InvalidateLines();
         }
 
         static TrackPath.Node WorldNode(TrackPath from, TrackPath.Node n, TrackPath to)

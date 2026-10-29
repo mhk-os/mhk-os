@@ -151,7 +151,7 @@ namespace MHK.AI
             road.Measure(track, line, sampleSpacing, length, margin, mask);
             // Jumps are taken straight down the centre: the take-off ramp and the landing are built around the line.
             road.KeepCentreAroundGaps(Mathf.CeilToInt(GapRunIn / sampleSpacing), Mathf.CeilToInt(GapRunOut / sampleSpacing));
-            if (!closed && track.path != null && track.path != line) road.pinned[0] = road.pinned[n - 1] = true;
+            if (!closed && track.MainPath != null && track.MainPath != line) road.pinned[0] = road.pinned[n - 1] = true;
             BandOf(track, line, out bandPhase, out bandPerMetre);
             road.Edges(margin, out edgeLeft, out edgeRight);
             frameCentre = road.refCentre;
@@ -165,10 +165,10 @@ namespace MHK.AI
         // where it forks, so its lines leave and join the main line's on the same side.
         static void BandOf(TrackRuntime track, TrackPath line, out float phase, out float perMetre)
         {
-            var main = track.path != null ? track.path : line;
+            var main = track.MainPath != null ? track.MainPath : line;
             var waves = main.closed ? Mathf.Max(1f, Mathf.Round(main.Length / BandWavelength)) : main.Length / BandWavelength;
             perMetre = 2f * Mathf.PI * waves / Mathf.Max(1f, main.Length);
-            var index = line == main ? -1 : track.alternatePaths.IndexOf(line);
+            var index = line == main ? -1 : track.RouteIndex(line);
             phase = index >= 0 ? track.BranchJoinStart(index) * perMetre : 0f;
         }
 
@@ -201,7 +201,7 @@ namespace MHK.AI
             }
             var offset = new float[road.n];
             for (var i = 0; i < road.n; i++) offset[i] = Mathf.Clamp(start[i], low[i], high[i]);
-            if (!closed && track.path != null && track.path != path) PinRouteEnds(offset, low, high, line);
+            if (!closed && track.MainPath != null && track.MainPath != path) PinRouteEnds(offset, low, high, line);
             road.Solve(offset, low, high, Road.CoarsestStride);
             for (var round = 0; round < ObstacleRounds && road.AvoidObstacles(offset, low, high, margin, track.ObstacleMask); round++)
                 road.Solve(offset, low, high, Road.RefineStride);
@@ -246,9 +246,9 @@ namespace MHK.AI
         // Alternative routes join the same racing line of the main line at both ends.
         void PinRouteEnds(float[] offset, float[] low, float[] high, int line)
         {
-            var index = track.alternatePaths.IndexOf(path);
+            var index = track.RouteIndex(path);
             if (index < 0) return;
-            var main = Of(track, track.path, margin);
+            var main = Of(track, track.MainPath, margin);
             road.Pin(main.WorldPoint(track.BranchJoinStart(index), line), 0, offset, low, high);
             road.Pin(main.WorldPoint(track.BranchJoinEnd(index), line), road.n - 1, offset, low, high);
         }

@@ -17,16 +17,17 @@ namespace MHK.Editor.Modding.Import
         const float MinAxisAlignment = 0.7f;
         const float Epsilon = 1e-6f;
 
-        /// <summary>Builds Path (and Path/Routes) under <paramref name="root"/> and assigns it to <paramref name="runtime"/>.</summary>
+        /// <summary>Builds Path (closed, the main line) and its open routes in Path/Routes under <paramref name="root"/>.</summary>
         public static TrackPath Build(TrackImportContext c, Transform root, TrackRuntime runtime)
         {
             var s = c.Settings;
             var path = ImportHierarchy.CreateChild(root, "Path").gameObject.AddComponent<TrackPath>();
             var nodes = PathNodes(ExportJson.Items(c.Json["path"]), c.Scale, s.defaultPathWidth);
             PlaceFinish(c, nodes);
+            path.closed = true;
             path.SetNodes(nodes);
-            runtime.path = path;
-            BuildRoutes(c, runtime, path.transform);
+            runtime.InvalidateLines();
+            BuildRoutes(c, runtime, path);
             if (s.widthSpikeFactor > 0f && TrackPathTools.ClampWidthSpikes(runtime, s.widthSpikeFactor) is var narrowed and > 0)
                 Debug.Log($"[Import] Track {c.Id}: {narrowed} racing-line / route width spike(s) narrowed to their neighbours.");
             if (nodes.Count >= 3) TrackPathTools.PlaceKeyCheckpoints(runtime);
@@ -162,20 +163,15 @@ namespace MHK.Editor.Modding.Import
             return nearest;
         }
 
-        static void BuildRoutes(TrackImportContext c, TrackRuntime runtime, Transform parent)
+        static void BuildRoutes(TrackImportContext c, TrackRuntime runtime, TrackPath main)
         {
-            var main = runtime.path;
             if (c.Json["altPaths"] is not JArray alts || alts.Count == 0 || main.Count < 2) return;
-            var routes = ImportHierarchy.CreateChild(parent, "Routes");
-            foreach (var a in alts.OfType<JArray>())
-            {
-                var route = TryAddRoute(c, runtime, routes, RouteNodes(a, main, c.Scale));
-                if (route != null) runtime.alternatePaths.Add(route);
-            }
-            if (runtime.alternatePaths.Count == 0) Object.DestroyImmediate(routes.gameObject);
+            var routes = ImportHierarchy.CreateChild(main.transform, TrackPathTools.RoutesGroup);
+            foreach (var a in alts.OfType<JArray>()) TryAddRoute(c, main, routes, RouteNodes(a, main, c.Scale));
+            runtime.InvalidateLines();
+            if (routes.childCount == 0) Object.DestroyImmediate(routes.gameObject);
             else if (TrackPathTools.MergeChainedRoutes(runtime) is var joined and > 0)
                 Debug.Log($"[Import] Track {c.Id}: {joined} route(s) split where they cross the main line joined to the route before them.");
-            runtime.InvalidateJoins();
         }
 
         static List<TrackPath.Node> RouteNodes(JArray route, TrackPath main, float scale) =>
@@ -186,19 +182,18 @@ namespace MHK.Editor.Modding.Import
                 return new TrackPath.Node { position = p, width = w };
             }).ToList();
 
-        static TrackPath TryAddRoute(TrackImportContext c, TrackRuntime runtime, Transform routes, List<TrackPath.Node> nodes)
+        static void TryAddRoute(TrackImportContext c, TrackPath main, Transform routes, List<TrackPath.Node> nodes)
         {
-            if (nodes.Count < 2) return null;
-            var route = ImportHierarchy.CreateChild(routes, "Route " + (runtime.alternatePaths.Count + 1)).gameObject.AddComponent<TrackPath>();
+            if (nodes.Count < 2) return;
+            var route = ImportHierarchy.CreateChild(routes, "Route " + (routes.childCount + 1)).gameObject.AddComponent<TrackPath>();
             route.closed = false;
             route.showOnMinimap = c.Settings.routesOnMinimap;
             route.SetNodes(nodes);
-            var mainLength = runtime.path.Length;
-            TrackRuntime.ComputeJoin(runtime.path, route, out var joinStart, out var span);
-            if (span >= c.Settings.minRouteBypass * mainLength && span <= c.Settings.maxRouteBypass * mainLength) return route;
+            var mainLength = main.Length;
+            TrackRuntime.ComputeJoin(main, route, out var joinStart, out var span);
+            if (span >= c.Settings.minRouteBypass * mainLength && span <= c.Settings.maxRouteBypass * mainLength) return;
             Debug.Log($"[Import] Track {c.Id}: route skipped (joins the main line at {joinStart:0} m, bypassing {span:0} of {mainLength:0} m).");
             Object.DestroyImmediate(route.gameObject);
-            return null;
         }
     }
 }

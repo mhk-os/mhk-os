@@ -143,7 +143,7 @@ namespace MHK.Ghosts
         // Only what decides when and where karts fall; the pieces' fall is visual.
         static void AddBridge(FingerprintBuilder b, CollapsingBridge c, TrackRuntime runtime)
         {
-            b.Add(runtime != null && c.route != null ? runtime.alternatePaths.IndexOf(c.route) : -1);
+            b.Add(runtime != null && c.route != null ? runtime.RouteIndex(c.route) : -1);
             b.Add(c.gates.Count);
             foreach (var g in c.gates)
             {

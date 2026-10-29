@@ -38,7 +38,7 @@ namespace MHK.Attract
         {
             shot = newShot;
             kart = target;
-            path = track.path;
+            path = track.MainPath;
             mask = track.ObstacleMask;
             var kt = kart.transform;
             focus = kt.position + Vector3.up * LookHeight;

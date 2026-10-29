@@ -37,8 +37,6 @@ namespace MHK.Editor.Tracks
         const float NarrowWidthMetres = 1f;
         const float DuplicateNodeMetres = 0.01f;
         const float RouteEndSnapMetres = 2f;
-        const float MinBypassLapFraction = 0.01f;
-        const float MaxBypassLapFraction = 0.5f;
         const float CheckpointFinishMetres = 10f;
         const float GridPastFinishMetres = 0.5f;
 
@@ -46,19 +44,25 @@ namespace MHK.Editor.Tracks
         public static List<TrackIssue> Validate(TrackRuntime runtime)
         {
             var issues = new List<TrackIssue>();
-            var path = runtime != null ? runtime.path : null;
+            if (runtime == null) return issues;
+            runtime.InvalidateLines();
+            var lines = runtime.GetComponentsInChildren<TrackPath>();
+            var path = runtime.MainPath;
             if (path == null)
             {
-                issues.Add(TrackIssue.Error("TrackRuntime has no main path."));
+                issues.Add(TrackIssue.Error("no closed racing line below the TrackRuntime: tick Closed on the main line."));
                 return issues;
             }
+            var closed = lines.Where(l => l.closed).ToList();
+            if (closed.Count > 1)
+                issues.Add(TrackIssue.Error($"{closed.Count} closed racing lines ({string.Join(", ", closed.Select(l => l.name))}): only the first, " +
+                                            $"{path.name}, is the main line. Untick Closed on the others to make them alternative routes."));
             path.Invalidate();
-            runtime.InvalidateJoins();
             if (!ValidateMainLine(path, issues)) return issues;
 
             var sections = new List<(int index, float start, float span)>();
-            for (var r = 0; r < runtime.alternatePaths.Count; r++)
-                if (ValidateRoute(path, runtime.alternatePaths[r], r, issues) is { } section)
+            foreach (var line in lines)
+                if (!line.closed && ValidateRoute(runtime, path, line, issues) is { } section)
                     sections.Add(section);
             ValidateCheckpoints(path, sections, issues);
             issues.Add(LapSummary(path));
@@ -88,25 +92,21 @@ namespace MHK.Editor.Tracks
             return true;
         }
 
-        static (int index, float start, float span)? ValidateRoute(TrackPath path, TrackPath alt, int r, List<TrackIssue> issues)
+        static (int index, float start, float span)? ValidateRoute(TrackRuntime runtime, TrackPath path, TrackPath alt, List<TrackIssue> issues)
         {
-            if (alt == null)
+            alt.Invalidate();
+            if (alt.Count >= 2) ValidateRouteEnds(path, alt, issues);
+            var problem = TrackRuntime.RouteProblem(path, alt);
+            if (problem != null)
             {
-                issues.Add(TrackIssue.Error($"alternatePaths[{r}] is empty."));
+                var hint = problem == TrackRuntime.ReversedRouteProblem ? " (use 'Reverse direction')" : "";
+                issues.Add(TrackIssue.Error($"{alt.name} is no alternative route, races leave it out: {problem}{hint}."));
                 return null;
             }
-            if (alt.closed) issues.Add(TrackIssue.Error($"route {r} ({alt.name}) must be open."));
-            if (alt.Count < 2)
-            {
-                issues.Add(TrackIssue.Error($"route {r} ({alt.name}) needs at least 2 nodes."));
-                return null;
-            }
-            ValidateRouteEnds(path, alt, r, issues);
+            var r = runtime.RouteIndex(alt);
             var len = path.Length;
             TrackRuntime.ComputeJoin(path, alt, out var start, out var span);
-            if (span < MinBypassLapFraction * len || span > MaxBypassLapFraction * len)
-                issues.Add(TrackIssue.Error($"route {r} ({alt.name}) joins the main line at {start:0} -> {path.WrapDistance(start + span):0} m: it must bypass 1-50 % of the lap in driving direction."));
-            else if (start + span > len)
+            if (start + span > len)
                 issues.Add(TrackIssue.Warning($"route {r} ({alt.name}) spans the finish line ({start:0} -> {path.WrapDistance(start + span):0} m)."));
             if (alt.Nodes.Any(n => n.flags != TrackNodeFlags.None))
                 issues.Add(TrackIssue.Warning($"route {r} ({alt.name}) has flagged nodes; finish and checkpoints only count on the main path."));
@@ -114,14 +114,14 @@ namespace MHK.Editor.Tracks
             return (r, start, span);
         }
 
-        static void ValidateRouteEnds(TrackPath path, TrackPath alt, int r, List<TrackIssue> issues)
+        static void ValidateRouteEnds(TrackPath path, TrackPath alt, List<TrackIssue> issues)
         {
             foreach (var end in new[] { 0, alt.Count - 1 })
             {
                 var hint = -1;
                 path.Project(alt.GetNodePosition(end), ref hint, out _, out var score);
                 if (score > RouteEndSnapMetres)
-                    issues.Add(TrackIssue.Warning($"route {r} ({alt.name}) {(end == 0 ? "first" : "last")} node is {score:0.0} m off the main line (use 'Snap ends to main line')."));
+                    issues.Add(TrackIssue.Warning($"{alt.name}: its {(end == 0 ? "first" : "last")} node is {score:0.0} m off the main line (use 'Snap ends to main line')."));
             }
         }
 

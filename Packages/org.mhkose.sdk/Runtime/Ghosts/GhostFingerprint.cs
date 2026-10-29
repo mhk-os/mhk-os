@@ -58,8 +58,8 @@ namespace MHK.Ghosts
             b.Add(runtime.fallDepth);
             b.Add(runtime.fallMinAirTime);
             AddStartGrid(b, runtime);
-            AddPath(b, runtime.path);
-            foreach (var alt in runtime.alternatePaths) AddPath(b, alt);
+            AddPath(b, runtime.MainPath);
+            foreach (var alt in runtime.Routes) AddPath(b, alt);
         }
 
         // Per scene root, in this order: colliders, surfaces, zones, hazards, animated props, collapsing bridges.

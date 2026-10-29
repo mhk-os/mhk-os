@@ -161,7 +161,7 @@ namespace MHK.Powerups
                 }
             }
             if (!followTrackPath || TrackRuntime.Current == null) return false;
-            var path = TrackRuntime.Current.path;
+            var path = TrackRuntime.Current.MainPath;
             var d = path.Project(transform.position, ref pathSegment, out _);
             aim = path.GetPoint(d + pathDirection * pathLookAhead);
             return true;
@@ -170,7 +170,7 @@ namespace MHK.Powerups
         // +1 to follow the racing line in the track's direction, -1 against it: the way the shot leaves.
         float PathDirectionAlong(Vector3 launch)
         {
-            var path = TrackRuntime.Current.path;
+            var path = TrackRuntime.Current.MainPath;
             var d = path.Project(transform.position, ref pathSegment, out _);
             return Vector3.Dot(path.GetTangent(d, PathTangentSmoothing), launch) < 0f ? -1f : 1f;
         }

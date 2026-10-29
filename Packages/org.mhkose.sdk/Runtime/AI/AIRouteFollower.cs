@@ -96,7 +96,7 @@ namespace MHK.AI
         {
             lineMargin = cfg.aiRacingLineMargin;
             if (t != track) ResetForTrack(t);
-            main = t.path;
+            main = t.MainPath;
             var prog = kart.Progress;
             mainD = prog.PathDistance;
             mainSegment = prog.PathSegment;
@@ -117,8 +117,8 @@ namespace MHK.AI
         /// <summary>Builds this driver's racing line of the main line and of every alternative route of <paramref name="t"/> now.</summary>
         public void Prepare(TrackRuntime t, GameConfig cfg)
         {
-            AIRacingLine.Of(t, t.path, cfg.aiRacingLineMargin).Prepare(racingLine);
-            foreach (var route in t.alternatePaths)
+            AIRacingLine.Of(t, t.MainPath, cfg.aiRacingLineMargin).Prepare(racingLine);
+            foreach (var route in t.Routes)
                 if (route != null && route.Count >= 2) AIRacingLine.Of(t, route, cfg.aiRacingLineMargin).Prepare(racingLine);
         }
 
@@ -264,7 +264,7 @@ namespace MHK.AI
         {
             var onRoute = prog.CurrentBranch;
             if (!(onRoute != null && prog.BranchDistance > AdoptDistance && prog.BranchDistance < onRoute.Length - AdoptDistance)) return false;
-            Take(track.alternatePaths.IndexOf(onRoute));
+            Take(track.RouteIndex(onRoute));
             routeD = prog.BranchDistance;
             return true;
         }
@@ -275,7 +275,7 @@ namespace MHK.AI
         {
             if (chance <= 0f) return;
             reach = Mathf.Min(reach, LostBeforeFork - ForkDecisionMargin);
-            var alts = track.alternatePaths;
+            var alts = track.Routes;
             for (var i = 0; i < alts.Count; i++)
             {
                 var toFork = direction * main.Delta(mainD, ForkOf(i));
@@ -323,7 +323,7 @@ namespace MHK.AI
         void Take(int index)
         {
             if (index < 0) return;
-            route = track.alternatePaths[index];
+            route = track.Routes[index];
             routeIndex = index;
             routeHint = -1;
         }
@@ -338,7 +338,7 @@ namespace MHK.AI
         // A gap or a drop on the route: it can only be driven along the track's direction.
         bool OneWay(int index)
         {
-            var alts = track.alternatePaths;
+            var alts = track.Routes;
             if (routeOneWay == null || routeOneWay.Length != alts.Count)
             {
                 routeOneWay = new bool[alts.Count];

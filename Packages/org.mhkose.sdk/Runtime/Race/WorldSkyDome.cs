@@ -102,8 +102,8 @@ namespace MHK.Race
         static Bounds CameraArea(TrackRuntime runtime, Bounds dome)
         {
             if (!runtime.HasMainPath) return dome;
-            var area = runtime.path.WorldBounds;
-            foreach (var alt in runtime.alternatePaths)
+            var area = runtime.MainPath.WorldBounds;
+            foreach (var alt in runtime.Routes)
                 if (alt != null && alt.Count > 0) area.Encapsulate(alt.WorldBounds);
             area.Expand(2f * CameraReach);
             return area;

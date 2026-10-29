@@ -513,7 +513,7 @@ namespace MHK.Race
             if (IsOnline) SetPaused(false);
             Phase = RacePhase.Finished;
             if (Battle == null && Online == null)
-                RaceResultsBuilder.EstimateUnfinished(karts, ranking.Order, TrackRuntime.path.Length, Laps);
+                RaceResultsBuilder.EstimateUnfinished(karts, ranking.Order, TrackRuntime.MainPath.Length, Laps);
             UpdateRanking();
             foreach (var k in karts) k.Progress.StopClock();
             if (TimeTrial != null) TimeTrial.Complete();

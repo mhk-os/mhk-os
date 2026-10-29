@@ -71,8 +71,8 @@ namespace MHK.Editor.Tracks
         {
             if (runtime == null) return;
             Handles.color = TrackPathHandleStyle.OtherLine;
-            foreach (var other in runtime.alternatePaths) DrawOtherLine(other, path);
-            DrawOtherLine(runtime.path, path);
+            foreach (var other in runtime.Routes) DrawOtherLine(other, path);
+            DrawOtherLine(runtime.MainPath, path);
         }
 
         static void DrawOtherLine(TrackPath other, TrackPath path)

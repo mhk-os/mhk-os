@@ -29,12 +29,13 @@ namespace MHK.Race
                 var slot = startGrid[Mathf.Max(0, index)];
                 return new Pose(slot.position, slot.rotation);
             }
-            if (path != null && path.Count > 1) return FallbackGridPose(index);
+            if (HasMainPath) return FallbackGridPose(index);
             return new Pose(transform.position, transform.rotation);
         }
 
         Pose FallbackGridPose(int index)
         {
+            var path = MainPath;
             var d = FallbackGridStart - index * FallbackGridSpacing;
             var p = path.GetPoint(d);
             var fwd = path.GetTangent(d);
@@ -64,6 +65,7 @@ namespace MHK.Race
         // back metres behind the rearmost slot along the main line, at the column's offset from the line (kept on the road).
         Pose LineGridPose(Transform rear, Transform column, float back)
         {
+            var path = MainPath;
             var atColumn = path.Project(column.position);
             var lateral = Vector3.Dot(column.position - path.GetPoint(atColumn), path.GetRight(atColumn));
             var d = path.WrapDistance(path.Project(rear.position) - back);
