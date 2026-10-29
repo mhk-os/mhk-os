@@ -53,7 +53,7 @@ namespace MHK.Online
         /// <summary>The lobby, the content announcement or the results changed (main thread).</summary>
         public static event Action Changed;
 
-        /// <summary>Someone joined while this player races alone against AI (their name): the race may end early (<see cref="EndRaceEarly"/>).</summary>
+        /// <summary>Someone joined while this player is the only human racing (their name): the race may end early (<see cref="EndRaceEarly"/>).</summary>
         public static event Action<string> SoloRaceJoinWaiting;
 
         /// <summary>The result of a race arrived (also kept in <see cref="LastResults"/>).</summary>

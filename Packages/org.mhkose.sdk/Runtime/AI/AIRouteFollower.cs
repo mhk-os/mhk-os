@@ -27,8 +27,9 @@ namespace MHK.AI
     }
 
     /// <summary>
-    /// The line a computer driver follows: the main racing line or an alternative route it rolled for, with lanes
-    /// relative to the racing line (<see cref="RoadShift"/> converts them to road lanes). In a battle it may be followed
+    /// The line a computer driver follows: its own racing line (<see cref="AIRacingLine.LineFor"/>) of the main line or of
+    /// an alternative route it rolled for, with lanes relative to that racing line (<see cref="RoadShift"/> converts them
+    /// to road lanes). In a battle it may be followed
     /// against the track's direction (<see cref="Direction"/>): distances ahead then run backwards along the lines and
     /// lanes are mirrored, so they stay left to right as seen from the kart.
     /// </summary>
@@ -47,6 +48,7 @@ namespace MHK.AI
         const float JoinSpan = 4f, MinJoinCross = 1e-4f, StraightRadius = 1e4f;
 
         readonly int rollSeed;
+        readonly int racingLine;
         TrackRuntime track;
         TrackPath main;
         float mainD;
@@ -59,7 +61,12 @@ namespace MHK.AI
         float lineMargin;
         int direction = 1;
 
-        public AIRouteFollower(int rollSeed) => this.rollSeed = rollSeed;
+        /// <param name="racingLine">Which of the <see cref="AIRacingLine.LineCount"/> racing lines the driver keeps to.</param>
+        public AIRouteFollower(int rollSeed, int racingLine)
+        {
+            this.rollSeed = rollSeed;
+            this.racingLine = racingLine;
+        }
 
         /// <summary>Alternative route being followed, null on the main line.</summary>
         public TrackPath Route => route;
@@ -107,6 +114,14 @@ namespace MHK.AI
             TryTakeFork(prog, reach, cfg.aiRouteChance);
         }
 
+        /// <summary>Builds this driver's racing line of the main line and of every alternative route of <paramref name="t"/> now.</summary>
+        public void Prepare(TrackRuntime t, GameConfig cfg)
+        {
+            AIRacingLine.Of(t, t.path, cfg.aiRacingLineMargin).Prepare(racingLine);
+            foreach (var route in t.alternatePaths)
+                if (route != null && route.Count >= 2) AIRacingLine.Of(t, route, cfg.aiRacingLineMargin).Prepare(racingLine);
+        }
+
         /// <summary>Lane plus this is the road lane (0 = left road edge, 1 = right edge) <paramref name="ahead"/> metres along the followed line.</summary>
         public float RoadShift(float ahead)
         {
@@ -124,8 +139,8 @@ namespace MHK.AI
             var rl = Road(p);
             friction = rl.Friction(d);
             if (NearJoin(ahead)) return JoinRadius(ahead, out side);
-            side = rl.BendSide(d) * direction;
-            return rl.Radius(d);
+            side = rl.BendSide(d, racingLine) * direction;
+            return rl.Radius(d, racingLine);
         }
 
         /// <summary>World point at lane <paramref name="u"/> <paramref name="ahead"/> metres along, kept on the road.</summary>
@@ -217,7 +232,7 @@ namespace MHK.AI
             var rl = Road(p);
             rl.RoadEdges(d, out left, out right);
             if (direction < 0) (left, right) = (1f - right, 1f - left);
-            var shift = Mirror(rl.Lane(d)) - AILanes.Centre;
+            var shift = Mirror(rl.Lane(d, racingLine)) - AILanes.Centre;
             left -= shift;
             right -= shift;
         }
@@ -383,7 +398,7 @@ namespace MHK.AI
             return Mathf.Min(StraightRadius, ab.magnitude * bc.magnitude * ac.magnitude / (2f * Mathf.Abs(cross)));
         }
 
-        float Shift(TrackPath path, float distance) => Mirror(Road(path).Lane(distance)) - AILanes.Centre;
+        float Shift(TrackPath path, float distance) => Mirror(Road(path).Lane(distance, racingLine)) - AILanes.Centre;
 
         // Racing line and drivable road of a line: lanes are measured across that road, not the track line's width.
         AIRacingLine Road(TrackPath path) => AIRacingLine.Of(track, path, lineMargin);

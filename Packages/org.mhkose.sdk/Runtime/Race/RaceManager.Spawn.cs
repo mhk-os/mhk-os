@@ -46,7 +46,8 @@ namespace MHK.Race
 
         Kart SpawnKart(int slot, RacerSetup setup, GameConfig cfg)
         {
-            if (Online != null && setup.onlineSlot >= 0 && !setup.isHuman) return SpawnRemote(slot, setup, cfg);
+            // Other humans are stand-ins; AI karts of the grid run here like offline ones (OnlineItems mirrors their items).
+            if (Online != null && setup.onlineSlot >= 0 && !setup.isHuman && !Online.IsAi(setup.onlineSlot)) return SpawnRemote(slot, setup, cfg);
             var content = GameRoot.Instance.Content;
             var character = content.Get<CharacterDefinition>(setup.characterId);
             var kartDef = content.ResolveKart(setup.kartId, character);

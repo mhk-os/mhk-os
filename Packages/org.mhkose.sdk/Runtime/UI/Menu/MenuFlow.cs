@@ -28,9 +28,7 @@ namespace MHK.UI
         public MenuScreen titleScreen;
         [Tooltip("Opened instead of the title screen until the player picked graphics settings once.")]
         public MenuScreen firstRunScreen;
-        [SerializeField, Tooltip("Flat ambient light while the menu is shown (matches the backdrop picture).")]
-        Color ambientLight = new(0.86f, 0.74f, 0.66f);
-        [SerializeField, Tooltip("Hosts menu screens over another scene (the race pause menu's options): no menu music, lighting, " +
+        [SerializeField, Tooltip("Hosts menu screens over another scene (the race pause menu's options): no menu music, " +
                                  "showcase or start screen. Back from the first opened screen closes the overlay.")]
         bool overlay;
 
@@ -62,8 +60,6 @@ namespace MHK.UI
             if (clickSound == null) clickSound = ContentPack.Find(Content.Packs, p => p.uiClick);
             if (overlay) return;
             MusicPlayer.PlayMenu(menuMusicVolume);
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = ambientLight;
 
             var settings = GameRoot.Instance.Settings;
             var last = Content.Get<CharacterDefinition>(settings.lastCharacterId);

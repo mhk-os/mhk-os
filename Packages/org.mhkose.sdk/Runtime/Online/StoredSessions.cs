@@ -66,6 +66,15 @@ namespace MHK.Online
             Save();
         }
 
+        /// <summary>Keeps the stored name of <paramref name="endpoint"/>'s session in step with a renamed account and saves.</summary>
+        public void SetUsername(string endpoint, string username)
+        {
+            var entry = Find(endpoint);
+            if (entry == null || entry.username == username) return;
+            entry.username = username;
+            Save();
+        }
+
         /// <summary>Forgets the session of <paramref name="endpoint"/> and saves when there was one.</summary>
         public void Remove(string endpoint)
         {

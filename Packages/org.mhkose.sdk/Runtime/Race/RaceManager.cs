@@ -373,8 +373,9 @@ namespace MHK.Race
         {
             var kart = p.GetComponent<Kart>();
             finishCounter++;
-            // Races only: in battles an elimination also "finishes" a kart; a solo battle reports at the round's end.
-            if (Online != null && Battle == null && kart == LocalPlayer && !Online.LocalLeft) Online.SendFinished(p, finishCounter);
+            // Races only (in battles an elimination also "finishes" a kart): the local racer's and, as AI host, the AI
+            // karts' finishes go to the server.
+            if (Online != null && Battle == null) Online.OnKartFinished(kart, p);
             KartFinished?.Invoke(kart);
             if (Battle != null || !kart.IsHuman) return;
             HandToAi(kart, kart.RacerIndex + 100);
@@ -415,14 +416,7 @@ namespace MHK.Race
                 return;
             }
             if (finishTimer > 0f) finishTimer -= Time.unscaledDeltaTime;
-            // A solo battle against AI ends here (the server knows no AI): the place when the round is over.
-            if (Battle != null && Online.Solo && Phase == RacePhase.Racing && !soloBattleReported && Battle.TickRoundEnd(Time.deltaTime))
-            {
-                soloBattleReported = true;
-                UpdateRanking();
-                if (LocalPlayer != null) Online.SendFinished(LocalPlayer.Progress, LocalPlayer.Progress.Position);
-            }
-            // The result may come before GO too (taken out while loading, a solo race ended early).
+            // The result may come before GO too (taken out while loading, a race with one human ended early).
             if (Online.Results != null && finishTimer <= 0f && Phase is RacePhase.Intro or RacePhase.Countdown or RacePhase.Racing)
                 EndRace();
         }
@@ -518,7 +512,7 @@ namespace MHK.Race
             // Online the race can end while the menu covers it: the results take over (keys and focus go to them).
             if (IsOnline) SetPaused(false);
             Phase = RacePhase.Finished;
-            if (Battle == null && (Online == null || Online.Solo))
+            if (Battle == null && Online == null)
                 RaceResultsBuilder.EstimateUnfinished(karts, ranking.Order, TrackRuntime.path.Length, Laps);
             UpdateRanking();
             foreach (var k in karts) k.Progress.StopClock();
@@ -526,7 +520,7 @@ namespace MHK.Race
             if (Online != null)
             {
                 Online.LogStats();
-                RaceResultsBuilder.BuildOnline(this, ranking.Order, Online, Results);
+                RaceResultsBuilder.BuildOnline(this, Online, Results);
             }
             else RaceResultsBuilder.Build(this, ranking.Order, Results);
             Phase = RacePhase.Results;

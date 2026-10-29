@@ -11,7 +11,8 @@ namespace MHK.AI
     /// Battle part of a computer driver: <see cref="AIBattlePlanner"/> decides between racing the track (the race driving
     /// of <see cref="AIKartDriver"/> in <see cref="Direction"/>) and the modes that leave the racing line, which this drives:
     /// the way to the goal comes from <see cref="AIBattleNavigator"/>, with slowing for sharp turns and for walls or unsafe
-    /// ground ahead and three-point turns when the nose is against a wall or an edge.
+    /// ground ahead, turns around measured on the ground (<see cref="AIBattleTurn"/>) when the way lies behind, and
+    /// backing up when the nose is against a wall or an edge.
     /// </summary>
     internal sealed class AIBattleDriving
     {
@@ -23,6 +24,7 @@ namespace MHK.AI
 
         readonly AIBattlePlanner planner;
         readonly AIBattleNavigator navigator;
+        readonly AIBattleTurn turner = new();
         readonly bool arena;
         float backUpTimer, pushTimer;
         bool backingUp, navigating;
@@ -49,6 +51,8 @@ namespace MHK.AI
         public Kart Target => planner.Target;
         /// <summary>No drop, deadly or unsafe ground right ahead, so pushing forward out of a jam is safe.</summary>
         public bool ForwardSafe => navigator.GroundAhead > StopMargin;
+        /// <summary>Turning around (<see cref="AIBattleTurn"/>): the stuck recovery leaves the kart to it.</summary>
+        public bool Turning => turner.Active;
 
         /// <summary>Decides mode, direction and goal for this physics step (before the line follower ticks).</summary>
         public void Think(Kart kart, TrackRuntime track, AIRouteFollower line, GameConfig cfg, float dt)
@@ -56,6 +60,7 @@ namespace MHK.AI
             planner.Tick(kart, track, line, Leash(cfg), cfg, dt);
             if (Navigating == navigating) return;
             navigating = Navigating;
+            turner.Reset();
             if (!navigating) return;
             // Fresh from the racing line: no turn, back-up or blocked state left over from an earlier stretch off it.
             navigator.Reset(kart.transform.position);
@@ -64,20 +69,24 @@ namespace MHK.AI
         }
 
         /// <summary>Plans the way for this physics step while <see cref="Navigating"/> and sets steering, throttle and brake wishes.</summary>
-        public void Drive(Kart kart, TrackRuntime track, AIRouteFollower line, AISteering steering, float radius, GameConfig cfg, float dt,
-            ref KartInput input)
+        public void Drive(Kart kart, TrackRuntime track, AIRouteFollower line, AISteering steering, AITurnLimit limit, float radius, GameConfig cfg,
+            float dt, ref KartInput input)
         {
             var turn = planner.Mode == BattleMode.Turn;
             var goal = turn ? line.Point(TurnGoalAhead, AILanes.Centre) : planner.Point;
-            navigator.Tick(kart, planner.Target, track, goal, arena, Leash(cfg), radius, turn, cfg, dt);
+            var leash = Leash(cfg);
+            navigator.Tick(kart, planner.Target, track, goal, arena, leash, radius, turn, cfg, dt);
             // Turning around takes the kart away from its goal first: no giving up meanwhile.
-            planner.WatchProgress(navigator.Way, navigator.AlongLine, navigator.Turning ? 0f : dt);
+            planner.WatchProgress(navigator.Way, navigator.AlongLine, navigator.Turning || turner.Active ? 0f : dt);
             steering.SteerAt(kart, navigator.SteerPoint, cfg, dt, ref input);
             if (navigator.Jumping)
             {
+                turner.Reset();
                 input.throttle = 1f;
                 return;
             }
+            var room = navigator.TurnRoom(leash, arena, out var paved);
+            if (turner.Drive(kart, track, limit, navigator.WantedDirection, radius, room, paved, TurnAroundSpeed(kart, cfg), cfg, dt, ref input)) return;
             var angle = TurnAngle(kart);
             if (BackingUp(kart, angle, dt, ref input)) return;
             var speed = kart.Physics.ForwardSpeed;
@@ -133,6 +142,9 @@ namespace MHK.AI
             return Vector3.Angle(new Vector3(forward.x, 0f, forward.z), new Vector3(to.x, 0f, to.z));
         }
 
+        // Speed of a turn on the spot (the slowest TurnSpeed).
+        static float TurnAroundSpeed(Kart kart, GameConfig cfg) => cfg.aiBattleTurnSpeedShare * kart.NormalTopSpeed * UTurnShare;
+
         static float StoppingSpeed(float distance, GameConfig cfg) =>
             float.IsPositiveInfinity(distance) ? float.PositiveInfinity : Mathf.Sqrt(2f * cfg.aiPlanBraking * Mathf.Max(0f, distance - StopMargin));
 
@@ -143,7 +155,7 @@ namespace MHK.AI
             var t = Mathf.InverseLerp(GentleTurn, SharpTurn, angle);
             if (t <= 0f) return float.PositiveInfinity;
             var top = kart.NormalTopSpeed;
-            var turn = cfg.aiBattleTurnSpeedShare * top * Mathf.Lerp(1f, UTurnShare, Mathf.InverseLerp(SharpTurn, UTurn, angle));
+            var turn = Mathf.Lerp(cfg.aiBattleTurnSpeedShare * top, TurnAroundSpeed(kart, cfg), Mathf.InverseLerp(SharpTurn, UTurn, angle));
             return Mathf.Lerp(top, turn, t);
         }
     }

@@ -147,11 +147,13 @@ namespace MHK.Karts
         /// <paramref name="usage"/> is the powerup use the hit comes from (<see cref="Powerups.PowerupContext.usage"/>, 0 =
         /// none): it costs this kart health only once per use (<see cref="Kart.TakeDamage"/>).
         /// Online, a remote racer's kart is never changed by a hit seen here: its own client decides
-        /// (<see cref="Powerups.OnlineItems"/>); its own buffs only show.
+        /// (<see cref="Powerups.OnlineItems"/>); its own buffs only show. Neither is a mirrored AI kart by an item use's hit
+        /// (its AI host decides; the server's HitApplied applies it).
         /// </summary>
         public bool Apply(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f, int usage = 0)
         {
             if (kart != null && kart.IsRemote) return ApplyToRemote(def, source, durationOverride, usage);
+            if (Powerups.OnlineItems.WaitsForServer(kart, def, usage)) return !IsBlocked(def);
             if (IsBlocked(def)) return false;
             var duration = ResolveDuration(def, durationOverride);
             EndConflictingBuffs(def);

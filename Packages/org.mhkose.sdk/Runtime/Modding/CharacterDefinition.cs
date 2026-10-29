@@ -13,7 +13,12 @@ namespace MHK.Modding
         public GameObject driverPrefab;
         [Tooltip("Uniform scale of the driver model, about its seat point.")]
         public float modelScale = 1f;
+        [Tooltip("Square picture of the driver that every menu shows (character cards, race summary, lobby, results, " +
+                 "records). Empty = the icon.")]
         public Texture2D portrait;
+
+        /// <summary>The picture menus show for this driver: the portrait, else the icon.</summary>
+        public Texture2D Portrait => portrait != null ? portrait : Icon;
 
         [Header("Gameplay")]
         [Tooltip("Kart used when the player does not pick one.")]

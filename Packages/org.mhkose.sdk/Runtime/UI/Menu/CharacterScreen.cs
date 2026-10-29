@@ -36,7 +36,7 @@ namespace MHK.UI
 
         protected override string CardTag(CharacterDefinition c) => "";
 
-        protected override Texture2D CardImage(CharacterDefinition c) => c.portrait != null ? c.portrait : c.Icon;
+        protected override Texture2D CardImage(CharacterDefinition c) => c.Portrait;
 
         protected override bool IsSelected(CharacterDefinition c) => c == Selection.character;
 

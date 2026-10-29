@@ -1,3 +1,4 @@
+using MHK.Core;
 using MHK.Race;
 using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
@@ -7,7 +8,9 @@ namespace MHK.AI
     /// <summary>
     /// Where computer drivers may roam in a battle: drivable ground, offroad included, that is no wall, fall zone, deadly
     /// surface or water, lies above the kill height and outside kill zones, without a drop on the way and within a leash
-    /// of the road edges of the racing line or of an alternative route.
+    /// of the road edges of the main line or of an alternative route. The edges are the drivable road measured across the
+    /// line (<see cref="AIRacingLine.RoadEdges"/>), not the track line's width, which some tracks claim wider than their
+    /// road.
     /// </summary>
     internal static partial class AIBattleArea
     {
@@ -60,11 +63,11 @@ namespace MHK.AI
         /// </summary>
         public static float BeyondRoad(TrackRuntime track, Vector3 p, Hints hints)
         {
-            var beyond = BeyondLine(track.path, p, ref hints.main, out _);
+            var beyond = BeyondLine(track, track.path, p, ref hints.main, out _);
             var routes = track.alternatePaths;
             if (beyond <= 0f || routes.Count == 0) return beyond;
             hints.Fit(routes.Count);
-            for (var i = 0; i < routes.Count; i++) beyond = Mathf.Min(beyond, BeyondRoute(routes[i], p, ref hints.routes[i], out _));
+            for (var i = 0; i < routes.Count; i++) beyond = Mathf.Min(beyond, BeyondRoute(track, routes[i], p, ref hints.routes[i], out _));
             return beyond;
         }
 
@@ -76,13 +79,13 @@ namespace MHK.AI
         {
             distance = 0f;
             var routes = track.alternatePaths;
-            if (routes.Count == 0 || BeyondLine(track.path, p, ref hints.main, out _) <= 0f) return -1;
+            if (routes.Count == 0 || BeyondLine(track, track.path, p, ref hints.main, out _) <= 0f) return -1;
             hints.Fit(routes.Count);
             var best = -1;
             var bestBeyond = 0f;
             for (var i = 0; i < routes.Count; i++)
             {
-                var beyond = BeyondRoute(routes[i], p, ref hints.routes[i], out var d);
+                var beyond = BeyondRoute(track, routes[i], p, ref hints.routes[i], out var d);
                 if (beyond > bestBeyond) continue;
                 best = i;
                 bestBeyond = beyond;
@@ -95,17 +98,23 @@ namespace MHK.AI
         public static float BeyondRoute(TrackRuntime track, int route, Vector3 p, Hints hints, out float distance)
         {
             hints.Fit(track.alternatePaths.Count);
-            return BeyondRoute(track.alternatePaths[route], p, ref hints.routes[route], out distance);
+            return BeyondRoute(track, track.alternatePaths[route], p, ref hints.routes[route], out distance);
         }
 
-        static float BeyondLine(TrackPath path, Vector3 p, ref int hint, out float distance)
+        // Beyond the nearer measured road edge, in metres across the line.
+        static float BeyondLine(TrackRuntime track, TrackPath path, Vector3 p, ref int hint, out float distance)
         {
-            distance = path.Project(p, ref hint, out var lateral);
-            return lateral - 0.5f * Mathf.Max(MinLineWidth, path.GetWidth(distance));
+            distance = path.Project(p, ref hint, out _);
+            var road = AIRacingLine.Of(track, path, GameRoot.Instance.Config.aiRacingLineMargin);
+            road.RoadEdges(distance, out var left, out var right);
+            var lane = road.RoadLaneOf(p, distance);
+            var mid = 0.5f * (left + right);
+            var half = Mathf.Max(0.5f * (right - left), MinLineWidth * 0.5f / road.Width(distance));
+            return (Mathf.Abs(lane - mid) - half) * road.Width(distance);
         }
 
         // Far from a route's nodes the route is skipped and its hint dropped, so a later nearby search starts afresh.
-        static float BeyondRoute(TrackPath route, Vector3 p, ref int hint, out float distance)
+        static float BeyondRoute(TrackRuntime track, TrackPath route, Vector3 p, ref int hint, out float distance)
         {
             distance = 0f;
             if (route == null || route.Count < 2) return float.PositiveInfinity;
@@ -115,7 +124,7 @@ namespace MHK.AI
                 hint = -1;
                 return float.PositiveInfinity;
             }
-            return BeyondLine(route, p, ref hint, out distance);
+            return BeyondLine(track, route, p, ref hint, out distance);
         }
 
         // Ground below this is too close to the kill height: KillHeightMargin above it, but never above the lowest racing line

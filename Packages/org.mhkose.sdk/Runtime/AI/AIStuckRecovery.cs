@@ -31,7 +31,7 @@ namespace MHK.AI
         float progressTimer;
         float offRouteTimer;
         float lastRaceDistance;
-        bool battle, battlePushSafe;
+        bool battle, battlePushSafe, battleTurning;
         Vector3 battleAim;
         float roamed;
         // Battle: reverse manoeuvres since the kart last roamed aiStuckMinProgress. Every second one steers the other
@@ -45,13 +45,15 @@ namespace MHK.AI
         /// race distance or off-route watch, no respawn after the reverse manoeuvre), and reversing turns its nose towards
         /// <paramref name="aim"/> (the racing line ahead in its direction, or its goal off the line). A reverse that does
         /// not move the kart is followed by pushing forward when <paramref name="forwardSafe"/>. A kart that keeps getting
-        /// stuck without roaming on alternates the side it turns to.
+        /// stuck without roaming on alternates the side it turns to. <paramref name="turning"/>: the kart turns around
+        /// (<see cref="AIBattleTurn"/>, which handles its own stalls and failure), so neither watch runs.
         /// </summary>
-        public void SetBattleAim(Vector3 aim, bool forwardSafe)
+        public void SetBattleAim(Vector3 aim, bool forwardSafe, bool turning)
         {
             battle = true;
             battleAim = aim;
             battlePushSafe = forwardSafe;
+            battleTurning = turning;
         }
 
         /// <summary>Runs the watch for this physics step. True while reversing: the input is set and the driving skips this step.</summary>
@@ -63,7 +65,7 @@ namespace MHK.AI
             lastPos = pos;
             var prog = kart.Progress;
             if (!kart.ControlsEnabled || kart.Eliminated || kart.Effects.ControlsLocked || kart.Effects.HasRespawnPending
-                || MagnetPowerup.Holds(kart))
+                || MagnetPowerup.Holds(kart) || (battle && battleTurning))
             {
                 ResetWindow(Mode.Watch);
                 ResetProgressWatch(prog);

@@ -4,13 +4,14 @@ using UnityEngine;
 namespace MHK.Powerups
 {
     /// <summary>
-    /// Places the powerup object in the world: thrown forward in a ballistic arc (<see cref="throwForward"/>) or dropped
-    /// behind the kart and stuck straight onto the solid ground below (MHK2: no fall). With no ground it is lost.
+    /// Places the powerup object in the world: thrown in a ballistic arc, forwards (<see cref="throwForward"/>) or with look
+    /// back backwards (<see cref="throwBackwards"/>), or dropped behind the kart and stuck straight onto the solid ground
+    /// below (MHK2: no fall). With no ground it is lost.
     /// Combine with <see cref="HazardTrap"/>, <see cref="AreaEffectPowerup"/> or <see cref="MagnetPowerup"/>.
     /// </summary>
     public class PlacementPowerup : PowerupBehaviour, ILandingPowerup, INetProjectile
     {
-        /// <summary>Throw origin ahead of the kart (m).</summary>
+        /// <summary>Throw origin ahead of the kart, behind it for backward throws (m).</summary>
         public const float ThrowOriginForward = 1.5f;
         /// <summary>Throw origin above the kart (m).</summary>
         public const float ThrowOriginUp = 0.5f;
@@ -32,11 +33,12 @@ namespace MHK.Powerups
         [SerializeField, Min(0f)] float dropGap = 0.1f;
         [Tooltip("When fired forwards, throw instead of dropping behind.")]
         public bool throwForward = true;
-        [Tooltip("When true the item always goes forward (e.g. thrown black hole).")]
-        public bool alwaysForward;
+        [Tooltip("When fired with look back, throw backwards in the same arc instead of dropping behind (Pumpkin's " +
+                 "grenade). The kart's speed is not added: it lands its throw distance behind the throw point.")]
+        public bool throwBackwards;
         public float throwSpeed = 25f;
         public float throwUpSpeed = 6f;
-        [Tooltip("Share of the kart's velocity added to the throw (MHK2 projectiles: 0).")]
+        [Tooltip("Share of the kart's velocity added to a forward throw (MHK2 projectiles: 0).")]
         [SerializeField] float inheritVelocity = 0.8f;
         [SerializeField] float groundOffset = 0.05f;
         [SerializeField] LayerMask groundMask = ~0;
@@ -84,9 +86,10 @@ namespace MHK.Powerups
 
         protected override void OnLaunch()
         {
+            var backwards = Context.backwards;
             transform.rotation = Quaternion.Euler(0, Owner.transform.eulerAngles.y, 0);
-            if (!alwaysForward && (!throwForward || Context.backwards)) Drop();
-            else Throw();
+            if (backwards ? throwBackwards : throwForward) Throw(backwards);
+            else Drop();
         }
 
         void Drop()
@@ -103,13 +106,15 @@ namespace MHK.Powerups
             Land(hit.point, hit.normal, false);
         }
 
-        void Throw()
+        void Throw(bool backwards)
         {
             var t = Owner.transform;
+            var dir = backwards ? -t.forward : t.forward;
             // Landing distance as in the original: the kart velocity share is taken in original units (÷ SpeedScale).
-            var kartVel = OwnerVelocity * (inheritVelocity / SpeedScale);
-            transform.position = t.position + t.forward * ThrowOriginForward + Vector3.up * ThrowOriginUp;
-            velocity = t.forward * throwSpeed + Vector3.up * throwUpSpeed + kartVel;
+            var kartVel = backwards ? Vector3.zero : OwnerVelocity * (inheritVelocity / SpeedScale);
+            if (backwards) transform.rotation = Quaternion.Euler(0, t.eulerAngles.y + 180f, 0);
+            transform.position = t.position + dir * ThrowOriginForward + Vector3.up * ThrowOriginUp;
+            velocity = dir * throwSpeed + Vector3.up * throwUpSpeed + kartVel;
             flying = true;
             loop = Effects.EffectLoopSound.Play(gameObject, flightLoop);
             InterpolatePose();

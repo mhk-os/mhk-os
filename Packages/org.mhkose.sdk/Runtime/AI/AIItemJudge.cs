@@ -135,7 +135,8 @@ namespace MHK.AI
                 if (path != null)
                 {
                     var tangent = path.GetTangent(kart.Progress.PathDistance, ShotTangentSmoothing);
-                    if (tangent.sqrMagnitude > MinShotTangentSqr) dir = tangent;
+                    // Shots fly along the line the way the kart faces (StraightProjectile.AimDirection).
+                    if (tangent.sqrMagnitude > MinShotTangentSqr) dir = Vector3.Dot(tangent, kart.transform.forward) < 0f ? -tangent : tangent;
                 }
             }
             var flat = Mathf.Sqrt(dir.x * dir.x + dir.z * dir.z);

@@ -8,7 +8,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// On-screen touch controls (TouchControls.uxml) built from the player's layout (<see cref="UserSettings.uiLayout"/>),
-    /// multi-touch aware, writing <see cref="VirtualKartInput"/> for the configured player. Replays keep only pause and camera.
+    /// multi-touch aware, writing <see cref="VirtualKartInput"/> for the configured player. A finger that holds the look-back
+    /// button and slides onto an item button uses the item to the rear. Replays keep only pause and camera.
     /// </summary>
     public class TouchControls : RaceLayer
     {
@@ -70,9 +71,13 @@ namespace MHK.UI
             e.RegisterCallback<PointerDownEvent>(ev => OnDown(c, ev.pointerId, ev.localPosition));
             e.RegisterCallback<PointerMoveEvent>(ev =>
             {
-                if (!c.Analog || !c.pointers.Contains(ev.pointerId)) return;
-                Track(c, ev.localPosition);
-                Apply();
+                if (!c.pointers.Contains(ev.pointerId)) return;
+                if (c.Type == TouchControlType.LookBack) SlideOverItems(ev.pointerId, ev.position);
+                else if (c.Analog)
+                {
+                    Track(c, ev.localPosition);
+                    Apply();
+                }
             });
             e.RegisterCallback<PointerUpEvent>(ev => OnRelease(c, ev.pointerId));
             e.RegisterCallback<PointerCancelEvent>(ev => OnRelease(c, ev.pointerId));
@@ -97,6 +102,27 @@ namespace MHK.UI
                 Track(c, local);
             }
             Apply();
+        }
+
+        // Look back and item with one finger: the look-back button keeps the finger (pointer capture), and while it lies on
+        // an item button, wherever the layout puts the two, that item is pressed by it too, so the item is used to the rear.
+        // Sliding off lets go of the item again.
+        void SlideOverItems(int pointerId, Vector2 panelPosition)
+        {
+            for (var i = 0; i < controls.Count; i++)
+            {
+                var item = controls[i];
+                if (item.Type != TouchControlType.Item) continue;
+                var over = item.element.ContainsPoint(item.element.WorldToLocal(panelPosition));
+                if (over == item.pointers.Contains(pointerId)) continue;
+                if (!over) OnRelease(item, pointerId);
+                else
+                {
+                    item.pointers.Add(pointerId);
+                    item.element.AddToClassList(TouchControlElement.PressedClass);
+                    Apply();
+                }
+            }
         }
 
         // One tap can reach the controls twice: as a touch and as the mouse click the platform (or the Device Simulator)
@@ -124,6 +150,10 @@ namespace MHK.UI
         void OnRelease(Control c, int pointerId)
         {
             if (!c.pointers.Remove(pointerId)) return;
+            // A finger slid from look-back onto an item button lets go of both.
+            if (c.Type == TouchControlType.LookBack)
+                for (var i = 0; i < controls.Count; i++)
+                    if (controls[i].Type == TouchControlType.Item) OnRelease(controls[i], pointerId);
             if (IsTouch(pointerId)) lastTouchTime = Time.unscaledTime;
             if (c.element.HasPointerCapture(pointerId)) c.element.ReleasePointer(pointerId);
             if (!c.Pressed) Reset(c);

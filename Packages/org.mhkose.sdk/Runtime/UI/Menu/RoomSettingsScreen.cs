@@ -12,11 +12,12 @@ namespace MHK.UI
 {
     /// <summary>
     /// Settings of a private room (RoomSettings.uxml): creating one (from the Online page, starting from the last room's
-    /// settings) or the owner changing them while the room waits. Name, mode (segmented: races, battles, championship and
-    /// its cup), the mods as toggle cards (any set of the loaded content packs, third-party mods included; at least one
-    /// must bring tracks or arenas for the mode), and the rules as direct controls: anticheat, items, AI switches, engine
-    /// class and track pick chips, laps / players / races steppers, item odds dropdown (standard, the room's own, or the
-    /// player's own odds of a family, limited to the room's powerups). A chip row sums the room up.
+    /// settings) or the owner changing them while the room waits. Name, mode (segmented: races, battles, championship of a
+    /// cup or of the owner's own track list, edited on the Track list page), the mods as toggle cards (any set of the
+    /// loaded content packs, third-party mods included; at least one must bring tracks or arenas for the mode), and the
+    /// rules as direct controls: anticheat, items switches, engine class and track pick chips, laps / races steppers,
+    /// players and AI number inputs (AI fills free places up to its count), item odds dropdown (standard, the room's own,
+    /// or the player's own odds, limited to the room's powerups). A chip row sums the room up.
     /// </summary>
     public class RoomSettingsScreen : MenuScreen
     {
@@ -28,33 +29,41 @@ namespace MHK.UI
         [SerializeField] string createLabel = "Create room", saveLabel = "Save";
         [SerializeField] string trackLapsText = "Track";
         [SerializeField] string defaultOddsText = "Standard";
-        [SerializeField, Tooltip("Own odds of a family. {0} = the family's game.")] string ownOddsFormat = "My odds: {0}";
+        [SerializeField, Tooltip("Item odds value with the player's own odds (Powerups screen).")] string ownOddsText = "My odds";
         [SerializeField, Tooltip("Item odds value while the room keeps the odds it already has.")] string roomOddsText = "This room's odds";
         [SerializeField] string noTracksText = "Choose at least one mod with tracks.";
         [SerializeField] string noArenasText = "Choose at least one mod with arenas.";
         [SerializeField] string noCupText = "The chosen mods have no cup.";
+        [SerializeField] string noTrackListText = "Choose the championship's tracks.";
+        [SerializeField, Tooltip("Title of the Track list page for the championship.")] string trackListTitle = "Championship tracks";
+        [SerializeField, Tooltip("Confirm button of the Track list page.")] string trackListDone = "Done";
+        [SerializeField, Tooltip("Range hint of the number inputs. {0} = min, {1} = max.")] string rangeFormat = "{0} to {1}";
         [SerializeField, Tooltip("{0} = count.")] string tracksFormat = "{0} tracks", arenasFormat = "{0} arenas";
 
         const int MaxLapsChoice = 15;
 
         RoomSettings settings;
         bool editing;
-        // Item odds choice: null = default odds, KeepRoomOdds = the odds the room (or the last room) already has, else
-        // the family key of one of the player's own sets. Saving rebuilds the odds only when the player chose another value.
-        const string KeepRoomOdds = "\u0001room";
-        string oddsFamily;
+        // Item odds choice: null = default odds, KeepRoomOdds = the odds the room (or the last room) already has,
+        // OwnOdds = the player's own odds. Saving rebuilds the odds only when the player chose another value.
+        const string KeepRoomOdds = "\u0001room", OwnOdds = "\u0001own";
+        string oddsChoice;
         // The odds the room had when the screen opened (KeepRoomOdds).
         List<PowerupOdds> keptOdds = new();
         VisualElement modGrid, rules, summary;
         Label statusLabel;
         SettingChoice cupChoice;
+        // Championship over the room's own track list (settings.trackIds) instead of a cup.
+        bool ownTracks;
+        // The AI row: its input is bound again when the room size changes (its maximum is the size - 1).
+        VisualElement aiRow;
 
         /// <summary>Opens the screen to create a room from the last room's settings.</summary>
         public void Open()
         {
             editing = false;
             settings = Settings.lastRoom != null ? Settings.lastRoom.Clone() : new RoomSettings();
-            oddsFamily = null;
+            oddsChoice = null;
             Sanitize();
             Flow.Show(this);
         }
@@ -66,7 +75,7 @@ namespace MHK.UI
             if (lobby == null) return;
             editing = true;
             settings = lobby.settings.Clone();
-            oddsFamily = null;
+            oddsChoice = null;
             Sanitize();
             Flow.Show(this);
         }
@@ -94,7 +103,7 @@ namespace MHK.UI
             KeepFocusedInView(Q<ScrollView>("mod-scroll"), modGrid);
             SetStatus(null);
             OnlineUi.Segmented(Q<VisualElement>("mode-tabs"),
-                new[] { ("sports_score", "Races", (string)null), ("swords", "Battles", null), ("emoji_events", "Championship", "The races of one cup") },
+                new[] { ("sports_score", "Races", (string)null), ("swords", "Battles", null), ("emoji_events", "Championship", "The races of one cup or of your own track list") },
                 (int)settings.mode, i =>
                 {
                     Click();
@@ -156,12 +165,13 @@ namespace MHK.UI
             modGrid = rules = summary = null;
             statusLabel = null;
             cupChoice = null;
+            aiRow = null;
         }
 
         // The mode or the mods changed: the controls that depend on them, the cards' counts and the summary.
         void Changed(bool keepFocus)
         {
-            SetVisible("cup-row", settings.mode == RoomMode.Championship);
+            SetVisible("cup-row", settings.mode == RoomMode.Championship && !ownTracks);
             cupChoice?.Refresh();
             ShowModCounts();
             FillRules(keepFocus);
@@ -199,18 +209,40 @@ namespace MHK.UI
             settings.engineClass = Mathf.Clamp(settings.engineClass, 0, 2);
             settings.laps = Mathf.Clamp(settings.laps, 0, MaxLapsChoice);
             settings.maxPlayers = Mathf.Clamp(settings.maxPlayers, LobbyLimits.MinPlayers, LobbyLimits.MaxPlayers);
+            settings.maxAi = Mathf.Clamp(settings.maxAi, 0, settings.maxPlayers - 1);
+            settings.trackIds ??= new List<string>();
+            if (settings.trackIds.Count > LobbyLimits.TrackIds) settings.trackIds.RemoveRange(LobbyLimits.TrackIds, settings.trackIds.Count - LobbyLimits.TrackIds);
+            ownTracks = settings.mode == RoomMode.Championship && string.IsNullOrEmpty(settings.cupId) && settings.trackIds.Count > 0;
             settings.trackPick = Mathf.Clamp(settings.trackPick, 0, 1);
             settings.racesPerSet = Mathf.Clamp(settings.racesPerSet, 1, LobbyLimits.MaxRacesPerSet);
             settings.name = LobbyWire.Clip(settings.name, LobbyLimits.RoomName);
             keptOdds = new List<PowerupOdds>(settings.itemOdds);
-            if (keptOdds.Count > 0) oddsFamily = KeepRoomOdds;
+            if (keptOdds.Count > 0) oddsChoice = KeepRoomOdds;
             FixCup();
         }
 
         void FixCup()
         {
+            if (ownTracks) return;
             var cups = Cups();
             if (!cups.Exists(c => c.Id == settings.cupId)) settings.cupId = cups.Count > 0 ? cups[0].Id : "";
+        }
+
+        // Race tracks of the room's packs: what a championship's own list may hold.
+        bool IsRoomTrack(TrackDefinition t) => t != null && t.layout == TrackLayout.Circuit && ContentManifests.IsLobbyContent(Registry, t, settings.packs);
+
+        // The own list without tracks the room's packs no longer have.
+        List<string> RoomTrackIds() => settings.trackIds.FindAll(id => IsRoomTrack(Registry.Get<TrackDefinition>(id)));
+
+        // The Track list page on the championship's own list; Done takes it and comes back here.
+        void EditTracks()
+        {
+            Click();
+            Flow.Get<TrackListScreen>().Open(RoomTrackIds(), IsRoomTrack, ids =>
+            {
+                settings.trackIds = ids;
+                Flow.Back();
+            }, null, trackListTitle, trackListDone);
         }
 
         List<CupDefinition> Cups()
@@ -318,10 +350,36 @@ namespace MHK.UI
                 FillRules(true);
             });
             if (settings.items) OddsRow();
-            Switch("smart_toy", "AI when alone", "Computer drivers race you while you are alone in the room.",
-                () => settings.aiWhenAlone, v => settings.aiWhenAlone = v);
-            Stepper("group", "Players", LobbyLimits.MinPlayers, LobbyLimits.MaxPlayers, () => settings.maxPlayers, v => settings.maxPlayers = v,
-                v => v.ToString(CultureInfo.InvariantCulture), "Room size");
+            NumberRow("group", "Players", "Room size: humans and computer drivers together", LobbyLimits.MinPlayers, LobbyLimits.MaxPlayers,
+                () => settings.maxPlayers, v =>
+                {
+                    settings.maxPlayers = v;
+                    settings.maxAi = Mathf.Min(settings.maxAi, v - 1);
+                    BindAi();
+                });
+            aiRow = Row("smart_toy", "AI", "Computer drivers race in the places no human takes, at most this many (0 = humans only).");
+            BindAi();
+            if (championship)
+            {
+                Segment("emoji_events", "Tracks", new[] { ("emoji_events", "Cup", (string)null), ("edit", "Own list", "Up to 35 tracks in your order") },
+                    ownTracks ? 1 : 0, i =>
+                    {
+                        ownTracks = i == 1;
+                        if (ownTracks) settings.cupId = "";
+                        FixCup();
+                        Changed(true);
+                    });
+                if (ownTracks)
+                {
+                    var count = RoomTrackIds().Count;
+                    var row = Row("map", "Track list", null);
+                    var edit = new Button(EditTracks) { text = count == 1 ? "1 track" : count.ToString(CultureInfo.InvariantCulture) + " tracks" };
+                    edit.AddToClassList("mhk-button");
+                    edit.AddToClassList("small");
+                    edit.AddToClassList("secondary");
+                    row.Add(edit);
+                }
+            }
             if (!championship)
             {
                 Segment("how_to_vote", "Track", new[] { ("how_to_vote", "Vote", (string)null), ("edit", "Owner picks", null) },
@@ -330,6 +388,53 @@ namespace MHK.UI
                     v => v.ToString(CultureInfo.InvariantCulture), "Points add up over a set");
             }
             if (focusedIndex >= 0 && focusedIndex < rules.childCount) FocusLater(rules[focusedIndex].Q<Button>());
+        }
+
+        // A whole-number row with typing and held - / + (NumberInput).
+        VisualElement NumberRow(string icon, string label, string tip, int min, int max, Func<int> get, Action<int> set)
+        {
+            var row = Row(icon, label, tip);
+            row.Add(NumberBox(min, max, get, set));
+            return row;
+        }
+
+        // The AI input, bound again whenever the room size changes its maximum.
+        void BindAi()
+        {
+            if (aiRow == null) return;
+            aiRow.Q(className: "number-input")?.RemoveFromHierarchy();
+            aiRow.Add(NumberBox(0, settings.maxPlayers - 1, () => settings.maxAi, v => settings.maxAi = v));
+        }
+
+        // The elements NumberInput binds (as Templates/NumberRow.uxml has them), bound to get / set.
+        VisualElement NumberBox(int min, int max, Func<int> get, Action<int> set)
+        {
+            var box = new VisualElement();
+            box.AddToClassList("number-input");
+            var hint = new Label { name = "number-hint" };
+            hint.AddToClassList("number-hint");
+            var field = new TextField { name = "number-field" };
+            field.AddToClassList("acc-input");
+            field.AddToClassList("number-field");
+            box.Add(hint);
+            box.Add(NumberStep("number-minus", "remove"));
+            box.Add(field);
+            box.Add(NumberStep("number-plus", "add"));
+            NumberInput.Bind(box, min, max, get, v =>
+            {
+                set(v);
+                ShowSummary();
+            }, rangeFormat, Click);
+            return box;
+        }
+
+        static Button NumberStep(string name, string icon)
+        {
+            var b = StepButton(icon);
+            b.name = name;
+            b.RemoveFromClassList("room-step");
+            b.AddToClassList("number-step");
+            return b;
         }
 
         // Row: icon, label, control on the right.
@@ -440,22 +545,21 @@ namespace MHK.UI
             holder.Q("setting-label")?.SetVisible(false);
             row.Add(holder);
             var choices = OddsChoices();
-            new SettingChoice(holder, Root, () => choices.Count, () => Mathf.Max(0, choices.IndexOf(oddsFamily)),
-                i => choices[i] == null ? defaultOddsText : choices[i] == KeepRoomOdds ? roomOddsText : string.Format(ownOddsFormat, OnlineUi.PackName(choices[i])),
+            new SettingChoice(holder, Root, () => choices.Count, () => Mathf.Max(0, choices.IndexOf(oddsChoice)),
+                i => choices[i] == null ? defaultOddsText : choices[i] == KeepRoomOdds ? roomOddsText : ownOddsText,
                 i =>
                 {
-                    oddsFamily = choices[i];
+                    oddsChoice = choices[i];
                     ShowSummary();
                 }, null, Click);
         }
 
-        // Standard, the room's own odds (when it has some), then every family the player has own odds for.
+        // Standard, the room's own odds (when it has some), then the player's own odds (when they give items).
         List<string> OddsChoices()
         {
             var choices = new List<string> { null };
             if (keptOdds.Count > 0) choices.Add(KeepRoomOdds);
-            foreach (var set in Settings.itemOdds)
-                if (set != null && ItemOdds.Total(set.odds) > 0f && !choices.Contains(set.family)) choices.Add(set.family);
+            if (ItemOdds.Total(Settings.ownItemOdds) > 0f) choices.Add(OwnOdds);
             return choices;
         }
 
@@ -466,16 +570,14 @@ namespace MHK.UI
             return keptOdds.FindAll(o => powerups.Exists(p => p.Id == o.id));
         }
 
-        // The player's own odds of the chosen family, limited to the room's powerups (the server accepts nothing else).
+        // The player's own odds, limited to the room's powerups (the server accepts nothing else).
         List<PowerupOdds> RoomOdds()
         {
             var odds = new List<PowerupOdds>();
-            if (!settings.items || oddsFamily == null) return odds;
-            if (oddsFamily == KeepRoomOdds) return KeptOdds();
-            var own = Settings.ItemOddsFor(oddsFamily);
-            if (own == null) return odds;
+            if (!settings.items || oddsChoice == null) return odds;
+            if (oddsChoice == KeepRoomOdds) return KeptOdds();
             var powerups = ContentManifests.LobbyContent<PowerupDefinition>(Registry, settings.packs);
-            foreach (var o in own.odds)
+            foreach (var o in Settings.ownItemOdds)
             {
                 if (odds.Count == LobbyLimits.ItemOdds) break;
                 if (powerups.Exists(p => p.Id == o.id) && !odds.Exists(x => x.id == o.id)) odds.Add(new PowerupOdds(o.id, Mathf.Max(0f, o.percent)));
@@ -488,7 +590,7 @@ namespace MHK.UI
         {
             if (summary == null) return;
             var preview = settings.Clone();
-            preview.itemOdds = oddsFamily != null && settings.items ? new List<PowerupOdds> { default } : new List<PowerupOdds>();
+            preview.itemOdds = oddsChoice != null && settings.items ? new List<PowerupOdds> { default } : new List<PowerupOdds>();
             OnlineUi.SettingsChips(summary, preview, true);
             summary.Insert(0, InfoChips.Add(null, "extension", OnlineUi.SetName(settings.packs), OnlineUi.SetTooltip(settings.packs)));
             InfoChips.Add(summary, "group", settings.maxPlayers.ToString(CultureInfo.InvariantCulture), "Players");
@@ -502,7 +604,8 @@ namespace MHK.UI
             foreach (var t in ContentManifests.LobbyContent<TrackDefinition>(Registry, settings.packs))
                 if ((t.layout == TrackLayout.Arena) == battle && !string.Equals(ContentManifests.PackOf(t.Id), ContentManifests.GamePackId, StringComparison.OrdinalIgnoreCase)) tracks++;
             if (settings.packs.Count == 0 || tracks == 0) return battle ? noArenasText : noTracksText;
-            if (settings.mode == RoomMode.Championship && string.IsNullOrEmpty(settings.cupId)) return noCupText;
+            if (settings.mode == RoomMode.Championship && !ownTracks && string.IsNullOrEmpty(settings.cupId)) return noCupText;
+            if (settings.mode == RoomMode.Championship && ownTracks && RoomTrackIds().Count == 0) return noTrackListText;
             return null;
         }
 
@@ -517,16 +620,31 @@ namespace MHK.UI
             }
             settings.name = LobbyWire.Clip(settings.name?.Trim(), LobbyLimits.RoomName);
             settings.itemOdds = RoomOdds();
-            // What goes to the server: a championship follows the cup, the owner starts each race on the cup's next track
-            // (the server lets vote rooms vote only) and the set is the cup's races (the server counts it by racesPerSet).
-            // The screen's own choices stay for the next room.
+            // What goes to the server: a championship follows the cup or the own list, the owner starts each race on its
+            // next track (the server lets vote rooms vote only) and the set is its races (the server counts a cup by
+            // racesPerSet, a list by its length). The screen's own choices stay for the next room.
             var send = settings.Clone();
-            if (send.mode != RoomMode.Championship) send.cupId = "";
+            send.maxAi = Mathf.Clamp(send.maxAi, 0, send.maxPlayers - 1);
+            if (send.mode != RoomMode.Championship)
+            {
+                send.cupId = "";
+                send.trackIds.Clear();
+            }
             else
             {
                 send.trackPick = 0;
-                var cup = Registry.Get<CupDefinition>(send.cupId);
-                if (cup != null) send.racesPerSet = Mathf.Clamp(cup.tracks.Count, 1, LobbyLimits.MaxRacesPerSet);
+                if (ownTracks)
+                {
+                    send.cupId = "";
+                    send.trackIds = RoomTrackIds();
+                    send.racesPerSet = Mathf.Clamp(send.trackIds.Count, 1, LobbyLimits.TrackIds);
+                }
+                else
+                {
+                    send.trackIds.Clear();
+                    var cup = Registry.Get<CupDefinition>(send.cupId);
+                    if (cup != null) send.racesPerSet = Mathf.Clamp(cup.tracks.Count, 1, LobbyLimits.MaxRacesPerSet);
+                }
             }
             if (send.mode == RoomMode.BattleSet) send.laps = 0;
             var save = Q<Button>("save");

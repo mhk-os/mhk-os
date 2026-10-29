@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Championship choice. Code fills tabs, card-grid (one card per cup, badge on won cups) and the info panel (hovered or focused cup, cup-tracks list, Won! line). Card and info pictures cross-fade through the cup's track previews (ImageCycle adds an image-fade layer). empty (with the built-in mods download while they are missing) replaces the body when no cup is loaded. Preview classes on page: preview-won (badges + Won! line), preview-empty. -->
+    <!-- Championship choice. Code fills tabs, card-grid (one card per cup, badge on won cups) and the info panel (hovered or focused cup, cup-tracks list, Won! line). Card and info pictures cross-fade through the cup's track previews (ImageCycle adds an image-fade layer). empty (with the built-in mods download while they are missing) replaces the body when no cup is loaded. custom (footer, hidden without circuits) opens the track list editor for the player's own championship. Preview classes on page: preview-won (badges + Won! line), preview-empty. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="TrackCard" src="/Assets/MHK/UI/Menu/Templates/TrackCard.uxml" />
@@ -122,7 +122,12 @@
                     <ui:Label text="Back" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
-            <ui:VisualElement class="footer-right" />
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="custom" tooltip="Race your own list of tracks from every mod" class="mhk-button">
+                    <ui:VisualElement class="icon i-edit" />
+                    <ui:Label text="Custom championship" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

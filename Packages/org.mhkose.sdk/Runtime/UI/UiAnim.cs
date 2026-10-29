@@ -30,16 +30,20 @@ namespace MHK.UI
             return e;
         }
 
-        /// <summary>Animates the children of <paramref name="container"/> in one after another.</summary>
-        public static void Stagger(VisualElement container, long stepMs, long firstMs, string from = null)
+        /// <summary>
+        /// Animates the children of <paramref name="container"/> in one after another; children after the first
+        /// <paramref name="maxSteps"/> enter together with the last of those (long lists do not keep the screen waiting).
+        /// </summary>
+        public static void Stagger(VisualElement container, long stepMs, long firstMs, string from = null, int maxSteps = int.MaxValue)
         {
             var i = 0;
-            foreach (var child in container.Children()) AnimateIn(child, firstMs + stepMs * i++, from);
+            var last = Mathf.Max(0, maxSteps - 1);
+            foreach (var child in container.Children()) AnimateIn(child, firstMs + stepMs * Mathf.Min(i++, last), from);
         }
 
-        /// <summary><see cref="Stagger(VisualElement, long, long, string)"/> with the timing in seconds (inspector values).</summary>
-        public static void Stagger(VisualElement container, float stepSeconds, float firstSeconds, string from = null) =>
-            Stagger(container, Ms(stepSeconds), Ms(firstSeconds), from);
+        /// <summary><see cref="Stagger(VisualElement, long, long, string, int)"/> with the timing in seconds (inspector values).</summary>
+        public static void Stagger(VisualElement container, float stepSeconds, float firstSeconds, string from = null, int maxSteps = int.MaxValue) =>
+            Stagger(container, Ms(stepSeconds), Ms(firstSeconds), from, maxSteps);
 
         /// <summary>Scale pop: starts at <paramref name="from"/> and settles at 1 with an overshoot.</summary>
         public static void Pop(VisualElement e, float from, int durationMs)

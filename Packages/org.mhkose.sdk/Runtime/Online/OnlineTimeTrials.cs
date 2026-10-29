@@ -100,13 +100,23 @@ namespace MHK.Online
         }
 
         /// <summary>
-        /// The ghost of <paramref name="run"/> in <see cref="OnlineGhostCache"/>: at once when cached for this run, else
-        /// downloaded (at most <see cref="MaxConcurrentDownloads"/> at a time, one download per run however often it is
-        /// asked for), checked to be a ghost file and stored with the uploader's name.
+        /// The ghost of <paramref name="run"/> in <see cref="OnlineGhostCache"/>: at once when cached for this run (taking the
+        /// uploader's current name from <paramref name="run"/>, accounts can be renamed), else downloaded (at most
+        /// <see cref="MaxConcurrentDownloads"/> at a time, one download per run however often it is asked for), checked to be
+        /// a ghost file and stored with the uploader's name.
         /// </summary>
         public static Task<OnlineResult<OnlineGhostInfo>> Download(RunEntry run)
         {
-            if (IsCached(run)) return Task.FromResult(new OnlineResult<OnlineGhostInfo>(OnlineResult.Success, CachedInfo(run)));
+            var cached = CachedInfo(run);
+            if (cached != null)
+            {
+                if (!string.IsNullOrEmpty(run.username) && cached.username != run.username)
+                {
+                    cached.username = run.username;
+                    OnlineGhostCache.Update(cached);
+                }
+                return Task.FromResult(new OnlineResult<OnlineGhostInfo>(OnlineResult.Success, cached));
+            }
             downloads ??= new Dictionary<string, Task<OnlineResult<OnlineGhostInfo>>>(StringComparer.OrdinalIgnoreCase);
             if (downloads.TryGetValue(run.ghostId, out var running)) return running;
             var task = DownloadAsync(run);

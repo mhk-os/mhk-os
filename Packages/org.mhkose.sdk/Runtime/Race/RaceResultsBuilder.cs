@@ -64,38 +64,14 @@ namespace MHK.Race
         }
 
         /// <summary>
-        /// Online results: the server's rows (place, time, race and set points, outcome) in its order. A solo race shows
-        /// the local ranking with the AI, the player's row taking the server's outcome; a player who did not finish
-        /// (ended early, left) is last, as the server ranks them.
+        /// Online results: the server's rows (place, time, race and set points, outcome) in its order, AI drivers ranked
+        /// with the humans under their characters' names.
         /// </summary>
-        public static void BuildOnline(RaceManager race, IReadOnlyList<Kart> ranking, Online.OnlineRace online, List<RaceResult> results)
+        public static void BuildOnline(RaceManager race, Online.OnlineRace online, List<RaceResult> results)
         {
             results.Clear();
             var server = online.Results;
             var battle = race.Battle != null;
-            if (online.Solo)
-            {
-                var mine = server != null ? server.rows.Find(r => r.slot == online.LocalSlot && !r.ai) : null;
-                RaceResult own = null;
-                for (var i = 0; i < ranking.Count; i++)
-                {
-                    var k = ranking[i];
-                    var result = FromKart(k, i + 1, battle);
-                    if (k == race.LocalPlayer && mine != null)
-                    {
-                        TakeRow(result, mine, battle);
-                        if (mine.outcome != Online.RaceOutcome.Finished)
-                        {
-                            own = result;
-                            continue;
-                        }
-                    }
-                    results.Add(result);
-                }
-                if (own != null) results.Add(own);
-                for (var i = 0; i < results.Count; i++) results[i].position = i + 1;
-                return;
-            }
             if (server == null) return;
             var rows = new List<Online.RaceResultRow>(server.rows);
             rows.Sort((a, b) => a.position.CompareTo(b.position));
@@ -105,11 +81,12 @@ namespace MHK.Race
                 var k = online.KartOf(row.slot);
                 var result = k != null ? FromKart(k, row.position, battle) : new RaceResult
                 {
-                    characterId = slot != null ? slot.characterId : null,
+                    characterId = slot != null ? slot.characterId : row.characterId,
                     kartId = slot != null ? slot.kartId : null,
                     bestLap = -1f,
                 };
-                result.name = row.username;
+                result.ai = row.ai;
+                result.name = row.ai ? Online.OnlineRace.CharacterName(row.characterId) : row.username;
                 result.isHuman = row.slot == online.LocalSlot;
                 result.platform = slot != null ? slot.platform : 0;
                 TakeRow(result, row, battle);

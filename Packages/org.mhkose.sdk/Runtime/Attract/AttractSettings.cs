@@ -22,7 +22,7 @@ namespace MHK.Attract
     {
         public AttractMode mode;
         [Tooltip("Karts in the race (at most GameConfig.maxRacers).")]
-        [Range(1, 12)] public int karts;
+        [Range(1, 51)] public int karts;
     }
 
     /// <summary>Background race setups of the Low, Medium and High presets (Custom uses the tier of its shadow quality).</summary>

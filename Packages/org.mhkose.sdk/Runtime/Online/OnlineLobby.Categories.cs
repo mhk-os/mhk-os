@@ -2,46 +2,69 @@ using System.Collections.Generic;
 
 namespace MHK.Online
 {
-    /// <summary>A public lobby category: mode, packs and anticheat (docs/protocol.md, public lobby categories).</summary>
+    /// <summary>A public lobby category: mode, packs, anticheat and AI (docs/protocol.md, public lobby categories).</summary>
     public sealed class LobbyCategory
     {
         public readonly int id;
         public readonly RoomMode mode;
         public readonly string[] packs;
         public readonly bool anticheat;
+        /// <summary>Computer drivers race in every place no human takes.</summary>
+        public readonly bool ai;
 
-        public LobbyCategory(int id, RoomMode mode, bool anticheat, params string[] packs)
+        public LobbyCategory(int id, RoomMode mode, bool anticheat, bool ai, params string[] packs)
         {
             this.id = id;
             this.mode = mode;
             this.anticheat = anticheat;
+            this.ai = ai;
             this.packs = packs;
         }
 
         public bool Battle => mode == RoomMode.BattleSet;
     }
 
-    /// <summary>The ten public lobby categories the server always offers; public lobbies race at 150cc with track laps and default item odds.</summary>
+    /// <summary>
+    /// The twenty public lobby categories the server always offers: ten without AI and their AI versions (category + 10).
+    /// Public lobbies race at 150cc with track laps and default item odds.
+    /// </summary>
     public static class LobbyCategories
     {
+        /// <summary>Category number of a category's AI version: its own number plus this.</summary>
+        public const int AiOffset = 10;
+
         static readonly string[] Base = { "mhk2", "mhk3", "mhke", "mhkt" };
         static readonly string[] WithTincan = { "mhk2", "mhk3", "mhke", "mhkt", "tincan" };
         static readonly string[] Classic = { "mhk2" };
 
-        /// <summary>In category order: races, battles, the classic races.</summary>
-        public static readonly IReadOnlyList<LobbyCategory> All = new[]
+        static readonly (RoomMode mode, bool anticheat, string[] packs)[] Kinds =
         {
-            new LobbyCategory(1, RoomMode.RaceSet, true, Base),
-            new LobbyCategory(2, RoomMode.RaceSet, false, Base),
-            new LobbyCategory(3, RoomMode.RaceSet, true, WithTincan),
-            new LobbyCategory(4, RoomMode.RaceSet, false, WithTincan),
-            new LobbyCategory(5, RoomMode.BattleSet, true, Base),
-            new LobbyCategory(6, RoomMode.BattleSet, false, Base),
-            new LobbyCategory(7, RoomMode.BattleSet, true, WithTincan),
-            new LobbyCategory(8, RoomMode.BattleSet, false, WithTincan),
-            new LobbyCategory(9, RoomMode.RaceSet, true, Classic),
-            new LobbyCategory(10, RoomMode.RaceSet, false, Classic),
+            (RoomMode.RaceSet, true, Base),
+            (RoomMode.RaceSet, false, Base),
+            (RoomMode.RaceSet, true, WithTincan),
+            (RoomMode.RaceSet, false, WithTincan),
+            (RoomMode.BattleSet, true, Base),
+            (RoomMode.BattleSet, false, Base),
+            (RoomMode.BattleSet, true, WithTincan),
+            (RoomMode.BattleSet, false, WithTincan),
+            (RoomMode.RaceSet, true, Classic),
+            (RoomMode.RaceSet, false, Classic),
         };
+
+        /// <summary>In category order: races, battles, the classic races; then the same with AI.</summary>
+        public static readonly IReadOnlyList<LobbyCategory> All = Build();
+
+        static LobbyCategory[] Build()
+        {
+            var all = new LobbyCategory[Kinds.Length * 2];
+            for (var i = 0; i < Kinds.Length; i++)
+            {
+                var (mode, anticheat, packs) = Kinds[i];
+                all[i] = new LobbyCategory(i + 1, mode, anticheat, false, packs);
+                all[i + AiOffset] = new LobbyCategory(i + 1 + AiOffset, mode, anticheat, true, packs);
+            }
+            return all;
+        }
 
         public static bool TryGet(int id, out LobbyCategory category)
         {

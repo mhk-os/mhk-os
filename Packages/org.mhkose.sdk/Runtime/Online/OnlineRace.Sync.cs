@@ -17,9 +17,12 @@ namespace MHK.Online
         // Moved further than this between two states (m, plus twice the distance its speed explains): a teleport.
         const float TeleportSlack = 3f;
         const double StallMs = 1000;
+        /// <summary>The AI host's AiProgress goes out every this many physics steps (10 Hz).</summary>
+        const int AiProgressEveryTicks = 6;
 
         readonly KartState outgoing = new();
         readonly List<ProjectileReport> reports = new();
+        readonly List<AiProgress> aiProgress = new();
         readonly Dictionary<int, RemoteKart> remotes = new();
         readonly Dictionary<string, int> effectIndex = new();
         readonly List<StatusEffectDefinition> remoteEffects = new();
@@ -73,7 +76,7 @@ namespace MHK.Online
         {
             get
             {
-                if (udp == null || Solo || Loaded == null || !AnyRemoteRacing()) return false;
+                if (udp == null || Loaded == null || !AnyRemoteRacing()) return false;
                 var now = udp.LocalNowMs;
                 var last = udp.LastWorldMs;
                 if (last < 0 ? HasGo : now - last > StallMs) return true;
@@ -172,6 +175,21 @@ namespace MHK.Online
             {
                 reports.RemoveRange(0, n);
             }
+        }
+
+        // The AI host tells the server where its AI karts are (item rolls, DNF and battle ranking); nobody else needs it.
+        void SendAiProgress()
+        {
+            if (udp == null || !IsAiHost || !HasGo || fixedSteps % AiProgressEveryTicks != 0) return;
+            aiProgress.Clear();
+            foreach (var pair in kartsBySlot)
+            {
+                var k = pair.Value;
+                if (k == null || !aiSlots.Contains(pair.Key)) continue;
+                aiProgress.Add(new AiProgress { slot = pair.Key, lap = k.Progress.Lap, raceDistance = k.Progress.RaceDistance, health = k.Health });
+            }
+            for (var start = 0; start < aiProgress.Count; start += OnlineRaceUdp.AiProgressCapacity)
+                udp.SendAiProgress(aiProgress, start, Mathf.Min(OnlineRaceUdp.AiProgressCapacity, aiProgress.Count - start));
         }
 
         static bool Finite(Vector3 v) => float.IsFinite(v.x) && float.IsFinite(v.y) && float.IsFinite(v.z);

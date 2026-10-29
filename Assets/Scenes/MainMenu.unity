@@ -987,8 +987,6 @@ MonoBehaviour:
   rowTemplate: {fileID: 9197481963319205126, guid: bba0722efe13840a2a70a14e58b270d3, type: 3}
   totalFormat: Total {0}
   scaledText: ', scaled to 100 % in the race'
-  familyFormat: '  |  {0} items {1}  |  other games {2}'
-  sharedFormat: Also a {0} item
   step: 1
   repeatMs: {x: 400, y: 70}
   rowStep: 0.012
@@ -1624,11 +1622,15 @@ MonoBehaviour:
   saveLabel: Save
   trackLapsText: Track
   defaultOddsText: Standard
-  ownOddsFormat: 'My odds: {0}'
+  ownOddsText: My odds
   roomOddsText: This room's odds
   noTracksText: Choose at least one mod with tracks.
   noArenasText: Choose at least one mod with arenas.
   noCupText: The chosen mods have no cup.
+  noTrackListText: Choose the championship's tracks.
+  trackListTitle: Championship tracks
+  trackListDone: Done
+  rangeFormat: '{0} to {1}'
   tracksFormat: '{0} tracks'
   arenasFormat: '{0} arenas'
 --- !u!1 &1164318081
@@ -1682,6 +1684,7 @@ MonoBehaviour:
   standardText: Standard
   customText: Custom
   offText: Off
+  opponentsRangeFormat: '{0} to {1}'
 --- !u!1931382934 &1164318084
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -1852,6 +1855,7 @@ MonoBehaviour:
   fadeMaterial: {fileID: 2100000, guid: 9ec467a22dd0d445f9b122f14d77c70c, type: 2}
   fadeDistance: 60
   menuLight: {fileID: 1554823462}
+  showcaseAmbient: {r: 0.86, g: 0.74, b: 0.66, a: 1}
   showcaseVeil: 0.35
   turntable: {fileID: 2101960821}
   spinDegreesPerSecond: 14
@@ -2365,6 +2369,7 @@ Transform:
   - {fileID: 1863390833}
   - {fileID: 833478352}
   - {fileID: 1766928951}
+  - {fileID: 1908671761}
   - {fileID: 1164318082}
   - {fileID: 674734891}
   - {fileID: 999060759}
@@ -2403,7 +2408,6 @@ MonoBehaviour:
   clickSound: {fileID: 0}
   titleScreen: {fileID: 142454100}
   firstRunScreen: {fileID: 959608588}
-  ambientLight: {r: 0.86, g: 0.74, b: 0.66, a: 1}
   overlay: 0
 --- !u!1 &1459417794
 GameObject:
@@ -2478,6 +2482,13 @@ MonoBehaviour:
   deletePasswordMissing: Enter your password to confirm.
   deletedText: Your account was deleted. Your time trial runs stay on the leaderboards as Anonymous.
   deletedWithRunsText: Your account and your time trial runs were deleted.
+  renameQuestion: 'Your new username: 3 to 20 letters, digits, _ . - (starting and ending with a letter or digit). Others see it everywhere at once and your old name becomes free. You can change it 3 times in 30 days.'
+  renameRefusedFormat: '{0}
+
+
+    {1}'
+  renameLabel: Change
+  renamedFormat: Your username is now {0}.
 --- !u!1931382934 &1459417797
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -2871,6 +2882,7 @@ MonoBehaviour:
   racingText: Race running
   sittingOutText: You race in the next one
   soloRacingText: Racing AI
+  aiDriverText: Computer driver
   resultsText: Results
   setResultsText: Set results
   setRaceFormat: Race {0} of {1}
@@ -2883,7 +2895,6 @@ MonoBehaviour:
   startVoteText: Start voting
   pickTrackText: Choose track
   soloText: Race AI while you wait
-  soloAloneText: Race alone
   startCupFormat: 'Start: {0}'
   lastRaceTitle: Last race
   setTitle: Set results
@@ -3205,6 +3216,7 @@ MonoBehaviour:
   trackItemTemplate: {fileID: 9197481963319205126, guid: d9b28cd688e7a47a692f466db8ad2948, type: 3}
   racesFormat: '{0} | {1} races'
   pictureSeconds: 3.5
+  customName: Custom championship
 --- !u!1931382934 &1766928953
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -3511,6 +3523,119 @@ PanelRenderer:
   serializedVersion: 1
   m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
   sourceAsset: {fileID: 9197481963319205126, guid: 3a0357aa4dd9a459a92065e1aa05fc3d, type: 3}
+  m_ParentUI: {fileID: 0}
+  m_WorldSpaceSizeMode: 1
+  m_WorldSpaceWidth: 1920
+  m_WorldSpaceHeight: 1080
+  m_PivotReferenceSize: 0
+  m_Pivot: 0
+  m_Position: 0
+--- !u!1 &1908671760
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1908671761}
+  - component: {fileID: 1908671763}
+  - component: {fileID: 1908671762}
+  m_Layer: 0
+  m_Name: TrackList
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!4 &1908671761
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1908671760}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1327142894}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1908671762
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1908671760}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c04e0d04c643f4d4fbcfcc33be62610e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.UI.TrackListScreen
+  showcaseVisible: 0
+  allowBack: 1
+  rowTemplate: {fileID: 9197481963319205126, guid: ff8fa9f90ebf7414ba3f80518882ec70, type: 3}
+  defaultTitle: Custom championship
+  defaultConfirmText: Next
+  countFormat: '{0} / {1} races'
+  fullTipFormat: At most {0} races
+  emptyTip: Add at least one track
+  clearQuestion: Remove every race from the list?
+  clearConfirm: Clear
+--- !u!1931382934 &1908671763
+PanelRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1908671760}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 0
+  m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  serializedVersion: 1
+  m_PanelSettings: {fileID: 11400000, guid: b4685a000b093407d9563b28a076b71c, type: 2}
+  sourceAsset: {fileID: 9197481963319205126, guid: b56e7d867a9d440878afc65c7d193b6b, type: 3}
   m_ParentUI: {fileID: 0}
   m_WorldSpaceSizeMode: 1
   m_WorldSpaceWidth: 1920

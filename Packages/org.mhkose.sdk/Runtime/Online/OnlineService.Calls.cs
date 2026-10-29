@@ -72,5 +72,12 @@ namespace MHK.Online
             var s = Instance;
             if (s != null) s.SessionRevoked(null);
         }
+
+        /// <summary>A request answered with the logged-in account changed (renamed): the account, its stored session and the UI follow.</summary>
+        internal static void ApplyAccount(Account account)
+        {
+            var s = Instance;
+            if (s != null) s.UpdateAccount(account);
+        }
     }
 }

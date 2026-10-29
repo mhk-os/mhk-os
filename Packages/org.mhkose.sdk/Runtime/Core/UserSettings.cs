@@ -61,9 +61,9 @@ namespace MHK.Core
         public string keyBindings = "";
         [Tooltip("Stable random id of this player (time-trial ghosts, a future server groups runs by it). Created on first use.")]
         public string playerId = "";
-        [Tooltip("Own single race and battle item odds, one set per item family of the track (Powerups screen). A family " +
-                 "without a set uses the default odds.")]
-        public List<ItemOddsSet> itemOdds = new();
+        [Tooltip("Own single race and battle item odds (Powerups screen), the same on every track: percent per powerup id. " +
+                 "Empty = the default odds. Ids of packs that are not loaded stay stored and are ignored.")]
+        public List<PowerupOdds> ownItemOdds = new();
         [Tooltip("Game server (Account screen, advanced): tls://host:port, tcp://host:port (local network only) or host[:port]. " +
                  "Empty = the built-in server. The -server command-line option wins over it.")]
         public string onlineServer = "";
@@ -74,14 +74,9 @@ namespace MHK.Core
         public string lastOnlineKartId = "";
         [Tooltip("Settings of the last private room the player created (Create room screen).")]
         public Online.RoomSettings lastRoom = new();
-
-        /// <summary>The player's own item odds for tracks of the family <paramref name="family"/> (top-level pack id), null = default odds.</summary>
-        public ItemOddsSet ItemOddsFor(string family)
-        {
-            for (var i = 0; i < itemOdds.Count; i++)
-                if (itemOdds[i] != null && itemOdds[i].family == family) return itemOdds[i];
-            return null;
-        }
+        [Tooltip("The player's custom championship (Championship page): track ids in race order, duplicates allowed, at " +
+                 "most GameSession.MaxCustomTracks. Tracks that are not loaded are skipped, and dropped when the list is edited.")]
+        public List<string> customChampionship = new();
 
         /// <summary>
         /// The name ghosts are signed with: the account's username (logged in, else the stored session of the server in

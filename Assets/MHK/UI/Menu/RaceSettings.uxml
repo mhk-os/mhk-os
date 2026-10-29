@@ -1,7 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Race settings. Code fills the row values, preview-image, info-name, the mode line and the driver and kart pictures (names as tooltips), and hides rows that do not apply. Preview class on page: preview-championship (difficulty only). -->
+    <!-- Race settings. Code fills the row values, preview-image, info-name, the mode line and the driver and kart pictures (names as tooltips), and hides rows that do not apply. Opponents is a number input (NumberInput). Preview class on page: preview-championship (difficulty and opponents only). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:Template name="NumberRow" src="/Assets/MHK/UI/Menu/Templates/NumberRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
             <ui:Label name="title" text="Race settings" class="page-title" />
@@ -13,9 +14,9 @@
                         <ui:AttributeOverrides element-name="setting-label" text="Difficulty" />
                         <ui:AttributeOverrides element-name="setting-value-label" text="100cc" />
                     </ui:Instance>
-                    <ui:Instance template="SettingRow" name="opponents" class="setting-row setting-dropdown anim from-left" style="transition-delay: 170ms;">
+                    <ui:Instance template="NumberRow" name="opponents" class="setting-row anim from-left" style="transition-delay: 170ms;">
                         <ui:AttributeOverrides element-name="setting-label" text="Opponents" />
-                        <ui:AttributeOverrides element-name="setting-value-label" text="5" />
+                        <ui:AttributeOverrides element-name="number-field" value="5" />
                     </ui:Instance>
                     <ui:Instance template="SettingRow" name="laps" class="setting-row setting-dropdown anim from-left" style="transition-delay: 220ms;">
                         <ui:AttributeOverrides element-name="setting-label" text="Laps" />

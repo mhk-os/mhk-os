@@ -386,6 +386,16 @@
 .setting-label { font-size: 22px; color: var(--mhk-gray-800); }
 .setting-row .mhk-button { min-width: 190px; }
 
+/* Number input of a setting row (NumberRow.uxml, NumberInput): range hint, minus, text field, plus. A button at the end
+ * of the range dims (it stays focusable), the hint turns red after a refused or clamped entry. */
+.number-input { flex-direction: row; align-items: center; }
+.number-hint { font-size: 16px; color: var(--mhk-gray-500); margin-right: 10px; transition-property: color, scale; transition-duration: 0.15s; }
+.number-hint.warn { color: var(--mhk-bad-ink); scale: 1.12 1.12; }
+.setting-row .mhk-button.number-step { min-width: 52px; margin: 0; }
+.mhk-button.number-step.at-limit .icon { opacity: 0.35; }
+.acc-input.number-field { width: 88px; margin: 0 6px; }
+.acc-input.number-field .unity-base-text-field__input { -unity-font-definition: var(--font-display); font-size: 26px; -unity-text-align: middle-center; padding: 2px 6px; }
+
 /* Dropdown list of a setting row (ChoiceList): a glass plate over the screen, placed by code below or above the button.
  * The focused item has the accent ring, the current value the check. */
 .choice-overlay { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }

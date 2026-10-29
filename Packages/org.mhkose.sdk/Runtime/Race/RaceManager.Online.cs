@@ -25,8 +25,6 @@ namespace MHK.Race
         /// <summary>Online: the track and karts are loaded, the server's GO has not come yet ('Waiting for players').</summary>
         public bool WaitingForPlayers => Online != null && Phase == RacePhase.Intro && !Online.HasGo;
 
-        // The solo battle's Finished went out (once).
-        bool soloBattleReported;
         // Left for the lobby because the online race ended under this scene (once).
         bool abandoned;
         // The local player's driver while the online pause menu covers the race (the kart coasts without input).

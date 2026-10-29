@@ -74,7 +74,8 @@ namespace MHK.Race
             for (var i = 0; i < karts.Count; i++)
             {
                 var k = karts[i];
-                if (k.Eliminated || k.Health >= 1 || k.IsRemote) continue;
+                // Remote racers and mirrored AI karts are out when the server says so (Eliminated).
+                if (k.Eliminated || k.Health >= 1 || k.IsRemote || OnlineItems.IsMirror(k)) continue;
                 Eliminate(k);
                 OnlineItems.SendEliminatedSelf(k);
             }

@@ -1,0 +1,71 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Track list editor (custom championship, online championship rooms). Code sets the title, fills library-list (a tl-group heading per game, then one TrackListRow per allowed track) and race-list (one TrackListRow per race, numbered; race-empty instead while it is empty), race-count (.warn for a moment when an add is refused because the list is full), Clear and the confirm button (text from the caller, disabled while the list is empty). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="TrackListRow" src="/Assets/MHK/UI/Menu/Templates/TrackListRow.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Custom championship" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main wide music-main anim from-left">
+                <ui:VisualElement class="music-browser">
+                    <ui:VisualElement name="library-panel" class="panel music-library">
+                        <ui:Label text="Tracks" class="music-section-title" />
+                        <ui:ScrollView name="library-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                            <ui:VisualElement name="library-list" class="tl-list-library">
+                                <ui:Label text="Moorhuhn Kart 2" class="tl-group" />
+                                <ui:Instance template="TrackListRow" />
+                                <ui:Instance template="TrackListRow">
+                                    <ui:AttributeOverrides element-name="tl-name" text="Factory" />
+                                </ui:Instance>
+                                <ui:Label text="Moorhuhn Kart 3" class="tl-group" />
+                                <ui:Instance template="TrackListRow">
+                                    <ui:AttributeOverrides element-name="tl-name" text="Stone Age" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:Label name="library-empty" text="No tracks available." class="music-empty" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="races-panel" class="panel music-playlists">
+                        <ui:VisualElement class="row music-playlist-head">
+                            <ui:Label text="Races" class="music-section-title music-playlist-title" />
+                            <ui:Label name="race-count" text="3 / 35 races" class="tl-count" />
+                            <ui:Button name="clear" tooltip="Remove every race" class="mhk-button small secondary icon-only">
+                                <ui:VisualElement class="icon i-delete" />
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:ScrollView name="race-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                            <ui:VisualElement name="race-list" class="tl-list-races">
+                                <ui:Instance template="TrackListRow" />
+                                <ui:Instance template="TrackListRow">
+                                    <ui:AttributeOverrides element-name="tl-number" text="2" />
+                                    <ui:AttributeOverrides element-name="tl-name" text="Stone Age" />
+                                    <ui:AttributeOverrides element-name="tl-game" text="Moorhuhn Kart 3" />
+                                </ui:Instance>
+                                <ui:Instance template="TrackListRow">
+                                    <ui:AttributeOverrides element-name="tl-number" text="3" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                        </ui:ScrollView>
+                        <ui:Label name="race-empty" text="No races yet. Add tracks from the list on the left." class="music-empty" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="confirm" class="mhk-button go">
+                    <ui:VisualElement class="icon i-arrow_forward" />
+                    <ui:Label name="confirm-label" text="Next" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

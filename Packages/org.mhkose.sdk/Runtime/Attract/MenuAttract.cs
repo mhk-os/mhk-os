@@ -186,13 +186,15 @@ namespace MHK.Attract
                 var j = random.Next(i + 1);
                 (drivers[i], drivers[j]) = (drivers[j], drivers[i]);
             }
+            var kartPool = AiRoster.Karts(Content);
             for (var i = 0; i < karts && drivers.Count > 0; i++)
             {
                 var c = drivers[i % drivers.Count];
+                var kart = AiRoster.RandomKart(kartPool, random);
                 session.racers.Add(new RacerSetup
                 {
                     characterId = c.Id,
-                    kartId = c.defaultKart != null ? c.defaultKart.Id : null,
+                    kartId = kart != null ? kart.Id : null,
                     displayName = c.DisplayName,
                 });
             }

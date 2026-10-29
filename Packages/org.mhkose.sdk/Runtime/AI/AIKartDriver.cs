@@ -3,6 +3,8 @@ using MHK.Karts;
 using MHK.Modding;
 using MHK.Powerups;
 using MHK.Race;
+using Unity.Profiling;
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 
 namespace MHK.AI
@@ -27,6 +29,9 @@ namespace MHK.AI
         const float BrakeRampSpeed = 5f, HardBrakeExcess = 1.5f, LightBrake = 0.3f;
         const float YieldBrakeSpeed = 4f, YieldBrake = 0.6f;
 
+        // One driver's step in the Profiler (and for ProfilerRecorder cost probes).
+        [NoAutoStaticsCleanup] static readonly ProfilerMarker UpdateMarker = new("MHK.AIKartDriver.UpdateInput");
+
         readonly DifficultySettings difficulty;
         readonly AIBlackboard board = new();
         readonly AIKeys keys = new();
@@ -38,6 +43,7 @@ namespace MHK.AI
         readonly AICornerPlanner corners;
         readonly AIStuckRecovery stuck;
         readonly AIRamThreat rams;
+        readonly AITurnLimit turn = new();
         float scanTimer;
         float halfWidth;
         int obstacleMask;
@@ -66,19 +72,22 @@ namespace MHK.AI
             battleSeed = rollSeed ^ BattleSalt;
             scanTimer = rng.NextFloat() * ScanSpread;
             rams = new AIRamThreat(difficulty, rollSeed);
-            line = new AIRouteFollower(rollSeed);
+            line = new AIRouteFollower(rollSeed, AIRacingLine.LineFor(seed));
             feelers = new AIFeelers(line);
             lanes = new AILanePlanner(difficulty, board, line, feelers, rams, rollSeed, noiseSeed, laneU);
-            var turn = new AITurnLimit();
             steering = new AISteering(line, turn);
             corners = new AICornerPlanner(line, turn);
             stuck = new AIStuckRecovery(line);
+            // Racing lines are built on first use: this driver's while the race loads, not on its first step.
+            var track = TrackRuntime.Current;
+            if (track != null && track.HasMainPath) line.Prepare(track, GameRoot.Instance.Config);
         }
 
         public void UpdateInput(Kart kart, ref KartInput input)
         {
             var cfg = GameRoot.Instance.Config;
             var dt = Time.fixedDeltaTime;
+            using var marker = UpdateMarker.Auto();
             Decide(kart, ref input, cfg, dt);
             keys.Press(kart.Physics, ref input, dt, cfg.aiKeyMinHold);
         }
@@ -111,11 +120,12 @@ namespace MHK.AI
             }
             rams.Tick(kart, halfWidth);
             if (battle != null)
-                stuck.SetBattleAim(battle.Navigating ? battle.SteerPoint : line.Point(StuckAimAhead, AILanes.Centre), !battle.Navigating || battle.ForwardSafe);
+                stuck.SetBattleAim(battle.Navigating ? battle.SteerPoint : line.Point(StuckAimAhead, AILanes.Centre), !battle.Navigating || battle.ForwardSafe,
+                    battle.Turning);
             if (stuck.Tick(kart, dt, cfg, ref input)) return;
             if (battle != null && battle.Navigating)
             {
-                battle.Drive(kart, track, line, steering, FeelerRadius, cfg, dt, ref input);
+                battle.Drive(kart, track, line, steering, turn, FeelerRadius, cfg, dt, ref input);
                 items.Tick(kart, ref input, dt, cfg);
                 return;
             }

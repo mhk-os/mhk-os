@@ -65,12 +65,18 @@ namespace MHK.AI
         public float Deceleration { get; private set; }
         /// <summary>Shots are stopped by level geometry: only fired with a clear line of sight.</summary>
         public bool NeedsLineOfSight { get; private set; }
-        /// <summary>Straight shots fly along the racing line's direction instead of the kart's facing.</summary>
+        /// <summary>Straight shots fly along the racing line (the way the kart faces) instead of the kart's facing.</summary>
         public bool AlongTrack { get; private set; }
-        /// <summary>Can be used to the rear (shots fired backwards, traps dropped behind).</summary>
+        /// <summary>Can be used to the rear (shots fired backwards, traps dropped or thrown behind).</summary>
         public bool CanGoBehind { get; private set; }
         /// <summary>Traps that can also be thrown forward: landing distance ahead (m), 0 = none.</summary>
         public float ForwardThrowRange { get; private set; }
+        /// <summary>Placed items thrown backwards with look back instead of dropped: landing distance behind (m), 0 = dropped.</summary>
+        public float BackwardThrowRange { get; private set; }
+        /// <summary>Thrown placed items: flight time (s) of the arc onto flat ground.</summary>
+        public float ThrowFlightTime { get; private set; }
+        /// <summary>Goes to the rear in a throw rather than left at the bumper (<see cref="BackwardThrowRange"/>).</summary>
+        public bool ThrownBehind => BackwardThrowRange > 0f;
         /// <summary>Thrown charges that explode on contact or landing (<see cref="ExplosiveCharge"/>): blast radius (m), 0 = none.</summary>
         public float BlastRadius { get; private set; }
         /// <summary>Homing and targeted items: whom they go for.</summary>
@@ -218,8 +224,11 @@ namespace MHK.AI
         {
             if (!prefab.TryGetComponent<PlacementPowerup>(out var place)) return false;
             Kind = AIItemKind.Trap;
-            CanGoBehind = !place.alwaysForward;
-            if (place.throwForward || place.alwaysForward) ForwardThrowRange = ThrowRange(place);
+            CanGoBehind = true;
+            ThrowFlightTime = FlightTime(place);
+            var range = PlacementPowerup.ThrowOriginForward + place.throwSpeed * ThrowFlightTime;
+            if (place.throwForward) ForwardThrowRange = range;
+            if (place.throwBackwards) BackwardThrowRange = range;
             if (prefab.TryGetComponent<ExplosiveCharge>(out var charge)) BlastRadius = charge.hitRadius;
             return true;
         }
@@ -263,13 +272,12 @@ namespace MHK.AI
             return true;
         }
 
-        // Ballistic flight of a forward-thrown placed item from its throw origin.
-        static float ThrowRange(PlacementPowerup p)
+        // Ballistic flight of a thrown placed item from its throw origin down to the kart's ground level.
+        static float FlightTime(PlacementPowerup p)
         {
             var g = Mathf.Max(0.1f, p.gravity);
             var vy = p.throwUpSpeed;
-            var t = Mathf.Min(p.maxFlightTime, (vy + Mathf.Sqrt(vy * vy + 2f * g * PlacementPowerup.ThrowOriginUp)) / g);
-            return PlacementPowerup.ThrowOriginForward + p.throwSpeed * t;
+            return Mathf.Min(p.maxFlightTime, (vy + Mathf.Sqrt(vy * vy + 2f * g * PlacementPowerup.ThrowOriginUp)) / g);
         }
     }
 }

@@ -14,7 +14,8 @@ namespace MHK.Validation
     /// <summary>
     /// Online races with anticheat: wires <see cref="RemoteKartChecks"/> to <see cref="OnlineRace"/>. Remote states go in
     /// as received, hits and item uses exempt their racers for a moment, finished, knocked-out and departed racers stop
-    /// being checked, and reports go out as <see cref="CheatReport"/>s. Off in solo races and lobbies without anticheat.
+    /// being checked, and reports go out as <see cref="CheatReport"/>s. Off without other humans and in lobbies without
+    /// anticheat. AI karts are never checked: every client simulates its own copy of them, so they differ by design.
     /// </summary>
     [AddComponentMenu("")]
     public class LiveValidation : MonoBehaviour
@@ -55,7 +56,7 @@ namespace MHK.Validation
 
         void OnRemoteState(int slot, KartState state)
         {
-            if (slot != online.LocalSlot && Ready()) checks.Receive(slot, state);
+            if (slot != online.LocalSlot && !online.IsAi(slot) && Ready()) checks.Receive(slot, state);
         }
 
         void OnPushed(IRacePush push)

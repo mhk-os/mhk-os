@@ -9,7 +9,8 @@ namespace MHK.UI
     /// <summary>
     /// Online account (Account.uxml): log in or register (username, password, confirmation, checked against the server's
     /// rules first), or, logged in, the account with its score rank, its country, the players list switch
-    /// (<see cref="OnlineProfiles.SetListed"/>), Your profile (the Players page), Log out and Delete account (a box in place
+    /// (<see cref="OnlineProfiles.SetListed"/>), Your profile (the Players page), Change username (a text prompt checked
+    /// against the rules first, <see cref="OnlineAccount.ChangeUsername"/>), Log out and Delete account (a box in place
     /// of the account rows asks for the password and whether the time-trial runs go too, <see cref="OnlineAccount.Delete"/>).
     /// Below, the connection to the server and, behind the server button, the server address
     /// (<see cref="UserSettings.onlineServer"/>). The footer opens the <see cref="AchievementsScreen"/>. Opening it connects
@@ -48,11 +49,14 @@ namespace MHK.UI
         string deletingText = "Deleting...", deletePasswordMissing = "Enter your password to confirm.",
             deletedText = "Your account was deleted. Your time trial runs stay on the leaderboards as Anonymous.",
             deletedWithRunsText = "Your account and your time trial runs were deleted.";
+        [SerializeField, Tooltip("Change username prompt: the question, the question after a refused name ({0} = why, {1} = the question), its confirm button, and the status after renaming ({0} = new name).")]
+        string renameQuestion = "Your new username: 3 to 20 letters, digits, _ . - (starting and ending with a letter or digit). Others see it everywhere at once and your old name becomes free. You can change it 3 times in 30 days.",
+            renameRefusedFormat = "{0}\n\n{1}", renameLabel = "Change", renamedFormat = "Your username is now {0}.";
 
-        bool register, deleteBusy, deleteRuns;
+        bool register, deleteBusy, deleteRuns, renameBusy;
         bool serverOpen;
         TextField username, password, confirm, server, deletePassword;
-        Button submit, reconnect, deleteConfirm, deleteCancel;
+        Button submit, reconnect, deleteConfirm, deleteCancel, rename;
         VisualElement signedOut, signedIn, confirmBlock, status, statusIcon, connectionBar, connectionIcon, serverBox, deleteStatus;
         Label submitLabel, statusLabel, connectionLabel, deleteConfirmLabel, deleteStatusLabel;
         VisualElement submitIcon;
@@ -105,6 +109,7 @@ namespace MHK.UI
             country = BindChoice("country", () => Countries.All.Count + 1, CountryIndex, CountryText, SelectCountry);
             listed = BindChoice("listed", () => 2, () => Listed ? 0 : 1, i => i == 0 ? listedOnText : listedOffText, i => SetListed(i == 0));
             OnClick("profile", () => Flow.Get<PlayersScreen>()?.OpenMine());
+            rename = OnClick("rename", () => AskRename(null, null));
             OnClick("achievements", () => Flow.Show<AchievementsScreen>());
             countryApply = Root.schedule.Execute(ApplyCountry);
             countryApply.Pause();
@@ -130,7 +135,7 @@ namespace MHK.UI
             ApplyCountry();
             tick = countryApply = null;
             username = password = confirm = server = deletePassword = null;
-            submit = reconnect = deleteConfirm = deleteCancel = null;
+            submit = reconnect = deleteConfirm = deleteCancel = rename = null;
             signedOut = signedIn = confirmBlock = status = statusIcon = connectionBar = connectionIcon = serverBox = submitIcon = deleteStatus = null;
             submitLabel = statusLabel = connectionLabel = deleteConfirmLabel = deleteStatusLabel = null;
             deleteRunsChoice = null;
@@ -139,7 +144,40 @@ namespace MHK.UI
             profile = null;
             profileFor = 0;
             profileRequests++;
-            busy = deleteBusy = false;
+            busy = deleteBusy = renameBusy = false;
+        }
+
+        // The prompt starts with the current name, or with the refused one and why it was refused.
+        void AskRename(string text, string refused)
+        {
+            var account = OnlineService.Account;
+            if (account == null || renameBusy) return;
+            var question = refused != null ? string.Format(renameRefusedFormat, refused, renameQuestion) : renameQuestion;
+            TextPrompt.Show(rename, question, renameLabel, Rename, AccountRules.MaxUsername, text ?? account.username, false);
+        }
+
+        void Rename(string name)
+        {
+            var account = OnlineService.Account;
+            if (account == null || name == account.username) return;
+            var error = AccountRules.CheckUsername(name);
+            if (error != null) AskRename(name, error);
+            else RenameAsync(name).LogExceptionsAndForget();
+        }
+
+        async Awaitable RenameAsync(string name)
+        {
+            var root = Root;
+            ShowStatus(null, false);
+            renameBusy = true;
+            rename.SetEnabled(false);
+            var r = await OnlineAccount.ChangeUsername(name);
+            if (Root != root || root == null) return;
+            renameBusy = false;
+            rename.SetEnabled(true);
+            if (r.Ok) ShowStatus(string.Format(renamedFormat, OnlineService.Username), true);
+            else if (r.status == Status.InvalidUsername || r.status == Status.UsernameTaken) AskRename(name, r.message);
+            else ShowStatus(r.message, false);
         }
 
         void BindDelete()

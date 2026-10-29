@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 namespace MHK.Editor.Lighting
@@ -27,6 +28,7 @@ namespace MHK.Editor.Lighting
             var singleChannel = TrackBakePreparer.SceneLights(scene)
                 .All(l => l.bakingOutput.lightmapBakeType != LightmapBakeType.Mixed || l.bakingOutput.occlusionMaskChannel <= 0);
             if (!singleChannel) report.warnings.Add("several mixed lights: shadowmasks kept 4-channel");
+            if (!HasGraphicsDevice) report.warnings.Add("no graphics device (-nographics): colour lightmaps kept at full size");
             foreach (var data in LightmapSettings.lightmaps)
             {
                 ShrinkUnusedLightmap(AssetDatabase.GetAssetPath(data.lightmapColor), colorMaxSize);
@@ -40,6 +42,8 @@ namespace MHK.Editor.Lighting
         /// MHK/Lit samples the colour and directional lightmaps only in baked-indirect scenes, but the lightmapper writes
         /// them at full atlas size. Rewrites the file at <paramref name="path"/> downscaled to <paramref name="maxSize"/>
         /// in place (same name and GUID, so the LightingData references stay valid) and imports it capped to that size.
+        /// Without a graphics device (batch mode with -nographics) the GPU downsample would write black pixels, so the
+        /// file is left at full size and an error is logged.
         /// </summary>
         public static void ShrinkUnusedLightmap(string path, int maxSize)
         {
@@ -51,6 +55,11 @@ namespace MHK.Editor.Lighting
             }
             importer.GetSourceTextureWidthAndHeight(out var width, out var height);
             if (Mathf.Max(width, height) <= maxSize) return;
+            if (!HasGraphicsDevice)
+            {
+                Debug.LogError($"[Lighting] {path}: not shrunk, no graphics device (run without -nographics); the file stays at {width}x{height}.");
+                return;
+            }
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path); // imported at maxSize already
             var factor = (float)maxSize / Mathf.Max(width, height);
             var w = Mathf.Max(1, Mathf.RoundToInt(width * factor));
@@ -61,6 +70,8 @@ namespace MHK.Editor.Lighting
             else TextureCapture.WritePng(small, path);
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
         }
+
+        static bool HasGraphicsDevice => SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null;
 
         static int ColorMaxSize(Scene scene, TrackBakeSettings settings)
         {

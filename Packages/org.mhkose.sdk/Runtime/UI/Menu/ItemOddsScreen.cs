@@ -9,8 +9,8 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// Powerups (ItemOdds.uxml): single race and battle item odds per powerup, grouped by game or mod, for the item family
-    /// of the picked track. Every odd at 0 % turns powerups off. Saved per family in <see cref="UserSettings.itemOdds"/>.
+    /// Powerups (ItemOdds.uxml): single race and battle item odds per powerup, grouped by game or mod, the same on every
+    /// track. Every odd at 0 % turns powerups off. Saved in <see cref="UserSettings.ownItemOdds"/>.
     /// </summary>
     public class ItemOddsScreen : MenuScreen
     {
@@ -35,10 +35,6 @@ namespace MHK.UI
         string totalFormat = "Total {0}";
         [SerializeField, Tooltip("Appended to the sum line when the sum is not 100 %.")]
         string scaledText = ", scaled to 100 % in the race";
-        [SerializeField, Tooltip("Appended to the sum line. {0} = item family, {1} = its share, {2} = share of all other powerups.")]
-        string familyFormat = "  |  {0} items {1}  |  other games {2}";
-        [SerializeField, Tooltip("Tag of a powerup another game shares with the track's family. {0} = family.")]
-        string sharedFormat = "Also a {0} item";
         [SerializeField, Tooltip("Percent step of Left / Right and the arrow buttons.")]
         [Min(0.1f)] float step = 1f;
         [SerializeField, Tooltip("Arrow buttons held down: milliseconds before they repeat, and between repeats.")]
@@ -54,20 +50,16 @@ namespace MHK.UI
         readonly List<PowerupOdds> defaults = new();
         readonly List<Row> rows = new();
         readonly List<(ContentPack pack, Label total)> groups = new();
-        ContentPack family;
         Label total, off;
         Button footerTarget;
         Row lastRow;
 
         void Reset() => showcaseVisible = false;
 
-        string FamilyKey => ItemOdds.FamilyKey(family);
-
         protected override void Bind()
         {
-            family = ItemOdds.FamilyOf(Content, Selection.track);
-            ItemOdds.Defaults(Content, family, defaults);
-            ItemOdds.PlayerOdds(Content, Settings, Selection.track, odds);
+            ItemOdds.Defaults(Content, null, defaults);
+            ItemOdds.PlayerOdds(Content, Settings, odds);
             total = Q<Label>("odds-total");
             off = Q<Label>("odds-off");
             var list = Q<VisualElement>("odds-list");
@@ -115,15 +107,13 @@ namespace MHK.UI
             UiAnim.Stagger(list, rowStep, rowFirst, "from-left");
         }
 
-        // Packs of the listed powerups in load order, the track's family first.
+        // Packs of the listed powerups in load order.
         void CollectPacks(List<ContentPack> packs)
         {
-            for (var pass = 0; pass < 2; pass++)
             for (var i = 0; i < odds.Count; i++)
             {
                 var p = Content.Get<PowerupDefinition>(odds[i].id);
-                if (p == null || p.OwnerPack == null || packs.Contains(p.OwnerPack)) continue;
-                if ((Content.RootOf(p.OwnerPack) == family) == (pass == 0)) packs.Add(p.OwnerPack);
+                if (p != null && p.OwnerPack != null && !packs.Contains(p.OwnerPack)) packs.Add(p.OwnerPack);
             }
         }
 
@@ -137,10 +127,6 @@ namespace MHK.UI
             element.EnableInClassList("alt", rows.Count % 2 == 1);
             element.Q("odds-icon")?.SetImage(p.Icon);
             element.SetText("odds-name", p.DisplayName);
-            var shared = family != null && ItemOdds.FamilyOf(Content, p) != family && ItemOdds.InFamily(Content, p, family);
-            var tag = element.Q<Label>("odds-tag");
-            tag?.SetVisible(shared);
-            if (shared && tag != null) tag.text = string.Format(sharedFormat, family.title);
             BindArrow(element.Q<Button>("odds-minus"), row, -1);
             BindArrow(element.Q<Button>("odds-plus"), row, 1);
             element.RegisterCallback<PointerDownEvent>(_ => element.Focus());
@@ -205,28 +191,36 @@ namespace MHK.UI
         void SetOdds(int index, float percent)
         {
             var id = odds[index].id;
-            OwnSet().Set(id, percent);
+            SetOwn(OwnOdds(), id, percent);
             odds[index] = new PowerupOdds(id, percent);
             Refresh();
         }
 
-        // The family's own set, created from the odds shown (so later pack changes do not shift them).
-        ItemOddsSet OwnSet()
+        // The player's own odds, created from the odds shown (so later pack changes do not shift them).
+        List<PowerupOdds> OwnOdds()
         {
-            var own = Settings.ItemOddsFor(FamilyKey);
-            if (own != null) return own;
-            own = new ItemOddsSet { family = FamilyKey };
-            own.odds.AddRange(odds);
-            Settings.itemOdds.Add(own);
+            var own = Settings.ownItemOdds;
+            if (own.Count == 0) own.AddRange(odds);
             return own;
+        }
+
+        static void SetOwn(List<PowerupOdds> own, string id, float percent)
+        {
+            for (var i = 0; i < own.Count; i++)
+            {
+                if (own[i].id != id) continue;
+                own[i] = new PowerupOdds(id, percent);
+                return;
+            }
+            own.Add(new PowerupOdds(id, percent));
         }
 
         void AllOff()
         {
-            var own = OwnSet();
+            var own = OwnOdds();
             for (var i = 0; i < odds.Count; i++)
             {
-                own.Set(odds[i].id, 0f);
+                SetOwn(own, odds[i].id, 0f);
                 odds[i] = new PowerupOdds(odds[i].id, 0f);
             }
             Refresh();
@@ -234,9 +228,8 @@ namespace MHK.UI
 
         void ResetToDefaults()
         {
-            var key = FamilyKey;
-            Settings.itemOdds.RemoveAll(s => s == null || s.family == key);
-            ItemOdds.PlayerOdds(Content, Settings, Selection.track, odds);
+            Settings.ownItemOdds.Clear();
+            ItemOdds.PlayerOdds(Content, Settings, odds);
             Refresh();
         }
 
@@ -259,10 +252,7 @@ namespace MHK.UI
         string SumText(float sum)
         {
             var text = string.Format(totalFormat, UiText.Percent(sum));
-            if (Mathf.Abs(sum - MaxPercent) >= HalfShownDecimal) text += scaledText;
-            if (family == null) return text;
-            var own = FamilyShare(sum);
-            return text + string.Format(familyFormat, family.title, UiText.Percent(own), UiText.Percent(MaxPercent - own));
+            return Mathf.Abs(sum - MaxPercent) >= HalfShownDecimal ? text + scaledText : text;
         }
 
         float PackTotal(ContentPack pack)
@@ -271,19 +261,6 @@ namespace MHK.UI
             foreach (var row in rows)
                 if (row.pack == pack) sum += odds[row.index].percent;
             return sum;
-        }
-
-        // Percent of all rolls (sum scaled to 100) that give a powerup of the track's family.
-        float FamilyShare(float sum)
-        {
-            if (sum <= 0f) return 0f;
-            var own = 0f;
-            for (var i = 0; i < odds.Count; i++)
-            {
-                var p = Content.Get<PowerupDefinition>(odds[i].id);
-                if (p != null && ItemOdds.InFamily(Content, p, family)) own += odds[i].percent;
-            }
-            return own * MaxPercent / sum;
         }
     }
 }

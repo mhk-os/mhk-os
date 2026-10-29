@@ -54,7 +54,7 @@ namespace MHK.UI
         public static void SetDriver(VisualElement parent, string characterId, string kartId)
         {
             var character = Content.Get<CharacterDefinition>(characterId);
-            var portrait = character == null ? null : character.portrait != null ? character.portrait : character.Icon;
+            var portrait = character != null ? character.Portrait : null;
             SetPicture(parent.Q("driver-portrait"), characterId, character != null, portrait, CharacterName(characterId), MissingDriverFormat);
             var kart = Content.Get<KartDefinition>(kartId);
             SetPicture(parent.Q("driver-kart"), kartId, kart != null, kart != null ? kart.Icon : null, KartName(kartId), MissingKartFormat);

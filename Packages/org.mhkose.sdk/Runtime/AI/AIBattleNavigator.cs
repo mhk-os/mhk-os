@@ -76,6 +76,18 @@ namespace MHK.AI
         public bool Jumping { get; private set; }
         /// <summary>The kart turns around (or drives on to a spot to turn at): the way to the goal may grow meanwhile.</summary>
         public bool Turning => turning;
+        /// <summary>Flat unit direction the kart wants to drive this step (towards the goal, the line or the turning spot).</summary>
+        public Vector3 WantedDirection { get; private set; } = Vector3.forward;
+
+        /// <summary>
+        /// How far (m) beyond the road edges a turn around may run: in arenas <paramref name="leash"/>, on circuits the
+        /// road (no farther out than the kart already is). <paramref name="pavedLeash"/> as for <see cref="AIBattleArea.Safe(TrackRuntime, Vector3, float, float, float, float, AIBattleArea.Hints, out float, out float)"/>.
+        /// </summary>
+        public float TurnRoom(float leash, bool arena, out float pavedLeash)
+        {
+            pavedLeash = Mathf.Max(leash, roadBeyond);
+            return arena ? pavedLeash : Mathf.Min(pavedLeash, Mathf.Max(TurnLeash, roadBeyond + TurnSlack));
+        }
 
         /// <summary>
         /// Forgets the state of an earlier stretch off the racing line (turns, blocked goals, line direction): the kart
@@ -142,6 +154,7 @@ namespace MHK.AI
                 Hazard(kart, track, leash, radius, cfg);
             }
             WatchBlocked(toWanted.magnitude, dt);
+            WantedDirection = wantedDir;
             var dir = Quaternion.AngleAxis(bestAngle, Vector3.up) * wantedDir;
             var look = Mathf.Max(MinLook, speed * LookPerSpeed);
             SteerPoint = bestAngle == 0f && toWanted.magnitude <= Mathf.Max(bestReach, look) ? wanted : pos + dir * Mathf.Clamp(bestReach, MinLook, look);
@@ -311,7 +324,8 @@ namespace MHK.AI
             return wall;
         }
 
-        static float Sweep(Vector3 from, Vector3 dir, float length, float radius, int mask)
+        /// <summary>Distance (m) along <paramref name="dir"/> to the first wall or solid body a sphere meets, <paramref name="length"/> when none.</summary>
+        internal static float Sweep(Vector3 from, Vector3 dir, float length, float radius, int mask)
         {
             var n = Physics.SphereCastNonAlloc(from, radius, dir, Hits, length, mask, QueryTriggerInteraction.Ignore);
             var best = length;

@@ -140,6 +140,16 @@ namespace MHK.Online
         public static DeleteAccountRequest Read(WireReader r) => new() { password = r.String(CredentialsRequest.MaxPassword), deleteRuns = r.Bool() };
     }
 
+    /// <summary>Request 29: the account's new username (same rules as Register; a case-only change of its own name is allowed).</summary>
+    public sealed class ChangeUsernameRequest
+    {
+        public string username = "";
+
+        public void Write(WireWriter w) => w.String(username, CredentialsRequest.MaxUsername);
+
+        public static ChangeUsernameRequest Read(WireReader r) => new() { username = r.String(CredentialsRequest.MaxUsername) };
+    }
+
     /// <summary>An account as the server describes it.</summary>
     public sealed class Account
     {

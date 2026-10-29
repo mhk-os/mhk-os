@@ -10,12 +10,13 @@ using UnityEngine;
 namespace MHK.Powerups
 {
     /// <summary>
-    /// Items in an online race between humans (<see cref="OnlineRace"/>, not solo): the server arbitrates item boxes,
-    /// item uses and hits. A pickup of the local kart waits for ItemGranted; uses are announced (ItemUse) and replayed
-    /// by the others (ItemUsed, fast-forwarded to the current tick); every client simulates every use and reports the
-    /// projectile positions; each racer's client decides the hits on its own kart (HitTaken) and only reports those it
-    /// sees on others (HitSeen). Battle eliminations and collapsing bridges are shared here too. Offline and in solo
-    /// races nothing here is active.
+    /// Items in an online race (<see cref="OnlineRace"/>): the server arbitrates item boxes, item uses and hits. A pickup
+    /// waits for ItemGranted; uses are announced (ItemUse) and replayed by the others (ItemUsed, fast-forwarded to the
+    /// current tick); every client simulates every use and reports the projectile positions; each racer's client decides
+    /// the hits on its own kart (HitTaken) and only reports those it sees on other humans (HitSeen). AI karts run on
+    /// every client: the AI host reports their pickups, uses, hits, eliminations and finishes like its own kart's
+    /// (<see cref="IsReported"/>); everywhere else they are mirrors (<see cref="IsMirror"/>) that get those from the
+    /// server only. Battle eliminations and collapsing bridges are shared here too. Offline nothing here is active.
     /// </summary>
     public static partial class OnlineItems
     {
@@ -30,12 +31,12 @@ namespace MHK.Powerups
 
         /// <summary>
         /// Starts arbitration for <paramref name="r"/> once its track and karts are loaded (call before sending RaceLoaded):
-        /// indexes item boxes and bridges in their stable order and listens to the race's pushes. Solo races stay offline.
+        /// indexes item boxes and bridges in their stable order and listens to the race's pushes.
         /// </summary>
         public static void Begin(OnlineRace r)
         {
             Stop();
-            if (r == null || r.Solo) return;
+            if (r == null) return;
             race = r;
             StableOrder.Collect(boxes);
             for (var i = 0; i < boxes.Count; i++) boxes[i].NetId = i;
@@ -68,10 +69,22 @@ namespace MHK.Powerups
             if (ReferenceEquals(race, r)) Stop();
         }
 
-        /// <summary>The kart is the local racer's in an arbitrated race (online karts are either that one or remote).</summary>
-        public static bool IsLocal(Kart k) => Active && k != null && !k.IsRemote;
+        /// <summary>
+        /// The kart's item events go to the server from this client: the local racer's kart, or an AI kart while this
+        /// client is the AI host. Remote racers' stand-ins and mirrored AI karts are not.
+        /// </summary>
+        public static bool IsReported(Kart k) => Active && k != null && !k.IsRemote && (!race.IsAiKart(k) || race.IsAiHost);
+
+        /// <summary>
+        /// An AI kart simulated here while another client is the AI host: it never takes boxes, uses items or takes hits
+        /// from uses by itself; the server's ItemGranted, ItemUsed, HitApplied and Eliminated drive those.
+        /// </summary>
+        public static bool IsMirror(Kart k) => Active && k != null && !race.IsAiHost && race.IsAiKart(k);
 
         static Kart LocalKart => race.KartOf(race.LocalSlot);
+
+        // The slot field of a notify about k: none for the local kart, the AI kart's slot for a hosted one.
+        static int NotifySlot(Kart k) => race.IsAiKart(k) ? race.SlotOf(k) : RaceProtocol.NoSlot;
 
         static ContentRegistry Content => GameRoot.Instance.Content;
 
@@ -126,21 +139,32 @@ namespace MHK.Powerups
         static ItemBox BoxOf(int id) => id >= 0 && id < boxes.Count ? boxes[id] : null;
 
         /// <summary>
-        /// The local kart touched an arbitrated item box: asks the server for an item and starts the roulette. False when
-        /// the kart cannot take one now (the box stays).
+        /// A reported kart (<see cref="IsReported"/>) touched an arbitrated item box: asks the server for an item and starts
+        /// the roulette. False when the kart cannot take one now or is not reported from here (the box stays).
         /// </summary>
         internal static bool RequestPickup(ItemBox box, Kart k)
         {
-            if (box.NetId < 0 || !k.Inventory.CanReceive) return false;
-            race.Notify(new ItemPickup { raceId = race.RaceId, boxId = box.NetId, tick = race.Tick, pos = k.transform.position });
+            if (box.NetId < 0 || !k.Inventory.CanReceive || !IsReported(k)) return false;
+            race.Notify(new ItemPickup { raceId = race.RaceId, boxId = box.NetId, tick = race.Tick, pos = k.transform.position, slot = NotifySlot(k) });
             k.Inventory.BeginPending(box.NetId);
             return true;
         }
 
+        // Own pickups end their roulette; an AI kart's item (sent to everyone) goes into every client's copy of that kart.
         static void OnGranted(ItemGranted m)
         {
-            var k = LocalKart;
-            if (k != null) k.Inventory.Grant(m.boxId, Content.Get<PowerupDefinition>(m.powerupId), m.charges);
+            var k = race.KartOf(m.slot);
+            if (k == null) return;
+            var def = Content.Get<PowerupDefinition>(m.powerupId);
+            if (!race.IsAiKart(k) || k.Inventory.IsPending(m.boxId))
+            {
+                k.Inventory.Grant(m.boxId, def, m.charges);
+                return;
+            }
+            var ago = Mathf.Max(0, race.Tick - m.tick);
+            k.Inventory.ReceiveShared(def, m.charges, ago * Time.fixedDeltaTime);
+            var box = BoxOf(m.boxId);
+            if (box != null) box.HideTaken(ago);
         }
 
         static void OnBoxTaken(ItemBoxTaken m)
@@ -152,7 +176,7 @@ namespace MHK.Powerups
         // A box another racer got first stays hidden: it is not there for anyone.
         static void OnDenied(ItemDenied m)
         {
-            var k = LocalKart;
+            var k = race.KartOf(m.slot);
             if (k != null) k.Inventory.Deny(m.boxId);
             var box = BoxOf(m.boxId);
             if (box != null && m.reason != ItemDenied.NotAvailable) box.Restore();
@@ -160,11 +184,14 @@ namespace MHK.Powerups
 
         // ---- Battles and bridges ----------------------------------------------------------------------------------
 
-        /// <summary>The local kart is out of the battle (health below 1): tells the others who knocked it out.</summary>
+        /// <summary>A reported kart is out of the battle (health below 1): tells the others who knocked it out.</summary>
         internal static void SendEliminatedSelf(Kart k)
         {
-            if (!IsLocal(k)) return;
-            race.Notify(new EliminatedSelf { raceId = race.RaceId, attackerSlot = race.SlotOf(k.Effects.LastAttacker), tick = race.Tick });
+            if (!IsReported(k)) return;
+            race.Notify(new EliminatedSelf
+            {
+                raceId = race.RaceId, attackerSlot = race.SlotOf(k.Effects.LastAttacker), tick = race.Tick, slot = NotifySlot(k),
+            });
         }
 
         static void OnEliminated(Eliminated m)

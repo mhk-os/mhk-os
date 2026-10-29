@@ -31,10 +31,6 @@ namespace MHK.Modding
         public AudioClip menuMusic;
         [Tooltip("Optional UI click sound.")]
         public AudioClip uiClick;
-        [Tooltip("Powerup ids of other packs that this pack's item family also gives besides its own powerups (e.g. " +
-                 "'mhk2.shield'). Used by its championships and by the single race default odds on its tracks. Read from " +
-                 "the top-level pack and every pack it includes.")]
-        public List<string> sharedPowerups = new();
         [Tooltip("Item box look on the tracks of this game (tracks whose source game is this pack id). No model = the item " +
                  "box's own look (the game's default).")]
         public Powerups.ItemBoxAppearance itemBoxLook = new();

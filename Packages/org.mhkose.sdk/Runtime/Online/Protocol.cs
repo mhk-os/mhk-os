@@ -6,7 +6,7 @@ namespace MHK.Online
     public static class Protocol
     {
         /// <summary>Protocol revision this client speaks (Hello). Bumped for incompatible changes only.</summary>
-        public const ushort Version = 1;
+        public const ushort Version = 2;
         /// <summary>First field of Hello: the bytes "MHKO" read as a little-endian u32.</summary>
         public const uint Magic = 0x4F4B484D;
         public const int DefaultPort = 7350;
@@ -79,6 +79,8 @@ namespace MHK.Online
         public const ushort SyncAchievements = 27;
         /// <summary><see cref="AchievementSharesRequest"/> → <see cref="AchievementShareCounts"/>.</summary>
         public const ushort AchievementShares = 28;
+        /// <summary><see cref="ChangeUsernameRequest"/> → <see cref="Account"/> (renamed). Needs login.</summary>
+        public const ushort ChangeUsername = 29;
 
         /// <summary><see cref="IdRequest"/> (run, reason) → empty. Moderators only, like every type up to 127.</summary>
         public const ushort ModHideRun = 64;
@@ -120,6 +122,8 @@ namespace MHK.Online
     {
         /// <summary><see cref="DisconnectPush"/>: the server is closing the connection.</summary>
         public const ushort Disconnect = 1;
+        /// <summary><see cref="Account"/>: the logged-in account changed on another connection (renamed).</summary>
+        public const ushort AccountUpdated = 16;
     }
 
     /// <summary>First field of every response. Anything but <see cref="Ok"/> is followed by a message for the player.</summary>

@@ -108,9 +108,9 @@ namespace MHK.Online
     {
         public const int PackId = 64, Commit = 40, Hash = 32, Fingerprint = 32, ContentId = 96, AnnouncedPacks = 64;
         public const int ManifestItems = 4096, StrikeMessage = 256, RoomName = 32, LobbyName = 64, RoomPacks = 32;
-        public const int Lobbies = 500, Members = 10, Code = 8, RaceRows = 16, KickReason = 256, Message = 256;
-        public const int ItemOdds = 64, Username = 20, Country = 2, Laps = 99;
-        public const int MinPlayers = 2, MaxPlayers = 10, MaxRacesPerSet = 16;
+        public const int Lobbies = 500, Members = 50, Code = 8, RaceRows = 50, KickReason = 256, Message = 256;
+        public const int ItemOdds = 64, Username = 20, Country = 2, Laps = 99, AiDrivers = 49, TrackIds = 35;
+        public const int MinPlayers = 2, MaxPlayers = 50, MaxRacesPerSet = 16;
     }
 
     /// <summary>Encoding helpers of the lobby structures.</summary>
@@ -306,21 +306,31 @@ namespace MHK.Online
         public bool items = true;
         /// <summary>Empty = default odds.</summary>
         public List<PowerupOdds> itemOdds = new();
-        public bool aiWhenAlone = true;
-        public int maxPlayers = LobbyLimits.MaxPlayers;
+        /// <summary>Most AI karts in a race (0 = none, at most <see cref="maxPlayers"/> - 1): humans + min(maxAi, maxPlayers - humans) race.</summary>
+        public int maxAi = DefaultMaxPlayers - 1;
+        public int maxPlayers = DefaultMaxPlayers;
         /// <summary>0 owner picks, 1 vote.</summary>
         public int trackPick = 1;
         public int racesPerSet = 4;
-        /// <summary>Championship only.</summary>
+        /// <summary>Championship with a cup; "" with a custom track list.</summary>
         public string cupId = "";
+        /// <summary>Championship without a cup: the tracks in race order (1-35, duplicates allowed); empty otherwise.</summary>
+        public List<string> trackIds = new();
+
+        /// <summary>Room size the Create room screen starts with.</summary>
+        public const int DefaultMaxPlayers = 10;
 
         public bool OwnerPicks => trackPick == 0;
+
+        /// <summary>A championship over <see cref="trackIds"/> instead of a cup.</summary>
+        public bool CustomTracks => mode == RoomMode.Championship && string.IsNullOrEmpty(cupId);
 
         public RoomSettings Clone()
         {
             var c = (RoomSettings)MemberwiseClone();
             c.packs = new List<string>(packs ?? new List<string>());
             c.itemOdds = new List<PowerupOdds>(itemOdds ?? new List<PowerupOdds>());
+            c.trackIds = new List<string>(trackIds ?? new List<string>());
             return c;
         }
 
@@ -334,31 +344,33 @@ namespace MHK.Online
             TimeTrialWire.U8(w, laps);
             w.Bool(items);
             LobbyWire.Odds(w, itemOdds);
-            w.Bool(aiWhenAlone);
+            TimeTrialWire.U8(w, maxAi);
             TimeTrialWire.U8(w, maxPlayers);
             TimeTrialWire.U8(w, trackPick);
             TimeTrialWire.U8(w, racesPerSet);
             w.String(cupId, LobbyLimits.ContentId);
+            LobbyWire.Strings(w, trackIds, LobbyLimits.TrackIds, LobbyLimits.ContentId);
         }
 
         public static RoomSettings Read(WireReader r) => new()
         {
             name = r.String(LobbyLimits.RoomName), mode = (RoomMode)r.U8(), packs = LobbyWire.Strings(r, LobbyLimits.RoomPacks, LobbyLimits.PackId),
             anticheat = r.Bool(), engineClass = r.U8(), laps = r.U8(), items = r.Bool(), itemOdds = LobbyWire.Odds(r),
-            aiWhenAlone = r.Bool(), maxPlayers = r.U8(), trackPick = r.U8(), racesPerSet = r.U8(), cupId = r.String(LobbyLimits.ContentId),
+            maxAi = r.U8(), maxPlayers = r.U8(), trackPick = r.U8(), racesPerSet = r.U8(), cupId = r.String(LobbyLimits.ContentId),
+            trackIds = LobbyWire.Strings(r, LobbyLimits.TrackIds, LobbyLimits.ContentId),
         };
     }
 
     /// <summary>A lobby as listed (public instances) and in <see cref="LobbyState"/>.</summary>
     public sealed class LobbySummary
     {
-        // u64 u8 u8 u16, empty name, u8 bool, empty packs, u8 u8 u8 i32 u8 u8 u8.
-        internal const int MinBytes = 8 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 4 + 1 + 1 + 1;
+        // u64 u8 u8 u16, empty name, u8 bool, empty packs, u8 u8 u8 i32 u8 u8 u8 u8.
+        internal const int MinBytes = 8 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 4 + 1 + 1 + 1 + 1;
 
         public long lobbyId;
         /// <summary>False: a private room.</summary>
         public bool isPublic;
-        /// <summary>Public category (1-10), 0 for private rooms.</summary>
+        /// <summary>Public category (1-20), 0 for private rooms.</summary>
         public int category;
         /// <summary>Number within the category (#1, #2, ...).</summary>
         public int instance;
@@ -366,6 +378,7 @@ namespace MHK.Online
         public RoomMode mode;
         public bool anticheat;
         public List<string> packs = new();
+        /// <summary>Humans in the lobby.</summary>
         public int players;
         public int maxPlayers;
         public LobbyPhase phase;
@@ -376,6 +389,8 @@ namespace MHK.Online
         public int setRace;
         /// <summary>Races per set.</summary>
         public int setSize;
+        /// <summary>Most AI karts in a race (<see cref="RoomSettings.maxAi"/>), 0 = no AI.</summary>
+        public int maxAi;
 
         public void Write(WireWriter w)
         {
@@ -394,6 +409,7 @@ namespace MHK.Online
             TimeTrialWire.U8(w, engineClass);
             TimeTrialWire.U8(w, setRace);
             TimeTrialWire.U8(w, setSize);
+            TimeTrialWire.U8(w, maxAi);
         }
 
         public static LobbySummary Read(WireReader r) => new()
@@ -401,7 +417,7 @@ namespace MHK.Online
             lobbyId = r.I64(), isPublic = r.U8() == 0, category = r.U8(), instance = r.U16(), name = r.String(LobbyLimits.LobbyName),
             mode = (RoomMode)r.U8(), anticheat = r.Bool(), packs = LobbyWire.Strings(r, LobbyLimits.RoomPacks, LobbyLimits.PackId),
             players = r.U8(), maxPlayers = r.U8(), phase = (LobbyPhase)r.U8(), contentVersion = r.I32(), engineClass = r.U8(), setRace = r.U8(),
-            setSize = r.U8(),
+            setSize = r.U8(), maxAi = r.U8(),
         };
 
         public static List<LobbySummary> ReadList(WireReader r)
@@ -469,11 +485,13 @@ namespace MHK.Online
     /// <summary>One racer's line of a race result.</summary>
     public sealed class RaceResultRow
     {
-        // u8 u64, empty name, u8 i32 i32 i32 u8 bool.
-        internal const int MinBytes = 1 + 8 + 1 + 1 + 4 + 4 + 4 + 1 + 1;
+        // u8 u64, empty name, u8 i32 i32 i32 u8 bool, empty character.
+        internal const int MinBytes = 1 + 8 + 1 + 1 + 4 + 4 + 4 + 1 + 1 + 1;
 
         public int slot;
+        /// <summary>0 for AI.</summary>
         public long accountId;
+        /// <summary>"" for AI (shown with the character's name).</summary>
         public string username = "";
         /// <summary>1-based.</summary>
         public int position;
@@ -483,6 +501,7 @@ namespace MHK.Online
         public int setPoints;
         public RaceOutcome outcome;
         public bool ai;
+        public string characterId = "";
 
         public void Write(WireWriter w)
         {
@@ -495,12 +514,13 @@ namespace MHK.Online
             w.I32(setPoints);
             w.U8((byte)outcome);
             w.Bool(ai);
+            w.String(characterId, LobbyLimits.ContentId);
         }
 
         public static RaceResultRow Read(WireReader r) => new()
         {
             slot = r.U8(), accountId = r.I64(), username = r.String(LobbyLimits.Username), position = r.U8(), finishMs = r.I32(),
-            points = r.I32(), setPoints = r.I32(), outcome = (RaceOutcome)r.U8(), ai = r.Bool(),
+            points = r.I32(), setPoints = r.I32(), outcome = (RaceOutcome)r.U8(), ai = r.Bool(), characterId = r.String(LobbyLimits.ContentId),
         };
     }
 
@@ -515,6 +535,23 @@ namespace MHK.Online
             this.accountId = accountId;
             this.trackId = trackId ?? "";
         }
+    }
+
+    /// <summary>One AI driver of the lobby's current set (<see cref="LobbyState.aiDrivers"/>): the same drivers race every race of a set.</summary>
+    public sealed class AiDriver
+    {
+        public string characterId = "";
+        public string kartId = "";
+        public int setPoints;
+
+        public void Write(WireWriter w)
+        {
+            w.String(characterId, LobbyLimits.ContentId);
+            w.String(kartId, LobbyLimits.ContentId);
+            w.I32(setPoints);
+        }
+
+        public static AiDriver Read(WireReader r) => new() { characterId = r.String(LobbyLimits.ContentId), kartId = r.String(LobbyLimits.ContentId), setPoints = r.I32() };
     }
 
     /// <summary>Everything about the lobby the player is in (push 256 and the answer of joins).</summary>
@@ -538,6 +575,8 @@ namespace MHK.Online
         public long raceId;
         /// <summary>Of the previous race, for the results phases.</summary>
         public List<RaceResultRow> lastResults = new();
+        /// <summary>The set's AI drivers in grid order; empty between sets.</summary>
+        public List<AiDriver> aiDrivers = new();
 
         public LobbyPhase Phase => summary.phase;
         public bool IsPrivate => !summary.isPublic;
@@ -570,7 +609,9 @@ namespace MHK.Online
             }
             w.String(trackId, LobbyLimits.ContentId);
             w.I64(raceId);
-            LobbyWire.Rows(w, lastResults, LobbyLimits.Members);
+            LobbyWire.Rows(w, lastResults, LobbyLimits.RaceRows);
+            w.ListCount(aiDrivers.Count, LobbyLimits.AiDrivers);
+            foreach (var d in aiDrivers) d.Write(w);
         }
 
         public static LobbyState Read(WireReader r)
@@ -585,7 +626,9 @@ namespace MHK.Online
             for (var i = 0; i < count; i++) s.votes.Add(new LobbyVote(r.I64(), r.String(LobbyLimits.ContentId)));
             s.trackId = r.String(LobbyLimits.ContentId);
             s.raceId = r.I64();
-            s.lastResults = LobbyWire.Rows(r, LobbyLimits.Members);
+            s.lastResults = LobbyWire.Rows(r, LobbyLimits.RaceRows);
+            count = r.ListCount(LobbyLimits.AiDrivers, 1 + 1 + 4);
+            for (var i = 0; i < count; i++) s.aiDrivers.Add(AiDriver.Read(r));
             return s;
         }
     }
@@ -599,7 +642,7 @@ namespace MHK.Online
         public static LobbyLeftPush Read(WireReader r) => new() { reason = (LobbyLeftReason)r.U8(), message = r.String(LobbyLimits.Message) };
     }
 
-    /// <summary>Push 523: the result of a race (every racer, AI rows of solo races excluded) and whether the set is over.</summary>
+    /// <summary>Push 523: the result of a race (every kart, AI included, ranked by the server) and whether the set is over.</summary>
     public sealed class RaceResults
     {
         public long raceId;
