@@ -21,7 +21,7 @@ namespace MHK.UI
     /// content this game does not have. Notices posted before the HUD exists wait for it.
     /// </summary>
     [AddComponentMenu("")]
-    public class OnlineNotices : MonoBehaviour
+    public partial class OnlineNotices : MonoBehaviour
     {
         const float ShowSeconds = 6f, OwnShowSeconds = 10f, FadeSeconds = 0.5f;
         const int MaxShown = 4;

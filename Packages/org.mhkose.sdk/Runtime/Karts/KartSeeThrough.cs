@@ -12,7 +12,7 @@ namespace MHK.Karts
     /// shadows. The copies are shared by every visual per material and opacity step, so dozens of ghosts of the same
     /// kart and character draw with the same few materials.
     /// </summary>
-    public sealed class KartSeeThrough
+    public sealed partial class KartSeeThrough
     {
         const float FadeSpeed = 3f;
         const float TintInRate = 6f, TintOutRate = 0.8f;

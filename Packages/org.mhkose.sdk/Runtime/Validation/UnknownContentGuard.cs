@@ -14,7 +14,7 @@ namespace MHK.Validation
     /// (<see cref="UnknownContent"/>: one reporter about a racer means the reporter's copy is the odd one), and the
     /// player sees a notice.
     /// </summary>
-    public static class UnknownContentGuard
+    public static partial class UnknownContentGuard
     {
         [AutoStaticsCleanup] static long raceId;
         [AutoStaticsCleanup] static readonly HashSet<(int slot, string id)> sent = new();

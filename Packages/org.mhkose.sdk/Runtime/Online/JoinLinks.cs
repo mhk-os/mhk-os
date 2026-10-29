@@ -14,7 +14,7 @@ namespace MHK.Online
     /// desktop game started with a link while another one runs hands it over and quits). A link becomes
     /// <see cref="OnlineLobby.PendingJoinCode"/> and opens the Online screen, which logs in and joins the room.
     /// </summary>
-    public static class JoinLinks
+    public static partial class JoinLinks
     {
         public const string Scheme = "mhkos";
         const string Prefix = Scheme + "://join/";
@@ -25,7 +25,8 @@ namespace MHK.Online
         public const int ForwardPort = 47350;
 
         [AutoStaticsCleanup] static readonly ConcurrentQueue<string> arrived = new();
-        [AutoStaticsCleanup] static JoinLinkForwarder.Listener listener;
+        // Disposed (the port closed) and set back to this when a play session ends.
+        [AutoStaticsCleanup] static JoinLinkForwarder.Listener listener = null;
 
         /// <summary>A link was taken (its room code), after <see cref="OnlineLobby.PendingJoinCode"/> was set.</summary>
         public static event Action<string> Opened;

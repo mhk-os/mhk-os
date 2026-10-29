@@ -38,7 +38,8 @@ namespace MHK.Online
         [AutoStaticsCleanup] static ContentAnnouncement content;
         [AutoStaticsCleanup] static string contentError;
         [AutoStaticsCleanup] static List<ContentStrike> strikes = new();
-        [AutoStaticsCleanup] static Task<OnlineResult> announcing;
+        // Not generated: the cleanup would Dispose() the task, which throws while it still runs. ForgetRequests drops it.
+        [NoAutoStaticsCleanup] static Task<OnlineResult> announcing;
         // What the last announcement (or failure) was for: account, content version and connection.
         [AutoStaticsCleanup] static ulong announcedAccount;
         [AutoStaticsCleanup] static int announcedVersion = -1;
@@ -49,6 +50,9 @@ namespace MHK.Online
         [AutoStaticsCleanup] static float clockAt = -1f;
         [AutoStaticsCleanup] static bool clockPending;
         [AutoStaticsCleanup] static bool? runInBackgroundBefore;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ForgetRequests() => announcing = null;
 
         /// <summary>The lobby, the content announcement or the results changed (main thread).</summary>
         public static event Action Changed;

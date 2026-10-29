@@ -14,7 +14,7 @@ namespace MHK.Online
     /// <see cref="TryGetSummary"/> reads them. The cache starts over when the logged-in account or its role changes (moderators
     /// also see disabled accounts). Main thread only; failures are results, never exceptions.
     /// </summary>
-    public static class OnlineProfiles
+    public static partial class OnlineProfiles
     {
         /// <summary>Seconds a cached summary counts as fresh; <see cref="Want"/> asks again after that.</summary>
         public const float SummaryMaxAge = 60f;

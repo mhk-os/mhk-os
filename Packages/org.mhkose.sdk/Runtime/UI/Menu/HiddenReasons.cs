@@ -13,7 +13,7 @@ namespace MHK.UI
     /// the tooltip's element is hovered or its row focused, once per run (answers are kept until a moderation action).
     /// Until the answer, and when it cannot be had, the element keeps its fallback text.
     /// </summary>
-    public static class HiddenReasons
+    public static partial class HiddenReasons
     {
         public static string ModeratorFormat { get; set; } = "Hidden by {0}: {1}";
         public static string ModeratorNoReasonFormat { get; set; } = "Hidden by {0}";
