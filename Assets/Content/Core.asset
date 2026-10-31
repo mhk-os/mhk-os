@@ -22,7 +22,6 @@ MonoBehaviour:
   logo: {fileID: 2800000, guid: 18168e4fb99849c4876b3c0f419c7c63, type: 3}
   menuMusic: {fileID: 0}
   uiClick: {fileID: 0}
-  sharedPowerups: []
   itemBoxLook:
     model: {fileID: 0}
     spinSpeed: 0

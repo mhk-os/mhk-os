@@ -26,7 +26,8 @@ namespace MHK.Race
         /// <summary>
         /// Safe pose on <paramref name="line"/> (main line or an alternative route). The ground is the drivable surface
         /// in a vertical column through the line closest to its height, surfaces above it count 1.5x, and it needs
-        /// room for a dropped kart above it, so roofs and arches never win against the road under them.
+        /// room for a dropped kart above it, so roofs and arches never win against the road under them. Track hazards
+        /// and animated prop bodies (including their child colliders) never count as safe ground.
         /// </summary>
         public Pose GetRespawnPose(TrackPath line, float distance, float lateralOffset = 0f)
         {
@@ -78,6 +79,10 @@ namespace MHK.Race
         {
             if (hit.normal.y < MinGroundNormalY) return -1f;
             if (hit.rigidbody != null && !hit.rigidbody.isKinematic) return -1f;
+            // Kinematic stompers and their separately animated walls are solid while driving, but not safe places
+            // to respawn. Keep probing below them for the road, just as for an unsafe TrackSurface.
+            if (hit.collider.GetComponentInParent<TrackHazard>() != null
+                || hit.collider.GetComponentInParent<PropAnimator>() != null) return -1f;
             var surface = TrackSurface.Of(hit.collider);
             if (surface == null) return 0f;
             if (surface.kind.IsUnsafeGround()) return -1f;

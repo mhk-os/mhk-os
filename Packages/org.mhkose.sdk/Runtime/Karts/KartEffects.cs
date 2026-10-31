@@ -96,7 +96,8 @@ namespace MHK.Karts
         public bool GhostActive => Modifiers.ghost;
         /// <summary>
         /// Intangible: a ghost effect is active, or one just ended while the kart is still inside something it passed
-        /// through (<see cref="KartPhysics.Intangible"/>). Powerups and hazards neither hit nor target such karts.
+        /// through (<see cref="KartPhysics.Intangible"/>). Most powerups and hazards ignore such karts; homing missiles
+        /// still pursue and explode on them, but their hostile effects are blocked.
         /// </summary>
         public bool Ghost => GhostActive || (kart != null && kart.Physics != null && kart.Physics.Intangible);
         /// <summary>A run-over effect (<see cref="StatusEffectDefinition.runOver"/>, flattened) is active: other karts drive through it.</summary>
@@ -147,11 +148,13 @@ namespace MHK.Karts
         /// <paramref name="usage"/> is the powerup use the hit comes from (<see cref="Powerups.PowerupContext.usage"/>, 0 =
         /// none): it costs this kart health only once per use (<see cref="Kart.TakeDamage"/>).
         /// Online, a remote racer's kart is never changed by a hit seen here: its own client decides
-        /// (<see cref="Powerups.OnlineItems"/>); its own buffs only show.
+        /// (<see cref="Powerups.OnlineItems"/>); its own buffs only show. Neither is a mirrored AI kart by an item use's hit
+        /// (its AI host decides; the server's HitApplied applies it).
         /// </summary>
         public bool Apply(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f, int usage = 0)
         {
             if (kart != null && kart.IsRemote) return ApplyToRemote(def, source, durationOverride, usage);
+            if (Powerups.OnlineItems.WaitsForServer(kart, def, usage)) return !IsBlocked(def);
             if (IsBlocked(def)) return false;
             var duration = ResolveDuration(def, durationOverride);
             EndConflictingBuffs(def);

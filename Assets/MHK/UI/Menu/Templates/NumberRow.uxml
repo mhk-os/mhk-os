@@ -1,0 +1,15 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One whole-number setting row: label, then the number input (range hint, minus button, text field, plus button). Pages use it as <ui:Instance template="NumberRow" name="row-name" class="setting-row ..."> with AttributeOverrides for setting-label, number-hint and number-field. Bound by NumberInput (hint text, .at-limit on a button at the end of the range, .warn on the hint after a refused or clamped entry). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Label name="setting-label" text="Setting" class="setting-label" />
+    <ui:VisualElement class="number-input">
+        <ui:Label name="number-hint" text="0 to 50" class="number-hint" />
+        <ui:Button name="number-minus" class="mhk-button small secondary icon-only number-step">
+            <ui:VisualElement class="icon i-remove" />
+        </ui:Button>
+        <ui:TextField name="number-field" value="5" class="acc-input number-field" />
+        <ui:Button name="number-plus" class="mhk-button small secondary icon-only number-step">
+            <ui:VisualElement class="icon i-add" />
+        </ui:Button>
+    </ui:VisualElement>
+</ui:UXML>

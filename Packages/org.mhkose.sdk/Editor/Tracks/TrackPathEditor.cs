@@ -64,8 +64,8 @@ namespace MHK.Editor.Tracks
             var path = Path;
             EditorGUILayout.EditorToolbarForTarget(EditorGUIUtility.TrTempContent("Edit racing line"), this);
             PropertyFieldsGUI("closed", "showOnMinimap");
-            var isMain = runtime != null && runtime.path == path;
-            var route = runtime != null ? runtime.alternatePaths.IndexOf(path) : -1;
+            var isMain = runtime != null && runtime.MainPath == path;
+            var route = runtime != null ? runtime.RouteIndex(path) : -1;
             SummaryGUI(path, isMain, route);
             NodeGUI(path);
             ToolsGUI(path, isMain, route);
@@ -89,8 +89,9 @@ namespace MHK.Editor.Tracks
         void SummaryGUI(TrackPath path, bool isMain, int route)
         {
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField(isMain ? "Main racing line" : route >= 0 ? $"Alternative route {route}" : "Racing line (not referenced by a TrackRuntime)",
-                EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(Role(path, isMain, route), EditorStyles.boldLabel);
+            var problem = RoleProblem(path, isMain, route);
+            if (problem != null) EditorGUILayout.HelpBox(problem, MessageType.Warning);
             EditorGUILayout.LabelField("Nodes / length", $"{path.Count} / {path.Length:0.0} m");
             if (isMain && path.Count > 0)
             {
@@ -104,6 +105,23 @@ namespace MHK.Editor.Tracks
                 EditorGUILayout.LabelField("Fork / merge on main line", $"{runtime.BranchJoinStart(route):0} m → {runtime.BranchJoinEnd(route):0} m");
                 EditorGUILayout.LabelField("Bypasses", $"{runtime.BranchSpan(route):0} m of the main line");
             }
+        }
+
+        string Role(TrackPath path, bool isMain, int route) =>
+            runtime == null ? "Racing line (no TrackRuntime above it)"
+            : isMain ? "Main racing line"
+            : path.closed ? "Second closed racing line"
+            : route >= 0 ? $"Alternative route {route}"
+            : "Alternative route (not used yet)";
+
+        // Why a racing line does nothing in races, null when it is in use.
+        string RoleProblem(TrackPath path, bool isMain, int route)
+        {
+            if (runtime == null) return "Races only use racing lines below the track's TrackRuntime: move it there.";
+            if (isMain || route >= 0) return null;
+            if (path.closed) return $"Only the first closed line ({runtime.MainPath.name}) is the main line. Untick Closed to make this an alternative route.";
+            var problem = TrackRuntime.RouteProblem(runtime.MainPath, path);
+            return $"Races leave it out: {problem}{(problem == TrackRuntime.ReversedRouteProblem ? " (use 'Reverse direction')" : "")}.";
         }
 
         static void NodeGUI(TrackPath path)
@@ -163,15 +181,29 @@ namespace MHK.Editor.Tracks
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Tools", EditorStyles.boldLabel);
             var rt = runtime;
+            var main = rt != null ? rt.MainPath : null;
             if (isMain)
             {
                 if (GUILayout.Button("Auto-place key checkpoints (25 / 50 / 75 %, off the alternative routes)"))
                     TrackPathNodes.Edit(path, "Place key checkpoints", _ => TrackPathTools.PlaceKeyCheckpoints(rt));
                 if (GUILayout.Button("Clear key checkpoints"))
                     TrackPathNodes.Edit(path, "Clear key checkpoints", TrackPathTools.ClearCheckpoints);
+                var selected = TrackPathNodes.Selected(path);
+                using (new EditorGUI.DisabledScope(selected < 0))
+                    if (GUILayout.Button(new GUIContent("New alternative route from the selected node",
+                            "An open racing line in Routes that forks off here and rejoins a little further on: drag its nodes where the route goes.")))
+                    {
+                        Selection.activeObject = TrackPathTools.CreateRoute(rt, path.GetNodeDistance(selected));
+                        GUIUtility.ExitGUI();
+                    }
             }
-            if (route >= 0 && rt.path != null && GUILayout.Button("Snap ends to main line"))
-                TrackPathNodes.Edit(path, "Snap route ends", p => TrackPathTools.SnapRouteEnds(rt.path, p));
+            if (!path.closed && main != null)
+            {
+                if (GUILayout.Button("Snap ends to main line"))
+                    TrackPathNodes.Edit(path, "Snap route ends", p => TrackPathTools.SnapRouteEnds(main, p));
+                if (GUILayout.Button(new GUIContent("Reverse direction", "First node = where the route forks off, last node = where it rejoins, in driving direction.")))
+                    TrackPathNodes.Edit(path, "Reverse route", TrackPathTools.Reverse);
+            }
             using (new EditorGUI.DisabledScope(rt == null))
                 if (GUILayout.Button("Validate track")) issues = TrackPathTools.Validate(rt);
         }

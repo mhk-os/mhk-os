@@ -19,7 +19,7 @@ namespace MHK.AI
         const float MinReaction = 0.6f, MaxReaction = 1.4f, RandomFireChance = 0.3f;
         const float SlowAimInterval = 0.3f, FastAimInterval = 0.1f;
         const float OffensiveRange = 60f, OffensiveHalfWidth = 20f, OffensiveBlindChance = 0.2f, ProtectChance = 0.4f;
-        const float DropBehind = 3f, BlindDropChance = 0.3f, LookAfterRearUse = 0.3f;
+        const float DropBehind = 3f, BlindDropChance = 0.3f, LookAfterRearUse = 0.3f, ThrowHitMargin = 2f;
 
         readonly DifficultySettings difficulty;
         readonly AIBlackboard board;
@@ -100,7 +100,7 @@ namespace MHK.AI
                 heldTime = 0f;
                 judge.ClearAim();
                 // Rolled once per item: keep this trap for a narrow segment.
-                plantNarrow = held != null && held.Kind == AIItemKind.Trap && held.CanGoBehind && rng.Roll(difficulty.aiNarrowPlantChance);
+                plantNarrow = held != null && held.Kind == AIItemKind.Trap && held.CanGoBehind && !held.ThrownBehind && rng.Roll(difficulty.aiNarrowPlantChance);
                 return;
             }
             heldTime += dt;
@@ -129,8 +129,8 @@ namespace MHK.AI
             return useBy - kart.Progress.RaceDistance < lead;
         }
 
-        // Traps go behind, shots ahead (behind for a leader when they can), the rest at once. The homing missile hunts the
-        // leader, its user included (MHK2): a leader keeps it.
+        // Traps go behind, shots and throws ahead (behind for a leader when they can), the rest at once. The homing missile
+        // hunts the leader, its user included (MHK2): a leader keeps it.
         void BlindUse(Kart kart, PowerupInventory inv, AIItemProfile item, ref KartInput input)
         {
             if (firedLast || inv.CoolingDown) return;
@@ -144,8 +144,9 @@ namespace MHK.AI
         bool RearCapable(AIItemProfile item) =>
             item.CanGoBehind || (item.Kind == AIItemKind.Unknown && heldDef.aiUsage == PowerupAiUsage.Defensive);
 
+        // Left behind the kart (dropped traps), not thrown or shot.
         bool IsTrap(AIItemProfile item) =>
-            item.Kind == AIItemKind.Trap || (item.Kind == AIItemKind.Unknown && heldDef.aiUsage == PowerupAiUsage.Defensive);
+            (item.Kind == AIItemKind.Trap && !item.ThrownBehind) || (item.Kind == AIItemKind.Unknown && heldDef.aiUsage == PowerupAiUsage.Defensive);
 
         // The originals' AI (and 50cc): a random decision every reaction time, traps only after a look back.
         void RandomUse(Kart kart, AIItemProfile item, ref KartInput input, float dt)
@@ -182,17 +183,36 @@ namespace MHK.AI
             _ => true,
         };
 
-        // During a look back: at a kart seen in line behind, or a trap planted in a narrow segment.
+        // During a look back: at a kart seen in line behind (or where a backward throw comes down), or a trap planted in
+        // a narrow segment.
         void RearUse(Kart kart, AIItemProfile item, ref KartInput input, float dt)
         {
             if (!RearCapable(item) || lookBack.Elapsed < AILookBack.Warning) return;
             var trap = IsTrap(item);
             var go = lookBack.PlantLook
                 ? AIKartQueries.NarrowRoad(kart, board.route, kart.Progress.PathDistance - board.direction * DropBehind)
-                : RearTargetOrBlindDrop(kart, item, trap, dt);
+                : item.ThrownBehind ? ThrowHitsBehind(kart, item) : RearTargetOrBlindDrop(kart, item, trap, dt);
             if (!go) return;
             input.fire = true;
             lookBack.CutShort(LookAfterRearUse);
+        }
+
+        // A backward throw lands its range behind the kart: thrown when a kart behind will be within the blast there as
+        // it comes down.
+        bool ThrowHitsBehind(Kart kart, AIItemProfile item)
+        {
+            var t = kart.transform;
+            var landing = t.position - t.forward * item.BackwardThrowRange;
+            var reach = Mathf.Max(item.BlastRadius, ThrowHitMargin);
+            var karts = Kart.All;
+            for (var i = 0; i < karts.Count; i++)
+            {
+                var k = karts[i];
+                if (k == kart || k.Eliminated || (difficulty.aiAimedShots && k.Effects.IsProtected)) continue;
+                var at = k.transform.position + k.Physics.Body.linearVelocity * item.ThrowFlightTime - landing;
+                if (at.x * at.x + at.z * at.z <= reach * reach && Mathf.Abs(at.y) < reach) return true;
+            }
+            return false;
         }
 
         bool RearTargetOrBlindDrop(Kart kart, AIItemProfile item, bool trap, float dt)

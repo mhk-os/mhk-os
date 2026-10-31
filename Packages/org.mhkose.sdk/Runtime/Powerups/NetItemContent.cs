@@ -39,7 +39,7 @@ namespace MHK.Powerups
 
             loaded.pool.Clear();
             var pool = new List<ItemPoolEntry>();
-            ItemOdds.BuildPool(content, race.Session, race.Track, pool);
+            ItemOdds.BuildPool(content, race.Session, pool);
             foreach (var p in pool)
             {
                 var entry = new PoolEntry { powerupId = p.powerup.Id, charges = p.powerup.charges, battleCharges = p.powerup.battleCharges };

@@ -97,6 +97,9 @@
 .onl-col-ac { width: 64px; flex-shrink: 0; align-items: center; }
 .icon.onl-row-ac { width: 28px; height: 28px; -unity-background-image-tint-color: var(--mhk-good-ink); }
 .icon.onl-row-ac.off { -unity-background-image-tint-color: var(--mhk-gray-400); }
+.onl-col-ai { width: 64px; flex-shrink: 0; align-items: center; }
+.icon.onl-row-ai { width: 28px; height: 28px; -unity-background-image-tint-color: var(--mhk-gray-900); }
+.icon.onl-row-ai.off { -unity-background-image-tint-color: var(--mhk-gray-400); opacity: 0.5; }
 .onl-col-engine { width: 88px; flex-shrink: 0; -unity-font-definition: var(--font-bold); font-size: 18px; color: var(--mhk-gray-700); -unity-text-align: middle-center; }
 .onl-col-players { width: 168px; flex-shrink: 0; flex-direction: row; align-items: center; padding: 0 8px; }
 .onl-row-players { width: 56px; flex-shrink: 0; -unity-font-definition: var(--font-bold); font-size: 18px; color: var(--mhk-gray-900); -unity-text-align: middle-left; }
@@ -191,6 +194,7 @@
 .mem-card { width: 18.4%; height: 292px; margin: 0 16px 16px 0; padding: 12px 12px 12px 12px; align-items: center; border-radius: 20px; background-color: var(--mhk-glass-fill); border-width: 1px; border-color: var(--mhk-glass-rim); border-top-color: var(--mhk-glass-rim-top); }
 .mem-card.mine, TemplateContainer.sample-mine > .mem-card { border-width: 3px; border-color: var(--mhk-accent); background-color: rgb(255, 238, 200); }
 .mem-card.waiting { opacity: 0.72; }
+.mem-card.ai { background-color: rgba(255, 255, 255, 0.1); }
 .mem-top { flex-direction: row; justify-content: space-between; align-items: center; align-self: stretch; height: 30px; }
 .mem-origin { flex-direction: row; align-items: center; }
 .icon.mem-platform { width: 22px; height: 22px; margin-left: 0; -unity-background-image-tint-color: var(--mhk-gray-600); }
@@ -241,6 +245,7 @@
 .lob-result-points { width: 54px; flex-shrink: 0; -unity-font-definition: var(--font-display); font-size: 20px; color: var(--mhk-gray-900); -unity-text-align: middle-right; padding: 0; margin: 0; }
 .lob-result-who { flex-grow: 1; flex-shrink: 1; min-width: 0; flex-direction: row; align-items: center; }
 .lob-result-who .lob-result-name { flex-grow: 0; }
+.icon.lob-result-ai { width: 20px; height: 20px; flex-shrink: 0; margin-left: 6px; -unity-background-image-tint-color: var(--mhk-gray-600); }
 .mem-name-row { flex-direction: row; align-items: center; justify-content: center; max-width: 100%; margin-top: 8px; }
 .mem-name-row .mem-name { margin: 0; flex-shrink: 1; }
 .mem-card.compact .mem-name-row { margin-top: 4px; }

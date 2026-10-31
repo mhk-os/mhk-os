@@ -13,9 +13,10 @@ namespace MHK.Modding
         /// Mod API level of this SDK, stamped into every built mod (<see cref="ContentPack.sdkApi"/>) and its release
         /// (mod.json sdkApi). The game loads and installs only mods with its own level. Bump it when a change breaks built
         /// mods (renamed, moved or removed serialized types or fields, changed meaning of data). The mod release workflows
-        /// read it from this line.
+        /// read it from this line. 2: racing lines are the TrackPaths below the TrackRuntime (its path and alternatePaths
+        /// fields are gone), PlacementPowerup.throwBackwards replaces alwaysForward, ContentPack.sharedPowerups is gone.
         /// </summary>
-        public const int ApiLevel = 1;
+        public const int ApiLevel = 2;
 
         // Level 1 is the API the level was introduced with, so a mod built before (stamp 0, mod.json without sdkApi) has it.
         const int FirstLevel = 1;

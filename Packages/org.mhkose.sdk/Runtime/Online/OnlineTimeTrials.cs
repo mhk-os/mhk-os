@@ -14,7 +14,7 @@ namespace MHK.Online
     /// uploads (also the automatic one of a new personal best), downloads into <see cref="OnlineGhostCache"/> and reports
     /// of suspicious runs. Main thread only; failures are results, never exceptions.
     /// </summary>
-    public static class OnlineTimeTrials
+    public static partial class OnlineTimeTrials
     {
         /// <summary>Downloads in flight at most; races ask for up to 50 ghosts at once.</summary>
         public const int MaxConcurrentDownloads = 6;
@@ -31,7 +31,11 @@ namespace MHK.Online
         [AutoStaticsCleanup] static Queue<TaskCompletionSource<bool>> waitingDownloads;
         [AutoStaticsCleanup] static int activeDownloads;
         [AutoStaticsCleanup] static string autoUploadGhost;
-        [AutoStaticsCleanup] static Task<OnlineResult<UploadResult>> autoUpload;
+        // Not generated: the cleanup would Dispose() the task, which throws while it still runs. ForgetRequests drops it.
+        [NoAutoStaticsCleanup] static Task<OnlineResult<UploadResult>> autoUpload;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ForgetRequests() => autoUpload = null;
 
         /// <summary>Boards of <paramref name="trackId"/>, most recent upload first. 255 = any engine class, contentVersion 0 = any.</summary>
         public static Task<OnlineResult<List<BoardInfo>>> ListBoards(string trackId, int engineClass, int contentVersion)
@@ -100,13 +104,23 @@ namespace MHK.Online
         }
 
         /// <summary>
-        /// The ghost of <paramref name="run"/> in <see cref="OnlineGhostCache"/>: at once when cached for this run, else
-        /// downloaded (at most <see cref="MaxConcurrentDownloads"/> at a time, one download per run however often it is
-        /// asked for), checked to be a ghost file and stored with the uploader's name.
+        /// The ghost of <paramref name="run"/> in <see cref="OnlineGhostCache"/>: at once when cached for this run (taking the
+        /// uploader's current name from <paramref name="run"/>, accounts can be renamed), else downloaded (at most
+        /// <see cref="MaxConcurrentDownloads"/> at a time, one download per run however often it is asked for), checked to be
+        /// a ghost file and stored with the uploader's name.
         /// </summary>
         public static Task<OnlineResult<OnlineGhostInfo>> Download(RunEntry run)
         {
-            if (IsCached(run)) return Task.FromResult(new OnlineResult<OnlineGhostInfo>(OnlineResult.Success, CachedInfo(run)));
+            var cached = CachedInfo(run);
+            if (cached != null)
+            {
+                if (!string.IsNullOrEmpty(run.username) && cached.username != run.username)
+                {
+                    cached.username = run.username;
+                    OnlineGhostCache.Update(cached);
+                }
+                return Task.FromResult(new OnlineResult<OnlineGhostInfo>(OnlineResult.Success, cached));
+            }
             downloads ??= new Dictionary<string, Task<OnlineResult<OnlineGhostInfo>>>(StringComparer.OrdinalIgnoreCase);
             if (downloads.TryGetValue(run.ghostId, out var running)) return running;
             var task = DownloadAsync(run);

@@ -10,16 +10,18 @@ namespace MHK.Tests
 {
     /// <summary>
     /// The lobby protocol against the server: the manifest hash vectors of internal/content's tests and byte vectors the
-    /// Go codec (internal/proto, the samples of lobby_test.go) writes. Plus join links and the Android link filter.
+    /// Go codec (internal/proto, the pinned vectors of lobby_test.go) writes. Plus join links and the Android link filter.
     /// </summary>
     public class LobbyProtocolTests
     {
-        // internal/proto lobby_test.go samples encoded by the Go codec.
-        const string SettingsHex = "0b48c3bc686e65722d4375700202046d686b320674696e63616e01010501020b6d686b322e726f636b65740000c841086d686b322e6f696c00009642010801040d6d686b322e6375702e676f6c64";
+        // internal/proto lobby_test.go vectors (pinHex) written by the Go codec.
+        const string SettingsHex = "016e" + "02" + "010170" + "01" + "02" + "03" + "00" + "01" + "0178" + "0000c03f" + "09" + "0a" + "00" + "02" + "00"
+                                   + "02" + "03612e62" + "03612e63";
+        const string SummaryHex = "0100000000000000" + "01" + "00" + "0200" + "016e" + "01" + "01" + "010170" + "03" + "04" + "05" + "fbffffff"
+                                  + "01" + "02" + "10" + "03";
+        const string AiRowHex = "01" + "0000000000000000" + "00" + "03" + "04000000" + "05000000" + "06000000" + "01" + "01" + "0163";
         const string HelloHex = "07000000020467616d6503616263026666046d686b3200023030";
         const string ManifestHex = "046d686b3201630700000001680201096d686b322e726f6d65026631070a6d686b322e6172656e6100";
-        const string ResultsHex = "080000000000000002000a00000000000000044b75727401187301000c0000001b0000000000010b00000000000000044b75727402187301000c0000001b000000000001";
-        const string StateHex = "040000000000000000030200085261636573202332000102046d686b32046d686b33030a0107000000020304064142433233340b48c3bc686e65722d4375700202046d686b320674696e63616e01010501020b6d686b322e726f636b65740000c841086d686b322e6f696c00009642010801040d6d686b322e6375702e676f6c640101000000000000000448616e730244450e6d686b322e636861722e6875686e106d686b322e6b6172742e737065656479010101013000250000007b8ac7039a010000027b8ac7039a0100000204020100000000000000096d686b322e726f6d65020000000000000000096d686b322e726f6d65630000000000000002000a00000000000000044b75727401187301000c0000001b0000000000030d00000000000000044b75727404187301000c0000001b0000000001";
 
         [Test]
         public void ManifestHashMatchesServerVector()
@@ -57,13 +59,37 @@ namespace MHK.Tests
         {
             var s = new RoomSettings
             {
-                name = "Hühner-Cup", mode = RoomMode.Championship, packs = new List<string> { "mhk2", "tincan" }, anticheat = true,
-                engineClass = 1, laps = 5, items = true, itemOdds = new List<PowerupOdds> { new("mhk2.rocket", 25), new("mhk2.oil", 75) },
-                aiWhenAlone = true, maxPlayers = 8, trackPick = 1, racesPerSet = 4, cupId = "mhk2.cup.gold",
+                name = "n", mode = RoomMode.Championship, packs = new List<string> { "p" }, anticheat = true, engineClass = 2, laps = 3,
+                items = false, itemOdds = new List<PowerupOdds> { new("x", 1.5f) }, maxAi = 9, maxPlayers = 10, trackPick = 0, racesPerSet = 2,
+                cupId = "", trackIds = new List<string> { "a.b", "a.c" },
             };
             Assert.AreEqual(SettingsHex, Hex(s.Write));
             var back = RoomSettings.Read(Reader(SettingsHex));
             Assert.AreEqual(SettingsHex, Hex(back.Write));
+            Assert.IsTrue(back.CustomTracks);
+            Assert.AreEqual(9, back.maxAi);
+        }
+
+        [Test]
+        public void SummaryAndResultRowMatchGo()
+        {
+            var summary = new LobbySummary
+            {
+                lobbyId = 1, isPublic = false, category = 0, instance = 2, name = "n", mode = RoomMode.BattleSet, anticheat = true,
+                packs = new List<string> { "p" }, players = 3, maxPlayers = 4, phase = LobbyPhase.Results, contentVersion = -5, engineClass = 1,
+                setRace = 2, setSize = 16, maxAi = 3,
+            };
+            Assert.AreEqual(SummaryHex, Hex(summary.Write));
+            Assert.AreEqual(3, LobbySummary.Read(Reader(SummaryHex)).maxAi);
+            var row = new RaceResultRow
+            {
+                slot = 1, accountId = 0, username = "", position = 3, finishMs = 4, points = 5, setPoints = 6, outcome = RaceOutcome.Dnf, ai = true,
+                characterId = "c",
+            };
+            Assert.AreEqual(AiRowHex, Hex(row.Write));
+            var back = RaceResultRow.Read(Reader(AiRowHex));
+            Assert.IsTrue(back.ai);
+            Assert.AreEqual("c", back.characterId);
         }
 
         [Test]
@@ -82,19 +108,22 @@ namespace MHK.Tests
         [Test]
         public void LobbyStateAndResultsMatchGo()
         {
-            var state = LobbyState.Read(Reader(StateHex));
-            Assert.AreEqual(StateHex, Hex(state.Write));
-            Assert.AreEqual("ABC234", state.code);
-            Assert.IsTrue(state.summary.isPublic);
-            Assert.AreEqual(LobbyPhase.Voting, state.Phase);
-            Assert.AreEqual("Hans", state.members[0].username);
-            Assert.AreEqual(1_761_000_000_123L, state.phaseEnds);
-            Assert.AreEqual("", state.VoteOf(2));
-            Assert.AreEqual(2, state.lastResults.Count);
-            Assert.IsTrue(state.lastResults[1].ai);
-            var results = RaceResults.Read(Reader(ResultsHex));
-            Assert.AreEqual(ResultsHex, Hex(results.Write));
-            Assert.IsTrue(results.setDone);
+            // The minimal state of lobby_test.go: everything empty or zero but one AI driver.
+            var stateHex = new string('0', 2 * 27) + "00" + new string('0', 2 * 14) + "00" + new string('0', 2 * 8) + "00" + "00" + "00" + "00"
+                           + new string('0', 2 * 8) + "00" + "01" + "0163" + "016b" + "ffffffff";
+            var state = LobbyState.Read(Reader(stateHex));
+            Assert.AreEqual(stateHex, Hex(state.Write));
+            Assert.AreEqual(1, state.aiDrivers.Count);
+            Assert.AreEqual("c", state.aiDrivers[0].characterId);
+            Assert.AreEqual(-1, state.aiDrivers[0].setPoints);
+            var results = new RaceResults { raceId = 8, setDone = true };
+            for (var i = 0; i < LobbyLimits.RaceRows; i++)
+                results.rows.Add(new RaceResultRow { slot = i, position = i + 1, ai = i > 0, characterId = "c", username = i > 0 ? "" : "Kurt" });
+            var resultsHex = Hex(results.Write);
+            var back = RaceResults.Read(Reader(resultsHex));
+            Assert.AreEqual(resultsHex, Hex(back.Write));
+            Assert.AreEqual(LobbyLimits.RaceRows, back.rows.Count);
+            Assert.IsTrue(back.setDone);
         }
 
         [Test]

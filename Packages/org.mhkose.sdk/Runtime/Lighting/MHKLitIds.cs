@@ -33,6 +33,7 @@ namespace MHK.Rendering
         public static readonly int SrcBlend = Shader.PropertyToID("_SrcBlend");
         public static readonly int DstBlend = Shader.PropertyToID("_DstBlend");
         public static readonly int ZWrite = Shader.PropertyToID("_ZWrite");
+        public static readonly int ZTest = Shader.PropertyToID("_ZTest");
         public static readonly int Cull = Shader.PropertyToID("_Cull");
         public static readonly int MainTex = Shader.PropertyToID("_MainTex");
         public static readonly int Color = Shader.PropertyToID("_Color");

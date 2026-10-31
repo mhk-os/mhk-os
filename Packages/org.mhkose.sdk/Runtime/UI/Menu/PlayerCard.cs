@@ -67,7 +67,7 @@ namespace MHK.UI
     /// it pins it with the focus on its actions; Back, a tap outside, scrolling or leaving the screen close it. Styles:
     /// MHKOnline.uss (<c>.pcard</c>, <c>.player-name</c>, <c>.player-rank</c>).
     /// </summary>
-    public static class PlayerCard
+    public static partial class PlayerCard
     {
         const long HoverDelayMs = 350, FocusDelayMs = 450, HideDelayMs = 300;
         // Focus opens the card only this soon after a keyboard/gamepad move, so a screen focusing its first row does not.

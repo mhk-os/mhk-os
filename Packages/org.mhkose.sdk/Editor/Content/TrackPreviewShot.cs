@@ -73,7 +73,7 @@ namespace MHK.Editor.Content
             var fwd = Vector3.ProjectOnPlane(pole.forward, Vector3.up).normalized;
             if (fwd.sqrMagnitude < MinForwardSqr) fwd = Vector3.forward;
             Vector3 behind;
-            var path = runtime.path;
+            var path = runtime.MainPath;
             if (path != null && path.Count > 1)
             {
                 var d = path.Project(pole.position);

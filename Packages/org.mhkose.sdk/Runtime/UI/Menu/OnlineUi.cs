@@ -109,13 +109,16 @@ namespace MHK.UI
             return engineClass >= 0 && engineClass < classes.Length ? classes[engineClass].label : "";
         }
 
-        /// <summary>Icon and name of a lobby mode.</summary>
+        /// <summary>Icon and name of a lobby mode (a championship's cup, or its own track count).</summary>
         public static (string icon, string text) Mode(RoomSettings s) => s.mode switch
         {
             RoomMode.BattleSet => ("swords", "Battles"),
+            RoomMode.Championship when s.CustomTracks => ("emoji_events", TrackCount(s.trackIds.Count)),
             RoomMode.Championship => ("emoji_events", CupName(s.cupId)),
             _ => ("sports_score", "Races"),
         };
+
+        static string TrackCount(int n) => n == 1 ? "1 track" : n.ToString(CultureInfo.InvariantCulture) + " tracks";
 
         static string CupName(string cupId)
         {
@@ -140,15 +143,20 @@ namespace MHK.UI
             InfoChips.Add(row, "redeem", s.items ? s.itemOdds.Count > 0 ? "Own odds" : "Items" : "No items",
                 s.items ? s.itemOdds.Count > 0 ? "Items with the room's own odds" : "Items with standard odds" : "No items",
                 s.items ? InfoChipState.Normal : InfoChipState.Off);
+            AiChip(row, s.maxAi);
             if (!detailed) return;
-            InfoChips.Add(row, "smart_toy", "AI", s.aiWhenAlone ? "Computer drivers race the owner while they are alone" : "No computer drivers",
-                s.aiWhenAlone ? InfoChipState.Normal : InfoChipState.Off);
             if (s.mode != RoomMode.Championship)
             {
                 InfoChips.Add(row, s.OwnerPicks ? "edit" : "how_to_vote", s.OwnerPicks ? "Owner picks" : "Vote", "How the next track is chosen");
                 InfoChips.Add(row, "repeat", s.racesPerSet == 1 ? "1 race" : s.racesPerSet.ToString(CultureInfo.InvariantCulture) + " races", "Races per set");
             }
         }
+
+        /// <summary>The AI chip of a lobby: how many computer drivers fill free slots at most (<see cref="RoomSettings.maxAi"/>).</summary>
+        public static VisualElement AiChip(VisualElement row, int maxAi, bool iconOnly = false) =>
+            InfoChips.Add(row, "smart_toy", iconOnly ? null : maxAi > 0 ? "AI " + maxAi.ToString(CultureInfo.InvariantCulture) : "No AI",
+                maxAi > 0 ? $"Computer drivers fill free places, up to {maxAi} per race." : "Humans only: no computer drivers.",
+                maxAi > 0 ? InfoChipState.Normal : InfoChipState.Off);
 
         public static VisualElement AnticheatChip(VisualElement row, bool on, bool iconOnly = false) =>
             InfoChips.Add(row, on ? "shield" : "remove_moderator", iconOnly ? null : on ? "Anticheat" : "No anticheat",

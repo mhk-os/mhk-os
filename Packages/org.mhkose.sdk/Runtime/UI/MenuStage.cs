@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.Threading;
 using MHK.Core;
+using MHK.Rendering;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -9,6 +11,8 @@ namespace MHK.UI
     /// <summary>
     /// 3D stage of the main menu: a neutral background, the background race (the menu camera stacks on its camera) or
     /// its still picture, faded through a full-view quad, and the turntable that spins the showcased driver and kart.
+    /// The showcase has its own lighting over every background: the menu light (the race's lights skip the Menu layer)
+    /// and, while the menu camera renders, its own flat ambient instead of the scene's ambient, bake and fog.
     /// </summary>
     public class MenuStage : MonoBehaviour
     {
@@ -22,8 +26,10 @@ namespace MHK.UI
         Material fadeMaterial;
         [SerializeField, Tooltip("Distance of the fade quad in front of the menu camera (m): behind the showcase, inside the far clip plane.")]
         float fadeDistance = 60f;
-        [SerializeField, Tooltip("Light of the showcase on the neutral background. Off while a race shows (the track lights the showcase).")]
+        [SerializeField, Tooltip("Light of the showcase over every background (only the Menu layer: the race's lights never reach the showcase). Off on the empty background.")]
         Light menuLight;
+        [SerializeField, Tooltip("Flat ambient light of the showcase over every background (the menu camera's MHK/Lit ambient, no bake, no fog).")]
+        Color showcaseAmbient = new(0.86f, 0.74f, 0.66f);
         [SerializeField, Tooltip("Share of the neutral colour laid over the race while the showcase shows, so the driver and kart stand out.")]
         [Range(0f, 1f)] float showcaseVeil = 0.35f;
         [Tooltip("Spun around its up axis (the showcase with the podium top).")]
@@ -50,7 +56,11 @@ namespace MHK.UI
         Vector3 turntableHome;
         float homeDepth;
         Rect? frame;
-        bool empty;
+        readonly Vector4[] showcaseCube = new Vector4[6];
+        readonly List<Vector4> sceneCube = new(6);
+        Vector4 sceneBakedIndirect;
+        float sceneProbeAmbient;
+        bool sceneFog, showcaseLit;
         bool Fading => !Mathf.Approximately(shown, goal);
 
         void Awake()
@@ -59,6 +69,10 @@ namespace MHK.UI
             targetCamera.clearFlags = CameraClearFlags.SolidColor;
             targetCamera.backgroundColor = neutralColor;
             targetCamera.cullingMask = GameLayers.MenuMask;
+            // A light meets a camera only where their culling masks overlap: the menu light lights the showcase alone.
+            if (menuLight != null) menuLight.cullingMask = GameLayers.MenuMask;
+            var ambient = (Vector4)showcaseAmbient.linear;
+            for (var i = 0; i < showcaseCube.Length; i++) showcaseCube[i] = ambient;
             block = new MaterialPropertyBlock();
             CreateQuad();
             if (turntable != null)
@@ -68,9 +82,18 @@ namespace MHK.UI
             }
         }
 
-        void OnEnable() => RenderPipelineManager.beginCameraRendering += BeforeRender;
+        void OnEnable()
+        {
+            RenderPipelineManager.beginCameraRendering += BeforeRender;
+            RenderPipelineManager.endCameraRendering += AfterRender;
+        }
 
-        void OnDisable() => RenderPipelineManager.beginCameraRendering -= BeforeRender;
+        void OnDisable()
+        {
+            RenderPipelineManager.beginCameraRendering -= BeforeRender;
+            RenderPipelineManager.endCameraRendering -= AfterRender;
+            RestoreSceneLighting();
+        }
 
         void OnDestroy()
         {
@@ -78,11 +101,16 @@ namespace MHK.UI
             if (quad != null) Destroy(quad.gameObject);
         }
 
-        /// <summary>Puts the menu camera on top of <paramref name="race"/> and fades from the neutral background to the race.</summary>
+        /// <summary>
+        /// Puts the menu camera on top of <paramref name="race"/> and fades from the neutral background to the race.
+        /// The race's lights (every light but the menu light) stop lighting the Menu layer.
+        /// </summary>
         public void ShowRace(Camera race, float seconds)
         {
             ShowNeutral();
             Unstack();
+            foreach (var light in FindObjectsByType<Light>(FindObjectsInactive.Include))
+                if (light != menuLight) light.cullingMask &= ~GameLayers.MenuMask;
             raceCamera = race;
             var stack = race.GetUniversalAdditionalCameraData().cameraStack;
             if (!stack.Contains(targetCamera)) stack.Add(targetCamera);
@@ -105,14 +133,14 @@ namespace MHK.UI
         /// <summary>No content to show a race: a dark background without the showcase light, until a race or picture shows.</summary>
         public void ShowEmpty()
         {
-            empty = true;
             targetCamera.backgroundColor = emptyColor;
+            if (menuLight != null) menuLight.enabled = false;
         }
 
         void ShowNeutral()
         {
-            empty = false;
             targetCamera.backgroundColor = neutralColor;
+            if (menuLight != null) menuLight.enabled = true;
         }
 
         /// <summary>
@@ -166,7 +194,6 @@ namespace MHK.UI
             var racing = raceCamera != null;
             var showcase = turntable != null && turntable.gameObject.activeInHierarchy;
             veil = Mathf.MoveTowards(veil, showcase ? showcaseVeil : 0f, VeilRate * dt);
-            if (menuLight != null) menuLight.enabled = !racing && !empty;
             // The quad covers the race with the neutral colour (fade, veil), or shows the picture over it.
             var alpha = racing ? Mathf.Max(1f - shown, veil) : picture != null ? shown : 0f;
             quadRenderer.enabled = alpha > 0f && fadeMaterial != null;
@@ -178,16 +205,49 @@ namespace MHK.UI
 
         static Color WithAlpha(Color c, float a) => new(c.r, c.g, c.b, a);
 
-        // Fits right before rendering: the camera may render to a target with another aspect (resize, captures).
+        // Lights the showcase and fits right before rendering: the camera may render to a target with another aspect
+        // (resize, captures).
         void BeforeRender(ScriptableRenderContext context, Camera cam)
         {
             if (cam != targetCamera || quad == null) return;
+            UseShowcaseLighting();
             if (turntable != null) turntable.position = frame.HasValue ? FramedPosition(frame.Value) : turntableHome;
             if (Mathf.Approximately(fitAspect, cam.aspect) && Mathf.Approximately(fitFov, cam.fieldOfView)) return;
             fitAspect = cam.aspect;
             fitFov = cam.fieldOfView;
             var viewH = 2f * fadeDistance * Mathf.Tan(fitFov * 0.5f * Mathf.Deg2Rad);
             quad.localScale = new Vector3(viewH * fitAspect, viewH, 1f);
+        }
+
+        void AfterRender(ScriptableRenderContext context, Camera cam)
+        {
+            if (cam == targetCamera) RestoreSceneLighting();
+        }
+
+        // MHK/Lit's ambient cube path with the showcase colour for the menu camera's draws only (it submits between its
+        // begin and end callbacks): the race's ambient probe, bake, baked probes and fog stay off the showcase.
+        void UseShowcaseLighting()
+        {
+            sceneBakedIndirect = Shader.GetGlobalVector(MHKLitIds.BakedIndirect);
+            sceneProbeAmbient = Shader.GetGlobalFloat(MHKLitIds.ProbeAmbient);
+            Shader.GetGlobalVectorArray(MHKLitIds.AmbientCube, sceneCube);
+            sceneFog = RenderSettings.fog;
+            Shader.SetGlobalVector(MHKLitIds.BakedIndirect, Vector4.zero);
+            Shader.SetGlobalFloat(MHKLitIds.ProbeAmbient, 1f);
+            Shader.SetGlobalVectorArray(MHKLitIds.AmbientCube, showcaseCube);
+            RenderSettings.fog = false;
+            showcaseLit = true;
+        }
+
+        // An ambient cube never uploaded yet comes with AmbientCube's first upload.
+        void RestoreSceneLighting()
+        {
+            if (!showcaseLit) return;
+            showcaseLit = false;
+            Shader.SetGlobalVector(MHKLitIds.BakedIndirect, sceneBakedIndirect);
+            Shader.SetGlobalFloat(MHKLitIds.ProbeAmbient, sceneProbeAmbient);
+            if (sceneCube.Count > 0) Shader.SetGlobalVectorArray(MHKLitIds.AmbientCube, sceneCube);
+            RenderSettings.fog = sceneFog;
         }
 
         // The podium's front edge stands on the area's bottom, its axis (the pivot) on the area's centre line.

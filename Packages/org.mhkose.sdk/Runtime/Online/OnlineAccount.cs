@@ -16,5 +16,18 @@ namespace MHK.Online
             if (r.Ok) OnlineService.ForgetSession();
             return r;
         }
+
+        /// <summary>
+        /// Renames the logged-in account (the registration rules; a case-only change of the own name is allowed; the server
+        /// allows 3 changes per 30 days). On success <see cref="OnlineService.Account"/>, the stored session's name and with
+        /// them the ghost signature take the new name; the server tells the account's other connections. Failures carry the
+        /// server's message (InvalidUsername, UsernameTaken, RateLimited).
+        /// </summary>
+        public static async Task<OnlineResult> ChangeUsername(string username)
+        {
+            var r = await OnlineService.Call(MessageType.ChangeUsername, new ChangeUsernameRequest { username = username ?? "" }.Write, Account.Read, true);
+            if (r.Ok) OnlineService.ApplyAccount(r.value);
+            return r.result;
+        }
     }
 }

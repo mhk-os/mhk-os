@@ -24,6 +24,8 @@ namespace MHK.Race
         public bool online;
         /// <summary>Online: the racer's device (<c>RaceSlot.platform</c>), 0 unknown and for computer drivers.</summary>
         public int platform;
+        /// <summary>Online: a computer driver of the race (its name is its character's).</summary>
+        public bool ai;
 
         internal RacerSetup racer;
         internal float totalTimeBefore;

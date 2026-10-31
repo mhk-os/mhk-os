@@ -148,6 +148,22 @@ namespace MHK.Online
         public static int ReportCapacity(KartState state) =>
             (RaceProtocol.UdpMaxDatagram - RaceProtocol.UdpHeaderSize - RaceProtocol.UdpMacSize - 1 - 48 - 2 * state.effects.Count) / ProjectileReport.Size;
 
+        /// <summary>Sends an AiProgress datagram with <paramref name="count"/> entries from <paramref name="start"/> (AI host, main thread).</summary>
+        public void SendAiProgress(List<AiProgress> entries, int start, int count)
+        {
+            var s = socket;
+            if (s == null) return;
+            var w = stateWriter;
+            w.Clear();
+            Header(w, RaceProtocol.UdpAiProgress);
+            w.U8((byte)count);
+            for (var i = 0; i < count; i++) entries[start + i].Write(w);
+            Send(s, w, stateMac, stateHash);
+        }
+
+        /// <summary>Most entries one AiProgress datagram carries.</summary>
+        public const int AiProgressCapacity = (RaceProtocol.UdpMaxDatagram - RaceProtocol.UdpHeaderSize - RaceProtocol.UdpMacSize - 1) / AiProgress.Size;
+
         // The sequence number is written last, under sendLock together with the MAC and the send, so datagrams leave in
         // the order of their numbers whichever thread sends them (the server drops anything not newer than the newest).
         void Header(WireWriter w, byte type)

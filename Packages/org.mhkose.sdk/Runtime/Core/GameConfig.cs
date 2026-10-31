@@ -100,8 +100,9 @@ namespace MHK.Core
         public float powerStartIgnoreAbove = 2.7f;
         public StatusEffectDefinition powerStartEffect;
         public StatusEffectDefinition powerFailEffect;
-        public int maxRacers = 7;
-        [Tooltip("Championship points by finishing position (index 0 = winner).")]
+        [Tooltip("Karts in a local race at most: the player plus up to maxRacers - 1 computer opponents.")]
+        public int maxRacers = 51;
+        [Tooltip("Championship points by finishing position (index 0 = winner). Places beyond the table get 0.")]
         public int[] championshipPoints = { 10, 8, 6, 4, 2, 1, 0 };
         [Tooltip("Seconds after the human players finish before the race ends for everybody.")]
         public float finishGraceSeconds = 4f;
@@ -119,10 +120,6 @@ namespace MHK.Core
         [Tooltip("Seconds after placing / throwing a hazard (trap, mine, x-field, black hole, glibber ball, charge...) during " +
                  "which it spares its owner, afterwards it hits the owner too (MHK2 traps do). Other karts are hit at once.")]
         [Min(0f)] public float ownerHazardImmunity = 1f;
-        [Tooltip("Single race and battle default odds: share of the item box rolls that go to the item family of the track " +
-                 "(its game or mod, plus the powerups it declares shared). The other families split the rest by their " +
-                 "powerups' weights. Championships only give their cup's family.")]
-        [Range(0f, 1f)] public float trackFamilyItemShare = 0.75f;
 
         [Header("Respawn")]
         [Tooltip("Applied when touching 'drop' geometry (fall animation, then respawn).")]

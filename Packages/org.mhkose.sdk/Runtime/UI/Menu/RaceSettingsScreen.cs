@@ -17,12 +17,14 @@ namespace MHK.UI
     {
         [SerializeField, Tooltip("Laps value when the track's own lap count is used.")]
         string trackLapsText = "Track default";
-        [SerializeField, Tooltip("Powerups value with the default item odds of the track's game.")]
+        [SerializeField, Tooltip("Powerups value with the default item odds.")]
         string standardText = "Standard";
         [SerializeField, Tooltip("Powerups value with the player's own item odds.")]
         string customText = "Custom";
         [SerializeField, Tooltip("Powerups value when every item odd is 0 % (the race has no powerups).")]
         string offText = "Off";
+        [SerializeField, Tooltip("Range hint of the Opponents input ({0} = fewest, {1} = most).")]
+        string opponentsRangeFormat = "{0} to {1}";
 
         const int MaxLaps = 9;
 
@@ -56,26 +58,35 @@ namespace MHK.UI
             BindChoice("difficulty", () => s.difficulty, d => s.difficulty = d, d => config.GetDifficulty(d).label);
             var battle = s.mode == GameMode.Battle;
             var single = s.mode == GameMode.SingleRace;
-            SetVisible("opponents", battle || single);
+            var champ = s.mode == GameMode.Championship;
+            SetVisible("opponents", battle || single || champ);
             SetVisible("laps", single);
             SetVisible("powerups", battle || single);
+            if (battle || single || champ) BindOpponents(s, battle ? 1 : 0, champ);
             if (battle || single)
-            {
-                var min = battle ? 1 : 0;
-                var count = battle ? Mathf.Max(2, config.maxRacers) - 1 : config.maxRacers;
-                BindChoice("opponents", () => count, () => Mathf.Clamp(s.opponents - min, 0, count - 1), i => Number(i + min),
-                    i => s.opponents = i + min);
-                BindLink("powerups", PowerupsValue(s), () => Flow.Show<ItemOddsScreen>());
-            }
+                BindLink("powerups", PowerupsValue(), () => Flow.Show<ItemOddsScreen>());
             if (single)
                 BindChoice("laps", () => MaxLaps + 1, () => s.useTrackLaps ? 0 : Mathf.Clamp(s.laps, 1, MaxLaps),
                     i => i == 0 ? trackLapsText : Number(i), i => SelectLaps(s, i));
         }
 
-        string PowerupsValue(MenuSelection s)
+        // Single races may have no opponents, battles need one. Championships start with every other driver until the
+        // player sets a number.
+        void BindOpponents(MenuSelection s, int min, bool champ)
         {
-            var own = ItemOdds.PlayerOdds(Content, Settings, s.track, odds);
-            return ItemOdds.Total(odds) <= 0f ? offText : own != null ? customText : standardText;
+            var max = MenuSelection.MaxOpponents;
+            if (!champ) s.opponents = Mathf.Clamp(s.opponents, min, max);
+            NumberInput.Bind(Q<VisualElement>("opponents"), min, max, () => champ ? s.ChampionshipOpponents : s.opponents, v =>
+            {
+                if (champ) s.championshipOpponents = v;
+                else s.opponents = v;
+            }, opponentsRangeFormat, Click);
+        }
+
+        string PowerupsValue()
+        {
+            var own = ItemOdds.PlayerOdds(Content, Settings, odds);
+            return ItemOdds.Total(odds) <= 0f ? offText : own ? customText : standardText;
         }
 
         static string Number(int n) => n.ToString(CultureInfo.InvariantCulture);
@@ -101,7 +112,7 @@ namespace MHK.UI
             Q<Label>("info-name").text = what;
             SetVisible("info-driver", s.character != null);
             if (s.character == null) return;
-            Thumb("info-character", s.character.Icon, s.character.DisplayName);
+            Thumb("info-character", s.character.Portrait, s.character.DisplayName);
             var kart = Q<VisualElement>("info-kart");
             kart.SetVisible(s.kart != null);
             if (s.kart != null) Thumb("info-kart", s.kart.Icon, s.kart.DisplayName);

@@ -5,8 +5,8 @@ using UnityEngine;
 namespace MHK.Powerups
 {
     /// <summary>
-    /// Lobs the item in a high arc to a spot on the track ahead along the racing line (MHK Extra water bomb). The faster
-    /// the thrower drives, the farther it flies. On landing it shows <see cref="landedVisual"/> and/or
+    /// Lobs the item in a high arc to a spot on the track ahead of the kart along the racing line (MHK Extra water bomb).
+    /// The faster the thrower drives, the farther it flies. On landing it shows <see cref="landedVisual"/> and/or
     /// <see cref="landedDecal"/> and enables <see cref="activateOnLanding"/> (e.g. the puddle's <see cref="HazardTrap"/>).
     /// </summary>
     public class TrackLobPowerup : PowerupBehaviour, ILandingPowerup
@@ -99,13 +99,15 @@ namespace MHK.Powerups
             distance = Vector3.Distance(start, target);
         }
 
+        // Along the racing line the way the kart faces: against the track's direction when it drives the wrong way.
         Vector3 TargetOnPath(TrackPath path)
         {
             var o = Owner.transform;
             var d0 = Owner.Progress.PathDistance;
-            var lateral = SignedLateral(path, d0, o.position);
-            var d1 = d0 + ThrowDistance();
-            var flatForward = GeometryUtil.FlatNormalized(path.GetTangent(d1, TangentSmoothing), o.forward, FlatMinSqr);
+            var sign = Vector3.Dot(path.GetTangent(d0, TangentSmoothing), o.forward) < 0f ? -1f : 1f;
+            var lateral = SignedLateral(path, d0, o.position) * sign;
+            var d1 = d0 + sign * ThrowDistance();
+            var flatForward = GeometryUtil.FlatNormalized(path.GetTangent(d1, TangentSmoothing) * sign, o.forward, FlatMinSqr);
             var side = Vector3.Cross(Vector3.up, flatForward);
             var halfWidth = path.GetWidth(d1) * 0.5f * maxLateralShare;
             target = path.GetPoint(d1) + side * Mathf.Clamp(lateral * keepLateralOffset, -halfWidth, halfWidth);

@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace MHK.Tests
 {
-    /// <summary>DeleteAccount (26) and RunHiddenInfo (135) against the bytes the Go codec writes (internal/proto achievements_test.go) and round trips.</summary>
+    /// <summary>DeleteAccount (26), ChangeUsername (29) and RunHiddenInfo (135) against the bytes the Go codec writes (internal/proto achievements_test.go) and round trips.</summary>
     public class AccountProtocolTests
     {
         // TestAchievementBytes: not hidden, moderator "M", reason "r", deleted by the owner.
@@ -43,6 +43,25 @@ namespace MHK.Tests
             var back = DeleteAccountRequest.Read(Reader("02707700"));
             Assert.AreEqual("pw", back.password);
             Assert.IsFalse(back.deleteRuns);
+        }
+
+        [Test]
+        public void ChangeUsernameBytes()
+        {
+            Assert.AreEqual(29, MessageType.ChangeUsername);
+            Assert.AreEqual(16, PushType.AccountUpdated);
+            Assert.AreEqual("03416263", Hex(new ChangeUsernameRequest { username = "Abc" }.Write));
+            Assert.AreEqual("Hans.Huhn", ChangeUsernameRequest.Read(Reader(Hex(new ChangeUsernameRequest { username = "Hans.Huhn" }.Write))).username);
+            Assert.Throws<ArgumentException>(() => Hex(new ChangeUsernameRequest { username = new string('x', CredentialsRequest.MaxUsername + 1) }.Write));
+        }
+
+        [Test]
+        public void ClientRulesMatchServer()
+        {
+            foreach (var name in new[] { "ab", "_abc", "abc.", "has space", "Admin", "mhk-os", "Anonymous", "anon-1234", "ANON-x", new string('x', 21) })
+                Assert.IsNotNull(AccountRules.CheckUsername(name), name);
+            foreach (var name in new[] { "Hans_Huhn", "anon", "anonx-1", "A.b-c" })
+                Assert.IsNull(AccountRules.CheckUsername(name), name);
         }
 
         [Test]

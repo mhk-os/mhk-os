@@ -450,7 +450,7 @@ namespace MHK.Validation
             var e = laps.Step(s.position, s.rotation * Vector3.forward, s.velocity.magnitude, s.contacts != 0, s.tick * tick, dt, cut);
             if (cut && (checks & ValidationChecks.Teleport) != 0)
             {
-                var ahead = track.Track.path.Delta(before, laps.PathDistance);
+                var ahead = track.Track.MainPath.Delta(before, laps.PathDistance);
                 if (ahead > RespawnForwardSlack) Report(FlagReason.Teleport, s.tick, $"respawned {ahead:0} m ahead on the track");
             }
             if ((checks & ValidationChecks.Laps) == 0) return;

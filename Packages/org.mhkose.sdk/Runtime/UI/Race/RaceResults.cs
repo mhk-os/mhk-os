@@ -91,10 +91,12 @@ namespace MHK.UI
         string onlineRaceText = "Online race", onlineBattleText = "Online battle";
         [SerializeField, Tooltip("Race chip of an online race in a set ({0} = race number, {1} = races in the set).")]
         string onlineSetFormat = "Race {0}/{1}";
-        [SerializeField, Tooltip("Chip of a solo race against computer drivers.")]
+        [SerializeField, Tooltip("Chip of an online race outside a set (no points).")]
         string soloChipText = "vs AI";
         [SerializeField, Tooltip("Tooltip of the solo chip.")]
-        string soloChipTip = "Raced alone against computer drivers: no points.";
+        string soloChipTip = "A race outside the set: no points.";
+        [SerializeField, Tooltip("Tooltip of the computer icon after an online AI racer's name.")]
+        string aiDriverTip = "Computer driver";
         [SerializeField, Tooltip("Button back to the lobby after an online race.")]
         string backToLobbyText = "Back to lobby";
         [SerializeField, Tooltip("Tooltip of the countdown on the lobby button.")]
@@ -118,6 +120,8 @@ namespace MHK.UI
         float championDelay = 0.12f;
         [SerializeField, Tooltip("Buttons, after the last row started entering.")]
         float buttonsDelay = 0.2f;
+        [SerializeField, Min(1), Tooltip("Rows that enter one after another; the rows after them enter with the last of them (a table of up to 51 karts scrolls).")]
+        int staggeredRows = 10;
 
         const float GainPopScale = 2f, WinnerSpinDegreesPerSecond = 30f;
         const int GainPopMs = 420;
@@ -141,7 +145,7 @@ namespace MHK.UI
             var session = race.Session;
             var champ = session.mode == GameMode.Championship;
             var online = race.IsOnline;
-            var solo = online && race.Online != null && race.Online.Solo;
+            var solo = online && race.Online != null && !race.Online.InSet;
             var battle = race.Battle != null;
             var screen = Q<VisualElement>("results");
             screen.EnableInClassList("online", online);
@@ -149,17 +153,20 @@ namespace MHK.UI
             BindHeader(race, session, champ, battle);
             var rows = Q<VisualElement>("rows");
             var rowCount = FillResultRows(rows, race, champ || (online && !solo), battle);
-            var afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * rowCount;
+            var afterRows = RowDelay(rowCount);
             BindChampion(session, champ, afterRows);
             var laps = BindTimeTrial(race.TimeTrial);
             staggered = laps ?? rows;
-            if (laps != null) afterRows = UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * laps.childCount;
+            if (laps != null) afterRows = RowDelay(laps.childCount);
             if (online) BindOnlineButtons(race, afterRows, rowCount);
             else BindButtons(race, champ && session.HasNextRace, champ, afterRows);
             onlineReturnArmed = online;
             onlineReturnAfter = Time.unscaledTime + MinOnlineResultsSeconds;
             shownCountdown = -1;
         }
+
+        // Entry delay of row <paramref name="index"/> (or, for the row count, of what follows the rows).
+        long RowDelay(int index) => UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * Mathf.Min(index, staggeredRows);
 
         void Update()
         {
@@ -205,7 +212,7 @@ namespace MHK.UI
             if (rowCount == 0) InfoChips.Add(Q<VisualElement>("online-chips"), "cloud_off", noResultText, null, InfoChipState.Bad);
         }
 
-        protected override void AfterBind() => UiAnim.Stagger(staggered, rowsStep, rowsFirstDelay, "from-left");
+        protected override void AfterBind() => UiAnim.Stagger(staggered, rowsStep, rowsFirstDelay, "from-left", staggeredRows);
 
         protected override void Unbind()
         {
@@ -228,31 +235,46 @@ namespace MHK.UI
             else info.text = champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
             Q<VisualElement>("head-best").SetVisible(!battle);
             Q<VisualElement>("head-status").SetVisible(battle);
-            Q<VisualElement>("head-points").SetVisible(champ || (race.IsOnline && (setup == null || !setup.solo)));
+            Q<VisualElement>("head-points").SetVisible(champ || (race.IsOnline && (setup == null || setup.setRace > 0)));
         }
 
         // The online race at a glance: mode, its place in the set, engine class, solo against AI.
         void AddOnlineChips(VisualElement chips, RaceSetup setup, GameSession session, bool battle)
         {
             InfoChips.Add(chips, battle ? "swords" : "sports_score", battle ? onlineBattleText : onlineRaceText, null, InfoChipState.On);
-            if (setup != null && setup.setSize > 0 && !setup.solo)
+            if (setup != null && setup.setRace > 0)
                 InfoChips.Add(chips, "flag", string.Format(onlineSetFormat, setup.setRace, setup.setSize));
             InfoChips.Add(chips, "speed", GameRoot.Instance.Config.GetDifficulty(session.difficulty).label);
-            if (setup != null && setup.solo) InfoChips.Add(chips, "smart_toy", soloChipText, soloChipTip);
+            if (setup != null && setup.setRace == 0) InfoChips.Add(chips, "smart_toy", soloChipText, soloChipTip);
         }
 
         int FillResultRows(VisualElement rows, RaceManager race, bool points, bool battle)
         {
             rows.Clear();
             var index = 0;
+            VisualElement me = null;
             foreach (var r in race.Results)
             {
                 var row = UiTree.Spawn<VisualElement>(resultRowTemplate, rows);
                 if (row == null) break;
-                FillResultRow(row, r, points, battle, UiAnim.Ms(rowsFirstDelay) + UiAnim.Ms(rowsStep) * index + UiAnim.Ms(pointsPopDelay));
+                FillResultRow(row, r, points, battle, RowDelay(Mathf.Min(index, staggeredRows - 1)) + UiAnim.Ms(pointsPopDelay));
+                if (r.isHuman) me ??= row;
                 index++;
             }
+            if (me != null) ScrollIntoViewWhenLaidOut(Q<ScrollView>("rows-scroll"), me);
             return index;
+        }
+
+        // A long table scrolls: the player's row comes into view as soon as it has its place.
+        static void ScrollIntoViewWhenLaidOut(ScrollView scroll, VisualElement row)
+        {
+            EventCallback<GeometryChangedEvent> once = null;
+            once = _ =>
+            {
+                row.UnregisterCallback(once);
+                scroll.ScrollTo(row);
+            };
+            row.RegisterCallback(once);
         }
 
         void FillResultRow(VisualElement row, RaceResult r, bool champ, bool battle, long gainPopMs)
@@ -297,17 +319,18 @@ namespace MHK.UI
             if (r.pointsGained > 0) gain.schedule.Execute(() => UiAnim.Pop(gain, GainPopScale, GainPopMs)).ExecuteLater(gainPopMs);
         }
 
-        // Online: the racer's device (desktop or phone) after the name, nothing for computer drivers or unknown devices.
-        static void AddPlatform(VisualElement row, RaceResult r)
+        // Online: the racer's device (desktop or phone) after the name, the computer icon for AI racers, nothing for
+        // unknown devices.
+        void AddPlatform(VisualElement row, RaceResult r)
         {
             if (!r.online) return;
-            var platform = OnlineUi.PlatformIcon(r.platform);
-            if (platform.icon == null) return;
+            var (icon, tip) = r.ai ? ("smart_toy", aiDriverTip) : OnlineUi.PlatformIcon(r.platform);
+            if (icon == null) return;
             var name = row.Q<Label>("name");
-            var device = new VisualElement { tooltip = platform.name };
+            var device = new VisualElement { tooltip = tip };
             device.AddToClassList("icon");
             device.AddToClassList("hud-res-platform");
-            device.SetIcon(platform.icon);
+            device.SetIcon(icon);
             name.parent.Insert(name.parent.IndexOf(name) + 1, device);
         }
 
@@ -359,7 +382,7 @@ namespace MHK.UI
             export.SetVisible(false);
             if (tt == null) return null;
             Q<VisualElement>("head").SetVisible(false);
-            Q<VisualElement>("rows").SetVisible(false);
+            Q<VisualElement>("rows-scroll").SetVisible(false);
             // The menu reopens this track's records page after a time trial (MenuFlow), so the button says where it goes.
             var menu = Q<Button>("menu");
             menu.Q<VisualElement>(className: "icon")?.SetIcon("leaderboard");

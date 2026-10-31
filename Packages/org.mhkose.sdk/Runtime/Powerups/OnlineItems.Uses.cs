@@ -35,10 +35,14 @@ namespace MHK.Powerups
 
         [AutoStaticsCleanup] static readonly Dictionary<int, Use> uses = new();
         [AutoStaticsCleanup] static readonly List<int> endedUses = new();
-        [AutoStaticsCleanup] static readonly HashSet<int> hitsTaken = new();
+        // Reported hits per victim slot and use ((long)slot << 32 | use): the AI host reports one use hitting several karts.
+        [AutoStaticsCleanup] static readonly HashSet<long> hitsTaken = new();
         [AutoStaticsCleanup] static readonly HashSet<long> hitsSeen = new();
         [AutoStaticsCleanup] static readonly HashSet<string> unknownPowerups = new();
-        [AutoStaticsCleanup] static int usesMade;
+        // Uses made so far per kart slot (the local kart, and the AI karts while hosting).
+        [AutoStaticsCleanup] static readonly Dictionary<int, int> usesMade = new();
+        // A server-confirmed hit is being applied to a mirrored AI kart (KartEffects must let it through).
+        [AutoStaticsCleanup] static bool applyingShared;
 
         static void ResetUses()
         {
@@ -47,11 +51,18 @@ namespace MHK.Powerups
             hitsTaken.Clear();
             hitsSeen.Clear();
             unknownPowerups.Clear();
-            usesMade = 0;
+            usesMade.Clear();
+            applyingShared = false;
         }
 
-        /// <summary>Id of the local racer's next use: (slot + 1) &lt;&lt; 24 | n, unique without a round trip.</summary>
-        internal static int NextUseId() => ItemUse.UseId(race.LocalSlot, ++usesMade);
+        /// <summary>Id of a reported kart's next use: (its slot + 1) &lt;&lt; 24 | n, unique without a round trip.</summary>
+        internal static int NextUseId(Kart k)
+        {
+            var slot = race.SlotOf(k);
+            usesMade.TryGetValue(slot, out var n);
+            usesMade[slot] = ++n;
+            return ItemUse.UseId(slot, n);
+        }
 
         /// <summary>Records a behaviour spawned for a use before it launches, so the use can be reported, corrected and caught up.</summary>
         internal static void Track(PowerupBehaviour b, in PowerupContext ctx)
@@ -59,7 +70,7 @@ namespace MHK.Powerups
             if (!Active || ctx.usage == 0) return;
             if (!uses.TryGetValue(ctx.usage, out var use))
             {
-                use = new Use { local = ctx.owner != null && !ctx.owner.IsRemote, nextReport = ctx.tick + ReportTicks };
+                use = new Use { local = IsReported(ctx.owner), nextReport = ctx.tick + ReportTicks };
                 uses.Add(ctx.usage, use);
             }
             use.parts.Add(b);
@@ -67,10 +78,10 @@ namespace MHK.Powerups
         }
 
         /// <summary>
-        /// Announces the local racer's use <paramref name="useId"/> of <paramref name="def"/> from the pose it was spawned
-        /// at, with the target its behaviours chose (<see cref="PowerupBehaviour.ChosenTarget"/>).
+        /// Announces reported kart <paramref name="k"/>'s use <paramref name="useId"/> from the pose it was spawned at, with
+        /// the target its behaviours chose (<see cref="PowerupBehaviour.ChosenTarget"/>).
         /// </summary>
-        internal static void SendUse(int useId, Vector3 pos, Quaternion rot, bool backwards, GameObject spawned)
+        internal static void SendUse(Kart k, int useId, Vector3 pos, Quaternion rot, bool backwards, GameObject spawned)
         {
             Kart target = null;
             if (spawned != null)
@@ -87,17 +98,18 @@ namespace MHK.Powerups
             race.Notify(new ItemUse
             {
                 raceId = race.RaceId, useId = useId, tick = race.Tick, pos = pos, rot = rot, backwards = backwards,
-                targetSlot = race.SlotOf(target),
+                targetSlot = race.SlotOf(target), slot = NotifySlot(k),
             });
         }
 
-        // Another racer's use: spawned from the pose it was used at (the stand-in is drawn ~100 ms behind) with the
-        // sender's target, then simulated up to now.
+        // Another kart's use: spawned from the pose it was used at (a stand-in is drawn ~100 ms behind, a mirrored AI kart
+        // is where this client's simulation has it) with the sender's target, then simulated up to now. A mirrored AI
+        // kart spends the charge here.
         static void SpawnRemote(ItemUsed m)
         {
             var owner = race.KartOf(m.slot);
             var def = Content.Get<PowerupDefinition>(m.powerupId);
-            if (def == null && unknownPowerups.Add(m.powerupId))
+            if (def == null && !race.IsAi(m.slot) && unknownPowerups.Add(m.powerupId))
                 race.Notify(new UnknownContent { raceId = race.RaceId, slot = m.slot, kind = PowerupContentKind, id = m.powerupId });
             if (owner == null || def == null || def.usePrefab == null || uses.ContainsKey(m.useId)) return;
             // A malformed pose (zero or non-finite quaternion, non-finite position) spawns nothing.
@@ -118,6 +130,7 @@ namespace MHK.Powerups
             }
             AudioManager.PlaySfx(def.useSound, t);
             FastForward(m.useId, race.Tick - m.tick);
+            if (IsMirror(owner)) owner.Inventory.SpendShared();
         }
 
         static bool Finite(Vector3 v) => float.IsFinite(v.x) && float.IsFinite(v.y) && float.IsFinite(v.z);
@@ -157,8 +170,8 @@ namespace MHK.Powerups
                     if (b != null) b.Discard();
                 uses.Remove(useId);
             }
-            var k = LocalKart;
-            if (k != null) k.Effects.RemoveUsage(useId);
+            var k = race.KartOf((useId >> 24) - 1);
+            if (k != null && IsReported(k)) k.Effects.RemoveUsage(useId);
         }
 
         static INetProjectile FirstFlying(Use use)
@@ -211,24 +224,32 @@ namespace MHK.Powerups
         // ---- Hits -------------------------------------------------------------------------------------------------
 
         /// <summary>
-        /// A hostile effect landed on <paramref name="victim"/> here. On the local racer's kart: reported to the server
-        /// (HitTaken), once per use, hazards once per new effect.
+        /// A hostile effect landed on <paramref name="victim"/> here. On a reported kart (<see cref="IsReported"/>): reported
+        /// to the server (HitTaken), once per kart and use, hazards once per new effect.
         /// </summary>
         internal static void OnLocalHit(Kart victim, StatusEffectDefinition def, Kart source, int usage, bool started)
         {
-            if (!IsLocal(victim)) return;
-            if (usage != 0 ? !hitsTaken.Add(usage) : !started) return;
-            SendHitTaken(AttackerSlot(victim, source, usage), usage, def.Id);
+            if (!IsReported(victim)) return;
+            var slot = race.SlotOf(victim);
+            if (usage != 0 ? !hitsTaken.Add((long)slot << 32 | (uint)usage) : !started) return;
+            SendHitTaken(AttackerSlot(victim, source, usage), usage, def.Id, NotifySlot(victim));
         }
+
+        /// <summary>
+        /// A hit from item use <paramref name="usage"/> on a mirrored AI kart (<see cref="IsMirror"/>) is not applied here:
+        /// the AI host decides it and the server's HitApplied brings it. Track hazards and zones (use 0) act locally.
+        /// </summary>
+        public static bool WaitsForServer(Kart victim, StatusEffectDefinition def, int usage) =>
+            usage != 0 && def != null && def.hostile && !applyingShared && IsMirror(victim);
 
         // A use's attacker is its owner, also when it hits the owner's own kart; hazards and falls (use 0) have none.
         static int AttackerSlot(Kart victim, Kart source, int usage) =>
             source != null && (usage != 0 || source != victim) ? race.SlotOf(source) : RaceProtocol.NoSlot;
 
-        static void SendHitTaken(int attackerSlot, int usage, string effectId) =>
-            race.Notify(new HitTaken { raceId = race.RaceId, attackerSlot = attackerSlot, useId = usage, effectId = effectId, tick = race.Tick });
+        static void SendHitTaken(int attackerSlot, int usage, string effectId, int slot) =>
+            race.Notify(new HitTaken { raceId = race.RaceId, attackerSlot = attackerSlot, useId = usage, effectId = effectId, tick = race.Tick, slot = slot });
 
-        /// <summary>A use hit a remote racer here: reported as seen (HitSeen) once per victim and use; its client decides.</summary>
+        /// <summary>A use hit a remote human racer here: reported as seen (HitSeen) once per victim and use; its client decides.</summary>
         internal static void OnRemoteHit(Kart victim, StatusEffectDefinition def, Kart source, int usage)
         {
             if (!Active || usage == 0) return;
@@ -241,13 +262,32 @@ namespace MHK.Powerups
         }
 
         // Another racer took a hit: its reaction shows, and the one part of the use that can have made it (the nearest
-        // within its reach of the victim) is spent here too; the other bananas of a rain or bubbles of a burst stay.
+        // within its reach of the victim) is spent here too; the other bananas of a rain or bubbles of a burst stay. A
+        // mirrored AI kart takes the hit for real (its AI host decided it); hazards (use 0) already acted on it here.
         static void OnHitApplied(HitApplied m)
         {
             var victim = race.KartOf(m.victimSlot);
-            if (victim == null || !victim.IsRemote) return;
+            if (victim == null) return;
+            var mirror = IsMirror(victim);
+            if (!victim.IsRemote && !(mirror && m.useId != 0)) return;
             var def = Content.Get<StatusEffectDefinition>(m.effectId);
-            if (def != null) victim.Effects.ShowRemote(def, race.KartOf(m.attackerSlot), -1f, m.useId);
+            if (def != null)
+            {
+                if (!mirror) victim.Effects.ShowRemote(def, race.KartOf(m.attackerSlot), -1f, m.useId);
+                else
+                {
+                    // Effects.Apply, not KartReactions: the hit already counted for achievements when it landed here.
+                    applyingShared = true;
+                    try
+                    {
+                        victim.Effects.Apply(def, race.KartOf(m.attackerSlot), -1f, m.useId);
+                    }
+                    finally
+                    {
+                        applyingShared = false;
+                    }
+                }
+            }
             if (m.useId == 0 || !uses.TryGetValue(m.useId, out var use)) return;
             var at = victim.transform.position;
             PowerupBehaviour hitter = null;
@@ -269,10 +309,10 @@ namespace MHK.Powerups
         {
             var k = LocalKart;
             if (k == null) return;
-            if (m.useId != 0) hitsTaken.Add(m.useId);
+            if (m.useId != 0) hitsTaken.Add((long)race.LocalSlot << 32 | (uint)m.useId);
             var def = Content.Get<StatusEffectDefinition>(m.effectId);
             if (def != null) KartReactions.Apply(k, def, race.KartOf(m.attackerSlot), -1f, m.useId);
-            SendHitTaken(m.attackerSlot, m.useId, m.effectId);
+            SendHitTaken(m.attackerSlot, m.useId, m.effectId, RaceProtocol.NoSlot);
         }
     }
 }

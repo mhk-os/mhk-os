@@ -15,7 +15,7 @@ namespace MHK.Online
     /// as (kind, id, <see cref="ContentFingerprints"/>) items, and the canonical manifest hash the server recomputes.
     /// Also answers which definitions are content of a lobby and which lobby ids another mod overrides here.
     /// </summary>
-    public static class ContentManifests
+    public static partial class ContentManifests
     {
         /// <summary>Pack id of the game's own definitions: its items are content of every lobby.</summary>
         public const string GamePackId = "game";

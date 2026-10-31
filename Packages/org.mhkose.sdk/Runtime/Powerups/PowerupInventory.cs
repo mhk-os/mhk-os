@@ -110,6 +110,28 @@ namespace MHK.Powerups
             if (boxId == pendingBox) pendingBox = NoBox;
         }
 
+        /// <summary>Online: this kart asked the server for box <paramref name="boxId"/> and waits for the answer.</summary>
+        public bool IsPending(int boxId) => pendingBox != NoBox && pendingBox == boxId;
+
+        /// <summary>
+        /// Online: a mirrored AI kart (<see cref="OnlineItems.IsMirror"/>) got <paramref name="def"/> from the server, its AI
+        /// host's pickup <paramref name="elapsed"/> seconds ago: its roulette runs for the rest of the usual time.
+        /// </summary>
+        public void ReceiveShared(PowerupDefinition def, int charges, float elapsed)
+        {
+            if (def != null) Take(def, Mathf.Max(1, charges), Mathf.Max(0f, Config.itemRouletteSeconds - elapsed));
+        }
+
+        /// <summary>Online: a mirrored AI kart's use came from the server (its use is replayed): one charge goes.</summary>
+        public void SpendShared()
+        {
+            if (Held == null) return;
+            if (Config.usingItemCancelsBuffs) kart.Effects.EndExclusiveBuffs();
+            Charges--;
+            if (Charges <= 0) Clear();
+            else cooldownUntilTick = RaceClock.Ticks + StepsOf(Held.useCooldown);
+        }
+
         // Battles may give fewer charges (PowerupDefinition.battleCharges, MHK Extra hammer: 1 instead of 3).
         static int ChargesOf(PowerupDefinition def)
         {
@@ -175,21 +197,22 @@ namespace MHK.Powerups
             lastFire = input.fire;
         }
 
-        // Online the use gets its network id and is announced with the pose it spawned from and the target it chose.
+        // Online the use gets its network id and is announced with the pose it spawned from and the target it chose. A
+        // mirrored AI kart never uses items by itself: its uses come from its AI host (ItemUsed).
         void TryUse(bool backwards)
         {
-            if (!HasItem || CoolingDown || kart.IsRemote) return;
+            if (!HasItem || CoolingDown || kart.IsRemote || OnlineItems.IsMirror(kart)) return;
             var def = Held;
             if (Config.usingItemCancelsBuffs) kart.Effects.EndExclusiveBuffs();
-            var online = OnlineItems.IsLocal(kart);
-            var usage = online ? OnlineItems.NextUseId() : NextUsage();
+            var online = OnlineItems.IsReported(kart);
+            var usage = online ? OnlineItems.NextUseId(kart) : NextUsage();
             Achievements.RaceAchievements.ItemUsed(kart, def, usage);
             transform.GetPositionAndRotation(out var position, out var rotation);
             GameObject spawned = null;
             if (def.usePrefab != null)
                 spawned = PowerupFx.SpawnAndLaunch(def.usePrefab, position, rotation, new PowerupContext(kart, def, backwards, usage));
             else Debug.LogWarning($"[Powerups] '{def.Id}' has no use prefab.");
-            if (online) OnlineItems.SendUse(usage, position, rotation, backwards, spawned);
+            if (online) OnlineItems.SendUse(kart, usage, position, rotation, backwards, spawned);
             Audio.AudioManager.PlaySfx(def.useSound, transform);
             Charges--;
             if (Charges <= 0) Clear();

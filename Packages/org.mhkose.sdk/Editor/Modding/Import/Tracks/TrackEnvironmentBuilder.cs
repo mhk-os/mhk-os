@@ -101,7 +101,8 @@ namespace MHK.Editor.Modding.Import
             var skyModel = sky != null ? c.Model(sky, GlbLightingStyle.Sky) : null;
             if (skyModel == null) return;
             var dome = new GameObject("SkyDome");
-            if (WorldSkyDome.IsWorldSkyGame(c.Settings.pack.packId)) dome.AddComponent<WorldSkyDome>();
+            var worldSky = WorldSkyDome.IsWorldSkyGame(c.Settings.pack.packId);
+            if (worldSky) dome.AddComponent<WorldSkyDome>();
             else dome.AddComponent<FollowCameraPosition>();
             var inst = c.Instance(skyModel, dome.transform, Path.GetFileNameWithoutExtension(sky));
             ImportHierarchy.StripAnimation(inst);
@@ -111,6 +112,17 @@ namespace MHK.Editor.Modding.Import
                 r.shadowCastingMode = ShadowCastingMode.Off;
                 r.receiveShadows = false;
             }
+            if (!worldSky) return;
+            var parts = inst.GetComponentsInChildren<MeshRenderer>(true);
+            var shellWidth = parts.Length > 0 ? parts.Max(r => Mathf.Max(r.bounds.size.x, r.bounds.size.z)) : 0f;
+            foreach (var part in parts)
+                foreach (var material in part.sharedMaterials)
+                {
+                    if (material == null) continue;
+                    WorldSkyDome.ConfigureMaterial(material, WorldSkyDome.IsOverlay(part.bounds, shellWidth));
+                    EditorUtility.SetDirty(material);
+                    AssetDatabase.SaveAssetIfDirty(material);
+                }
         }
     }
 }

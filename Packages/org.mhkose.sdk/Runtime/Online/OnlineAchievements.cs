@@ -12,7 +12,7 @@ namespace MHK.Online
     /// (<see cref="AchievementList.Synced"/>); later progress follows once a race is over. A sync without an answer is
     /// retried later, and on the next login. Also fetches how many players unlocked each achievement.
     /// </summary>
-    public static class OnlineAchievements
+    public static partial class OnlineAchievements
     {
         const float RetrySeconds = 30f;
 

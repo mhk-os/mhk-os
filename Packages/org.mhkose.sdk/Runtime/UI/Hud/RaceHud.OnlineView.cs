@@ -38,6 +38,8 @@ namespace MHK.UI
             readonly RaceHud hud;
             readonly List<Tag> tags = new();
             readonly List<VisualElement> chips = new();
+            // Grid slot of each chip (human racers only: AI karts load and finish on every client).
+            readonly List<int> chipSlots = new();
             // Per chip: -1 not shown yet in this mode, 0 waiting, 1 done.
             readonly List<int> chipDone = new();
             VisualElement container, layer, chipRow, trouble, toast;
@@ -116,7 +118,7 @@ namespace MHK.UI
                 shownToast = null;
             }
 
-            // One chip per racer of the grid (the player's own outlined), the state icon says loaded / finished.
+            // One chip per human racer of the grid (the player's own outlined), the state icon says loaded / finished.
             void BuildChips(OnlineRace online)
             {
                 var column = new VisualElement { pickingMode = PickingMode.Ignore };
@@ -125,13 +127,16 @@ namespace MHK.UI
                 chipRow.AddToClassList(InfoChips.ContainerClass);
                 chipRow.AddToClassList("hud-net-waiting");
                 chips.Clear();
+                chipSlots.Clear();
                 chipDone.Clear();
                 foreach (var slot in online.Setup.grid)
                 {
+                    if (slot.ai) continue;
                     var chip = InfoChips.Add(chipRow, "hourglass_top", slot.username, null, InfoChipState.Off);
                     chip.AddToClassList("dark");
                     chip.EnableInClassList("me", slot.slot == online.LocalSlot);
                     chips.Add(chip);
+                    chipSlots.Add(slot.slot);
                     chipDone.Add(-1);
                 }
                 chipRow.SetVisible(false);
@@ -191,7 +196,7 @@ namespace MHK.UI
             {
                 var player = race.LocalPlayer;
                 var mode = race.WaitingForPlayers ? ChipMode.Loading
-                    : !online.Solo && race.Phase == RacePhase.Racing && player != null && (player.Progress.Finished || online.LocalLeft) ? ChipMode.Finishing
+                    : race.Phase == RacePhase.Racing && player != null && (player.Progress.Finished || online.LocalLeft) ? ChipMode.Finishing
                     : ChipMode.None;
                 if (mode != shownMode)
                 {
@@ -201,10 +206,9 @@ namespace MHK.UI
                     for (var i = 0; i < chipDone.Count; i++) chipDone[i] = -1;
                 }
                 if (mode == ChipMode.None) return;
-                var grid = online.Setup.grid;
-                for (var i = 0; i < grid.Count && i < chips.Count; i++)
+                for (var i = 0; i < chips.Count; i++)
                 {
-                    var slot = grid[i].slot;
+                    var slot = chipSlots[i];
                     var left = online.HasLeft(slot);
                     bool done;
                     if (mode == ChipMode.Loading) done = online.IsLoaded(slot);

@@ -14,12 +14,13 @@ namespace MHK.UI
     /// The online lobby the player is in (Lobby.uxml). Header: name, the room code with Copy code / Copy link and the
     /// lobby's rules as chips. A banner with the phase and its countdown. One card per player (driver, kart, name with its
     /// score rank and player card, country, ping, set points, owner / moderator / ready / waiting / voted badges, kick for
-    /// the room owner and moderators, also on the player card) and faint free slots up to the room size. Side: the
-    /// player's driver and kart (the Character and Kart pages limited to the lobby's content), Ready in private rooms,
-    /// Vote while voting (the Track page with the lobby's tracks and Random, opened by itself when voting starts), Race AI
-    /// while the player is alone, the owner's Start and Room settings, the last race's results (names with rank and
-    /// player card) and Leave. Races start from RaceSetup (OnlineRace) and come back here with
-    /// <see cref="OnlineLobby.ReturnToLobby"/>.
+    /// the room owner and moderators, also on the player card), one per AI driver of the set (character, kart, set
+    /// points), ranked together by set points, and a tile for the free places up to the room size. Side: the player's
+    /// driver and kart (the Character and Kart pages limited to the lobby's content), Ready in private rooms, Vote while
+    /// voting (the Track page with the lobby's tracks and Random, opened by itself when voting starts), Race AI while the
+    /// player is alone in a public lobby without AI, the owner's Start and Room settings, the last race's results (names
+    /// with rank and player card, AI drivers marked) and Leave. Races start from RaceSetup (OnlineRace) and come back here
+    /// with <see cref="OnlineLobby.ReturnToLobby"/>.
     /// </summary>
     public class LobbyScreen : MenuScreen
     {
@@ -36,6 +37,7 @@ namespace MHK.UI
         [SerializeField] string racingText = "Race running";
         [SerializeField] string sittingOutText = "You race in the next one";
         [SerializeField] string soloRacingText = "Racing AI";
+        [SerializeField, Tooltip("Badge of an AI driver's card and result row.")] string aiDriverText = "Computer driver";
         [SerializeField] string resultsText = "Results";
         [SerializeField] string setResultsText = "Set results";
         [SerializeField, Tooltip("{0} = race in the set, {1} = races in the set.")] string setRaceFormat = "Race {0} of {1}";
@@ -44,7 +46,7 @@ namespace MHK.UI
         [SerializeField] string readyText = "Ready", notReadyText = "Ready?";
         [SerializeField] string voteText = "Vote", changeVoteText = "Change vote";
         [SerializeField] string startVoteText = "Start voting", pickTrackText = "Choose track";
-        [SerializeField] string soloText = "Race AI while you wait", soloAloneText = "Race alone";
+        [SerializeField] string soloText = "Race AI while you wait";
         [SerializeField, Tooltip("Championship start. {0} = next track of the cup.")] string startCupFormat = "Start: {0}";
         [SerializeField] string lastRaceTitle = "Last race", setTitle = "Set results", soloTitle = "Last race vs AI";
         [SerializeField] string leaveQuestion = "Leave this lobby?", leaveLabel = "Leave";
@@ -80,16 +82,16 @@ namespace MHK.UI
         public static bool IsBattle => OnlineLobby.Current != null && OnlineLobby.Current.settings.mode == RoomMode.BattleSet;
 
         /// <summary>
-        /// The player is alone in a waiting lobby where they may start a race against AI: the lone member of a public
-        /// lobby or the owner of a private room.
+        /// The player is alone in a waiting public lobby without AI, where they may start a solo race against AI (a
+        /// private room's owner starts races with Start, also alone; AI lobbies start by themselves).
         /// </summary>
         public static bool CanRaceAlone
         {
             get
             {
                 var lobby = OnlineLobby.Current;
-                return lobby != null && lobby.Phase == LobbyPhase.Waiting && lobby.members.Count == 1 && OnlineLobby.Me != null
-                       && (!lobby.IsPrivate || OnlineLobby.IsOwner);
+                return lobby != null && !lobby.IsPrivate && lobby.settings.maxAi == 0 && lobby.Phase == LobbyPhase.Waiting
+                       && lobby.members.Count == 1 && OnlineLobby.Me != null;
             }
         }
 
@@ -253,10 +255,10 @@ namespace MHK.UI
         void ShowBanner(LobbyState lobby, LobbyMember me)
         {
             var alone = lobby.members.Count == 1;
-            var soloRace = OnlineRace.Current != null && OnlineRace.Current.Solo;
+            var soloRace = OnlineRace.Current != null && OnlineRace.Current.Solo && OnlineRace.Current.AiCount > 0;
             var (text, icon) = lobby.Phase switch
             {
-                LobbyPhase.Waiting when alone => (aloneText, "hourglass_top"),
+                LobbyPhase.Waiting when alone && !lobby.IsPrivate => (aloneText, "hourglass_top"),
                 LobbyPhase.Waiting => (lobby.IsPrivate ? OnlineLobby.IsOwner ? waitingOwnerText : waitingOthersText : aloneText, "hourglass_top"),
                 LobbyPhase.Voting => (votingText, "how_to_vote"),
                 LobbyPhase.Loading => (string.Format(loadingFormat, ContentDisplay.TrackName(lobby.trackId)), "sync"),
@@ -286,26 +288,36 @@ namespace MHK.UI
                     if (card.Contains(focused) && card.userData is long id) focusedId = id;
             members.Clear();
             var list = new List<LobbyMember>(lobby.members);
-            // Standings: points first, then who joined first.
-            list.Sort((a, b) => a.setPoints != b.setPoints ? b.setPoints.CompareTo(a.setPoints) : a.joined.CompareTo(b.joined));
             VisualElement refocus = null;
-            var showPoints = lobby.setRace > 0 || list.Exists(m => m.setPoints != 0);
-            foreach (var m in list)
+            var showPoints = lobby.setRace > 0 || list.Exists(m => m.setPoints != 0) || lobby.aiDrivers.Exists(d => d.setPoints != 0);
+            // Standings: points first, then who joined first; AI drivers among them by points (after humans on a tie).
+            list.Sort((a, b) => a.setPoints != b.setPoints ? b.setPoints.CompareTo(a.setPoints) : a.joined.CompareTo(b.joined));
+            var ai = new List<AiDriver>(lobby.aiDrivers);
+            ai.Sort((a, b) => b.setPoints.CompareTo(a.setPoints));
+            int h = 0, d = 0;
+            while (h < list.Count || d < ai.Count)
             {
-                var card = SpawnMember(lobby, m, me, showPoints);
-                if (card == null) break;
-                if (m.accountId == focusedId) refocus = card.Q(focusedName ? "mem-name" : "mem-kick");
+                if (h < list.Count && (d >= ai.Count || list[h].setPoints >= ai[d].setPoints))
+                {
+                    var m = list[h++];
+                    var card = SpawnMember(lobby, m, me, showPoints);
+                    if (card == null) break;
+                    if (m.accountId == focusedId) refocus = card.Q(focusedName ? "mem-name" : "mem-kick");
+                }
+                else if (SpawnAi(ai[d++], showPoints) == null) break;
             }
             var free = Mathf.Min(lobby.settings.maxPlayers, LobbyLimits.MaxPlayers) - list.Count;
-            if (free > 0) members.Add(FreeTile(free));
+            if (free > 0) members.Add(FreeTile(free, lobby.settings.maxAi));
             if (refocus != null) FocusLater(refocus);
             FitCards();
         }
 
         // One quiet tile for the free places (the room size stays obvious without a box per place).
-        static VisualElement FreeTile(int free)
+        static VisualElement FreeTile(int free, int maxAi)
         {
-            var tile = new VisualElement { tooltip = free == 1 ? "1 free place" : free + " free places" };
+            var tip = free == 1 ? "1 free place" : free + " free places";
+            if (maxAi > 0) tip += $": computer drivers race in free places (up to {maxAi})";
+            var tile = new VisualElement { tooltip = tip };
             tile.AddToClassList("mem-free-tile");
             var icon = new VisualElement { pickingMode = PickingMode.Ignore };
             icon.AddToClassList("icon");
@@ -405,6 +417,28 @@ namespace MHK.UI
             return card;
         }
 
+        // An AI driver of the set: its character and kart, set points and a badge; nobody can kick or open it.
+        VisualElement SpawnAi(AiDriver driver, bool showPoints)
+        {
+            var card = UiTree.Spawn<VisualElement>(memberTemplate, members);
+            if (card == null) return null;
+            card.AddToClassList("ai");
+            card.Q("mem-country").SetVisible(false);
+            card.Q("mem-platform").SetVisible(false);
+            card.Q("mem-rank").SetVisible(false);
+            card.Q("mem-ping").Clear();
+            card.Q<Label>("mem-name").text = OnlineRace.CharacterName(driver.characterId);
+            ContentDisplay.SetDriver(card, driver.characterId, driver.kartId);
+            var points = card.Q<Label>("mem-points");
+            points.text = driver.setPoints.ToString(CultureInfo.InvariantCulture);
+            points.SetVisible(showPoints);
+            var badges = card.Q("mem-badges");
+            badges.Clear();
+            InfoChips.Add(badges, "smart_toy", null, aiDriverText);
+            card.Q<Button>("mem-kick").SetVisible(false);
+            return card;
+        }
+
         void AskKick(VisualElement from, LobbyMember m)
         {
             Click();
@@ -436,8 +470,8 @@ namespace MHK.UI
             Q<Label>("vote-label").text = me != null && lobby.VoteOf(me.accountId) != null ? changeVoteText : voteText;
             var solo = Q<Button>("solo");
             solo.SetVisible(alone);
-            Q<Label>("solo-label").text = lobby.IsPrivate && !lobby.settings.aiWhenAlone ? soloAloneText : soloText;
-            var owner = OnlineLobby.IsOwner && lobby.Phase == LobbyPhase.Waiting && !alone;
+            Q<Label>("solo-label").text = soloText;
+            var owner = OnlineLobby.IsOwner && lobby.Phase == LobbyPhase.Waiting;
             var start = Q<Button>("start");
             start.SetVisible(owner);
             if (owner) Q<Label>("start-label").text = StartLabel(lobby);
@@ -446,25 +480,25 @@ namespace MHK.UI
 
         string StartLabel(LobbyState lobby)
         {
-            if (lobby.settings.mode == RoomMode.Championship)
-            {
-                var next = NextCupTrack(lobby);
-                return string.Format(startCupFormat, next != null ? next.DisplayName : "?");
-            }
+            if (lobby.settings.mode == RoomMode.Championship) return string.Format(startCupFormat, ContentDisplay.TrackName(NextChampionshipTrack(lobby)));
             return lobby.settings.OwnerPicks ? pickTrackText : startVoteText;
         }
 
-        // The cup's track after the races of the set so far (a finished set starts over).
-        static TrackDefinition NextCupTrack(LobbyState lobby)
+        // The cup's (or the room's own list's) track after the races of the set so far (a finished set starts over), "" when none.
+        static string NextChampionshipTrack(LobbyState lobby)
         {
-            var cup = GameRoot.Instance.Content.Get<CupDefinition>(lobby.settings.cupId);
-            if (cup == null || cup.tracks.Count == 0) return null;
+            var s = lobby.settings;
             var done = lobby.setRace;
-            return cup.tracks[done >= cup.tracks.Count ? 0 : done];
+            if (s.CustomTracks) return s.trackIds.Count > 0 ? s.trackIds[done >= s.trackIds.Count ? 0 : done] : "";
+            var cup = GameRoot.Instance.Content.Get<CupDefinition>(s.cupId);
+            if (cup == null || cup.tracks.Count == 0) return "";
+            var next = cup.tracks[done >= cup.tracks.Count ? 0 : done];
+            return next != null ? next.Id : "";
         }
 
         // The last race: from the lobby (results phases) or the race's own result (solo races have no results phase).
-        // Solo races give no points: no points column then. Human racers' names carry their rank and player card.
+        // Solo races give no points: no points column then. Human racers' names carry their rank and player card, AI
+        // drivers their character's name and a badge. The set results rank by set points.
         void ShowResults(LobbyState lobby)
         {
             var list = Q<VisualElement>("result-list");
@@ -476,18 +510,29 @@ namespace MHK.UI
             var setPhase = lobby.Phase == LobbyPhase.SetResults;
             Q<Label>("results-title").text = setPhase ? setTitle : points ? lastRaceTitle : soloTitle;
             var sorted = new List<RaceResultRow>(rows);
-            sorted.Sort((a, b) => a.position.CompareTo(b.position));
+            if (setPhase) sorted.Sort((a, b) => a.setPoints != b.setPoints ? b.setPoints.CompareTo(a.setPoints) : a.position.CompareTo(b.position));
+            else sorted.Sort((a, b) => a.position.CompareTo(b.position));
+            var place = 0;
             foreach (var r in sorted)
             {
+                var shown = setPhase ? ++place : r.position;
                 var row = new VisualElement();
                 row.AddToClassList("lob-result-row");
-                if (r.position <= 3) row.AddToClassList("medal-" + r.position.ToString(CultureInfo.InvariantCulture));
+                if (shown <= 3) row.AddToClassList("medal-" + shown.ToString(CultureInfo.InvariantCulture));
                 row.EnableInClassList("mine", r.accountId == OnlineLobby.MyAccountId && !r.ai);
-                row.Add(Cell(r.position.ToString(CultureInfo.InvariantCulture), "lob-result-pos"));
+                row.Add(Cell(shown.ToString(CultureInfo.InvariantCulture), "lob-result-pos"));
                 var who = new VisualElement();
                 who.AddToClassList("lob-result-who");
-                var name = Cell(r.username, "lob-result-name");
+                var name = Cell(r.ai ? OnlineRace.CharacterName(r.characterId) : r.username, "lob-result-name");
                 who.Add(name);
+                if (r.ai)
+                {
+                    var mark = new VisualElement { tooltip = aiDriverText };
+                    mark.AddToClassList("icon");
+                    mark.AddToClassList("lob-result-ai");
+                    mark.SetIcon("smart_toy");
+                    who.Add(mark);
+                }
                 row.Add(who);
                 row.Add(Cell(r.finishMs > 0 ? UiText.Clock(r.finishMs / 1000f) : dnfText, "lob-result-time"));
                 if (points) row.Add(Cell((setPhase ? r.setPoints : r.points).ToString(setPhase ? "0" : "+0;-0;0", CultureInfo.InvariantCulture), "lob-result-points"));
@@ -591,8 +636,7 @@ namespace MHK.UI
             if (lobby == null) return;
             if (lobby.settings.mode == RoomMode.Championship)
             {
-                var next = NextCupTrack(lobby);
-                var r = await OnlineLobby.StartRace(next != null ? next.Id : "");
+                var r = await OnlineLobby.StartRace(NextChampionshipTrack(lobby));
                 if (!r.Ok) SetStatus(r.message, false);
                 return;
             }

@@ -76,6 +76,18 @@ namespace MHK.AI
         public bool Jumping { get; private set; }
         /// <summary>The kart turns around (or drives on to a spot to turn at): the way to the goal may grow meanwhile.</summary>
         public bool Turning => turning;
+        /// <summary>Flat unit direction the kart wants to drive this step (towards the goal, the line or the turning spot).</summary>
+        public Vector3 WantedDirection { get; private set; } = Vector3.forward;
+
+        /// <summary>
+        /// How far (m) beyond the road edges a turn around may run: in arenas <paramref name="leash"/>, on circuits the
+        /// road (no farther out than the kart already is). <paramref name="pavedLeash"/> as for <see cref="AIBattleArea.Safe(TrackRuntime, Vector3, float, float, float, float, AIBattleArea.Hints, out float, out float)"/>.
+        /// </summary>
+        public float TurnRoom(float leash, bool arena, out float pavedLeash)
+        {
+            pavedLeash = Mathf.Max(leash, roadBeyond);
+            return arena ? pavedLeash : Mathf.Min(pavedLeash, Mathf.Max(TurnLeash, roadBeyond + TurnSlack));
+        }
 
         /// <summary>
         /// Forgets the state of an earlier stretch off the racing line (turns, blocked goals, line direction): the kart
@@ -132,7 +144,7 @@ namespace MHK.AI
             if (turnDelayed && TurnSpotReached(kart, track)) turnDelayed = false;
             if (turnDelayed)
             {
-                wanted = track.path.GetPoint(turnSpot);
+                wanted = track.MainPath.GetPoint(turnSpot);
                 toWanted = Flat(wanted - pos);
                 if (toWanted.sqrMagnitude > 0.01f) wantedDir = toWanted.normalized;
             }
@@ -142,6 +154,7 @@ namespace MHK.AI
                 Hazard(kart, track, leash, radius, cfg);
             }
             WatchBlocked(toWanted.magnitude, dt);
+            WantedDirection = wantedDir;
             var dir = Quaternion.AngleAxis(bestAngle, Vector3.up) * wantedDir;
             var look = Mathf.Max(MinLook, speed * LookPerSpeed);
             SteerPoint = bestAngle == 0f && toWanted.magnitude <= Mathf.Max(bestReach, look) ? wanted : pos + dir * Mathf.Clamp(bestReach, MinLook, look);
@@ -186,7 +199,7 @@ namespace MHK.AI
         bool FindTurnSpot(Kart kart, TrackRuntime track, Vector3 forward)
         {
             if (AIBattleArea.RouteAt(track, kart.transform.position, hints, out _) >= 0) return false;
-            var path = track.path;
+            var path = track.MainPath;
             var road = AIRacingLine.Of(track, path, GameRoot.Instance.Config.aiRacingLineMargin);
             var d = kart.Progress.PathDistance;
             if (road.Width(d) >= TurnWidth) return false;
@@ -205,8 +218,8 @@ namespace MHK.AI
 
         static bool NearFork(TrackRuntime track, float at)
         {
-            var path = track.path;
-            var routes = track.alternatePaths;
+            var path = track.MainPath;
+            var routes = track.Routes;
             for (var i = 0; i < routes.Count; i++)
                 if (routes[i] != null && (Mathf.Abs(path.Delta(at, track.BranchJoinStart(i))) < JunctionRoom
                         || Mathf.Abs(path.Delta(at, track.BranchJoinEnd(i))) < JunctionRoom))
@@ -215,7 +228,7 @@ namespace MHK.AI
         }
 
         bool TurnSpotReached(Kart kart, TrackRuntime track) =>
-            turnDelayTimer <= 0f || track.path.Delta(kart.Progress.PathDistance, turnSpot) * turnSign < TurnArrive;
+            turnDelayTimer <= 0f || track.MainPath.Delta(kart.Progress.PathDistance, turnSpot) * turnSign < TurnArrive;
 
         // A kart pushed beyond the leash may still drive back, but no further out. While turning around (not while driving
         // on to the turning spot) the probes keep to the road and paved ground (pavedLeash) within the leash.
@@ -311,7 +324,8 @@ namespace MHK.AI
             return wall;
         }
 
-        static float Sweep(Vector3 from, Vector3 dir, float length, float radius, int mask)
+        /// <summary>Distance (m) along <paramref name="dir"/> to the first wall or solid body a sphere meets, <paramref name="length"/> when none.</summary>
+        internal static float Sweep(Vector3 from, Vector3 dir, float length, float radius, int mask)
         {
             var n = Physics.SphereCastNonAlloc(from, radius, dir, Hits, length, mask, QueryTriggerInteraction.Ignore);
             var best = length;
@@ -338,30 +352,30 @@ namespace MHK.AI
             float to;
             if (goalRoute >= 0)
             {
-                var route = track.alternatePaths[goalRoute];
+                var route = track.Routes[goalRoute];
                 if (AIBattleArea.BeyondRoute(track, goalRoute, pos, hints, out var at) <= 0f) return AlongRoute(route, at, goalAt, goal, carrot, 0f);
                 var start = StartNearer(track, goalRoute, kart.Progress.PathDistance, goalAt);
                 to = start ? track.BranchJoinStart(goalRoute) : track.BranchJoinEnd(goalRoute);
                 target = route.GetPoint(start ? 0f : route.Length);
                 tail = start ? goalAt : route.Length - goalAt;
             }
-            else to = track.path.Project(goal, ref goalHints.main, out _);
+            else to = track.MainPath.Project(goal, ref goalHints.main, out _);
             var from = kart.Progress.PathDistance;
             var own = AIBattleArea.RouteAt(track, pos, hints, out var ownAt);
             if (own >= 0)
             {
-                var route = track.alternatePaths[own];
+                var route = track.Routes[own];
                 var exitStart = StartNearer(track, own, to, ownAt);
                 from = exitStart ? track.BranchJoinStart(own) : track.BranchJoinEnd(own);
                 var left = exitStart ? ownAt : route.Length - ownAt;
-                if (left > carrot) return AlongRoute(route, ownAt, exitStart ? 0f : route.Length, goal, carrot, Mathf.Abs(track.path.Delta(from, to)) + tail);
+                if (left > carrot) return AlongRoute(route, ownAt, exitStart ? 0f : route.Length, goal, carrot, Mathf.Abs(track.MainPath.Delta(from, to)) + tail);
             }
             return LineCarrot(track, from, to, target, carrot, tail);
         }
 
         Vector3 LineCarrot(TrackRuntime track, float from, float to, Vector3 target, float carrot, float tail)
         {
-            var path = track.path;
+            var path = track.MainPath;
             var forward = path.WrapDistance(to - from);
             var backward = path.Length - forward;
             var direction = forward <= backward ? 1 : -1;
@@ -383,8 +397,8 @@ namespace MHK.AI
 
         static bool StartNearer(TrackRuntime track, int route, float mainPoint, float at)
         {
-            var path = track.path;
-            var length = track.alternatePaths[route].Length;
+            var path = track.MainPath;
+            var length = track.Routes[route].Length;
             return Mathf.Abs(path.Delta(mainPoint, track.BranchJoinStart(route))) + at
                 <= Mathf.Abs(path.Delta(mainPoint, track.BranchJoinEnd(route))) + length - at;
         }
@@ -393,7 +407,7 @@ namespace MHK.AI
         static bool GapAlong(TrackRuntime track, float from, float length, float direction)
         {
             for (var x = 0f; x <= length; x += GapCheckStep)
-                if (TrackGaps.IsGap(track, track.path, from + direction * x))
+                if (TrackGaps.IsGap(track, track.MainPath, from + direction * x))
                     return true;
             return false;
         }

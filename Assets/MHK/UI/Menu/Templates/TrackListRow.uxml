@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One track of the track list editor (TrackList page). Code sets the picture, name, game and race number. The library (.tl-list-library) shows tl-add (tl-main adds too), the race list (.tl-list-races) shows the tl-drag handle (DragReorder), the race number, the game and tl-remove (tl-main is not focusable there). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="song-row tl-row">
+        <ui:VisualElement name="tl-drag" focusable="true" tooltip="Drag to move" class="drag-handle song-drag tl-edit">
+            <ui:VisualElement class="icon i-drag_indicator" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Label name="tl-number" text="1" class="tl-number tl-edit" />
+        <ui:Button name="tl-main" class="song-main tl-main">
+            <ui:VisualElement name="tl-image" class="tl-image" picking-mode="Ignore" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2_moorhuhn_x_preview.png&quot;);" />
+            <ui:Label name="tl-name" text="Moorhuhn X" class="song-title" picking-mode="Ignore" />
+            <ui:Label name="tl-game" text="Moorhuhn Kart 2" class="song-game tl-game" picking-mode="Ignore" />
+        </ui:Button>
+        <ui:VisualElement class="row song-actions">
+            <ui:Button name="tl-add" tooltip="Add to the list" class="mhk-button small secondary icon-only tl-add">
+                <ui:VisualElement class="icon i-add" />
+            </ui:Button>
+            <ui:Button name="tl-remove" tooltip="Remove" class="mhk-button small icon-only danger tl-edit">
+                <ui:VisualElement class="icon i-delete" />
+            </ui:Button>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

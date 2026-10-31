@@ -25,13 +25,32 @@ MonoBehaviour:
   gravity: 19.62
   offroadResistance: 0.3
   airHeadingAlign: 2.5
+  airSteerRate: 25
   driveTorqueScale: 2
+  propMass:
+    light: 0.5
+    straw: 3
+    wood: 4
+    sheetMetal: 4
+    iron: 10
+    stone: 16
+    minKartShare: 0.05
+    maxKartShare: 0.4
+    stoneMaxKartShare: 1.5
+  kartTurnPose:
+    intensity: 0.7
+    followTurning: 0.5
+    fullTurnRate: 100
+    leanInSeconds: 0.15
+    leanOutSeconds: 0.3
+  spinTurns: 5
+  spinSeconds: 3
   countdownSeconds: 3.999
   powerStartWindow: {x: 0.8, y: 1.2}
   powerStartIgnoreAbove: 2.7
   powerStartEffect: {fileID: 11400000, guid: f0c8ec5d4336a4074922c4e4309ac5bd, type: 2}
   powerFailEffect: {fileID: 11400000, guid: 07d1ef9431da943b6a771576bf8379a5, type: 2}
-  maxRacers: 7
+  maxRacers: 51
   championshipPoints: 0a000000080000000600000004000000020000000100000000000000i
   finishGraceSeconds: 4
   wrongWaySeconds: 2
@@ -40,7 +59,6 @@ MonoBehaviour:
   usingItemCancelsBuffs: 1
   itemRouletteSeconds: 0
   ownerHazardImmunity: 1
-  trackFamilyItemShare: 0.75
   dropEffect: {fileID: 11400000, guid: 29603f9faf1214412a166240e686d82e, type: 2}
   respawnBackDistance: 15
   gapRunUp: 60
@@ -131,3 +149,44 @@ MonoBehaviour:
   aiLaneTolerance: 0.8
   aiLaneChangeSpeed: 3
   aiLaneUrgentFactor: 2.5
+  aiPassLookSeconds: 2.5
+  aiPassSideGap: 0.5
+  aiItemMinHoldSeconds: 3
+  aiItemUseBeforeBoxes: 15
+  aiItemBoxClusterGap: 25
+  battleAi:
+  - decisionInterval: 0.8
+    huntRange: 35
+    huntLeaveShare: 1.5
+    huntLoseSeconds: 3
+    ramRange: 8
+    aggression: 0.35
+    aimLead: 0.3
+    reverseMinSeconds: 20
+    reverseMaxSeconds: 60
+  - decisionInterval: 0.5
+    huntRange: 45
+    huntLeaveShare: 1.5
+    huntLoseSeconds: 3
+    ramRange: 12
+    aggression: 0.6
+    aimLead: 0.65
+    reverseMinSeconds: 20
+    reverseMaxSeconds: 60
+  - decisionInterval: 0.3
+    huntRange: 55
+    huntLeaveShare: 1.5
+    huntLoseSeconds: 3
+    ramRange: 15
+    aggression: 0.85
+    aimLead: 1
+    reverseMinSeconds: 20
+    reverseMaxSeconds: 60
+  aiBattleOffroadLeash: 8
+  aiBattleArenaLeash: 40
+  aiBattleLookRange: 22
+  aiBattleDirectRange: 45
+  aiBattleWanderRadius: 30
+  aiBattleTurnSpeedShare: 0.5
+  aiBattleMaxSlope: 20
+  aiBattleItemMaxHoldSeconds: 15

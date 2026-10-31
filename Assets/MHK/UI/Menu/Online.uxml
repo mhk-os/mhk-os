@@ -25,6 +25,9 @@
                             <ui:VisualElement class="onl-col-ac" tooltip="Anticheat">
                                 <ui:VisualElement class="icon i-shield" />
                             </ui:VisualElement>
+                            <ui:VisualElement class="onl-col-ai" tooltip="Computer drivers">
+                                <ui:VisualElement class="icon i-smart_toy" />
+                            </ui:VisualElement>
                             <ui:Label text="Class" class="onl-head-label onl-col-engine" />
                             <ui:Label text="Players" class="onl-head-label onl-col-players" />
                             <ui:Label text="Status" class="onl-head-label onl-col-phase" />

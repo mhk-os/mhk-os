@@ -17,7 +17,7 @@ namespace MHK.Editor.Modding.Import
         World,
         /// <summary>Dynamic objects (karts, characters, items): always lit.</summary>
         Object,
-        /// <summary>Sky domes: self-lit, no culling, no depth write, drawn before the world, no shadows.</summary>
+        /// <summary>Sky base: self-lit, no culling or shadows. TrackEnvironmentBuilder enables world-dome depth.</summary>
         Sky,
     }
 

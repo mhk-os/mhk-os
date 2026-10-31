@@ -16,19 +16,19 @@ namespace MHK.Editor.Tracks
             if (PrefabUtility.IsPartOfPrefabInstance(target)) PrefabUtility.RecordPrefabInstancePropertyModifications(target);
         }
 
-        /// <summary>Undoable edit of <paramref name="path"/> that also drops its baked data and its track's route junctions.</summary>
+        /// <summary>Undoable edit of <paramref name="path"/> that also drops its baked data and its track's racing lines.</summary>
         public static void Edit(TrackPath path, string label, Action<TrackPath> change)
         {
             Record(path, label, change);
             Invalidate(path);
         }
 
-        /// <summary>Drops the baked world-space data of <paramref name="path"/> and the junctions of its track.</summary>
+        /// <summary>Drops the baked world-space data of <paramref name="path"/>; its track finds its racing lines again.</summary>
         public static void Invalidate(TrackPath path)
         {
             path.Invalidate();
             var runtime = path.GetComponentInParent<TrackRuntime>(true);
-            if (runtime != null) runtime.InvalidateJoins();
+            if (runtime != null) runtime.InvalidateLines();
         }
     }
 }

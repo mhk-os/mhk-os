@@ -128,7 +128,7 @@ namespace MHK.Powerups
         static PowerupDefinition SpecialFor(Kart k, ContentRegistry content)
         {
             var special = k.Character != null ? k.Character.specialPowerup : null;
-            // Online (solo races roll here) only a special that is lobby content, like RaceLoaded.specials.
+            // Online only a special that is lobby content, like RaceLoaded.specials.
             if (special != null && OnlineRace.Current != null && OnlineLobby.Current != null
                 && !ContentManifests.IsLobbyContent(content, special, OnlineLobby.Current.settings.packs))
                 special = null;

@@ -444,8 +444,10 @@
 .replay-root.touch .replay-seek-mark { top: 17px; }
 
 .hud-results { background-color: var(--mhk-scrim); }
-.hud-results-column { align-items: center; }
-.panel.hud-results-panel { min-width: 900px; padding: 16px 28px 4px 28px; align-items: stretch; }
+.hud-results-column { align-items: center; max-height: 100%; }
+.panel.hud-results-panel { min-width: 900px; padding: 16px 28px 4px 28px; align-items: stretch; flex-shrink: 1; min-height: 0; }
+/* Up to 51 karts: the rows scroll inside the panel, header, champion plate and buttons stay. */
+.hud-results-rows { flex-grow: 0; flex-shrink: 1; min-height: 120px; }
 .hud-results-head, .hud-lapres-head { justify-content: center; padding: 0 6px 6px 6px; border-bottom-width: 1px; border-color: var(--mhk-divider); margin-bottom: 4px; }
 .hud-res-head {
     -unity-font-definition: var(--font-bold);
@@ -527,7 +529,7 @@ TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
     border-width: 2px; border-color: var(--mhk-accent-deep);
     background-color: var(--mhk-accent);
 }
-.hud-res-champion { margin-top: 14px; }
+.hud-res-champion { margin-top: 14px; flex-shrink: 0; }
 .icon.hud-res-trophy { width: 36px; height: 36px; margin-right: 10px; -unity-background-image-tint-color: var(--mhk-gray-900); }
 .hud-res-champion-label {
     -unity-font-definition: var(--font-display);

@@ -229,8 +229,7 @@ namespace MHK.Online
             {
                 var r = await RequestAsync(MessageType.SetCountry, new SetCountryRequest { country = (country ?? "").ToUpperInvariant() }.Write);
                 if (!r.Ok) return new OnlineResult(r.status, r.message);
-                var updated = Account.Read(r.body);
-                if (s.state == OnlineState.LoggedIn && s.account != null && s.account.id == updated.id) s.SetAccount(updated);
+                s.UpdateAccount(Account.Read(r.body));
                 return OnlineResult.Success;
             }
             catch (OnlineException e)
@@ -506,6 +505,14 @@ namespace MHK.Online
             Changed?.Invoke();
         }
 
+        // A newer view of the logged-in account (renamed here or on another connection); another account's is ignored.
+        void UpdateAccount(Account next)
+        {
+            if (state != OnlineState.LoggedIn || account == null || account.id != next.id) return;
+            if (endpoint != null) store.SetUsername(endpoint.Text, next.username);
+            SetAccount(next);
+        }
+
         // The attempt or connection failed: offline with the reason, and a retry after the next backoff step when wanted.
         void Fail(string reason, bool retry)
         {
@@ -545,6 +552,18 @@ namespace MHK.Online
                     catch (WireFormatException)
                     {
                         Debug.LogWarning("[Online] Malformed Disconnect push.");
+                    }
+                    continue;
+                }
+                if (item.type == PushType.AccountUpdated)
+                {
+                    try
+                    {
+                        UpdateAccount(Account.Read(item.body));
+                    }
+                    catch (WireFormatException)
+                    {
+                        Debug.LogWarning("[Online] Malformed AccountUpdated push.");
                     }
                     continue;
                 }

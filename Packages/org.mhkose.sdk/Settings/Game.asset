@@ -22,7 +22,6 @@ MonoBehaviour:
   logo: {fileID: 0}
   menuMusic: {fileID: 0}
   uiClick: {fileID: 0}
-  sharedPowerups: []
   itemBoxLook:
     model: {fileID: 0}
     spinSpeed: 0

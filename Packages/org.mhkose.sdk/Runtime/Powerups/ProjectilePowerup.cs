@@ -21,6 +21,7 @@ namespace MHK.Powerups
         const float HoverSharpness = 20f;
         const float SegmentEpsilon = 1e-8f;
         const float MinCorrectSpeedSqr = 0.01f;
+        const float PathTangentSmoothing = 3f;
 
         [Header("Flight")]
         [Tooltip("Do not add the shooter's speed to the launch speed.")]
@@ -34,7 +35,8 @@ namespace MHK.Powerups
         [Tooltip("Explode on any movable physics prop it touches (dynamic rigidbodies such as crates), whatever the slope " +
                  "of the touched face. Walls and steep terrain always stop it.")]
         [SerializeField] bool explodeOnProps = true;
-        [Tooltip("Steer along the track's racing line while no target is acquired.")]
+        [Tooltip("Steer along the track's racing line while no target is acquired, in the direction it was launched " +
+                 "(against the track's direction when fired backwards or from a kart facing the wrong way).")]
         public bool followTrackPath;
         [Tooltip("With followTrackPath: aim at the racing line this far (m) ahead of the projectile.")]
         [SerializeField] float pathLookAhead = 8f;
@@ -62,6 +64,7 @@ namespace MHK.Powerups
         bool locked;
         int bounces;
         int pathSegment = -1;
+        float pathDirection = 1f;
 
         public bool Flying => true;
         public Vector3 NetPosition => SimulatedPosition;
@@ -86,7 +89,8 @@ namespace MHK.Powerups
             direction.Normalize();
             transform.SetPositionAndRotation(t.position + direction * spawnDistance + Vector3.up * hoverHeight,
                 Quaternion.LookRotation(direction, Vector3.up));
-            if (homing && !Context.backwards) target = Context.targetGiven ? Context.target : PowerupTargeting.First(Owner, targetSelection);
+            if (homing && !Context.backwards) target = Context.targetGiven ? Context.target : PowerupTargeting.First(Owner, targetSelection, includeGhosts: true);
+            if (followTrackPath && TrackRuntime.Current != null) pathDirection = PathDirectionAlong(direction);
             ChosenTarget = target;
             // Original world speeds (not scaled with the karts), plus the owner's speed so its own shot never falls behind.
             if (!ignoreOwnerSpeed) speed = Mathf.Max(speed, OwnerSpeedAlong(direction) + OwnerSpeedMargin);
@@ -146,7 +150,7 @@ namespace MHK.Powerups
         bool TryGetAim(out Vector3 aim)
         {
             aim = default;
-            if (homing && Age >= homingArmDelay && target != null && target.isActiveAndEnabled && !target.Effects.Ghost)
+            if (homing && Age >= homingArmDelay && target != null && target.isActiveAndEnabled)
             {
                 var dist = (target.transform.position - transform.position).magnitude;
                 if (dist < lockDistance) locked = true;
@@ -157,10 +161,18 @@ namespace MHK.Powerups
                 }
             }
             if (!followTrackPath || TrackRuntime.Current == null) return false;
-            var path = TrackRuntime.Current.path;
+            var path = TrackRuntime.Current.MainPath;
             var d = path.Project(transform.position, ref pathSegment, out _);
-            aim = path.GetPoint(d + (Context.backwards ? -pathLookAhead : pathLookAhead));
+            aim = path.GetPoint(d + pathDirection * pathLookAhead);
             return true;
+        }
+
+        // +1 to follow the racing line in the track's direction, -1 against it: the way the shot leaves.
+        float PathDirectionAlong(Vector3 launch)
+        {
+            var path = TrackRuntime.Current.MainPath;
+            var d = path.Project(transform.position, ref pathSegment, out _);
+            return Vector3.Dot(path.GetTangent(d, PathTangentSmoothing), launch) < 0f ? -1f : 1f;
         }
 
         // Along the path travelled this step, so fast shots cannot skip past a kart between steps.
@@ -170,7 +182,9 @@ namespace MHK.Powerups
             for (var i = 0; i < karts.Count; i++)
             {
                 var k = karts[i];
-                if ((k == Owner && Age < ownerImmunity) || k.Effects.Ghost) continue;
+                // Homing rockets contact ghosts/diggers logically even while their colliders pass through things.
+                // HitKart keeps their protection intact; the rocket is still consumed, just as against a shield.
+                if ((k == Owner && Age < ownerImmunity) || (!homing && k.Effects.Ghost)) continue;
                 if (GeometryUtil.DistanceSqToSegment(k.transform.position, from, to, SegmentEpsilon, 1f) >= hitRadius * hitRadius) continue;
                 HitKart(k, hitEffect);
                 Despawn(impactVfx, transform.position, hitSound);

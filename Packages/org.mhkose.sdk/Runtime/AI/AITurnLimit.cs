@@ -65,6 +65,15 @@ namespace MHK.AI
             return Mathf.Min(SteeringSpeed(r), GripSpeed(r, friction));
         }
 
+        /// <summary>Radius (m) the kart turns at full lock at <paramref name="speed"/>, with the speed wash-out (0 until <see cref="Ready"/>).</summary>
+        public float LockRadius(float speed)
+        {
+            if (!Ready) return 0f;
+            var x = Mathf.Clamp(Mathf.Abs(speed) / speedStep, 0f, Samples);
+            var i = Mathf.Min((int)x, Samples - 1);
+            return Mathf.Lerp(steerRadius[i], steerRadius[i + 1], x - i);
+        }
+
         /// <summary>
         /// Share of full lock (signed, + = right, within ±1) that turns the kart on an arc of curvature
         /// <paramref name="curvature"/> (1/m, + = right) at <paramref name="speed"/>: the wheel angle of that arc for the

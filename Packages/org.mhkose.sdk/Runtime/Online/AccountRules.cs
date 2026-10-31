@@ -11,9 +11,11 @@ namespace MHK.Online
         public const int MinUsername = 3, MaxUsername = 20;
         public const int MinPassword = 8, MaxPassword = 128;
 
-        static readonly string[] Reserved = { "admin", "administrator", "moderator", "mod", "system", "server", "root", "mhk", "mhkos", "mhk-os" };
+        static readonly string[] Reserved = { "admin", "administrator", "moderator", "mod", "system", "server", "root", "mhk", "mhkos", "mhk-os", "anonymous" };
+        // Names of the anonymous accounts that keep a deleted account's runs.
+        const string AnonymousPrefix = "anon-";
 
-        /// <summary>Why <paramref name="username"/> cannot be registered, or null when it follows the rules.</summary>
+        /// <summary>Why <paramref name="username"/> cannot be registered or chosen as a new name, or null when it follows the rules.</summary>
         public static string CheckUsername(string username)
         {
             username ??= "";
@@ -26,6 +28,7 @@ namespace MHK.Online
                 return "The username must start and end with a letter or digit.";
             foreach (var r in Reserved)
                 if (string.Equals(r, username, StringComparison.OrdinalIgnoreCase)) return $"\"{username}\" is reserved. Pick another username.";
+            if (username.StartsWith(AnonymousPrefix, StringComparison.OrdinalIgnoreCase)) return $"Usernames starting with \"{AnonymousPrefix}\" are reserved.";
             return null;
         }
 

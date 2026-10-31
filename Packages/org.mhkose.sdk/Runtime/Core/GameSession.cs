@@ -37,6 +37,8 @@ namespace MHK.Core
     public class GameSession
     {
         public const int DefaultOpponents = 5;
+        /// <summary>Races of a custom championship (a championship without <see cref="cupId"/>) at most.</summary>
+        public const int MaxCustomTracks = 35;
 
         public GameMode mode = GameMode.SingleRace;
         public Difficulty difficulty = Difficulty.Medium;
@@ -44,13 +46,14 @@ namespace MHK.Core
         public bool lapsFromTrack = true;
         public List<RacerSetup> racers = new();
         public List<string> trackIds = new();
+        /// <summary>Championship: the cup raced, empty for a custom championship (the player's own <see cref="trackIds"/>, duplicates allowed).</summary>
         public string cupId;
         public int raceIndex;
         /// <summary>Item boxes give powerups (all off in time trials, or when every single race odd is 0 %).</summary>
         public bool powerupsEnabled = true;
         /// <summary>
         /// Single race and battle: the player's own item odds (<see cref="Powerups.ItemOdds"/>), empty = the default
-        /// odds of the track's item family. Championships ignore it and give the cup's family.
+        /// odds. Championships ignore it and give the default odds.
         /// </summary>
         public List<PowerupOdds> powerupOdds = new();
         /// <summary>Time trial: race the personal best of the track and engine class (looked up when the race loads).</summary>

@@ -11,7 +11,7 @@
             <ui:VisualElement name="main" class="page-main wide center anim from-left">
                 <ui:VisualElement name="odds-panel" class="panel list-panel odds-panel">
                     <ui:VisualElement class="odds-head">
-                        <ui:Label name="odds-total" tooltip="Each % is the average over all places. The leader gets more traps and shields, the back more attacks and boosts." text="Total 100 %  |  Moorhuhn Kart items 75 %  |  other games 25 %" class="odds-total" />
+                        <ui:Label name="odds-total" tooltip="Each % is the average over all places. The leader gets more traps and shields, the back more attacks and boosts." text="Total 100 %" class="odds-total" />
                         <ui:Label name="odds-off" text="All at 0 %, the race has no powerups" class="odds-total odds-off" />
                     </ui:VisualElement>
                     <ui:ScrollView name="odds-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
@@ -21,7 +21,7 @@
                             <ui:Instance template="ItemOddsRow" class="sample-alt">
                                 <ui:AttributeOverrides element-name="odds-name" text="Turbo Can" />
                             </ui:Instance>
-                            <ui:Instance template="ItemOddsRow" class="sample-shared">
+                            <ui:Instance template="ItemOddsRow">
                                 <ui:AttributeOverrides element-name="odds-name" text="Shield" />
                             </ui:Instance>
                             <ui:Instance template="ItemOddsRow" class="sample-alt sample-zero">

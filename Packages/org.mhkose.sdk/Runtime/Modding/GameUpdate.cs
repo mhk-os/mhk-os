@@ -15,7 +15,7 @@ namespace MHK.Modding
     /// every <see cref="RecheckSeconds"/> while the game runs, and <see cref="RetrySeconds"/> after a failed check
     /// (offline, API rate limit). Dev builds (number 0) never check.
     /// </summary>
-    public static class GameUpdate
+    public static partial class GameUpdate
     {
         public const string Repo = "mhk-os/mhk-os";
         const string CacheKey = Repo + ".releases";

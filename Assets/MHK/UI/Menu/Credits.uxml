@@ -1,0 +1,46 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Credits. Acknowledgments scroll independently of the fixed Back and Discord buttons. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Credits" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body credits-body">
+            <ui:VisualElement class="page-main wide credits-main panel anim from-left">
+                <ui:ScrollView name="credits-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll credits-scroll">
+                    <ui:VisualElement class="credits-entry">
+                        <ui:Label text="Moorhuhnverse Discord community" class="credits-name" />
+                        <ui:Label text="Thank you for the inspiration and valuable ideas that keep the project going." class="credits-description" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="credits-entry">
+                        <ui:Label text="pyramidensurfer" class="credits-name" />
+                        <ui:Label text="Thank you for reverse-engineering the original MHK game data and asset formats." class="credits-description" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="credits-entry">
+                        <ui:Label text="MoorBOOST" class="credits-name" />
+                        <ui:Label text="Thank you for the Affe, Alien and Tod portraits." class="credits-description" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="credits-entry">
+                        <ui:Label text="SKevo" class="credits-name" />
+                        <ui:Label text="Author and lead developer of MHK: OS." class="credits-description" />
+                    </ui:VisualElement>
+                </ui:ScrollView>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="discord" tooltip="Opens https://discord.gg/buJ64SrHxY in your browser" class="mhk-button small go">
+                    <ui:VisualElement class="icon i-public" />
+                    <ui:Label text="Join Discord" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

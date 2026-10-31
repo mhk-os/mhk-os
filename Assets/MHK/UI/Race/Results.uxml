@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Results (single race). Code fills title (track), info (mode, cup race or engine class), rows (one per racer with the driver's portrait and kart icon), the columns / champion plate / buttons of the mode.
+    <!-- Results (single race). Code fills title (track), info (mode, cup race or engine class), rows (one per racer with the driver's portrait and kart icon; a long table scrolls, the player's row in view), the columns / champion plate / buttons of the mode.
          Time trials (and replays) show the lap table instead of the racer rows: tt-laps (one LapRow per lap and a total row, the delta column against the ghost raced), the New record plate and the note, and the Watch replay / Export buttons.
          Preview classes on results: preview-championship (Points column, +N cells, champion plate, Next race instead of Race again), preview-battle (Status column instead of Best lap), preview-time-trial (lap table, New record!, Watch replay and Export). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
@@ -22,7 +22,8 @@
                     <ui:Label name="head-status" text="Status" class="hud-res-head hud-res-time" />
                     <ui:Label name="head-points" text="Points" class="hud-res-head hud-res-points" />
                 </ui:VisualElement>
-                <ui:VisualElement name="rows">
+                <ui:ScrollView name="rows-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll hud-results-rows">
+                    <ui:VisualElement name="rows">
                     <ui:Instance template="ResultRow" class="sample-gold">
                         <ui:AttributeOverrides element-name="badge-label" text="1" />
                         <ui:AttributeOverrides element-name="name" text="Lesshuhn" />
@@ -76,7 +77,8 @@
                         <ui:AttributeOverrides element-name="gain" text="+1" />
                         <ui:AttributeOverrides element-name="total" text="(2)" />
                     </ui:Instance>
-                </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:ScrollView>
                 <ui:VisualElement name="champion" class="row hud-res-champion anim pop" style="transition-delay: 710ms;">
                     <ui:VisualElement class="icon i-emoji_events hud-res-trophy" />
                     <ui:Label name="champion-label" text="Champion: Hank with 18 points!" class="hud-res-champion-label" />

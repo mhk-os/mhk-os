@@ -13,13 +13,17 @@ namespace MHK.UI
     /// ListBoards request for every track, kept for <see cref="MaxAgeSeconds"/> so visiting the hub does not ask again.
     /// A track with several boards of this version shows the one of this device's track data, else the most played.
     /// </summary>
-    public static class WorldRecords
+    public static partial class WorldRecords
     {
         const float MaxAgeSeconds = 60f;
 
         [AutoStaticsCleanup] static Dictionary<(string, int), BoardInfo> boards;
         [AutoStaticsCleanup] static float fetchedAt = -1f;
-        [AutoStaticsCleanup] static Task<bool> pending;
+        // Not generated: the cleanup would Dispose() the task, which throws while it still runs. ForgetRequests drops it.
+        [NoAutoStaticsCleanup] static Task<bool> pending;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ForgetRequests() => pending = null;
 
         /// <summary>Whether the last request got an answer (false before any and when the server could not be reached).</summary>
         public static bool Online { get; private set; }

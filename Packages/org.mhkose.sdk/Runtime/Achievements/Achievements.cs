@@ -16,7 +16,7 @@ namespace MHK.Achievements
     /// (<see cref="Synced"/>), progress is the account's; otherwise this device's. Unlocks are never taken back: one
     /// unlocked here or by an account logged in here stays unlocked on this device. Main thread only.
     /// </summary>
-    public static class Achievements
+    public static partial class Achievements
     {
         public const string File = "achievements.json";
         // Quiet time after a change before the file is written and the account synced (never during a race).

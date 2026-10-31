@@ -17,7 +17,8 @@ namespace MHK.Race
 
     /// <summary>
     /// Racing line of a track as a polyline in this transform's space. The closed main line starts at the finish line
-    /// (node 0), so every distance on it is the distance driven since the line. Open instances are alternative routes.
+    /// (node 0), so every distance on it is the distance driven since the line. Open paths below the same
+    /// <see cref="TrackRuntime"/> are its alternative routes.
     /// </summary>
     public class TrackPath : MonoBehaviour
     {
@@ -31,7 +32,8 @@ namespace MHK.Race
             public TrackNodeFlags flags;
         }
 
-        [Tooltip("Closed loop (main racing line). Open = branch / shortcut that does not wrap.")]
+        [Tooltip("Closed loop: the track's main racing line (one per track). Open: an alternative route (shortcut / " +
+                 "branch) from its first node, where it forks off the main line, to its last, where it rejoins.")]
         public bool closed = true;
         [Tooltip("Draw this path on the race minimap (alternative routes are only shown for games whose maps did).")]
         public bool showOnMinimap = true;
@@ -100,7 +102,23 @@ namespace MHK.Race
         /// <summary>Drops the baked world-space data (call after editing nodes through serialization or undo).</summary>
         public void Invalidate() => baked = false;
 
-        void OnValidate() => baked = false;
+        void OnValidate()
+        {
+            baked = false;
+#if UNITY_EDITOR
+            TrackRuntime.MarkLinesEdited();
+#endif
+        }
+
+#if UNITY_EDITOR
+        // A new racing line closes when its track has no main line yet, else it is a route.
+        void Reset()
+        {
+            var runtime = GetComponentInParent<TrackRuntime>(true);
+            var main = runtime != null ? runtime.MainPath : null;
+            closed = main == null || main == this;
+        }
+#endif
 
         void Bake()
         {

@@ -13,7 +13,6 @@ namespace MHK.Powerups
         [AutoStaticsCleanup] static readonly List<ItemPoolEntry> pool = new();
         [AutoStaticsCleanup] static readonly List<PowerupDefinition> poolPowerups = new();
         [AutoStaticsCleanup] static GameSession poolSession;
-        [AutoStaticsCleanup] static TrackDefinition poolTrack;
         [AutoStaticsCleanup] static int poolVersion;
 
         /// <summary>
@@ -88,17 +87,15 @@ namespace MHK.Powerups
             return last;
         }
 
-        // Rebuilt when the session, the track or the loaded content changes.
+        // Rebuilt when the session or the loaded content changes.
         static void Prepare()
         {
             var root = GameRoot.Instance;
             var session = RaceSession;
-            var track = Race.RaceManager.Current != null ? Race.RaceManager.Current.Track : null;
-            if (session == poolSession && track == poolTrack && root.Content.Version == poolVersion && poolVersion != 0) return;
+            if (session == poolSession && root.Content.Version == poolVersion && poolVersion != 0) return;
             poolSession = session;
-            poolTrack = track;
             poolVersion = root.Content.Version;
-            ItemOdds.BuildPool(root.Content, session, track, pool);
+            ItemOdds.BuildPool(root.Content, session, pool);
             poolPowerups.Clear();
             for (var i = 0; i < pool.Count; i++) poolPowerups.Add(pool[i].powerup);
         }

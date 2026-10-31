@@ -17,7 +17,7 @@ namespace MHK.Achievements
     /// their places, wins, times, tracks and championships. Added by <see cref="RaceManager"/> to every race but menu
     /// background races and replays.
     /// </summary>
-    sealed class RaceAchievements : MonoBehaviour
+    sealed partial class RaceAchievements : MonoBehaviour
     {
         // A kart that moved further in one physics step was put back on the track (respawn), it did not drive there.
         const float MaxStepMetres = 4f;

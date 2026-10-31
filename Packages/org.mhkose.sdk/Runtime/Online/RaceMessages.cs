@@ -13,7 +13,8 @@ namespace MHK.Online
         // Pushes (server to client).
         public const ushort RaceSetup = 512, RaceGo = 513, ItemGranted = 514, ItemBoxTaken = 515, ItemDenied = 516,
             ItemUsed = 517, ItemUseRejected = 518, ProjectileCorrect = 519, HitApplied = 520, HitForce = 521,
-            PlayerFinished = 522, RaceResults = 523, PlayerLeftRace = 524, Eliminated = 525, BridgeTriggered = 526;
+            PlayerFinished = 522, RaceResults = 523, PlayerLeftRace = 524, Eliminated = 525, BridgeTriggered = 526,
+            AiHost = 527;
 
         // Notifies (client to server, frame kind 3).
         public const ushort RaceLoaded = 528, ItemPickup = 529, ItemUse = 530, HitTaken = 531, HitSeen = 532,
@@ -21,9 +22,9 @@ namespace MHK.Online
             ProjectileGone = 538;
 
         // UDP datagram types.
-        public const byte UdpPing = 1, UdpPong = 2, UdpState = 3, UdpWorld = 4;
+        public const byte UdpPing = 1, UdpPong = 2, UdpState = 3, UdpWorld = 4, UdpAiProgress = 5;
 
-        public const int MaxRacers = 10, MaxItemBoxes = 512, MaxPool = 128, MaxEffects = 1024, MaxLaps = 99,
+        public const int MaxRacers = 50, MaxItemBoxes = 512, MaxPool = 128, MaxEffects = 1024, MaxLaps = 99,
             MaxContentId = 96, MaxUsername = 20, MaxCountry = 2, MaxHash = 32, MaxMessage = 256, MaxOdds = 64,
             UdpKeySize = 32, PoolWeights = 11;
 
@@ -147,6 +148,8 @@ namespace MHK.Online
         public string kartId = "";
         /// <summary>The racer's device: 0 unknown, 1 Windows, 2 macOS, 3 Linux, 4 Android, 5 iOS.</summary>
         public int platform;
+        /// <summary>An AI kart (accountId 0, no username): every client simulates it, the AI host reports for it.</summary>
+        public bool ai;
 
         public void Write(WireWriter w)
         {
@@ -157,12 +160,13 @@ namespace MHK.Online
             w.String(characterId, RaceProtocol.MaxContentId);
             w.String(kartId, RaceProtocol.MaxContentId);
             RaceWire.U8(w, platform);
+            w.Bool(ai);
         }
 
         public static RaceSlot Read(WireReader r) => new()
         {
             slot = r.U8(), accountId = r.I64(), username = r.String(RaceProtocol.MaxUsername), country = r.String(RaceProtocol.MaxCountry),
-            characterId = r.String(RaceProtocol.MaxContentId), kartId = r.String(RaceProtocol.MaxContentId), platform = r.U8(),
+            characterId = r.String(RaceProtocol.MaxContentId), kartId = r.String(RaceProtocol.MaxContentId), platform = r.U8(), ai = r.Bool(),
         };
     }
 
@@ -180,16 +184,16 @@ namespace MHK.Online
         public bool items;
         public List<RaceOdds> itemOdds = new();
         public bool anticheat;
-        /// <summary>Exactly one human: race against <see cref="aiCount"/> local AI, nothing is arbitrated.</summary>
-        public bool solo;
-        public int aiCount;
+        /// <summary>Grid slot of the human that reports for the AI karts (<see cref="AiHost"/> push), NoSlot without AI.</summary>
+        public int aiHost = RaceProtocol.NoSlot;
         public ulong seed;
-        /// <summary>Start order: grid position = list index.</summary>
+        /// <summary>Start order: grid position = list index (AI karts first).</summary>
         public List<RaceSlot> grid = new();
         public int yourSlot;
         public int udpPort;
         public ulong udpToken;
         public byte[] udpKey = Array.Empty<byte>();
+        /// <summary>Race number in the set, 0 = outside the set (a solo race).</summary>
         public int setRace;
         public int setSize;
 
@@ -216,8 +220,7 @@ namespace MHK.Online
             w.Bool(items);
             RaceWire.Odds(w, itemOdds);
             w.Bool(anticheat);
-            w.Bool(solo);
-            RaceWire.U8(w, aiCount);
+            RaceWire.Slot(w, aiHost);
             w.U64(seed);
             w.ListCount(grid.Count, RaceProtocol.MaxRacers);
             foreach (var s in grid) s.Write(w);
@@ -234,10 +237,10 @@ namespace MHK.Online
             var m = new RaceSetup
             {
                 raceId = r.I64(), lobbyId = r.I64(), trackId = r.String(RaceProtocol.MaxContentId), mode = r.U8(), engineClass = r.U8(),
-                laps = r.U8(), items = r.Bool(), itemOdds = RaceWire.Odds(r), anticheat = r.Bool(), solo = r.Bool(), aiCount = r.U8(),
+                laps = r.U8(), items = r.Bool(), itemOdds = RaceWire.Odds(r), anticheat = r.Bool(), aiHost = RaceWire.Slot(r),
                 seed = r.U64(),
             };
-            var count = r.ListCount(RaceProtocol.MaxRacers, 14);
+            var count = r.ListCount(RaceProtocol.MaxRacers, 15);
             for (var i = 0; i < count; i++) m.grid.Add(RaceSlot.Read(r));
             m.yourSlot = r.U8();
             m.udpPort = r.U16();
@@ -268,7 +271,7 @@ namespace MHK.Online
         public static RaceGo Read(WireReader r) => new() { raceId = r.I64(), goMs = r.Time().ToUnixTimeMilliseconds() };
     }
 
-    /// <summary>Push 514 (only to the picker): the box gave this powerup.</summary>
+    /// <summary>Push 514: the box gave this powerup to <see cref="slot"/> (the picker's own kart, or an AI kart: then to everyone).</summary>
     public sealed class ItemGranted : IRacePush
     {
         public long raceId;
@@ -276,6 +279,7 @@ namespace MHK.Online
         public string powerupId = "";
         public int charges;
         public int tick;
+        public int slot;
 
         public ushort Type => RaceProtocol.ItemGranted;
         public long RaceId => raceId;
@@ -287,11 +291,13 @@ namespace MHK.Online
             w.String(powerupId, RaceProtocol.MaxContentId);
             RaceWire.U8(w, charges);
             RaceWire.U32(w, tick);
+            RaceWire.Slot(w, slot);
         }
 
         public static ItemGranted Read(WireReader r) => new()
         {
             raceId = r.I64(), boxId = r.U16(), powerupId = r.String(RaceProtocol.MaxContentId), charges = r.U8(), tick = RaceWire.U32(r),
+            slot = RaceWire.Slot(r),
         };
     }
 
@@ -317,7 +323,7 @@ namespace MHK.Online
         public static ItemBoxTaken Read(WireReader r) => new() { raceId = r.I64(), slot = RaceWire.Slot(r), boxId = r.U16(), tick = RaceWire.U32(r) };
     }
 
-    /// <summary>Push 516: an <see cref="ItemPickup"/> was refused.</summary>
+    /// <summary>Push 516: an <see cref="ItemPickup"/> of <see cref="slot"/> (own kart, or an AI kart the receiver hosts) was refused.</summary>
     public sealed class ItemDenied : IRacePush
     {
         public const int NotAvailable = 1, TooFar = 2, CannotReceive = 3;
@@ -325,6 +331,7 @@ namespace MHK.Online
         public long raceId;
         public int boxId;
         public int reason;
+        public int slot;
 
         public ushort Type => RaceProtocol.ItemDenied;
         public long RaceId => raceId;
@@ -334,9 +341,10 @@ namespace MHK.Online
             w.I64(raceId);
             w.U16((ushort)boxId);
             RaceWire.U8(w, reason);
+            RaceWire.Slot(w, slot);
         }
 
-        public static ItemDenied Read(WireReader r) => new() { raceId = r.I64(), boxId = r.U16(), reason = r.U8() };
+        public static ItemDenied Read(WireReader r) => new() { raceId = r.I64(), boxId = r.U16(), reason = r.U8(), slot = RaceWire.Slot(r) };
     }
 
     /// <summary>Push 517 (to everyone else): a racer used an item.</summary>
@@ -567,6 +575,24 @@ namespace MHK.Online
         public static BridgeTriggered Read(WireReader r) => new() { raceId = r.I64(), bridgeId = r.U16(), tick = RaceWire.U32(r) };
     }
 
+    /// <summary>Push 527: the human that reports for the AI karts changed (the previous host left the race).</summary>
+    public sealed class AiHost : IRacePush
+    {
+        public long raceId;
+        public int slot;
+
+        public ushort Type => RaceProtocol.AiHost;
+        public long RaceId => raceId;
+
+        public void Write(WireWriter w)
+        {
+            w.I64(raceId);
+            RaceWire.Slot(w, slot);
+        }
+
+        public static AiHost Read(WireReader r) => new() { raceId = r.I64(), slot = RaceWire.Slot(r) };
+    }
+
     /// <summary>One item box of the loaded track; its box id is its index in <see cref="RaceLoaded.boxes"/>.</summary>
     public sealed class ItemBoxInfo
     {
@@ -678,13 +704,14 @@ namespace MHK.Online
         }
     }
 
-    /// <summary>Notify 529: the local kart touched an arbitrated item box.</summary>
+    /// <summary>Notify 529: a kart touched an arbitrated item box (<see cref="slot"/>: NoSlot = own kart, else an AI kart the sender hosts).</summary>
     public sealed class ItemPickup : IRaceNotify
     {
         public long raceId;
         public int boxId;
         public int tick;
         public Vector3 pos;
+        public int slot = RaceProtocol.NoSlot;
 
         public ushort Type => RaceProtocol.ItemPickup;
 
@@ -694,12 +721,19 @@ namespace MHK.Online
             w.U16((ushort)boxId);
             RaceWire.U32(w, tick);
             RaceWire.Vec3(w, pos);
+            RaceWire.Slot(w, slot);
         }
 
-        public static ItemPickup Read(WireReader r) => new() { raceId = r.I64(), boxId = r.U16(), tick = RaceWire.U32(r), pos = RaceWire.Vec3(r) };
+        public static ItemPickup Read(WireReader r) => new()
+        {
+            raceId = r.I64(), boxId = r.U16(), tick = RaceWire.U32(r), pos = RaceWire.Vec3(r), slot = RaceWire.Slot(r),
+        };
     }
 
-    /// <summary>Notify 530: the local racer used its item (<see cref="useId"/> = (slot + 1) &lt;&lt; 24 | n).</summary>
+    /// <summary>
+    /// Notify 530: a kart used its item (<see cref="useId"/> = (kart slot + 1) &lt;&lt; 24 | n; <see cref="slot"/>: NoSlot
+    /// = own kart, else an AI kart the sender hosts).
+    /// </summary>
     public sealed class ItemUse : IRaceNotify
     {
         public long raceId;
@@ -709,6 +743,7 @@ namespace MHK.Online
         public Quaternion rot = Quaternion.identity;
         public bool backwards;
         public int targetSlot = RaceProtocol.NoSlot;
+        public int slot = RaceProtocol.NoSlot;
 
         public ushort Type => RaceProtocol.ItemUse;
 
@@ -723,16 +758,17 @@ namespace MHK.Online
             RaceWire.Quat(w, rot);
             w.Bool(backwards);
             RaceWire.Slot(w, targetSlot);
+            RaceWire.Slot(w, slot);
         }
 
         public static ItemUse Read(WireReader r) => new()
         {
             raceId = r.I64(), useId = RaceWire.U32(r), tick = RaceWire.U32(r), pos = RaceWire.Vec3(r), rot = RaceWire.Quat(r),
-            backwards = r.Bool(), targetSlot = RaceWire.Slot(r),
+            backwards = r.Bool(), targetSlot = RaceWire.Slot(r), slot = RaceWire.Slot(r),
         };
     }
 
-    /// <summary>Notify 531: the local kart took a hit (useId 0 = track hazard or zone).</summary>
+    /// <summary>Notify 531: a kart took a hit (useId 0 = track hazard or zone; <see cref="slot"/>: NoSlot = own kart, else a hosted AI kart).</summary>
     public sealed class HitTaken : IRaceNotify
     {
         public long raceId;
@@ -740,6 +776,7 @@ namespace MHK.Online
         public int useId;
         public string effectId = "";
         public int tick;
+        public int slot = RaceProtocol.NoSlot;
 
         public ushort Type => RaceProtocol.HitTaken;
 
@@ -750,11 +787,13 @@ namespace MHK.Online
             RaceWire.U32(w, useId);
             w.String(effectId, RaceProtocol.MaxContentId);
             RaceWire.U32(w, tick);
+            RaceWire.Slot(w, slot);
         }
 
         public static HitTaken Read(WireReader r) => new()
         {
             raceId = r.I64(), attackerSlot = RaceWire.Slot(r), useId = RaceWire.U32(r), effectId = r.String(RaceProtocol.MaxContentId), tick = RaceWire.U32(r),
+            slot = RaceWire.Slot(r),
         };
     }
 
@@ -787,15 +826,14 @@ namespace MHK.Online
         };
     }
 
-    /// <summary>Notify 533: the local racer crossed the finish.</summary>
+    /// <summary>Notify 533: a kart crossed the finish (<see cref="slot"/>: NoSlot = own kart, else a hosted AI kart).</summary>
     public sealed class Finished : IRaceNotify
     {
         public long raceId;
         public int finishMs;
         public List<int> lapMs = new();
         public int tick;
-        /// <summary>Solo races: the place among all karts incl. AI; 0 otherwise.</summary>
-        public int position;
+        public int slot = RaceProtocol.NoSlot;
 
         public ushort Type => RaceProtocol.Finished;
 
@@ -805,10 +843,10 @@ namespace MHK.Online
             w.I32(finishMs);
             RaceWire.LapMs(w, lapMs);
             RaceWire.U32(w, tick);
-            RaceWire.U8(w, position);
+            RaceWire.Slot(w, slot);
         }
 
-        public static Finished Read(WireReader r) => new() { raceId = r.I64(), finishMs = r.I32(), lapMs = RaceWire.LapMs(r), tick = RaceWire.U32(r), position = r.U8() };
+        public static Finished Read(WireReader r) => new() { raceId = r.I64(), finishMs = r.I32(), lapMs = RaceWire.LapMs(r), tick = RaceWire.U32(r), slot = RaceWire.Slot(r) };
     }
 
     /// <summary>Notify 534: this client's plausibility checks flagged another racer.</summary>
@@ -858,12 +896,13 @@ namespace MHK.Online
         public static UnknownContent Read(WireReader r) => new() { raceId = r.I64(), slot = RaceWire.Slot(r), kind = r.U8(), id = r.String(RaceProtocol.MaxContentId) };
     }
 
-    /// <summary>Notify 536 (battle): the local racer is out.</summary>
+    /// <summary>Notify 536 (battle): a kart is out (<see cref="slot"/>: NoSlot = own kart, else a hosted AI kart).</summary>
     public sealed class EliminatedSelf : IRaceNotify
     {
         public long raceId;
         public int attackerSlot = RaceProtocol.NoSlot;
         public int tick;
+        public int slot = RaceProtocol.NoSlot;
 
         public ushort Type => RaceProtocol.EliminatedSelf;
 
@@ -872,9 +911,10 @@ namespace MHK.Online
             w.I64(raceId);
             RaceWire.Slot(w, attackerSlot);
             RaceWire.U32(w, tick);
+            RaceWire.Slot(w, slot);
         }
 
-        public static EliminatedSelf Read(WireReader r) => new() { raceId = r.I64(), attackerSlot = RaceWire.Slot(r), tick = RaceWire.U32(r) };
+        public static EliminatedSelf Read(WireReader r) => new() { raceId = r.I64(), attackerSlot = RaceWire.Slot(r), tick = RaceWire.U32(r), slot = RaceWire.Slot(r) };
     }
 
     /// <summary>Notify 537: the local kart triggered a collapsing bridge.</summary>
@@ -1052,5 +1092,28 @@ namespace MHK.Online
         }
 
         public static ProjectileReport Read(WireReader r) => new() { useId = RaceWire.U32(r), tick = RaceWire.U32(r), pos = RaceWire.Vec3(r), vel = RaceWire.Vec3(r) };
+    }
+
+    /// <summary>One AI kart's progress in an AiProgress datagram (AI host to server, 10 Hz): item rolls and DNF ranking.</summary>
+    public struct AiProgress
+    {
+        public const int Size = 1 + 1 + 4 + 1;
+
+        public int slot;
+        public int lap;
+        /// <summary>Metres along the race (ranking).</summary>
+        public float raceDistance;
+        /// <summary>Battle health 0-255.</summary>
+        public int health;
+
+        public void Write(WireWriter w)
+        {
+            RaceWire.U8(w, slot);
+            RaceWire.U8(w, lap);
+            w.F32(float.IsNaN(raceDistance) || float.IsInfinity(raceDistance) ? 0f : raceDistance);
+            RaceWire.U8(w, health);
+        }
+
+        public static AiProgress Read(WireReader r) => new() { slot = r.U8(), lap = r.U8(), raceDistance = r.F32(), health = r.U8() };
     }
 }

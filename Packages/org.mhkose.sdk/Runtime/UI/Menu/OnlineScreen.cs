@@ -12,8 +12,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Online play (Online.uxml). While logged out: Log in (the Account page). Logged in: one table of every public lobby
-    /// (mode, number, mod set, anticheat, engine class, players, phase; races first, then mod set, anticheat on first,
-    /// then number), a row joins its lobby. The side panel joins a private room by code and creates one. Content warnings (packs that differ from other
+    /// (mode, number, mod set, anticheat, AI, engine class, players, phase; races first, then mod set, anticheat on first,
+    /// without AI first, then number), a row joins its lobby. The side panel joins a private room by code and creates one. Content warnings (packs that differ from other
     /// players'), refusals and why the player last left a lobby show in the status line. A room link
     /// (<see cref="JoinLinks"/>) opens this page, which joins the room once logged in. The footer opens the Account and
     /// Players pages.
@@ -222,7 +222,7 @@ namespace MHK.UI
 
         bool Joinable(LobbySummary l) => l != null && l.players < l.maxPlayers && OnlineLobby.ContentProblem(l.packs) == null;
 
-        // One row per public lobby: races first, then mod set (category order), anticheat on first, then number.
+        // One row per public lobby: races first, then mod set (category order), anticheat on first, without AI first, then number.
         void FillRows(bool keepFocus)
         {
             var list = Q<VisualElement>("lobby-list");
@@ -237,6 +237,7 @@ namespace MHK.UI
                 var c = (a.mode == RoomMode.BattleSet).CompareTo(b.mode == RoomMode.BattleSet);
                 if (c == 0) c = SetOrder(a).CompareTo(SetOrder(b));
                 if (c == 0) c = b.anticheat.CompareTo(a.anticheat);
+                if (c == 0) c = (a.maxAi > 0).CompareTo(b.maxAi > 0);
                 return c != 0 ? c : a.instance.CompareTo(b.instance);
             });
             var i = 0;
@@ -286,6 +287,9 @@ namespace MHK.UI
             ac.EnableInClassList("off", !l.anticheat);
             ac.tooltip = l.anticheat ? "Anticheat: players' games check each other's karts, cheaters are removed from the race."
                 : "No anticheat: nobody checks the karts.";
+            var ai = row.Q("row-ai");
+            ai.EnableInClassList("off", l.maxAi == 0);
+            ai.tooltip = l.maxAi > 0 ? "Computer drivers race in every free place." : "Humans only: no computer drivers.";
             row.SetText("row-engine", OnlineUi.EngineClassName(l.engineClass));
             row.SetText("row-players", l.players.ToString(CultureInfo.InvariantCulture) + "/" + l.maxPlayers.ToString(CultureInfo.InvariantCulture));
             row.Q("row-fill").style.width = Length.Percent(l.maxPlayers > 0 ? 100f * Mathf.Clamp01((float)l.players / l.maxPlayers) : 0f);

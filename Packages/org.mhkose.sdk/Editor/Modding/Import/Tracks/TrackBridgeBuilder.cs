@@ -72,7 +72,7 @@ namespace MHK.Editor.Modding.Import
         {
             TrackPath best = null;
             var bestSum = float.MaxValue;
-            foreach (var route in runtime.alternatePaths)
+            foreach (var route in runtime.Routes)
             {
                 if (route == null || route.Count < 2) continue;
                 var sum = 0f;

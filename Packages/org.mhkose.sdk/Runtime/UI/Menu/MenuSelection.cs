@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MHK.Core;
 using MHK.Modding;
 using MHK.Powerups;
+using MHK.Race;
 
 namespace MHK.UI
 {
@@ -32,10 +34,13 @@ namespace MHK.UI
         /// <summary>Source-game filter of the card browsers (null = all).</summary>
         public string gameFilter;
         public Difficulty difficulty = Difficulty.Medium;
-        public int opponents = 5;
+        /// <summary>Computer opponents of a single race or battle.</summary>
+        public int opponents = GameSession.DefaultOpponents;
+        /// <summary>Computer opponents of a championship, below 0 = <see cref="DefaultChampionshipOpponents"/>.</summary>
+        public int championshipOpponents = -1;
         public int laps = 3;
         public bool useTrackLaps = true;
-        /// <summary>Single race or battle: the picked track (its item family sets the default item odds).</summary>
+        /// <summary>Single race or battle: the picked track.</summary>
         public TrackDefinition track;
         /// <summary>
         /// <see cref="track"/> was chosen before the driver (a time trial from the track's records page): the kart page goes
@@ -60,6 +65,16 @@ namespace MHK.UI
             _ => "Single Race",
         };
 
+        /// <summary>Computer opponents a local race has at most (<see cref="GameConfig.maxRacers"/> minus the player).</summary>
+        public static int MaxOpponents => Math.Max(0, GameRoot.Instance.Config.maxRacers - 1);
+
+        /// <summary>Championship opponents until the player sets a number: every loaded driver but the player's, at most <see cref="MaxOpponents"/>.</summary>
+        public int DefaultChampionshipOpponents =>
+            Math.Min(MaxOpponents, GameRoot.Instance.Content.All<CharacterDefinition>().Count(c => c != character));
+
+        /// <summary>The championship's opponents: the player's number, else <see cref="DefaultChampionshipOpponents"/>.</summary>
+        public int ChampionshipOpponents => championshipOpponents >= 0 ? Math.Min(championshipOpponents, MaxOpponents) : DefaultChampionshipOpponents;
+
         /// <summary>
         /// <paramref name="c"/>'s default kart while a loaded pack registers it, else null (the base pack with the
         /// usual default karts may be disabled while a mod's drivers still point at them).
@@ -72,7 +87,7 @@ namespace MHK.UI
 
         /// <summary>
         /// Session for <paramref name="tracks"/>: the player plus <paramref name="opponentCount"/> computer drivers. Single
-        /// races and battles get the player's item odds for the first track (<see cref="ItemOdds.PlayerOdds"/>).
+        /// races and battles get the player's item odds (<see cref="ItemOdds.PlayerOdds"/>).
         /// </summary>
         public GameSession BuildSession(IEnumerable<TrackDefinition> tracks, int opponentCount)
         {
@@ -101,14 +116,13 @@ namespace MHK.UI
             return session;
         }
 
-        // Only the player's own odds go into the session: without them the race uses the defaults of the track's family.
+        // Only the player's own odds go into the session: without them the race uses the default odds.
         static void ApplyItemOdds(GameSession session)
         {
             var root = GameRoot.Instance;
-            var first = root.Content.Get<TrackDefinition>(session.CurrentTrackId);
-            var own = ItemOdds.PlayerOdds(root.Content, root.Settings, first, session.powerupOdds);
+            var own = ItemOdds.PlayerOdds(root.Content, root.Settings, session.powerupOdds);
             session.powerupsEnabled = ItemOdds.Total(session.powerupOdds) > 0f;
-            if (own == null) session.powerupOdds.Clear();
+            if (!own) session.powerupOdds.Clear();
         }
 
         RacerSetup PlayerSetup() => new()
@@ -120,18 +134,27 @@ namespace MHK.UI
             displayName = character.DisplayName,
         };
 
-        // Random drivers of every loaded pack: core games and mods mix on every track.
+        // Random drivers of every loaded pack, each once per round of a new random order (the player's driver only when
+        // there is no other), on random karts of every pack: core games and mods mix on every track.
         void AddOpponents(GameSession session, int count)
         {
-            var pool = GameRoot.Instance.Content.All<CharacterDefinition>().Where(c => c != character)
-                .OrderBy(_ => UnityEngine.Random.value).ToList();
-            for (var i = 0; i < count && pool.Count > 0; i++)
+            var content = GameRoot.Instance.Content;
+            var drivers = content.All<CharacterDefinition>().Where(c => c != character).ToList();
+            if (drivers.Count == 0) drivers.AddRange(content.All<CharacterDefinition>());
+            var karts = AiRoster.Karts(content);
+            var round = new List<CharacterDefinition>(drivers.Count);
+            for (var i = 0; i < count && drivers.Count > 0; i++)
             {
-                var c = pool[i % pool.Count];
+                if (i % drivers.Count == 0)
+                {
+                    round.Clear();
+                    round.AddRange(drivers.OrderBy(_ => UnityEngine.Random.value));
+                }
+                var c = round[i % drivers.Count];
                 session.racers.Add(new RacerSetup
                 {
                     characterId = c.Id,
-                    kartId = KartId(LoadedDefaultKart(c)),
+                    kartId = KartId(AiRoster.RandomKart(karts)),
                     isHuman = false,
                     displayName = c.DisplayName,
                 });

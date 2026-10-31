@@ -98,7 +98,7 @@ namespace MHK.Validation
             segment = branch = safeBranch = -1;
             relocate = false;
             Locate(true);
-            var len = track.path.Length;
+            var len = track.MainPath.Length;
             lineSide = SideOfLine(PathDistance);
             lapDistance = DistanceInLap(PathDistance, lineSide);
             InitLapState(len);
@@ -110,7 +110,7 @@ namespace MHK.Validation
 
         void InitLapState(float len)
         {
-            var path = track.path;
+            var path = track.MainPath;
             if (lapDistance > len * 0.5f)
             {
                 crossings = 0;
@@ -150,11 +150,11 @@ namespace MHK.Validation
             return e;
         }
 
-        TrackPath CurrentBranch => branch >= 0 ? track.alternatePaths[branch] : null;
+        TrackPath CurrentBranch => branch >= 0 ? track.Routes[branch] : null;
 
         void UpdateWrongWay(TrackPath line)
         {
-            var tangent = line != null ? line.GetTangent(branchDistance, TangentSmoothing) : track.path.GetTangent(PathDistance, TangentSmoothing);
+            var tangent = line != null ? line.GetTangent(branchDistance, TangentSmoothing) : track.MainPath.GetTangent(PathDistance, TangentSmoothing);
             if (Vector3.Dot(forward, tangent) < WrongWayCos) wrongWayTimer += dt;
             else wrongWayTimer = 0f;
             wrongWay = wrongWayTimer > wrongWaySeconds;
@@ -162,7 +162,7 @@ namespace MHK.Validation
 
         void UpdateSafePoint(TrackPath line, bool grounded)
         {
-            var width = line != null ? line.GetWidth(branchDistance) : track.path.GetWidth(PathDistance);
+            var width = line != null ? line.GetWidth(branchDistance) : track.MainPath.GetWidth(PathDistance);
             if (!grounded || !(LateralOffset < width * SafeLateralWidths) || wrongWay) return;
             LastSafeDistance = PathDistance;
             safeBranch = branch;
@@ -171,8 +171,8 @@ namespace MHK.Validation
 
         void Locate(bool reset)
         {
-            var path = track.path;
-            var alts = track.alternatePaths;
+            var path = track.MainPath;
+            var alts = track.Routes;
             if (branch >= 0 && branch < alts.Count) segment = path.SegmentAt(track.MapToMain(branch, branchDistance));
             else branch = -1;
             var allowance = BaseAllowance + AllowanceSpeedFactor * speed * dt;
@@ -213,7 +213,7 @@ namespace MHK.Validation
 
         bool TryEnterBranch(TrackPath path, bool reset, float dMain, float latMain, float scoreMain)
         {
-            var alts = track.alternatePaths;
+            var alts = track.Routes;
             var best = -1;
             var bestScore = scoreMain - RouteHysteresis;
             float bestD = 0f, bestLat = 0f;
@@ -258,26 +258,26 @@ namespace MHK.Validation
 
         float SignedLapOffset(float lap)
         {
-            var len = track.path.Length;
+            var len = track.MainPath.Length;
             return lap > len * 0.5f ? lap - len : lap;
         }
 
         float SideOfLine(float lap)
         {
             var s = SignedLapOffset(lap);
-            return Mathf.Abs(s) < LineZone ? track.path.SignedDistanceToFinish(pos) : s;
+            return Mathf.Abs(s) < LineZone ? track.MainPath.SignedDistanceToFinish(pos) : s;
         }
 
         float DistanceInLap(float lap, float side)
         {
-            var len = track.path.Length;
+            var len = track.MainPath.Length;
             if (Mathf.Abs(SignedLapOffset(lap)) >= LineZone) return lap;
             return side >= 0f ? side : len + side;
         }
 
         LapEvent UpdateLap(float prevLap, float prevSide, float raceClock)
         {
-            var len = track.path.Length;
+            var len = track.MainPath.Length;
             lineSide = SideOfLine(PathDistance);
             lapDistance = DistanceInLap(PathDistance, lineSide);
             if (Finished) return default;
@@ -295,7 +295,7 @@ namespace MHK.Validation
         void UpdateKeys(float prevLap, float lap, float len)
         {
             if (Mathf.Abs(lap - prevLap) > len * 0.5f) return;
-            var path = track.path;
+            var path = track.MainPath;
             var n = path.CheckpointCount;
             while (stage < n && prevLap < path.GetCheckpointDistance(stage) && lap >= path.GetCheckpointDistance(stage)) stage++;
             while (stage > 0 && lap < path.GetCheckpointDistance(stage - 1) - KeyHysteresis) stage--;
@@ -304,7 +304,7 @@ namespace MHK.Validation
         LapEvent CrossForward(float crossTime)
         {
             lastCrossForward = true;
-            if (stage < track.path.CheckpointCount)
+            if (stage < track.MainPath.CheckpointCount)
             {
                 undoStage = stage;
                 stage = 0;
@@ -327,7 +327,7 @@ namespace MHK.Validation
                 if (undoStage < 0)
                 {
                     crossings--;
-                    stage = track.path.CheckpointCount;
+                    stage = track.MainPath.CheckpointCount;
                 }
                 else stage = undoStage;
             }
@@ -341,7 +341,7 @@ namespace MHK.Validation
             branch = safeBranch;
             branchDistance = safeBranchDistance;
             branchSegment = -1;
-            segment = track.path.SegmentAt(LastSafeDistance);
+            segment = track.MainPath.SegmentAt(LastSafeDistance);
         }
     }
 }
