@@ -477,6 +477,7 @@ TemplateContainer.sample-gold .badge-label, TemplateContainer.sample-silver .bad
 .i-folder_open { background-image: url("Icons/folder_open.png"); }
 .i-flag { background-image: url("Icons/flag.png"); }
 .i-home { background-image: url("Icons/home.png"); }
+.i-info { background-image: url("Icons/info.png"); }
 .i-landscape { background-image: url("Icons/landscape.png"); }
 .i-leaderboard { background-image: url("Icons/leaderboard.png"); }
 .i-music_note { background-image: url("Icons/music_note.png"); }

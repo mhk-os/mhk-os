@@ -31,6 +31,7 @@ namespace MHK.Race
         [SerializeField] float shellMinWidth = 0.5f;
 
         Vector3 baseScale;
+        Vector3 originalPosition;
         Bounds shell, all; // renderers' bounds relative to the pivot at baseScale: dome shell, every part
         bool measured;
         Transform cameraOwner;
@@ -42,6 +43,7 @@ namespace MHK.Race
         {
             measured = true;
             baseScale = transform.localScale;
+            originalPosition = transform.localPosition;
             var renderers = GetComponentsInChildren<Renderer>();
             if (renderers.Length == 0) return;
             var widest = 0f;
@@ -78,6 +80,14 @@ namespace MHK.Race
                 targetCamera = target.GetComponent<Camera>();
             }
             return targetCamera;
+        }
+
+        /// <summary>Restores the scene placement if this legacy follower ran before conversion to a world sky.</summary>
+        public void RestorePlacement()
+        {
+            if (!measured) return;
+            transform.localPosition = originalPosition;
+            transform.localScale = baseScale;
         }
 
         /// <summary>

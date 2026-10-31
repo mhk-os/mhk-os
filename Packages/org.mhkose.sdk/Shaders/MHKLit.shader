@@ -25,6 +25,7 @@ Shader "MHK/Lit"
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src blend", Float) = 1
         [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst blend", Float) = 0
         [Enum(Off, 0, On, 1)] _ZWrite ("ZWrite", Float) = 1
+        [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("ZTest", Float) = 4
         [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
         // The lightmapper reads these for cutout transparency (it ignores _BaseMap). MHK > Lighting fills them.
         [HideInInspector] _MainTex ("Lightmapper texture", 2D) = "white" {}
@@ -45,6 +46,7 @@ Shader "MHK/Lit"
             Tags { "LightMode" = "UniversalForward" }
             Blend [_SrcBlend] [_DstBlend]
             ZWrite [_ZWrite]
+            ZTest [_ZTest]
             Cull [_Cull]
 
             HLSLPROGRAM

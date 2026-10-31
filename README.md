@@ -8,7 +8,7 @@ Accounts, global time-trial leaderboards with ghost exchange and real-time races
 
 ## Credits
 
-Thanks to @pyramidensurfer for providing the scripts that extract the data files of the original games, and to the Moorhuhnverse community on Discord.
+The info icon at the bottom right of the main menu opens Credits: the Moorhuhnverse Discord community for inspiration and valuable ideas that keep the project going, pyramidensurfer for reverse-engineering the original MHK game data and asset formats, MoorBOOST for the Affe, Alien and Tod portraits, and SKevo as author and lead developer of MHK: OS. Join the [Moorhuhnverse Discord community](https://discord.gg/buJ64SrHxY) from that page or this link.
 
 ## License
 

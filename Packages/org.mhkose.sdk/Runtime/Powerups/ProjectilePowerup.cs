@@ -89,7 +89,7 @@ namespace MHK.Powerups
             direction.Normalize();
             transform.SetPositionAndRotation(t.position + direction * spawnDistance + Vector3.up * hoverHeight,
                 Quaternion.LookRotation(direction, Vector3.up));
-            if (homing && !Context.backwards) target = Context.targetGiven ? Context.target : PowerupTargeting.First(Owner, targetSelection);
+            if (homing && !Context.backwards) target = Context.targetGiven ? Context.target : PowerupTargeting.First(Owner, targetSelection, includeGhosts: true);
             if (followTrackPath && TrackRuntime.Current != null) pathDirection = PathDirectionAlong(direction);
             ChosenTarget = target;
             // Original world speeds (not scaled with the karts), plus the owner's speed so its own shot never falls behind.
@@ -150,7 +150,7 @@ namespace MHK.Powerups
         bool TryGetAim(out Vector3 aim)
         {
             aim = default;
-            if (homing && Age >= homingArmDelay && target != null && target.isActiveAndEnabled && !target.Effects.Ghost)
+            if (homing && Age >= homingArmDelay && target != null && target.isActiveAndEnabled)
             {
                 var dist = (target.transform.position - transform.position).magnitude;
                 if (dist < lockDistance) locked = true;
@@ -182,7 +182,9 @@ namespace MHK.Powerups
             for (var i = 0; i < karts.Count; i++)
             {
                 var k = karts[i];
-                if ((k == Owner && Age < ownerImmunity) || k.Effects.Ghost) continue;
+                // Homing rockets contact ghosts/diggers logically even while their colliders pass through things.
+                // HitKart keeps their protection intact; the rocket is still consumed, just as against a shield.
+                if ((k == Owner && Age < ownerImmunity) || (!homing && k.Effects.Ghost)) continue;
                 if (GeometryUtil.DistanceSqToSegment(k.transform.position, from, to, SegmentEpsilon, 1f) >= hitRadius * hitRadius) continue;
                 HitKart(k, hitEffect);
                 Despawn(impactVfx, transform.position, hitSound);

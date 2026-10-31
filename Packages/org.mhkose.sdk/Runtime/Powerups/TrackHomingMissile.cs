@@ -10,8 +10,9 @@ namespace MHK.Powerups
     /// <summary>
     /// MHK2 homing missile (activate 0x4578a0, update 0x457b30): flies along the racing line towards the current race
     /// leader, locks on once armed and close, then accelerates and hits. Like the original it only ever hits the locked
-    /// leader and flies through other karts. Remake: while the locked target is respawn-protected the missile waits
-    /// behind it and strikes when the protection ends, so a respawn never dodges it.
+    /// leader and flies through other karts. Ghost Ride and Molehill still attract and consume it, but block its damage.
+    /// While the locked target is respawn-protected the missile waits behind it and strikes when the protection ends,
+    /// so a respawn never dodges it.
     /// </summary>
     public partial class TrackHomingMissile : PowerupBehaviour, INetProjectile
     {
@@ -109,7 +110,7 @@ namespace MHK.Powerups
             for (var i = 0; i < karts.Count; i++)
             {
                 var k = karts[i];
-                if (!k.isActiveAndEnabled || !IsTangible(k)) continue;
+                if (!k.isActiveAndEnabled || k.Eliminated) continue;
                 if (best == null || k.Progress.Position < best.Progress.Position) best = k;
             }
             return best;
@@ -124,8 +125,6 @@ namespace MHK.Powerups
         protected override void Step(float dt)
         {
             ApplyCorrection();
-            // A target that turned into a ghost is lost: the missile goes for the leader among the tangible karts.
-            if (target != null && target.Effects.Ghost) target = null;
             var waiting = target != null && target.Effects.RespawnProtected;
             if (!waiting) life -= dt;
             var track = TrackRuntime.Current;
@@ -145,7 +144,7 @@ namespace MHK.Powerups
 
         Vector3 CruiseAim(TrackPath path, float myD, float dt)
         {
-            var leader = sharedHunt != null && sharedHunt.isActiveAndEnabled && IsTangible(sharedHunt) ? sharedHunt : Leader();
+            var leader = sharedHunt != null && sharedHunt.isActiveAndEnabled && !sharedHunt.Eliminated ? sharedHunt : Leader();
             Hunted = leader;
             if (leader != null)
             {

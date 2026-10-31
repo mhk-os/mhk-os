@@ -15,7 +15,7 @@ namespace MHK.Powerups
         [Tooltip("Nearest kart regardless of direction.")] Nearest,
     }
 
-    /// <summary>Picks the karts a targeted item goes for. Ghosts (<see cref="KartEffects.Ghost"/>) are never targeted.</summary>
+    /// <summary>Picks the karts a targeted item goes for. Homing projectiles can include ghosts, which absorb their hits.</summary>
     public static class PowerupTargeting
     {
         /// <summary>Half angle (degrees) of the cone used by <see cref="TargetSelection.NearestInFront"/>.</summary>
@@ -23,13 +23,16 @@ namespace MHK.Powerups
         /// <summary>Default range (m) of <see cref="TargetSelection.NearestInFront"/>.</summary>
         public const float DefaultMaxDistance = 200f;
 
-        /// <summary>Fills <paramref name="results"/> with the targets of <paramref name="owner"/> in selection order.</summary>
-        public static void Select(Kart owner, TargetSelection selection, float maxDistance, List<Kart> results)
+        /// <summary>
+        /// Fills <paramref name="results"/> with the targets of <paramref name="owner"/> in selection order.
+        /// Ghosts are excluded unless <paramref name="includeGhosts"/> is set for a homing projectile.
+        /// </summary>
+        public static void Select(Kart owner, TargetSelection selection, float maxDistance, List<Kart> results, bool includeGhosts = false)
         {
             results.Clear();
             using var pooled = ListPool<Kart>.Get(out var others);
             foreach (var k in Kart.All)
-                if (k != owner && k.isActiveAndEnabled && !k.Effects.Ghost) others.Add(k);
+                if (k != owner && k.isActiveAndEnabled && (includeGhosts || !k.Effects.Ghost)) others.Add(k);
             if (others.Count == 0) return;
             var myPosition = owner.Progress.Position;
             switch (selection)
@@ -46,11 +49,11 @@ namespace MHK.Powerups
             }
         }
 
-        /// <summary>The first target of <paramref name="owner"/>, or null.</summary>
-        public static Kart First(Kart owner, TargetSelection selection, float maxDistance = DefaultMaxDistance)
+        /// <summary>The first target of <paramref name="owner"/>, or null. Set <paramref name="includeGhosts"/> for homing projectiles.</summary>
+        public static Kart First(Kart owner, TargetSelection selection, float maxDistance = DefaultMaxDistance, bool includeGhosts = false)
         {
             using var pooled = ListPool<Kart>.Get(out var results);
-            Select(owner, selection, maxDistance, results);
+            Select(owner, selection, maxDistance, results, includeGhosts);
             return results.Count > 0 ? results[0] : null;
         }
 

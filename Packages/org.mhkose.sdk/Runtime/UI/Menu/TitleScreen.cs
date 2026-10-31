@@ -10,7 +10,7 @@ namespace MHK.UI
     /// <summary>
     /// Title screen (Title.uxml): logo, the built-in mods download while they are missing, the game modes (Time Trials
     /// opens the records hub), Online, mods (dot for updates and downloads) / options / music / quit, the short commit of
-    /// the build, the game update link, the achievements and the online account (username or Log in; a stored login that is
+    /// the build, the game update link, Credits, the achievements and the online account (username or Log in; a stored login that is
     /// not online shows whether it reconnects, is offline or was refused, with the reason in the tooltip). Without Quit (mobile, WebGL)
     /// Music joins Mods and Options in one row; pages shorter than <see cref="compactHeight"/> get a smaller logo.
     /// </summary>
@@ -45,6 +45,7 @@ namespace MHK.UI
             gameUpdate = OnClick("game-update", () => Application.OpenURL(GameUpdate.ReleaseUrl));
             account = OnClick("account", () => Flow.Show<AccountScreen>());
             OnClick("achievements", () => Flow.Show<AchievementsScreen>());
+            OnClick("credits", () => Flow.Show<CreditsScreen>());
             accountTip = account.tooltip;
             accountLabel = Q<Label>("account-label");
             accountIcon = Q<VisualElement>("account-icon");
