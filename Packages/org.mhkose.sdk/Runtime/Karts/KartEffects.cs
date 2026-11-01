@@ -147,14 +147,12 @@ namespace MHK.Karts
         /// respawn (<see cref="HasRespawnPending"/>): nothing is applied, refreshed or extended then.
         /// <paramref name="usage"/> is the powerup use the hit comes from (<see cref="Powerups.PowerupContext.usage"/>, 0 =
         /// none): it costs this kart health only once per use (<see cref="Kart.TakeDamage"/>).
-        /// Online, a remote racer's kart is never changed by a hit seen here: its own client decides
-        /// (<see cref="Powerups.OnlineItems"/>); its own buffs only show. Neither is a mirrored AI kart by an item use's hit
-        /// (its AI host decides; the server's HitApplied applies it).
+        /// Online, a remote kart (another racer's, or an AI kart another client hosts) is never changed by a hit seen
+        /// here: its own client decides (<see cref="Powerups.OnlineItems"/>); its own buffs only show.
         /// </summary>
         public bool Apply(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f, int usage = 0)
         {
             if (kart != null && kart.IsRemote) return ApplyToRemote(def, source, durationOverride, usage);
-            if (Powerups.OnlineItems.WaitsForServer(kart, def, usage)) return !IsBlocked(def);
             if (IsBlocked(def)) return false;
             var duration = ResolveDuration(def, durationOverride);
             EndConflictingBuffs(def);
@@ -347,6 +345,12 @@ namespace MHK.Karts
 
         public bool HasRespawnPending => active.Exists(a => a.Definition.respawnOnEnd);
 
+        /// <summary>
+        /// A hostile effect (a hit: flattened, frozen, spun out, shrunk...) is running: the kart's own respawn
+        /// (<see cref="Kart"/>'s respawn input, AI stuck recovery) must not cut it short.
+        /// </summary>
+        public bool HasHostileEffect => active.Exists(a => a.Definition.hostile);
+
         public void Remove(StatusEffectDefinition def)
         {
             for (var i = active.Count - 1; i >= 0; i--)
@@ -354,12 +358,19 @@ namespace MHK.Karts
             Recalculate();
         }
 
-        /// <summary>Ends all effects without triggering their end-of-effect respawn (used by respawns).</summary>
+        /// <summary>Ends all effects without triggering their end-of-effect respawn (eliminations).</summary>
         public void ClearAll()
         {
             for (var i = active.Count - 1; i >= 0; i--) End(i, false);
             Recalculate();
         }
+
+        /// <summary>
+        /// Respawn: ends the buffs (MHK2: buffs cancelled) and the hits waiting for this respawn
+        /// (<see cref="StatusEffectDefinition.respawnOnEnd"/>) without their end-of-effect respawn. Other hostile effects
+        /// run on with the time they have left: a forced respawn (kill zone, fall, AI recovery) never shortens a hit.
+        /// </summary>
+        public void ClearForRespawn() => EndWhere(e => !e.Definition.hostile || e.Definition.respawnOnEnd);
 
         /// <summary>Ends exclusive buffs (MHK2: using any item ends shield / blue light / turbo).</summary>
         public void EndExclusiveBuffs() => EndWhere(e => e.Definition.exclusiveBuff);

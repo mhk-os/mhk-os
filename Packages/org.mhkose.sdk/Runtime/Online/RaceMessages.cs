@@ -22,7 +22,7 @@ namespace MHK.Online
             ProjectileGone = 538;
 
         // UDP datagram types.
-        public const byte UdpPing = 1, UdpPong = 2, UdpState = 3, UdpWorld = 4, UdpAiProgress = 5;
+        public const byte UdpPing = 1, UdpPong = 2, UdpState = 3, UdpWorld = 4, UdpAiStates = 5;
 
         public const int MaxRacers = 50, MaxItemBoxes = 512, MaxPool = 128, MaxEffects = 1024, MaxLaps = 99,
             MaxContentId = 96, MaxUsername = 20, MaxCountry = 2, MaxHash = 32, MaxMessage = 256, MaxOdds = 64,
@@ -148,7 +148,7 @@ namespace MHK.Online
         public string kartId = "";
         /// <summary>The racer's device: 0 unknown, 1 Windows, 2 macOS, 3 Linux, 4 Android, 5 iOS.</summary>
         public int platform;
-        /// <summary>An AI kart (accountId 0, no username): every client simulates it, the AI host reports for it.</summary>
+        /// <summary>An AI kart (accountId 0, no username): the AI host simulates and reports for it.</summary>
         public bool ai;
 
         public void Write(WireWriter w)
@@ -736,6 +736,8 @@ namespace MHK.Online
     /// </summary>
     public sealed class ItemUse : IRaceNotify
     {
+        const int UseCountMask = 0xFFFFFF;
+
         public long raceId;
         public int useId;
         public int tick;
@@ -747,7 +749,10 @@ namespace MHK.Online
 
         public ushort Type => RaceProtocol.ItemUse;
 
-        public static int UseId(int slot, int n) => (slot + 1) << 24 | (n & 0xFFFFFF);
+        public static int UseId(int slot, int n) => (slot + 1) << 24 | (n & UseCountMask);
+
+        /// <summary>n of <paramref name="useId"/>: the how-manieth use of its kart.</summary>
+        public static int UseCount(int useId) => useId & UseCountMask;
 
         public void Write(WireWriter w)
         {
@@ -970,11 +975,19 @@ namespace MHK.Online
         LookBack = 1 << 6,
     }
 
-    /// <summary>A racer's own kart snapshot (UDP, 30 Hz): sent in State, received per other racer in World.</summary>
+    /// <summary>
+    /// A kart's snapshot (UDP, 30 Hz): a racer's own in State, the AI host's AI karts in AiStates, received per other
+    /// kart in World.
+    /// </summary>
     public sealed class KartState
     {
         const float RotScale = 32767f;
         const int MaxEffectsPerState = 255;
+        /// <summary>Encoded bytes without the effect indexes.</summary>
+        const int FixedSize = 4 + 12 + 8 + 6 + 1 + 1 + 1 + 1 + 4 + 1 + 1;
+
+        /// <summary>Bytes <see cref="Write"/> produces.</summary>
+        public int EncodedSize => FixedSize + 2 * Math.Min(effects.Count, MaxEffectsPerState);
 
         /// <summary>Race tick: physics steps since GO, 0 before GO.</summary>
         public int tick;
@@ -1092,28 +1105,5 @@ namespace MHK.Online
         }
 
         public static ProjectileReport Read(WireReader r) => new() { useId = RaceWire.U32(r), tick = RaceWire.U32(r), pos = RaceWire.Vec3(r), vel = RaceWire.Vec3(r) };
-    }
-
-    /// <summary>One AI kart's progress in an AiProgress datagram (AI host to server, 10 Hz): item rolls and DNF ranking.</summary>
-    public struct AiProgress
-    {
-        public const int Size = 1 + 1 + 4 + 1;
-
-        public int slot;
-        public int lap;
-        /// <summary>Metres along the race (ranking).</summary>
-        public float raceDistance;
-        /// <summary>Battle health 0-255.</summary>
-        public int health;
-
-        public void Write(WireWriter w)
-        {
-            RaceWire.U8(w, slot);
-            RaceWire.U8(w, lap);
-            w.F32(float.IsNaN(raceDistance) || float.IsInfinity(raceDistance) ? 0f : raceDistance);
-            RaceWire.U8(w, health);
-        }
-
-        public static AiProgress Read(WireReader r) => new() { slot = r.U8(), lap = r.U8(), raceDistance = r.F32(), health = r.U8() };
     }
 }

@@ -15,7 +15,7 @@ namespace MHK.Validation
     /// Online races with anticheat: wires <see cref="RemoteKartChecks"/> to <see cref="OnlineRace"/>. Remote states go in
     /// as received, hits and item uses exempt their racers for a moment, finished, knocked-out and departed racers stop
     /// being checked, and reports go out as <see cref="CheatReport"/>s. Off without other humans and in lobbies without
-    /// anticheat. AI karts are never checked: every client simulates its own copy of them, so they differ by design.
+    /// anticheat. AI karts are never checked: the server takes no report about them.
     /// </summary>
     [AddComponentMenu("")]
     public class LiveValidation : MonoBehaviour

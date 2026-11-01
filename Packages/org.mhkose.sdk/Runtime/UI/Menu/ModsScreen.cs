@@ -22,6 +22,7 @@ namespace MHK.UI
         enum Section { Mods, AssetPacks }
 
         const string FallbackLogoClass = "mod-logo-fallback";
+        const string ReportableClass = "mod-reportable";
 
         [SerializeField, Tooltip("Section chip (Templates/Chip.uxml).")]
         VisualTreeAsset chipTemplate;
@@ -137,7 +138,7 @@ namespace MHK.UI
         {
             var toggle = row.Q<Button>("mod-toggle");
             if (toggle == null || toggle.enabledSelf) return toggle ?? row.Q<Button>("src-action");
-            if (row.ClassListContains("mod-reportable")) return row.Q<Button>("mod-report");
+            if (row.ClassListContains(ReportableClass)) return row.Q<Button>("mod-report");
             return RowButton(row, null);
         }
 
@@ -228,23 +229,27 @@ namespace MHK.UI
             return -1;
         }
 
+        // The row knows its pack (userData) for ShowProblem, which ShowInstalled runs again on every source change.
         void FillPackRow(VisualElement row, ContentPack pack)
         {
+            row.userData = pack;
             SetLogo(row.Q("mod-logo"), pack.logo, "extension");
             row.SetText("mod-title", string.IsNullOrEmpty(pack.version) ? pack.title : string.Format(titleFormat, pack.title, pack.version));
             SetDescription(row, pack.description);
-            BindInstalledSource(row, pack.packId);
             var replaced = ReplacedCount(pack);
             if (replaced > 0) row.tooltip = string.Format(replacedTip, replaced);
             var toggle = row.Q<Button>("mod-toggle");
-            if (toggle == null) return;
-            var withoutKart = DriversWithoutKart(pack);
-            BindToggle(toggle, pack.packId, Settings.disabledPacks, withoutKart > 0 ? string.Format(missingKartsTip, withoutKart) : null);
-            ShowProblem(row, toggle, pack);
+            if (toggle != null)
+            {
+                var withoutKart = DriversWithoutKart(pack);
+                BindToggle(toggle, pack.packId, Settings.disabledPacks, withoutKart > 0 ? string.Format(missingKartsTip, withoutKart) : null);
+                BindProblem(row, toggle, pack);
+            }
+            BindInstalledSource(row, pack.packId);
         }
 
-        // A mod that is not loaded: the reason and no toggle, Report when its author can fix it and its repository is known.
-        void ShowProblem(VisualElement row, Button toggle, ContentPack pack)
+        // A mod that is not loaded: the reason and no toggle, Report (ShowProblem shows it) when its author can fix it and its repository is known.
+        void BindProblem(VisualElement row, Button toggle, ContentPack pack)
         {
             var problem = ModLoader.ProblemOf(pack);
             row.Q("mod-problem")?.SetVisible(problem != ModProblem.None);
@@ -258,14 +263,29 @@ namespace MHK.UI
             toggle.SetEnabled(false);
             var repo = SourceOf(pack.packId)?.repo;
             var report = row.Q<Button>("mod-report");
-            if (report == null || repo == null || problem == ModProblem.NeedsNewerGame) return;
-            row.AddToClassList("mod-reportable");
+            if (report == null || repo == null) return;
             report.tooltip = string.Format(reportTip, repo);
             report.clicked += () =>
             {
                 Click();
                 Application.OpenURL(string.Format(issuesUrlFormat, repo));
             };
+        }
+
+        // An installed update replaces the reason until content reloads (it runs the old copy until then). Report waits
+        // while an update is available, downloads or awaits the reload: the update may fix the problem.
+        static void ShowProblem(VisualElement row, ModSources.Source source)
+        {
+            if (row.userData is not ContentPack pack) return;
+            var problem = ModLoader.ProblemOf(pack);
+            row.Q("mod-problem")?.SetVisible(problem != ModProblem.None && !source.pendingReload);
+            var report = row.Q<Button>("mod-report");
+            var shown = report != null && problem is not (ModProblem.None or ModProblem.NeedsNewerGame) && !source.pendingReload &&
+                        source.state != ModSources.State.UpdateAvailable && !ModSourceTexts.InProgress(source);
+            if (report != null && !shown && report.focusController?.focusedElement == report)
+                (source.state == ModSources.State.UpdateAvailable ? row.Q<Button>("mod-update")
+                    : ModSourceTexts.InProgress(source) ? row.Q<Button>("mod-pause") : row.Q<Button>("mod-remove"))?.Focus();
+            row.EnableInClassList(ReportableClass, shown);
         }
 
         static void SetDescription(VisualElement row, string description)

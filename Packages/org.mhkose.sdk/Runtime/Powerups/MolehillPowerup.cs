@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using MHK.Audio;
 using MHK.Karts;
 using MHK.Modding;
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 
 namespace MHK.Powerups
@@ -11,7 +12,7 @@ namespace MHK.Powerups
     /// A <see cref="MolehillMound"/> ploughs above it and launches karts it passes under.
     /// </summary>
     [DefaultExecutionOrder(100)] // after Kart / KartEffects: the last word on the body's velocity before the physics step
-    public class MolehillPowerup : PowerupBehaviour
+    public partial class MolehillPowerup : PowerupBehaviour
     {
         enum Phase { Waiting, Digging, Surfacing, Done }
 
@@ -30,6 +31,9 @@ namespace MHK.Powerups
         const float SideBurstShare = 0.5f;
         // A remote digger's states list the tunnel effect within this time (s); without it afterwards it has surfaced.
         const float RemoteSurfaceGrace = 0.5f;
+
+        // Digs underground whose owner this client moves (computer drivers steer them, see DigOf).
+        [AutoStaticsCleanup] static readonly List<MolehillPowerup> digging = new();
 
         [Header("Dig")]
         [Tooltip("Distance travelled underground (m).")]
@@ -129,6 +133,32 @@ namespace MHK.Powerups
         Effects.EffectLoopSound loop;
 
         bool Underground => phase == Phase.Digging || phase == Phase.Surfacing;
+
+        /// <summary>The dig <paramref name="kart"/> steers right now: underground and moved by this client. Null for none.</summary>
+        internal static MolehillPowerup DigOf(Kart kart)
+        {
+            for (var i = 0; i < digging.Count; i++)
+                if (digging[i].Owner == kart) return digging[i];
+            return null;
+        }
+
+        /// <summary>Flat direction the dig heads in.</summary>
+        internal Vector3 Heading => tunnel.Heading;
+        /// <summary>Ground point of the dig's head (under the kart).</summary>
+        internal Vector3 Head => tunnel.Ground;
+        /// <summary>Underground speed (m/s).</summary>
+        internal float Speed => speed;
+        /// <summary>Distance (m) left to dig.</summary>
+        internal float Remaining => Mathf.Max(0f, digDistance - travelled);
+        /// <summary>Turn rate at full steering (degrees per second).</summary>
+        internal float TurnRate => turnRate;
+        /// <summary>Current turn rate as a share of <see cref="TurnRate"/> (+ = right): the "wheel" the steering keys move underground.</summary>
+        internal float SteerShare => turnRate > 0f ? yawRate / turnRate : 0f;
+        /// <summary>Share of <see cref="TurnRate"/> the turn rate moves in <paramref name="seconds"/>, pressing or releasing alike.</summary>
+        internal float SteerShareStep(float seconds) => seconds / Mathf.Max(MinTime, turnResponse);
+
+        /// <summary>Underground speed (m/s) of a kart that digs in at <paramref name="entrySpeed"/> with speed scale <paramref name="speedScale"/>.</summary>
+        internal float UndergroundSpeed(float entrySpeed, float speedScale) => Mathf.Max(entrySpeed * entrySpeedFactor, digSpeed * speedScale);
 
         protected override void OnLaunch()
         {
@@ -242,12 +272,13 @@ namespace MHK.Powerups
             {
                 Owner.Physics.Suspended = true;
                 Owner.Physics.Body.detectCollisions = false;
+                digging.Add(this);
             }
             if (tunnelEffect != null) Owner.Effects.Apply(tunnelEffect, Owner, -1f, Usage);
             visualRoot = Owner.Visual != null ? Owner.Visual.transform : null;
         }
 
-        float TargetSpeed() => Mathf.Max(entrySpeed * entrySpeedFactor, digSpeed * SpeedScale);
+        float TargetSpeed() => UndergroundSpeed(entrySpeed, SpeedScale);
 
         float SteerInput()
         {
@@ -358,6 +389,7 @@ namespace MHK.Powerups
 
         void RestoreOwner()
         {
+            digging.Remove(this);
             Effects.EffectLoopSound.Stop(ref loop);
             if (Owner == null) return;
             if (MovesHere(Owner))
@@ -371,6 +403,7 @@ namespace MHK.Powerups
 
         void EndDig()
         {
+            digging.Remove(this);
             if (phase == Phase.Digging && mound != null) mound.Release();
             phase = Phase.Done;
             phaseTime = 0f;

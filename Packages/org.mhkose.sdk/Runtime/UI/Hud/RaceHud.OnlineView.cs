@@ -277,7 +277,8 @@ namespace MHK.UI
                 for (var i = 0; i < karts.Count; i++)
                 {
                     var k = karts[i];
-                    if (k == null || !k.IsRemote || HasTag(k)) continue;
+                    // Player tags only: AI karts another client hosts are stand-ins too.
+                    if (k == null || !k.IsRemote || online.IsAiKart(k) || HasTag(k)) continue;
                     AddTag(k, online.SlotOf(k));
                 }
                 var cam = race.RaceCamera;

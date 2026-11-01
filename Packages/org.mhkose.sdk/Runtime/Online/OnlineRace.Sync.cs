@@ -10,27 +10,54 @@ namespace MHK.Online
 {
     public sealed partial class OnlineRace
     {
-        /// <summary>The local kart's state goes out every this many physics steps (30 Hz at 60 ticks/s).</summary>
+        /// <summary>The local kart's state, and the hosted AI karts', go out every this many physics steps (30 Hz at 60 ticks/s).</summary>
         const int StateEveryTicks = 2;
         /// <summary>A teleport is flagged on this many consecutive states, so one lost datagram cannot hide it.</summary>
         const int CutRepeat = 3;
         // Moved further than this between two states (m, plus twice the distance its speed explains): a teleport.
         const float TeleportSlack = 3f;
         const double StallMs = 1000;
-        /// <summary>The AI host's AiProgress goes out every this many physics steps (10 Hz).</summary>
-        const int AiProgressEveryTicks = 6;
 
-        readonly KartState outgoing = new();
+        /// <summary>
+        /// A kart whose states this client sends (its own; the AI karts while it hosts them) and what the teleport check
+        /// compares the next state against.
+        /// </summary>
+        sealed class SentKart
+        {
+            public readonly Kart kart;
+            public readonly int slot;
+            public readonly KartState state = new();
+            public bool hasLast;
+            public Vector3 lastPos;
+            public int cutPending;
+
+            public SentKart(Kart kart, int slot)
+            {
+                this.kart = kart;
+                this.slot = slot;
+                kart.Respawned += OnRespawned;
+            }
+
+            /// <summary>Stops watching the kart's respawns (no more states of it go out).</summary>
+            public void Release()
+            {
+                if (kart != null) kart.Respawned -= OnRespawned;
+            }
+
+            void OnRespawned(Kart k) => cutPending = CutRepeat;
+        }
+
         readonly List<ProjectileReport> reports = new();
-        readonly List<AiProgress> aiProgress = new();
+        // The AI karts this client hosts by slot, and their states of one send.
+        readonly Dictionary<int, SentKart> hostedAi = new();
+        readonly List<KartState> aiStates = new();
+        readonly List<int> aiStateSlots = new();
         readonly Dictionary<int, RemoteKart> remotes = new();
         readonly Dictionary<string, int> effectIndex = new();
         readonly List<StatusEffectDefinition> remoteEffects = new();
         Kart localKart;
+        SentKart localSent;
         int fixedSteps;
-        int cutPending;
-        bool hasLastSent;
-        Vector3 lastSentPos;
         float raceStartedAt = -1f;
         bool statsLogged;
         // Figures of stand-ins already removed (racers that left), kept for the race's log.
@@ -110,17 +137,44 @@ namespace MHK.Online
 
         void WatchLocalKart(Kart kart)
         {
-            if (localKart != null) localKart.Respawned -= OnLocalRespawned;
+            localSent?.Release();
             localKart = kart;
-            kart.Respawned += OnLocalRespawned;
-            hasLastSent = false;
+            localSent = new SentKart(kart, LocalSlot);
             raceStartedAt = Time.realtimeSinceStartup;
         }
 
-        void OnLocalRespawned(Kart k) => cutPending = CutRepeat;
-
         /// <summary>Called by the race for every spawned kart that is another racer's stand-in.</summary>
         void RegisterRemote(int slot, RemoteKart remote) => remotes[slot] = remote;
+
+        /// <summary>
+        /// AI kart <paramref name="kart"/> of <paramref name="slot"/> runs here while this client is the AI host (its
+        /// states go out like the own kart's), else it follows the host's states. Called as it spawns and when the host
+        /// changes.
+        /// </summary>
+        void HostOrFollow(int slot, Kart kart)
+        {
+            var followed = remotes.TryGetValue(slot, out var remote) && remote != null;
+            if (IsAiHost)
+            {
+                if (followed)
+                {
+                    remote.Release();
+                    remotes.Remove(slot);
+                }
+                if (!hostedAi.ContainsKey(slot)) hostedAi.Add(slot, new SentKart(kart, slot));
+                return;
+            }
+            if (hostedAi.Remove(slot, out var sent)) sent.Release();
+            if (!followed) remotes[slot] = RemoteKart.Follow(kart, slot, this);
+        }
+
+        void ReleaseSentKarts()
+        {
+            localSent?.Release();
+            localSent = null;
+            foreach (var sent in hostedAi.Values) sent.Release();
+            hostedAi.Clear();
+        }
 
         // Game time (Time.timeAsDouble) minus the receive clock, sampled every frame: received states are stamped in
         // game time, the clock the stand-ins render by, whether they are taken in a physics step or a frame.
@@ -157,8 +211,8 @@ namespace MHK.Online
         void SendLocalState()
         {
             if (udp == null || localKart == null || LocalLeft) return;
-            if (++fixedSteps % StateEveryTicks != 0) return;
-            Fill(outgoing, localKart);
+            Fill(localSent);
+            var outgoing = localSent.state;
             // A report with a non-finite value cannot be encoded: dropped, so it never blocks the states behind it.
             reports.RemoveAll(r => !Finite(r.pos) || !Finite(r.vel));
             var capacity = OnlineRaceUdp.ReportCapacity(outgoing);
@@ -177,26 +231,35 @@ namespace MHK.Online
             }
         }
 
-        // The AI host tells the server where its AI karts are (item rolls, DNF and battle ranking); nobody else needs it.
-        void SendAiProgress()
+        // The AI host's AI karts go out like its own kart: every other racer draws them from these states (so all see
+        // the same race), and the server ranks them by their progress (item rolls, DNF and battle ranking).
+        void SendAiStates()
         {
-            if (udp == null || !IsAiHost || !HasGo || fixedSteps % AiProgressEveryTicks != 0) return;
-            aiProgress.Clear();
-            foreach (var pair in kartsBySlot)
+            if (udp == null || !IsAiHost || hostedAi.Count == 0) return;
+            aiStates.Clear();
+            aiStateSlots.Clear();
+            foreach (var sent in hostedAi.Values)
             {
-                var k = pair.Value;
-                if (k == null || !aiSlots.Contains(pair.Key)) continue;
-                aiProgress.Add(new AiProgress { slot = pair.Key, lap = k.Progress.Lap, raceDistance = k.Progress.RaceDistance, health = k.Health });
+                if (sent.kart == null) continue;
+                Fill(sent);
+                aiStates.Add(sent.state);
+                aiStateSlots.Add(sent.slot);
             }
-            for (var start = 0; start < aiProgress.Count; start += OnlineRaceUdp.AiProgressCapacity)
-                udp.SendAiProgress(aiProgress, start, Mathf.Min(OnlineRaceUdp.AiProgressCapacity, aiProgress.Count - start));
+            for (var start = 0; start < aiStates.Count;)
+            {
+                var n = OnlineRaceUdp.AiStatesCapacity(aiStates, start);
+                udp.SendAiStates(aiStateSlots, aiStates, start, n);
+                start += n;
+            }
         }
 
         static bool Finite(Vector3 v) => float.IsFinite(v.x) && float.IsFinite(v.y) && float.IsFinite(v.z);
 
         // The pose after the previous physics step is that of tick Tick - 1 (this runs before the karts step).
-        void Fill(KartState s, Kart k)
+        void Fill(SentKart sent)
         {
+            var s = sent.state;
+            var k = sent.kart;
             var body = k.Physics.Body;
             var pos = body.position;
             var vel = body.linearVelocity;
@@ -206,18 +269,18 @@ namespace MHK.Online
             s.vel = vel;
             var input = k.EffectiveInput;
             s.keys = (byte)KeysOf(input);
-            if (hasLastSent)
+            if (sent.hasLast)
             {
                 var reach = vel.magnitude * Time.fixedDeltaTime * StateEveryTicks * 2f + TeleportSlack;
-                if ((pos - lastSentPos).sqrMagnitude > reach * reach) cutPending = Mathf.Max(cutPending, CutRepeat);
+                if ((pos - sent.lastPos).sqrMagnitude > reach * reach) sent.cutPending = Mathf.Max(sent.cutPending, CutRepeat);
             }
-            hasLastSent = true;
-            lastSentPos = pos;
+            sent.hasLast = true;
+            sent.lastPos = pos;
             var flags = KartStateFlags.None;
-            if (cutPending > 0)
+            if (sent.cutPending > 0)
             {
                 flags |= KartStateFlags.Cut;
-                cutPending--;
+                sent.cutPending--;
             }
             if (k.ControlsEnabled) flags |= KartStateFlags.ControlsEnabled;
             if (k.Progress.Finished) flags |= KartStateFlags.Finished;

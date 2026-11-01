@@ -5,13 +5,16 @@ namespace MHK.Powerups
 {
     /// <summary>
     /// Visual-only earthquake that makes a kart's visual hop (MHK Extra 16-ton weight impact). It sits on the visual root
-    /// and applies its offset as a delta, and the offset is a pure function of time (<see cref="VisualOffset"/>).
+    /// and applies its offset as a delta, and the offset is a pure function of time. The kart's camera rides along
+    /// (<see cref="CameraOffset"/>); a pinned kart (under the impacting object) keeps its visual still and only its camera
+    /// shakes, so its driver feels the quake too.
     /// </summary>
     public class KartQuake : MonoBehaviour
     {
         const float EdgeAmplitudeLoss = 0.7f;
 
         float duration, amplitude, frequency, startTime, decay;
+        bool pinned;
         Vector3 applied;
 
         /// <summary>
@@ -27,7 +30,8 @@ namespace MHK.Powerups
         /// <param name="decay">Share of the amplitude lost by the end of the quake (0 = equal hops, 1 = fade to nothing).</param>
         /// <param name="falloff">Share of <paramref name="amplitude"/> over the distance divided by the radius (0 to 1).
         /// Null or empty = linear fade to 30 % at the radius.</param>
-        /// <param name="innerRadius">Karts closer than this do not shake (m), e.g. a kart pinned under the impacting object.</param>
+        /// <param name="innerRadius">Karts closer than this are pinned (m), e.g. under the impacting object: their visual
+        /// stays still and only their camera shakes, as hard as at the centre.</param>
         public static void Shake(Vector3 center, float radius, float duration, float amplitude, float frequency,
             float waveSpeed = 0f, float decay = 0.5f, AnimationCurve falloff = null, float innerRadius = 0f)
         {
@@ -36,26 +40,30 @@ namespace MHK.Powerups
             {
                 if (k == null || k.Visual == null) continue;
                 var dist = Vector3.Distance(k.transform.position, center);
-                if (dist > radius || dist < innerRadius) continue;
-                var height = amplitude * Falloff(falloff, dist / radius);
+                if (dist > radius) continue;
+                var pinned = dist < innerRadius;
+                var height = amplitude * Falloff(falloff, pinned ? 0f : dist / radius);
                 if (height <= 0f) continue;
                 var go = k.Visual.gameObject;
                 if (!go.TryGetComponent<KartQuake>(out var q)) q = go.AddComponent<KartQuake>();
-                q.Begin(duration, height, frequency, waveSpeed > 0f ? dist / waveSpeed : 0f, decay);
+                q.Begin(duration, height, frequency, waveSpeed > 0f && !pinned ? dist / waveSpeed : 0f, decay, pinned);
             }
         }
 
         static float Falloff(AnimationCurve falloff, float x) =>
             falloff != null && falloff.length > 0 ? Mathf.Max(0f, falloff.Evaluate(x)) : 1f - EdgeAmplitudeLoss * x;
 
-        /// <summary>Current world-space quake offset of a kart's visual (zero when it is not shaking).</summary>
-        public static Vector3 VisualOffset(Kart kart)
+        /// <summary>
+        /// Current world-space quake offset of the camera following <paramref name="kart"/> (zero when it is not shaking):
+        /// its visual's hop, or the camera-only shake of a pinned kart.
+        /// </summary>
+        public static Vector3 CameraOffset(Kart kart)
         {
             if (kart == null || kart.Visual == null || !kart.Visual.TryGetComponent<KartQuake>(out var q) || !q.enabled) return Vector3.zero;
             return q.transform.parent != null ? q.transform.parent.TransformVector(q.Offset(Time.time)) : q.Offset(Time.time);
         }
 
-        void Begin(float seconds, float height, float hz, float startDelay, float fade)
+        void Begin(float seconds, float height, float hz, float startDelay, float fade, bool keepVisual)
         {
             // A new quake replaces a weaker running one.
             var remaining = enabled && duration > 0f ? amplitude * Mathf.Clamp01(1f - decay * (Time.time - startTime) / duration) : 0f;
@@ -64,6 +72,7 @@ namespace MHK.Powerups
             amplitude = height;
             frequency = hz;
             decay = Mathf.Clamp01(fade);
+            pinned = keepVisual;
             startTime = Time.time + Mathf.Max(0f, startDelay);
             enabled = true;
         }
@@ -79,7 +88,7 @@ namespace MHK.Powerups
 
         void LateUpdate()
         {
-            var offset = Offset(Time.time);
+            var offset = pinned ? Vector3.zero : Offset(Time.time);
             transform.localPosition += offset - applied;
             applied = offset;
             if (Time.time - startTime >= duration) enabled = false;

@@ -40,6 +40,8 @@ namespace MHK.UI
         string repoUrlFormat = "https://github.com/{0}";
         [SerializeField, Tooltip("State of a downloaded item the content has not loaded yet, and its tooltip.")]
         string downloadedText = "Downloaded", downloadedTip = "Apply loads it.";
+        [SerializeField, Tooltip("State of an installed item whose update the content has not loaded yet (it runs the old version until then), and its tooltip.")]
+        string updatedText = "Updated – Apply to load", updatedTip = "The update is installed. Apply loads it.";
         [SerializeField, Tooltip("Check for Updates: its text, its text while the check runs, and its tooltip.")]
         string checkText = "Check for Updates", checkingText = "Checking", checkTip = "Checks every mod and asset pack for a new release.";
         [SerializeField, Tooltip("Error line when Check for Updates could not reach GitHub.")]
@@ -290,7 +292,7 @@ namespace MHK.UI
             row.SetText("src-details", size != null ? details + sourceTexts.separator + size : details);
             var state = row.Q("src-state");
             sourceTexts.ShowState(state, source);
-            if (source.installed && !ModSourceTexts.InProgress(source)) ShowDownloaded(state);
+            if (source.installed && !ModSourceTexts.InProgress(source)) ShowAwaitingLoad(state, downloadedText, "cloud_done", downloadedTip);
             sourceTexts.ShowProgress(row.Q("src-progress"), source);
             var retry = !source.installed && source.state is ModSources.State.Offline or ModSources.State.Error;
             var action = row.Q<Button>("src-action");
@@ -304,36 +306,44 @@ namespace MHK.UI
             remove.SetEnabled(!ModSourceTexts.Busy(source));
         }
 
-        void ShowDownloaded(VisualElement state)
+        // An install the content has not loaded yet.
+        static void ShowAwaitingLoad(VisualElement state, string text, string icon, string tip)
         {
-            state.SetText(null, downloadedText);
-            state.Q(className: "icon")?.SetIcon("cloud_done");
+            state.SetText(null, text);
+            state.Q(className: "icon")?.SetIcon(icon);
             state.RemoveFromClassList("src-muted");
             state.RemoveFromClassList("src-accent");
             state.RemoveFromClassList("src-bad");
             state.AddToClassList("src-good");
-            state.tooltip = downloadedTip;
+            state.tooltip = tip;
         }
 
         // An installed item from a source, once a check told its state: the state with the installed commit, Update and Remove.
+        // An installed update the content has not loaded yet says so instead (unless a newer one turned up or downloads).
         void ShowInstalled(VisualElement row, ModSources.Source source)
         {
             var known = source.state != ModSources.State.Unknown;
             row.Q("mod-status").SetVisible(known);
             var state = row.Q("mod-source");
             sourceTexts.ShowState(state, source);
-            if (!string.IsNullOrEmpty(source.installedCommit) && !ModSourceTexts.InProgress(source))
-                state.SetText(null, sourceTexts.State(source) + sourceTexts.separator + source.installedCommit);
-            state.tooltip = sourceTexts.StateTip(source) ?? source.repo;
+            var updatable = source.state == ModSources.State.UpdateAvailable;
+            if (source.pendingReload && !updatable && !ModSourceTexts.InProgress(source))
+                ShowAwaitingLoad(state, updatedText, "restart_alt", updatedTip);
+            else
+            {
+                if (!string.IsNullOrEmpty(source.installedCommit) && !ModSourceTexts.InProgress(source))
+                    state.SetText(null, sourceTexts.State(source) + sourceTexts.separator + source.installedCommit);
+                state.tooltip = sourceTexts.StateTip(source) ?? source.repo;
+            }
             sourceTexts.ShowProgress(row.Q("mod-progress"), source);
             var update = row.Q<Button>("mod-update");
-            var updatable = source.state == ModSources.State.UpdateAvailable;
             if (!updatable && update.focusController?.focusedElement == update)
                 (ModSourceTexts.InProgress(source) ? row.Q<Button>("mod-pause") : row.Q<Button>("mod-toggle"))?.Focus();
             row.EnableInClassList(UpdateClass, updatable);
             row.EnableInClassList(SourceClass, known);
             update.tooltip = sourceTexts.Details(source);
             row.Q<Button>("mod-remove").SetEnabled(!ModSourceTexts.Busy(source));
+            ShowProblem(row, source);
         }
 
         void OnSourcesChanged()
@@ -380,12 +390,13 @@ namespace MHK.UI
             await install;
         }
 
-        async void UpdateAll()
+        // Every update downloads at once, each row shows its own progress. A failed one leaves the others running (its row shows the error).
+        void UpdateAll()
         {
             var repos = new List<string>();
             foreach (var s in ModSources.All)
                 if (Updatable(s)) repos.Add(s.repo);
-            foreach (var repo in repos) await ModInstalls.InstallAsync(repo);
+            foreach (var repo in repos) Install(repo);
         }
     }
 }

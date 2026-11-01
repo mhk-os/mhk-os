@@ -93,6 +93,10 @@ namespace MHK.AI
         public bool Boosts { get; private set; }
         /// <summary>Self effects: rams karts it touches (panzer aura).</summary>
         public bool Rams { get; private set; }
+        /// <summary>Dig: turn rate underground at full steering (degrees per second).</summary>
+        public float DigTurnRate => dig != null ? dig.TurnRate : 0f;
+
+        MolehillPowerup dig;
 
         /// <summary>The cached profile of <paramref name="def"/>.</summary>
         public static AIItemProfile Of(PowerupDefinition def)
@@ -113,6 +117,9 @@ namespace MHK.AI
         /// <summary>Lob: approximate flight time (s) to a landing <paramref name="distance"/> metres ahead.</summary>
         public static float LobFlightTime(float distance) => LobBaseFlightTime + LobFlightTimePerMetre * distance;
 
+        /// <summary>Dig: underground speed (m/s) of a kart that digs in at <paramref name="entrySpeed"/> with speed scale <paramref name="speedScale"/>.</summary>
+        public float DigSpeed(float entrySpeed, float speedScale) => dig != null ? dig.UndergroundSpeed(entrySpeed, speedScale) : entrySpeed;
+
         // First match wins: the order is the priority of the behaviour components.
         void Describe(GameObject prefab, int depth)
         {
@@ -123,7 +130,7 @@ namespace MHK.AI
 
         bool TryDig(GameObject prefab)
         {
-            if (!prefab.TryGetComponent<MolehillPowerup>(out var dig)) return false;
+            if (!prefab.TryGetComponent(out dig)) return false;
             Kind = AIItemKind.Dig;
             Reach = dig.digDistance;
             return true;

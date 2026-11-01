@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using MHK.Online;
 using NUnit.Framework;
 using UnityEngine;
@@ -7,9 +6,9 @@ using UnityEngine;
 namespace MHK.Tests
 {
     /// <summary>
-    /// The race messages of protocol 2 against the server: the byte vectors the Go codec pins in internal/proto
-    /// (udp_test.go TestRaceMessageBytes, lobby_test.go TestRaceSlotBytes): AI slots, the AI host and the slot field of
-    /// the notifies the AI host sends for AI karts.
+    /// The race messages of protocol 3 against the server: the byte vectors the Go codec pins in internal/proto
+    /// (udp_test.go TestRaceMessageBytes, lobby_test.go TestRaceSlotBytes): AI slots, the AI host, the slot field of
+    /// the notifies the AI host sends for AI karts and its AiStates datagrams.
     /// </summary>
     public class RaceProtocolTests
     {
@@ -17,7 +16,7 @@ namespace MHK.Tests
         const string HumanSlotHex = "01" + "0900000000000000" + "0175" + "024445" + "0163" + "016b" + "02" + "00";
 
         [Test]
-        public void ProtocolVersionIsTwo() => Assert.AreEqual(2, Protocol.Version);
+        public void ProtocolVersionIsThree() => Assert.AreEqual(3, Protocol.Version);
 
         [Test]
         public void RaceSlotsMatchGo()
@@ -79,20 +78,22 @@ namespace MHK.Tests
         }
 
         [Test]
-        public void AiProgressMatchesGo()
+        public void AiStatesMatchGo()
         {
-            var entries = new List<AiProgress>
-            {
-                new() { slot = 0, lap = 2, raceDistance = 1234.5f, health = 100 },
-                new() { slot = 3, lap = 1, raceDistance = 0.5f, health = 0 },
-            };
+            var first = new KartState { tick = 3, lap = 2, raceDistance = 1234.5f, health = 100 };
+            var second = new KartState { tick = 3, lap = 1, raceDistance = 0.5f };
+            second.effects.Add(1);
             var w = new WireWriter();
-            w.U8((byte)entries.Count);
-            foreach (var e in entries) e.Write(w);
-            Assert.AreEqual("02" + "00" + "02" + "00509a44" + "64" + "03" + "01" + "0000003f" + "00", ToHex(w.ToArray()));
-            // One AiProgress datagram carries every AI kart of a full grid.
-            var capacity = (RaceProtocol.UdpMaxDatagram - RaceProtocol.UdpHeaderSize - RaceProtocol.UdpMacSize - 1) / AiProgress.Size;
-            Assert.GreaterOrEqual(capacity, RaceProtocol.MaxRacers - 1);
+            w.U8(2);
+            RaceWire.U8(w, 0);
+            first.Write(w);
+            RaceWire.U8(w, 3);
+            second.Write(w);
+            const string Pose = "03000000" + "000000000000000000000000" + "000000000000ff7f" + "000000000000" + "000000";
+            Assert.AreEqual("02" + "00" + Pose + "02" + "00509a44" + "64" + "00" + "03" + Pose + "01" + "0000003f" + "00" + "01" + "0100",
+                ToHex(w.ToArray()));
+            // The datagram packing counts on the encoded size: everything but the count and the two slots.
+            Assert.AreEqual(first.EncodedSize + second.EncodedSize, w.Length - 3);
         }
 
         static string Repeat(string s, int n) => string.Concat(System.Linq.Enumerable.Repeat(s, n));

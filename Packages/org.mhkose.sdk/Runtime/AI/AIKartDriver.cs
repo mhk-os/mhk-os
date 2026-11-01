@@ -11,7 +11,8 @@ namespace MHK.AI
 {
     /// <summary>
     /// Computer driver modelled on MHK2's ComputerCarController. It follows a racing line, plans lanes and braking, recovers
-    /// when stuck and presses the player's keys through <see cref="AIKeys"/>, with item use delegated to <see cref="AIItemBrain"/>.
+    /// when stuck, steers Hank's molehill dig underground (<see cref="AIDigSteering"/>) and presses the player's keys through
+    /// <see cref="AIKeys"/>, with item use delegated to <see cref="AIItemBrain"/>.
     /// In a battle it races the track the same way in the direction <see cref="AIBattleDriving"/> picks and leaves the
     /// racing line to hunt opponents, roam arenas and turn around.
     /// </summary>
@@ -19,7 +20,7 @@ namespace MHK.AI
     {
         const int SeedSalt = 17, BattleSalt = 0x5BD1E995;
         const float NoiseSeedRange = 100f, FirstLaneMin = 0.4f, FirstLaneSpread = 0.2f, ScanSpread = 0.1f;
-        const float MinRouteReach = 10f, RouteReachMargin = 10f;
+        const float RouteReachMargin = 10f;
         const float SlowScanInterval = 0.2f, FastScanInterval = 0.06f, MinScanRange = 10f;
         const float FeelerWidthShare = 1.15f, MinFeelerRadius = 0.4f, MaxFeelerRadius = 1.1f;
         const float MinKartHalfWidth = 0.3f, DefaultKartHalfWidth = 0.8f;
@@ -44,6 +45,7 @@ namespace MHK.AI
         readonly AIStuckRecovery stuck;
         readonly AIRamThreat rams;
         readonly AITurnLimit turn = new();
+        readonly AIDigSteering tunnel;
         float scanTimer;
         float halfWidth;
         int obstacleMask;
@@ -78,6 +80,7 @@ namespace MHK.AI
             steering = new AISteering(line, turn);
             corners = new AICornerPlanner(line, turn);
             stuck = new AIStuckRecovery(line);
+            tunnel = new AIDigSteering(line);
             // Racing lines are built on first use: this driver's while the race loads, not on its first step.
             var track = TrackRuntime.Current;
             if (track != null && track.HasMainPath) line.Prepare(track, GameRoot.Instance.Config);
@@ -88,13 +91,15 @@ namespace MHK.AI
             var cfg = GameRoot.Instance.Config;
             var dt = Time.fixedDeltaTime;
             using var marker = UpdateMarker.Auto();
-            Decide(kart, ref input, cfg, dt);
-            keys.Press(kart.Physics, ref input, dt, cfg.aiKeyMinHold);
+            var dig = MolehillPowerup.DigOf(kart);
+            Decide(kart, dig, ref input, cfg, dt);
+            keys.Press(kart.Physics, dig, ref input, dt, cfg.aiKeyMinHold);
         }
 
         float FeelerRadius => Mathf.Clamp(halfWidth * FeelerWidthShare, MinFeelerRadius, MaxFeelerRadius);
 
-        void Decide(Kart kart, ref KartInput input, GameConfig cfg, float dt)
+        // dig: the molehill this driver tunnels with right now, null when above ground.
+        void Decide(Kart kart, MolehillPowerup dig, ref KartInput input, GameConfig cfg, float dt)
         {
             var track = TrackRuntime.Current;
             input = default;
@@ -123,6 +128,14 @@ namespace MHK.AI
                 stuck.SetBattleAim(battle.Navigating ? battle.SteerPoint : line.Point(StuckAimAhead, AILanes.Centre), !battle.Navigating || battle.ForwardSafe,
                     battle.Turning);
             if (stuck.Tick(kart, dt, cfg, ref input)) return;
+            // Underground the keys set the dig's turn rate (AIDigSteering): no lanes, braking or traffic apply.
+            if (dig != null)
+            {
+                if (battle != null && battle.Navigating) tunnel.SteerAt(dig, battle.SteerPoint, ref input);
+                else tunnel.Steer(kart, dig, lanes.Lane, ref input);
+                items.Tick(kart, ref input, dt, cfg);
+                return;
+            }
             if (battle != null && battle.Navigating)
             {
                 battle.Drive(kart, track, line, steering, turn, FeelerRadius, cfg, dt, ref input);
@@ -163,7 +176,7 @@ namespace MHK.AI
 
         void FollowLine(Kart kart, TrackRuntime track, float speed, GameConfig cfg)
         {
-            var routeReach = Mathf.Max(MinRouteReach, speed * speed / (2f * Mathf.Max(1f, cfg.aiPlanBraking)) + RouteReachMargin);
+            var routeReach = speed * speed / (2f * Mathf.Max(1f, cfg.aiPlanBraking)) + RouteReachMargin;
             line.Tick(kart, track, routeReach, battle == null || battle.FollowsRoutes, cfg);
             board.route = line.Route;
             roadShift = line.RoadShift(0f);

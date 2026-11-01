@@ -46,6 +46,11 @@ namespace MHK.Modding
             public bool installed;
             /// <summary>The installed copy came from this source (its folder has source.json). False for manual installs.</summary>
             public bool managed;
+            /// <summary>
+            /// An install or update finished since the last content load: the game still runs the copy it loaded (or none)
+            /// until content reloads. <see cref="state"/> already describes the installed copy (UpToDate after an update).
+            /// </summary>
+            public bool pendingReload;
 
             internal Release latest;
             internal bool newestNeedsNewerGame, newestNeedsModUpdate, busy;

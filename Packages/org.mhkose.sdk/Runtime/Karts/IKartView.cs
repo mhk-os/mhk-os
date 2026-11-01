@@ -53,7 +53,10 @@ namespace MHK.Karts
         Modding.BodyBob BodyBob { get; }
         /// <summary>Extra horizontal field of view (degrees) of the active boost effects.</summary>
         float CameraFovBoost { get; }
-        /// <summary>Visual-only shake offset of the kart model (the camera rides along).</summary>
+        /// <summary>
+        /// Visual-only quake offset the camera rides along: the kart model's hop, or a camera-only shake while the kart
+        /// is pinned under the impacting object (<see cref="Powerups.KartQuake"/>).
+        /// </summary>
         Vector3 QuakeOffset { get; }
         /// <summary>Whether <paramref name="t"/> belongs to an effect attachment (left opaque when the kart fades).</summary>
         bool IsEffectAttachment(Transform t);

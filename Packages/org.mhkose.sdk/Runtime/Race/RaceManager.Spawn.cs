@@ -46,7 +46,8 @@ namespace MHK.Race
 
         Kart SpawnKart(int slot, RacerSetup setup, GameConfig cfg)
         {
-            // Other humans are stand-ins; AI karts of the grid run here like offline ones (OnlineItems mirrors their items).
+            // Other humans are stand-ins. AI karts get their driver everywhere: they run on the AI host and follow its
+            // states elsewhere (OnlineRace.Register), keeping the driver for when this client takes over.
             if (Online != null && setup.onlineSlot >= 0 && !setup.isHuman && !Online.IsAi(setup.onlineSlot)) return SpawnRemote(slot, setup, cfg);
             var content = GameRoot.Instance.Content;
             var character = content.Get<CharacterDefinition>(setup.characterId);

@@ -28,8 +28,9 @@ namespace MHK.AI
 
     /// <summary>
     /// The line a computer driver follows: its own racing line (<see cref="AIRacingLine.LineFor"/>) of the main line or of
-    /// an alternative route it rolled for, with lanes relative to that racing line (<see cref="RoadShift"/> converts them
-    /// to road lanes). In a battle it may be followed
+    /// an alternative route it rolled for, the route's from where it leaves the main line's before the fork until it is
+    /// back on it after the join (<see cref="AIRacingLine.RouteRunOn"/>), with lanes relative to that racing line
+    /// (<see cref="RoadShift"/> converts them to road lanes). In a battle it may be followed
     /// against the track's direction (<see cref="Direction"/>): distances ahead then run backwards along the lines and
     /// lanes are mirrored, so they stay left to right as seen from the kart.
     /// </summary>
@@ -45,7 +46,6 @@ namespace MHK.AI
         // The line falling more than this share of a sample step is a drop (steeper than about 45°): no climbing it.
         const float DropShare = 0.7f;
         const float MinLocateAhead = 1f, LocateLevelHeight = 4f;
-        const float JoinSpan = 4f, MinJoinCross = 1e-4f, StraightRadius = 1e4f;
 
         readonly int rollSeed;
         readonly int racingLine;
@@ -90,7 +90,8 @@ namespace MHK.AI
 
         /// <summary>
         /// Per step: tracks the kart on the followed line and, on the main line, rolls for each route whose fork is less
-        /// than <paramref name="reach"/> metres ahead (once per lap and route, <see cref="GameConfig.aiRouteChance"/>).
+        /// than <paramref name="reach"/> metres ahead (at least <see cref="AIRacingLine.RouteRunOn"/> plus a margin, before
+        /// the route's racing line leaves the main line's), once per lap and route (<see cref="GameConfig.aiRouteChance"/>).
         /// </summary>
         public void Tick(Kart kart, TrackRuntime t, float reach, bool allowRoutes, GameConfig cfg)
         {
@@ -125,8 +126,8 @@ namespace MHK.AI
         /// <summary>Lane plus this is the road lane (0 = left road edge, 1 = right edge) <paramref name="ahead"/> metres along the followed line.</summary>
         public float RoadShift(float ahead)
         {
-            Resolve(ahead, out var p, out var d);
-            return Shift(p, d);
+            ResolveLine(ahead, out var rl, out var d);
+            return Shift(rl, d);
         }
 
         /// <summary>
@@ -135,10 +136,8 @@ namespace MHK.AI
         /// </summary>
         public float Radius(float ahead, out float friction, out int side)
         {
-            Resolve(ahead, out var p, out var d);
-            var rl = Road(p);
+            ResolveLine(ahead, out var rl, out var d);
             friction = rl.Friction(d);
-            if (NearJoin(ahead)) return JoinRadius(ahead, out side);
             side = rl.BendSide(d, racingLine) * direction;
             return rl.Radius(d, racingLine);
         }
@@ -146,9 +145,9 @@ namespace MHK.AI
         /// <summary>World point at lane <paramref name="u"/> <paramref name="ahead"/> metres along, kept on the road.</summary>
         public Vector3 Point(float ahead, float u)
         {
-            Resolve(ahead, out var p, out var d);
-            var road = Mathf.Clamp01(u + Shift(p, d));
-            return Road(p).PointAt(d, Mirror(road));
+            ResolveLine(ahead, out var rl, out var d);
+            var road = Mathf.Clamp01(u + Shift(rl, d));
+            return rl.PointAt(d, Mirror(road));
         }
 
         /// <summary><see cref="Point"/> averaged over five samples within ±<paramref name="window"/> metres, so a steering target moves steadily.</summary>
@@ -170,8 +169,8 @@ namespace MHK.AI
         /// <summary>Width (m) of the drivable road the lanes span <paramref name="ahead"/> metres along the followed line.</summary>
         public float Width(float ahead)
         {
-            Resolve(ahead, out var p, out var d);
-            return Road(p).Width(d);
+            ResolveLine(ahead, out var rl, out var d);
+            return rl.Width(d);
         }
 
         /// <summary>A gap (<see cref="TrackGaps"/>, a jump over a fall zone) lies on the followed line within <paramref name="range"/> metres.</summary>
@@ -203,7 +202,8 @@ namespace MHK.AI
         /// </summary>
         public bool TryLocate(Vector3 position, float maxAhead, out LanePosition at)
         {
-            var onRoute = route != null && (direction > 0 ? routeD >= 0f : routeD <= route.Length);
+            // Located on the route while the kart is on it, else on the main line (a route's run-on lies along it).
+            var onRoute = route != null && routeD >= 0f && routeD <= route.Length;
             var line = onRoute ? route : main;
             var from = onRoute ? routeD : mainD;
             var hint = onRoute ? routeHint : mainSegment;
@@ -212,27 +212,26 @@ namespace MHK.AI
             at = default;
             if (ahead < MinLocateAhead || ahead > maxAhead) return false;
             if (Mathf.Abs(position.y - line.GetPoint(d).y) > LocateLevelHeight) return false;
-            var road = Road(line);
-            var roadLane = Mirror(road.RoadLaneOf(position, d));
-            at = new LanePosition(ahead, roadLane - Shift(line, d), roadLane, road.Width(d));
+            ResolveLine(ahead, out var rl, out var rd);
+            var roadLane = Mirror(rl.RoadLaneOf(position, rd));
+            at = new LanePosition(ahead, roadLane - Shift(rl, rd), roadLane, rl.Width(rd));
             return true;
         }
 
         /// <summary>Lane (as the driving's lanes) of <paramref name="position"/> beside the kart's own spot on the followed line.</summary>
         public float LaneHere(Vector3 position)
         {
-            Resolve(0f, out var p, out var d);
-            return Mirror(Road(p).RoadLaneOf(position, d)) - Shift(p, d);
+            ResolveLine(0f, out var rl, out var d);
+            return Mirror(rl.RoadLaneOf(position, d)) - Shift(rl, d);
         }
 
         /// <summary>Left and right edge of the drivable road (as the driving's lanes) <paramref name="ahead"/> metres along the followed line.</summary>
         public void RoadEdges(float ahead, out float left, out float right)
         {
-            Resolve(ahead, out var p, out var d);
-            var rl = Road(p);
+            ResolveLine(ahead, out var rl, out var d);
             rl.RoadEdges(d, out left, out right);
             if (direction < 0) (left, right) = (1f - right, 1f - left);
-            var shift = Mirror(rl.Lane(d, racingLine)) - AILanes.Centre;
+            var shift = Shift(rl, d);
             left -= shift;
             right -= shift;
         }
@@ -247,7 +246,8 @@ namespace MHK.AI
             var prog = other.Progress;
             if (route != null || prog.CurrentBranch != null || main == null) return false;
             var d = prog.PathDistance;
-            lane = Mirror(Road(main).RoadLaneOf(other.transform.position, d)) - Shift(main, d);
+            var road = Road(main);
+            lane = Mirror(road.RoadLaneOf(other.transform.position, d)) - Shift(road, d);
             ahead = direction * main.Delta(mainD, d);
             return true;
         }
@@ -270,11 +270,12 @@ namespace MHK.AI
         }
 
         // Against the track's direction a route starts at its join end and is driven from its end to its start; one-way
-        // routes (a gap jumped or a drop driven down the other way) are never taken then.
+        // routes (a gap jumped or a drop driven down the other way) are never taken then. The roll comes before the route's
+        // racing line leaves the main line's, so the kart is on it from where it swings out for the turn.
         void TryTakeFork(RacerProgress prog, float reach, float chance)
         {
             if (chance <= 0f) return;
-            reach = Mathf.Min(reach, LostBeforeFork - ForkDecisionMargin);
+            reach = Mathf.Clamp(reach, AIRacingLine.RouteRunOn + ForkDecisionMargin, LostBeforeFork - ForkDecisionMargin);
             var alts = track.Routes;
             for (var i = 0; i < alts.Count; i++)
             {
@@ -299,8 +300,14 @@ namespace MHK.AI
                 Drop();
                 return;
             }
+            var joined = direction > 0 ? routeD >= route.Length - RouteEndMargin : routeD <= RouteEndMargin;
             if (prog.CurrentBranch == route)
                 routeD = prog.BranchDistance;
+            else if (joined)
+                // Back on the main line past the join: the route's racing line runs on along it.
+                routeD = direction > 0
+                    ? route.Length + main.Delta(track.BranchJoinEnd(routeIndex), mainD)
+                    : main.Delta(track.BranchJoinStart(routeIndex), mainD);
             else if (toFork > 0f)
             {
                 routeD = direction > 0 ? -toFork : route.Length + toFork;
@@ -317,7 +324,8 @@ namespace MHK.AI
                     return;
                 }
             }
-            if (direction > 0 ? routeD >= route.Length - RouteEndMargin : routeD <= RouteEndMargin) Drop();
+            var rl = Road(route);
+            if (direction > 0 ? routeD >= rl.End - RouteEndMargin : routeD <= rl.Start + RouteEndMargin) Drop();
         }
 
         void Take(int index)
@@ -353,7 +361,7 @@ namespace MHK.AI
             return routeOneWay[index];
         }
 
-        // Line and distance on it ahead metres further along the followed line (in the follower's direction).
+        // Track line and distance on it ahead metres further along the followed line (in the follower's direction).
         void Resolve(float ahead, out TrackPath path, out float distance)
         {
             if (route != null)
@@ -374,31 +382,26 @@ namespace MHK.AI
             distance = mainD + direction * ahead;
         }
 
-        // A route's racing line meets the main line's at its ends at an angle neither line's own curvature sees (the
-        // turn into a side alley).
-        bool NearJoin(float ahead)
+        // Racing line and distance on it ahead metres further along the followed line: a route's own, run-on included
+        // (AIRacingLine.RouteRunOn), else the main line's.
+        void ResolveLine(float ahead, out AIRacingLine line, out float distance)
         {
-            if (route == null) return false;
-            var x = routeD + direction * ahead;
-            return Mathf.Abs(x) < JoinSpan || Mathf.Abs(x - route.Length) < JoinSpan;
+            if (route != null)
+            {
+                var rl = Road(route);
+                var x = routeD + direction * ahead;
+                if (x >= rl.Start && x <= rl.End)
+                {
+                    line = rl;
+                    distance = x;
+                    return;
+                }
+            }
+            Resolve(ahead, out var path, out distance);
+            line = Road(path);
         }
 
-        // Radius and side of the circle through the followed racing line JoinSpan before, at and after ahead.
-        float JoinRadius(float ahead, out int side)
-        {
-            var a = Point(ahead - JoinSpan, AILanes.Centre);
-            var b = Point(ahead, AILanes.Centre);
-            var c = Point(ahead + JoinSpan, AILanes.Centre);
-            Vector2 ab = new(b.x - a.x, b.z - a.z), ac = new(c.x - a.x, c.z - a.z), bc = new(c.x - b.x, c.z - b.z);
-            var cross = ab.x * ac.y - ab.y * ac.x;
-            side = 0;
-            if (Mathf.Abs(cross) < MinJoinCross) return StraightRadius;
-            // Clockwise seen from above (b left of the chord a→c): the line bends right.
-            side = cross < 0f ? 1 : -1;
-            return Mathf.Min(StraightRadius, ab.magnitude * bc.magnitude * ac.magnitude / (2f * Mathf.Abs(cross)));
-        }
-
-        float Shift(TrackPath path, float distance) => Mirror(Road(path).Lane(distance, racingLine)) - AILanes.Centre;
+        float Shift(AIRacingLine line, float distance) => Mirror(line.Lane(distance, racingLine)) - AILanes.Centre;
 
         // Racing line and drivable road of a line: lanes are measured across that road, not the track line's width.
         AIRacingLine Road(TrackPath path) => AIRacingLine.Of(track, path, lineMargin);

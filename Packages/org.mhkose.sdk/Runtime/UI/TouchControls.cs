@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using MHK.Core;
 using MHK.Input;
+using MHK.Karts;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -9,7 +10,8 @@ namespace MHK.UI
     /// <summary>
     /// On-screen touch controls (TouchControls.uxml) built from the player's layout (<see cref="UserSettings.uiLayout"/>),
     /// multi-touch aware, writing <see cref="VirtualKartInput"/> for the configured player. A finger that holds the look-back
-    /// button and slides onto an item button uses the item to the rear. Replays keep only pause and camera.
+    /// button and slides onto an item button uses the item to the rear. The respawn button greys out while the kart's own
+    /// respawn does nothing (<see cref="Kart.RespawnAvailable"/>). Replays keep only pause and camera.
     /// </summary>
     public class TouchControls : RaceLayer
     {
@@ -40,12 +42,17 @@ namespace MHK.UI
 
         readonly List<Control> controls = new();
         float lastTouchTime = float.NegativeInfinity;
+        // The kart these controls drive, once it has spawned, and whether its respawn button shows as available.
+        Kart own;
+        bool respawnShown;
 
         protected override bool InsetBySafeArea => true;
 
         protected override void Bind()
         {
             controls.Clear();
+            own = null;
+            respawnShown = true;
             var root = Q<VisualElement>("touch");
             root.Clear();
             var replay = Race.Session != null && Race.Session.IsReplay;
@@ -64,6 +71,29 @@ namespace MHK.UI
         protected override void Unbind() => Release();
 
         static bool InReplay(TouchControlType type) => type is TouchControlType.Pause or TouchControlType.Camera;
+
+        void Update()
+        {
+            if (!IsBound || Race == null) return;
+            if (own == null) own = OwnKart();
+            var available = own != null && own.RespawnAvailable;
+            if (available == respawnShown) return;
+            respawnShown = available;
+            for (var i = 0; i < controls.Count; i++)
+                if (controls[i].Type == TouchControlType.Respawn)
+                    controls[i].element.EnableInClassList(TouchControlElement.UnavailableClass, !available);
+        }
+
+        Kart OwnKart()
+        {
+            var karts = Race.Karts;
+            for (var i = 0; i < karts.Count; i++)
+            {
+                var setup = karts[i].Setup;
+                if (setup != null && setup.isHuman && !karts[i].IsRemote && Mathf.Max(0, setup.playerIndex) == playerIndex) return karts[i];
+            }
+            return null;
+        }
 
         void Wire(Control c)
         {

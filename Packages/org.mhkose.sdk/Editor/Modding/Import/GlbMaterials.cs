@@ -42,6 +42,8 @@ namespace MHK.Editor.Modding.Import
         readonly Shader shader;
         readonly Dictionary<string, Material> cache = new();
         readonly Dictionary<int, Texture2D> textures = new();
+        // Lowest alpha of each base texture of a GlbLightingStyle.Object import (see ApplyAlphaMode).
+        readonly Dictionary<Texture2D, byte> minAlpha = new();
         readonly Dictionary<string, Texture2DArray> flipbooks = new();
         readonly string fileName;
 
@@ -181,6 +183,13 @@ namespace MHK.Editor.Modding.Import
         void ApplyAlphaMode(Material mat, JObject json, bool additive)
         {
             var alphaMode = GlbReader.Str(json?["alphaMode"], "OPAQUE");
+            var cutoff = GlbReader.F(json?["alphaCutoff"], 0.5f);
+            // Converters export surfaces of dynamic models (karts, items) OPAQUE although they rely on their texture's
+            // transparent texels being cut out (MHK Extra's steering wheels are cut-out quads on the opaque kart atlas):
+            // drawn opaque, those show the colour hidden under alpha 0. Opaque texels look the same either way.
+            if (alphaMode == "OPAQUE" && mat.GetTexture(MHKLitIds.BaseMap) is Texture2D tex && minAlpha.TryGetValue(tex, out var min) &&
+                min < cutoff * byte.MaxValue)
+                alphaMode = "MASK";
             var doubleSided = GlbReader.B(json?["doubleSided"]) || o.lighting == GlbLightingStyle.Sky;
             mat.SetFloat(MHKLitIds.Cull, doubleSided ? (float)CullMode.Off : (float)CullMode.Back);
             if (additive) SetBlend(mat, BlendMode.One, BlendMode.One, false, (int)RenderQueue.Transparent + 10);
@@ -188,7 +197,7 @@ namespace MHK.Editor.Modding.Import
             else SetBlend(mat, BlendMode.One, BlendMode.Zero, true, alphaMode == "MASK" ? (int)RenderQueue.AlphaTest : (int)RenderQueue.Geometry);
             var clip = alphaMode == "MASK";
             mat.SetFloat(MHKLitIds.AlphaClip, clip ? 1f : 0f);
-            mat.SetFloat(MHKLitIds.Cutoff, GlbReader.F(json?["alphaCutoff"], 0.5f));
+            mat.SetFloat(MHKLitIds.Cutoff, cutoff);
             SetKeyword(mat, MHKLitIds.AlphaTestKeyword, clip);
             if (o.lighting != GlbLightingStyle.Sky) return;
             // Sky domes draw first without depth so the world (which extends past the dome) always covers them.
@@ -236,9 +245,11 @@ namespace MHK.Editor.Modding.Import
             var (wrapU, wrapV, filter) = ReadSampler(t);
             var bytes = doc.GetImage(source, out var mime, out var imageName);
             var name = AssetPaths.SafeFileName((imageName ?? $"{prefix}_image{source}").ToLowerInvariant());
-            return textures[index] = string.IsNullOrEmpty(o.textureFolder)
+            var tex = string.IsNullOrEmpty(o.textureFolder)
                 ? InMemoryTexture(bytes, name, wrapU, wrapV, filter, source)
                 : TextureAsset(bytes, name, mime == "image/jpeg" ? ".jpg" : ".png", wrapU, wrapV, filter);
+            if (tex != null && o.lighting == GlbLightingStyle.Object) minAlpha[tex] = MinAlpha(bytes);
+            return textures[index] = tex;
         }
 
         (TextureWrapMode u, TextureWrapMode v, FilterMode filter) ReadSampler(JObject texture)
@@ -268,7 +279,7 @@ namespace MHK.Editor.Modding.Import
                 other.wrapModeU == wrapU && other.wrapModeV == wrapV && other.filterMode == filter, out var written);
             if (AssetImporter.GetAtPath(path) is TextureImporter ti && (written || ti.wrapModeU != wrapU || ti.wrapModeV != wrapV || ti.filterMode != filter))
             {
-                ConfigureColourTexture(ti, written ? HasTranslucentPixel(bytes) : ti.alphaIsTransparency, MaxTextureSize, AndroidMaxTextureSize);
+                ConfigureColourTexture(ti, written ? MinAlpha(bytes) < OpaqueAlpha : ti.alphaIsTransparency, MaxTextureSize, AndroidMaxTextureSize);
                 ti.wrapModeU = wrapU;
                 ti.wrapModeV = wrapV;
                 ti.filterMode = filter;
@@ -309,12 +320,12 @@ namespace MHK.Editor.Modding.Import
         }
 #pragma warning restore CA5351
 
-        static bool HasTranslucentPixel(byte[] bytes)
+        static byte MinAlpha(byte[] bytes)
         {
             var t = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             try
             {
-                return t.LoadImage(bytes) && HasTranslucentPixel(t.GetPixels32());
+                return t.LoadImage(bytes) ? MinAlpha(t.GetPixels32()) : byte.MaxValue;
             }
             finally
             {
@@ -322,11 +333,14 @@ namespace MHK.Editor.Modding.Import
             }
         }
 
-        static bool HasTranslucentPixel(Color32[] pixels)
+        static bool HasTranslucentPixel(Color32[] pixels) => MinAlpha(pixels) < OpaqueAlpha;
+
+        static byte MinAlpha(Color32[] pixels)
         {
+            var min = byte.MaxValue;
             foreach (var p in pixels)
-                if (p.a < OpaqueAlpha) return true;
-            return false;
+                if (p.a < min) min = p.a;
+            return min;
         }
 
         static void ConfigureColourTexture(TextureImporter ti, bool hasAlpha, int maxSize, int androidMaxSize)

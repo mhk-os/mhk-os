@@ -4,9 +4,10 @@ using UnityEngine;
 namespace MHK.AI
 {
     /// <summary>
-    /// How tight a bend a kart can hold at a given speed with the player's keys (the lower of the full-lock steering
-    /// radius, with speed wash-out as in <see cref="KartPhysics"/>, and the grip limit) and how hard it brakes before a
-    /// bend (the brakes' wheel friction on gravity plus downforce, so harder at speed).
+    /// How tight a bend a kart can hold at a given speed with the player's keys (the lowest of the full-lock steering
+    /// radius, with speed wash-out as in <see cref="KartPhysics"/>, the grip limit and the yaw rate the body's angular
+    /// damping lets it turn at) and how hard it brakes before a bend (the brakes' wheel friction on gravity plus
+    /// downforce, so harder at speed).
     /// </summary>
     internal sealed class AITurnLimit
     {
@@ -18,6 +19,10 @@ namespace MHK.AI
         const float RebuildTolerance = 0.02f;
         const float MinSteerAngle = 0.5f, MaxSteerAngle = 80f;
         const float MinBrake = 0.05f, MinGravity = 0.1f, MinBrakeDownforce = 1e-5f, MaxBrakeExponent = 20f;
+        // Share of KartPhysicsProfile.angularVelCollisionLimit planned as the highest yaw rate: above the limit the body's
+        // much stronger angular damping stops the kart turning faster, whatever the wheels do (MHK3 Egypt: karts held
+        // about 1.8 rad/s, an 11 m arc at 21 m/s, where the steering and grip limits allowed 8 m).
+        const float YawShare = 0.9f;
 
         readonly float[] steerRadius = new float[Samples + 1];
         float speedStep;
@@ -26,6 +31,8 @@ namespace MHK.AI
         float gripPerFriction;
         float gravity, downforcePerMass;
         float brakePerLoad;
+        // Highest planned yaw rate (rad/s), infinity when the profile's damping does not cap it.
+        float maxYawRate = float.PositiveInfinity;
         KartPhysicsProfile builtProfile;
         float builtWheelbase, builtSteer, builtTop;
 
@@ -62,7 +69,7 @@ namespace MHK.AI
         public float SpeedFor(float bendRadius, float friction)
         {
             var r = bendRadius / margin;
-            return Mathf.Min(SteeringSpeed(r), GripSpeed(r, friction));
+            return Mathf.Min(SteeringSpeed(r), Mathf.Min(GripSpeed(r, friction), maxYawRate * r));
         }
 
         /// <summary>Radius (m) the kart turns at full lock at <paramref name="speed"/>, with the speed wash-out (0 until <see cref="Ready"/>).</summary>
@@ -131,6 +138,9 @@ namespace MHK.AI
             var front = AxleBrake(p.rollFrictionCoeffFront, p.rollFrictionCoeffLockedFront, p.brakeCoefficientFront, p.maxBrakeFront, wheelLoad);
             var rear = AxleBrake(p.rollFrictionCoeffRear, p.rollFrictionCoeffLockedRear, p.brakeCoefficientRear, p.maxBrakeRear, wheelLoad);
             brakePerLoad = Mathf.Max(MinBrake, brakeShare * 0.5f * (front + rear));
+            maxYawRate = p.angularVelCollisionLimit > 0f && p.angularVelCollisionDamping > p.angularVelDamping
+                ? YawShare * p.angularVelCollisionLimit
+                : float.PositiveInfinity;
         }
 
         // Brake friction of a wheel at full brake (KartPhysics.ComputeFrictionLimits): rolling friction, or the locked

@@ -11,8 +11,11 @@ namespace MHK.AI
     /// a band of the road that sweeps from one side to the other along the lap, each a phase further, so drivers on
     /// different lines spread over the width and still take every bend as an arc. Each as a lane and bend curvature per
     /// distance, with the ground friction of line 0. Lanes span the road across a smoothed copy of the track line, so the
-    /// sharp kinks of node polylines (MHK2, MHK3) neither fold the lanes nor keep the line from cutting a corner. The road
-    /// is measured once per track and line on first use, each racing line solved on its first use.
+    /// sharp kinks of node polylines (MHK2, MHK3) neither fold the lanes nor keep the line from cutting a corner. The lines
+    /// of an alternative route run on <see cref="RouteRunOn"/> along the main line before its fork and after its join and
+    /// are solved as one with it, so the turn into and out of a side alley is an arc set up from the main road instead of a
+    /// kink where two separately solved lines meet. The road is measured once per track and line on first use, each racing
+    /// line solved on its first use.
     /// </summary>
     internal sealed partial class AIRacingLine
     {
@@ -31,9 +34,18 @@ namespace MHK.AI
         // open the band in proportion to their curvature). The narrowing grows by at most BandSlope (m per m) away from
         // such places, so the lines gather on the way into a bend or a narrow passage instead of all at once.
         const float BandShare = 0.55f, BandWavelength = 320f, MinBandRoad = 2.5f, TightBendRadius = 20f, BandSlope = 0.12f;
+        // A route's run-on keeps to the main line's racing line of the same index over this many samples at each end, so the
+        // two lines meet in position and heading.
+        const int RunOnPins = 3;
 
         /// <summary>Racing lines per track line (<see cref="LineFor"/> shares them out over the drivers).</summary>
         public const int LineCount = 8;
+
+        /// <summary>
+        /// Metres an alternative route's racing lines run on along the main line before its fork and after its join: room
+        /// to swing out before a sharp turn into the route and to straighten out after the turn back.
+        /// </summary>
+        public const float RouteRunOn = 30f;
 
         [AutoStaticsCleanup] static readonly Dictionary<TrackPath, AIRacingLine> Cache = new();
         [AutoStaticsCleanup] static TrackRuntime cacheTrack;
@@ -43,6 +55,8 @@ namespace MHK.AI
         readonly bool closed;
         readonly float length;
         readonly float sampleSpacing;
+        // Index of the alternative route this line is (its run-on lies on the main line), -1 for the main line.
+        readonly int routeIndex;
         readonly Road road;
         readonly TrackRuntime track;
         readonly float margin;
@@ -77,6 +91,12 @@ namespace MHK.AI
         /// <summary>Solves racing line <paramref name="line"/> now if it is not yet (drivers call this while the track loads).</summary>
         public void Prepare(int line) => Offsets(line);
 
+        /// <summary>First distance along the line the racing lines cover: -<see cref="RouteRunOn"/> on an alternative route, else 0.</summary>
+        public float Start { get; }
+
+        /// <summary>Last distance along the line the racing lines cover: the route's length plus <see cref="RouteRunOn"/>, else the length.</summary>
+        public float End { get; }
+
         /// <summary>Racing line of the driver with racer index <paramref name="racer"/>: drivers next to each other in the grid get different lines.</summary>
         public static int LineFor(int racer) => (racer % LineCount + LineCount) % LineCount;
 
@@ -98,7 +118,8 @@ namespace MHK.AI
         {
             Frame(distance, out var centre, out var side);
             var p = centre + side * (Sample(frameShift, distance) + (roadLane - AILanes.Centre) * Width(distance));
-            return new Vector3(p.x, path.GetPoint(distance).y, p.y);
+            var height = SourceOf(closed ? distance : Mathf.Clamp(distance, Start, End), out var at).GetPoint(at).y;
+            return new Vector3(p.x, height, p.y);
         }
 
         /// <summary>Road lane (unclamped) of <paramref name="position"/> beside <paramref name="distance"/>.</summary>
@@ -144,15 +165,22 @@ namespace MHK.AI
             path = line;
             closed = line.closed;
             length = line.Length;
-            var n = closed ? Mathf.Max(3, Mathf.RoundToInt(length / Step)) : Mathf.Max(2, Mathf.CeilToInt(length / Step) + 1);
-            sampleSpacing = closed ? length / n : Step;
+            routeIndex = !closed && track.MainPath != null && track.MainPath != line ? track.RouteIndex(line) : -1;
+            var runOn = routeIndex >= 0 ? RouteRunOn : 0f;
+            Start = -runOn;
+            End = length + runOn;
+            var n = closed ? Mathf.Max(3, Mathf.RoundToInt(length / Step)) : Mathf.Max(2, Mathf.CeilToInt((End - Start) / Step) + 1);
+            // An open line's last sample lies on its end (a route's is pinned to the main line there).
+            sampleSpacing = closed ? length / n : (End - Start) / (n - 1);
             var mask = track.ObstacleMask;
             road = new Road(n, closed);
-            road.Measure(track, line, sampleSpacing, length, margin, mask);
+            road.Measure(this, margin, mask);
             // Jumps are taken straight down the centre: the take-off ramp and the landing are built around the line.
             road.KeepCentreAroundGaps(Mathf.CeilToInt(GapRunIn / sampleSpacing), Mathf.CeilToInt(GapRunOut / sampleSpacing));
-            if (!closed && track.MainPath != null && track.MainPath != line) road.pinned[0] = road.pinned[n - 1] = true;
-            BandOf(track, line, out bandPhase, out bandPerMetre);
+            if (routeIndex >= 0)
+                for (var k = 0; k < RunOnPins; k++)
+                    road.pinned[k] = road.pinned[n - 1 - k] = true;
+            BandOf(track, line, routeIndex, Start, out bandPhase, out bandPerMetre);
             road.Edges(margin, out edgeLeft, out edgeRight);
             frameCentre = road.refCentre;
             frameSide = road.refSide;
@@ -162,14 +190,26 @@ namespace MHK.AI
         }
 
         // Main line: whole waves per lap (an open line: per BandWavelength). A route continues the main line's band from
-        // where it forks, so its lines leave and join the main line's on the same side.
-        static void BandOf(TrackRuntime track, TrackPath line, out float phase, out float perMetre)
+        // where its run-on starts, so its lines leave and join the main line's on the same side.
+        static void BandOf(TrackRuntime track, TrackPath line, int routeIndex, float start, out float phase, out float perMetre)
         {
             var main = track.MainPath != null ? track.MainPath : line;
             var waves = main.closed ? Mathf.Max(1f, Mathf.Round(main.Length / BandWavelength)) : main.Length / BandWavelength;
             perMetre = 2f * Mathf.PI * waves / Mathf.Max(1f, main.Length);
-            var index = line == main ? -1 : track.RouteIndex(line);
-            phase = index >= 0 ? track.BranchJoinStart(index) * perMetre : 0f;
+            phase = routeIndex >= 0 ? (track.BranchJoinStart(routeIndex) + start) * perMetre : 0f;
+        }
+
+        // Distance along the line of sample i (beyond the ends for the frame smoothing).
+        float SampleDistance(int i) => Start + i * sampleSpacing;
+
+        // Track line under distance along this line, and the distance on it: a route's run-on, and what lies beyond it,
+        // is on the main line. Other open lines end at their ends.
+        TrackPath SourceOf(float distance, out float at)
+        {
+            at = distance;
+            if (routeIndex < 0 || (distance >= 0f && distance <= length)) return path;
+            at = distance < 0f ? track.BranchJoinStart(routeIndex) + distance : track.BranchJoinEnd(routeIndex) + (distance - length);
+            return track.MainPath;
         }
 
         float[] Offsets(int line)
@@ -201,7 +241,7 @@ namespace MHK.AI
             }
             var offset = new float[road.n];
             for (var i = 0; i < road.n; i++) offset[i] = Mathf.Clamp(start[i], low[i], high[i]);
-            if (!closed && track.MainPath != null && track.MainPath != path) PinRouteEnds(offset, low, high, line);
+            if (routeIndex >= 0) PinRunOn(offset, low, high, line);
             road.Solve(offset, low, high, Road.CoarsestStride);
             for (var round = 0; round < ObstacleRounds && road.AvoidObstacles(offset, low, high, margin, track.ObstacleMask); round++)
                 road.Solve(offset, low, high, Road.RefineStride);
@@ -234,8 +274,8 @@ namespace MHK.AI
         void Locate(float distance, out int i, out int j, out float t)
         {
             var n = road.n;
-            var d = closed ? path.WrapDistance(distance) : Mathf.Clamp(distance, 0f, length);
-            var x = d / sampleSpacing;
+            var d = closed ? path.WrapDistance(distance) : Mathf.Clamp(distance, Start, End);
+            var x = (d - Start) / sampleSpacing;
             i = Mathf.Clamp((int)x, 0, n - 1);
             j = closed ? (i + 1) % n : Mathf.Min(i + 1, n - 1);
             t = x - (int)x;
@@ -243,14 +283,21 @@ namespace MHK.AI
 
         Vector3 WorldPoint(float distance, int line) => PointAt(distance, Lane(distance, line));
 
-        // Alternative routes join the same racing line of the main line at both ends.
-        void PinRouteEnds(float[] offset, float[] low, float[] high, int line)
+        // A route's run-on starts and ends on the same racing line of the main line, RunOnPins samples at each end.
+        void PinRunOn(float[] offset, float[] low, float[] high, int line)
         {
-            var index = track.RouteIndex(path);
-            if (index < 0) return;
             var main = Of(track, track.MainPath, margin);
-            road.Pin(main.WorldPoint(track.BranchJoinStart(index), line), 0, offset, low, high);
-            road.Pin(main.WorldPoint(track.BranchJoinEnd(index), line), road.n - 1, offset, low, high);
+            for (var k = 0; k < RunOnPins; k++)
+            {
+                PinToMain(main, k, offset, low, high, line);
+                PinToMain(main, road.n - 1 - k, offset, low, high, line);
+            }
+        }
+
+        void PinToMain(AIRacingLine main, int i, float[] offset, float[] low, float[] high, int line)
+        {
+            SourceOf(SampleDistance(i), out var at);
+            road.Pin(main.WorldPoint(at, line), i, offset, low, high);
         }
 
         static float[] Frictions(Vector2[] points, float[] height, int mask)
@@ -333,25 +380,25 @@ namespace MHK.AI
             }
 
             /// <summary>
-            /// Samples the track line, smooths it into the frame and probes the drivable road from each track line point
-            /// along the frame's side direction: walls, drops, offroad ground and holes cut the track line's width short.
-            /// The bounds keep <paramref name="margin"/> from the edges (the middle of roads narrower than that) and stop
-            /// short of folds.
+            /// Samples the track line of <paramref name="owner"/> (a route's run-on on the main line), smooths it into the
+            /// frame and probes the drivable road from each track line point along the frame's side direction: walls,
+            /// drops, offroad ground and holes cut the track line's width short. The bounds keep <paramref name="margin"/>
+            /// from the edges (the middle of roads narrower than that) and stop short of folds.
             /// </summary>
-            public void Measure(TrackRuntime track, TrackPath line, float spacing, float length, float margin, int mask)
+            public void Measure(AIRacingLine owner, float margin, int mask)
             {
                 for (var i = 0; i < n; i++)
                 {
-                    var d = Mathf.Min(i * spacing, length);
+                    var line = owner.SourceOf(owner.SampleDistance(i), out var d);
                     var c = line.GetPoint(d);
                     var right = TrackPath.RightOf(line.GetTangent(d));
                     side[i] = new Vector2(right.x, right.z);
                     centre[i] = new Vector2(c.x, c.z);
                     height[i] = c.y;
                     width[i] = Mathf.Max(1f, line.GetWidth(d));
-                    gap[i] = TrackGaps.IsGap(track, line, d);
+                    gap[i] = TrackGaps.IsGap(owner.track, line, d);
                 }
-                SmoothCentre();
+                SmoothCentre(owner);
                 for (var i = 0; i < n; i++)
                 {
                     var tangent = refCentre[Index(i + 1)] - refCentre[Index(i - 1)];
@@ -561,16 +608,25 @@ namespace MHK.AI
                 }
             }
 
-            void SmoothCentre()
+            // Beyond the ends of an open line the frame smooths over the track line's continuation: the main line around a
+            // route's run-on (so it meets the main line's frame), the end point of other lines.
+            void SmoothCentre(AIRacingLine owner)
             {
                 var weights = 0f;
                 for (var k = -SmoothSamples; k <= SmoothSamples; k++) weights += Weight(k);
                 for (var i = 0; i < n; i++)
                 {
                     var sum = Vector2.zero;
-                    for (var k = -SmoothSamples; k <= SmoothSamples; k++) sum += centre[Index(i + k)] * Weight(k);
+                    for (var k = -SmoothSamples; k <= SmoothSamples; k++) sum += Centre(owner, i + k) * Weight(k);
                     refCentre[i] = sum / weights;
                 }
+            }
+
+            Vector2 Centre(AIRacingLine owner, int i)
+            {
+                if (closed || (i >= 0 && i < n)) return centre[Index(i)];
+                var c = owner.SourceOf(owner.SampleDistance(i), out var d).GetPoint(d);
+                return new Vector2(c.x, c.z);
             }
 
             static float Weight(int k) => Mathf.Exp(-0.5f * (k / SmoothSigma) * (k / SmoothSigma));

@@ -39,10 +39,9 @@ namespace MHK.Powerups
         [AutoStaticsCleanup] static readonly HashSet<long> hitsTaken = new();
         [AutoStaticsCleanup] static readonly HashSet<long> hitsSeen = new();
         [AutoStaticsCleanup] static readonly HashSet<string> unknownPowerups = new();
-        // Uses made so far per kart slot (the local kart, and the AI karts while hosting).
+        // Uses made so far per kart slot: the local kart's, and the AI karts' (hosted here, or seen in ItemUsed so that a
+        // new AI host numbers on: the server refuses a reused use id).
         [AutoStaticsCleanup] static readonly Dictionary<int, int> usesMade = new();
-        // A server-confirmed hit is being applied to a mirrored AI kart (KartEffects must let it through).
-        [AutoStaticsCleanup] static bool applyingShared;
 
         static void ResetUses()
         {
@@ -52,7 +51,6 @@ namespace MHK.Powerups
             hitsSeen.Clear();
             unknownPowerups.Clear();
             usesMade.Clear();
-            applyingShared = false;
         }
 
         /// <summary>Id of a reported kart's next use: (its slot + 1) &lt;&lt; 24 | n, unique without a round trip.</summary>
@@ -102,13 +100,14 @@ namespace MHK.Powerups
             });
         }
 
-        // Another kart's use: spawned from the pose it was used at (a stand-in is drawn ~100 ms behind, a mirrored AI kart
-        // is where this client's simulation has it) with the sender's target, then simulated up to now. A mirrored AI
-        // kart spends the charge here.
+        // Another kart's use: spawned from the pose it was used at (a stand-in, an AI kart of another host too, is drawn
+        // ~100 ms behind) with the sender's target, then simulated up to now. An AI kart spends the charge here too.
         static void SpawnRemote(ItemUsed m)
         {
             var owner = race.KartOf(m.slot);
             var def = Content.Get<PowerupDefinition>(m.powerupId);
+            if (race.IsAi(m.slot) && (!usesMade.TryGetValue(m.slot, out var made) || made < ItemUse.UseCount(m.useId)))
+                usesMade[m.slot] = ItemUse.UseCount(m.useId);
             if (def == null && !race.IsAi(m.slot) && unknownPowerups.Add(m.powerupId))
                 race.Notify(new UnknownContent { raceId = race.RaceId, slot = m.slot, kind = PowerupContentKind, id = m.powerupId });
             if (owner == null || def == null || def.usePrefab == null || uses.ContainsKey(m.useId)) return;
@@ -235,13 +234,6 @@ namespace MHK.Powerups
             SendHitTaken(AttackerSlot(victim, source, usage), usage, def.Id, NotifySlot(victim));
         }
 
-        /// <summary>
-        /// A hit from item use <paramref name="usage"/> on a mirrored AI kart (<see cref="IsMirror"/>) is not applied here:
-        /// the AI host decides it and the server's HitApplied brings it. Track hazards and zones (use 0) act locally.
-        /// </summary>
-        public static bool WaitsForServer(Kart victim, StatusEffectDefinition def, int usage) =>
-            usage != 0 && def != null && def.hostile && !applyingShared && IsMirror(victim);
-
         // A use's attacker is its owner, also when it hits the owner's own kart; hazards and falls (use 0) have none.
         static int AttackerSlot(Kart victim, Kart source, int usage) =>
             source != null && (usage != 0 || source != victim) ? race.SlotOf(source) : RaceProtocol.NoSlot;
@@ -252,7 +244,8 @@ namespace MHK.Powerups
         /// <summary>A use hit a remote human racer here: reported as seen (HitSeen) once per victim and use; its client decides.</summary>
         internal static void OnRemoteHit(Kart victim, StatusEffectDefinition def, Kart source, int usage)
         {
-            if (!Active || usage == 0) return;
+            // Hits on AI karts are their host's to decide; the server takes no claims about them.
+            if (!Active || usage == 0 || race.IsAiKart(victim)) return;
             var slot = race.SlotOf(victim);
             if (slot < 0 || !hitsSeen.Add((long)slot << 32 | (uint)usage)) return;
             race.Notify(new HitSeen
@@ -261,33 +254,15 @@ namespace MHK.Powerups
             });
         }
 
-        // Another racer took a hit: its reaction shows, and the one part of the use that can have made it (the nearest
-        // within its reach of the victim) is spent here too; the other bananas of a rain or bubbles of a burst stay. A
-        // mirrored AI kart takes the hit for real (its AI host decided it); hazards (use 0) already acted on it here.
+        // Another racer (or an AI kart another client hosts) took a hit: its reaction shows, and the one part of the use
+        // that can have made it (the nearest within its reach of the victim) is spent here too; the other bananas of a rain
+        // or bubbles of a burst stay.
         static void OnHitApplied(HitApplied m)
         {
             var victim = race.KartOf(m.victimSlot);
-            if (victim == null) return;
-            var mirror = IsMirror(victim);
-            if (!victim.IsRemote && !(mirror && m.useId != 0)) return;
+            if (victim == null || !victim.IsRemote) return;
             var def = Content.Get<StatusEffectDefinition>(m.effectId);
-            if (def != null)
-            {
-                if (!mirror) victim.Effects.ShowRemote(def, race.KartOf(m.attackerSlot), -1f, m.useId);
-                else
-                {
-                    // Effects.Apply, not KartReactions: the hit already counted for achievements when it landed here.
-                    applyingShared = true;
-                    try
-                    {
-                        victim.Effects.Apply(def, race.KartOf(m.attackerSlot), -1f, m.useId);
-                    }
-                    finally
-                    {
-                        applyingShared = false;
-                    }
-                }
-            }
+            if (def != null) victim.Effects.ShowRemote(def, race.KartOf(m.attackerSlot), -1f, m.useId);
             if (m.useId == 0 || !uses.TryGetValue(m.useId, out var use)) return;
             var at = victim.transform.position;
             PowerupBehaviour hitter = null;

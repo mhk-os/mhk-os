@@ -34,8 +34,9 @@ namespace MHK.Karts
         /// <summary>When false the kart ignores its driver (countdown, after finishing for humans until AI takes over).</summary>
         public bool ControlsEnabled { get; set; }
         /// <summary>
-        /// Another online racer's kart: a kinematic stand-in that follows the received states (<see cref="Online.RemoteKart"/>).
-        /// It runs no driver, physics step, items or respawns here; its client simulates it.
+        /// Another online racer's kart, or an AI kart another client hosts: a kinematic stand-in that follows the received
+        /// states (<see cref="Online.RemoteKart"/>). It runs no driver, physics step, items or respawns here; its client
+        /// simulates it.
         /// </summary>
         public bool IsRemote { get; private set; }
         public KartInput CurrentInput => input;
@@ -113,7 +114,7 @@ namespace MHK.Karts
         bool IKartView.Hidden => Effects.Hidden;
         bool IKartView.WheelsHidden => Effects.WheelsHidden;
         BodyBob IKartView.BodyBob => Effects.BodyBob;
-        Vector3 IKartView.QuakeOffset => KartQuake.VisualOffset(this);
+        Vector3 IKartView.QuakeOffset => KartQuake.CameraOffset(this);
         bool IKartView.IsEffectAttachment(Transform t) => Effects.IsEffectAttachment(t);
 
         public event Action<Kart> Respawned;
@@ -188,7 +189,7 @@ namespace MHK.Karts
 
         /// <summary>
         /// Turns this kart into a remote racer's stand-in: no driver, a kinematic body the local kart bumps into. Called
-        /// once right after spawning.
+        /// right after spawning, and online for an AI kart whenever another client becomes its host.
         /// </summary>
         internal void BecomeRemote()
         {
@@ -197,6 +198,22 @@ namespace MHK.Karts
             Physics.Body.isKinematic = true;
             Physics.Body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             Physics.Body.interpolation = RigidbodyInterpolation.Interpolate;
+        }
+
+        /// <summary>
+        /// Turns a remote stand-in back into a kart simulated here (online: this client took the AI karts over from their
+        /// host): <paramref name="driver"/> drives it on from its current pose at <paramref name="velocity"/>.
+        /// </summary>
+        internal void BecomeLocal(IKartDriver driver, Vector3 velocity)
+        {
+            IsRemote = false;
+            Driver = driver;
+            var body = Physics.Body;
+            body.isKinematic = false;
+            // As KartPhysics sets a simulated kart up.
+            body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            body.linearVelocity = velocity;
+            body.angularVelocity = Vector3.zero;
         }
 
         /// <summary>A remote racer's controls as received (animations and look-back read them).</summary>
@@ -242,7 +259,8 @@ namespace MHK.Karts
             if (Physics.IsGrounded) ReactToSurface(Physics.Surface);
             if (track != null && Falling(track)) TouchDropGeometry();
             if (CollapsingBridge.IsDownAt(Physics.Body.position)) TouchDropGeometry();
-            if (effective.respawn && ControlsEnabled && !Effects.HasRespawnPending) respawnRequested = true;
+            // The driver's own respawn never cuts a hit short; kill zones and falls above still respawn (keeping it).
+            if (effective.respawn && RespawnAvailable) respawnRequested = true;
             if (Eliminated) respawnRequested = false;
             if (respawnRequested && respawnCooldown <= 0f) RespawnBehind(GameRoot.Instance.Config.respawnBackDistance);
             respawnRequested = false;
@@ -255,6 +273,13 @@ namespace MHK.Karts
         }
 
         public void RequestRespawn() => respawnRequested = true;
+
+        /// <summary>
+        /// The driver's own respawn (respawn input, touch button) works now: racing, not eliminated, no hit running or
+        /// waiting for its respawn (<see cref="KartEffects.HasHostileEffect"/>), and not just respawned.
+        /// </summary>
+        public bool RespawnAvailable =>
+            ControlsEnabled && !Eliminated && !Effects.HasRespawnPending && !Effects.HasHostileEffect && respawnCooldown <= 0f;
 
         /// <summary>
         /// Thunder damage formula: base × attacker's dealt multiplier (quad 4, hammer 2) × own taken multiplier
@@ -335,7 +360,8 @@ namespace MHK.Karts
 
         /// <summary>
         /// Puts the kart back on the racing line, <paramref name="backDistance"/> metres behind the last point
-        /// where it was safely on the track (MHK2: 15 units, +2 drop height, buffs cancelled, item kept).
+        /// where it was safely on the track (MHK2: 15 units, +2 drop height, buffs cancelled, item kept). Running hits
+        /// keep their time left (<see cref="KartEffects.ClearForRespawn"/>).
         /// Like MHK3, the spot moves further back while another kart occupies it, so respawns never stack.
         /// </summary>
         public void RespawnBehind(float backDistance)
@@ -345,7 +371,7 @@ namespace MHK.Karts
             var pose = RespawnPose(backDistance, cfg);
             Physics.Teleport(pose.position + Vector3.up * cfg.respawnDropHeight, pose.rotation);
             Progress.ResetProjection();
-            Effects.ClearAll();
+            Effects.ClearForRespawn();
             Effects.ProtectedUntilTick = RaceClock.Ticks + Mathf.CeilToInt(cfg.respawnProtectionSeconds / RaceClock.Step);
             respawnCooldown = RespawnCooldownSeconds;
             respawnRequested = false;

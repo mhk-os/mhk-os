@@ -10,8 +10,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Built-in mods download (BaseMods.uxml): after the graphics first run screen while built-in mods are missing, and
-    /// from the title screen. Each row downloads (pauses, resumes) its mod, Download All the missing ones one after the
-    /// other. Downloads never reload: Continue loads what was downloaded once.
+    /// from the title screen. Each row downloads (pauses, resumes) its mod, Download All downloads the missing ones at
+    /// once. Downloads never reload: Continue loads what was downloaded once.
     /// </summary>
     public partial class BaseModsScreen : MenuScreen
     {
@@ -25,8 +25,8 @@ namespace MHK.UI
         string readyFormat = "{0} mods | {1}";
         [SerializeField, Tooltip("Overall line before the download while the sizes are unknown. {0} = number of mods.")]
         string readyNoSizeFormat = "{0} mods";
-        [SerializeField, Tooltip("Overall line while downloading. {0} = number of the current mod, {1} = number of mods, {2} = percent of all.")]
-        string progressFormat = "Mod {0} of {1} | {2}";
+        [SerializeField, Tooltip("Overall line while downloading. {0} = number of mods finished, {1} = number of mods, {2} = percent of all.")]
+        string progressFormat = "{0} of {1} mods | {2}";
         [SerializeField, Tooltip("Overall line when a download failed because GitHub could not be reached.")]
         string offlineLine = "No internet connection.";
         [SerializeField, Tooltip("Overall line when a download failed for another reason (the mod's state tooltip tells why).")]
@@ -51,8 +51,9 @@ namespace MHK.UI
 
         // The download outlives the screen (Back while it runs), the next open shows its progress.
         [AutoStaticsCleanup] static bool downloading;
-        [AutoStaticsCleanup] static int current;
         [AutoStaticsCleanup] static readonly List<string> targets = new();
+        // Targets of Download All whose download ended (installed or failed).
+        [AutoStaticsCleanup] static readonly HashSet<string> finished = new(StringComparer.OrdinalIgnoreCase);
         [AutoStaticsCleanup] static readonly HashSet<string> rowDownloads = new(StringComparer.OrdinalIgnoreCase);
         [AutoStaticsCleanup] static readonly HashSet<string> tried = new(StringComparer.OrdinalIgnoreCase);
 
@@ -133,23 +134,26 @@ namespace MHK.UI
         static bool Downloadable(ModSources.Source s) =>
             s.state is not (ModSources.State.NoRelease or ModSources.State.NeedsNewerGame or ModSources.State.NeedsModUpdate);
 
-        async void DownloadAll()
+        // Every missing mod downloads at once, each row shows its own progress. A failed one leaves the others running.
+        void DownloadAll()
         {
             if (downloading) return;
-            downloading = true;
             targets.Clear();
+            finished.Clear();
             foreach (var s in ModSources.All)
                 if (Needed(s) && !rowDownloads.Contains(s.repo)) targets.Add(s.repo);
-            current = 0;
+            if (targets.Count == 0) return;
+            downloading = true;
+            foreach (var repo in targets) tried.Add(repo);
             Refresh();
-            foreach (var repo in targets)
-            {
-                current++;
-                if (rowDownloads.Contains(repo) || ModSources.Find(repo) is not { installed: false }) continue;
-                tried.Add(repo);
-                await ModInstalls.InstallAsync(repo);
-            }
-            downloading = false;
+            foreach (var repo in targets) DownloadTarget(repo);
+        }
+
+        async void DownloadTarget(string repo)
+        {
+            await ModInstalls.InstallAsync(repo);
+            finished.Add(repo);
+            if (finished.Count == targets.Count) downloading = false;
             AfterDownload();
         }
 
@@ -282,7 +286,7 @@ namespace MHK.UI
             if (downloading)
             {
                 var progress = OverallProgress();
-                (text, icon, tone) = (string.Format(progressFormat, current, targets.Count, UiText.Percent(Mathf.Round(progress * 100f))), "download", "src-accent");
+                (text, icon, tone) = (string.Format(progressFormat, finished.Count, targets.Count, UiText.Percent(Mathf.Round(progress * 100f))), "download", "src-accent");
                 bar.Q(className: "src-bar-fill").style.width = Length.Percent(progress * 100f);
             }
             else if (Failed(true)) (text, icon, tone) = (offlineLine, "cloud_off", "src-bad");
@@ -301,7 +305,7 @@ namespace MHK.UI
 
         static readonly string[] Tones = { "src-muted", "src-good", "src-accent", "src-bad" };
 
-        // Bytes of the finished and the running download over all, a mod of unknown size weighs the average. Failed ones drop out.
+        // Bytes of the finished and the running downloads over all, a mod of unknown size weighs the average. Failed ones drop out.
         static float OverallProgress()
         {
             double known = 0;
@@ -314,15 +318,14 @@ namespace MHK.UI
                 }
             var fallback = sized > 0 ? known / sized : 1.0;
             double done = 0, all = 0;
-            for (var i = 0; i < targets.Count; i++)
+            foreach (var repo in targets)
             {
-                var s = ModSources.Find(targets[i]);
-                var finished = i < current - 1;
-                if (s == null || (finished && !s.installed)) continue;
+                var s = ModSources.Find(repo);
+                var ended = finished.Contains(repo);
+                if (s == null || (ended && !s.installed)) continue;
                 var weight = s.downloadBytes > 0 ? s.downloadBytes : fallback;
                 all += weight;
-                if (finished) done += weight;
-                else if (i == current - 1) done += weight * (s.state == ModSources.State.Installing ? 1f : ModSourceTexts.Progress(s));
+                done += weight * (ended || s.state == ModSources.State.Installing ? 1f : ModSourceTexts.Progress(s));
             }
             return all > 0 ? (float)(done / all) : 0f;
         }
