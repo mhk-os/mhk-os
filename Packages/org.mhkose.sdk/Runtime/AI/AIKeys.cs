@@ -1,4 +1,5 @@
 using MHK.Karts;
+using MHK.Powerups;
 using UnityEngine;
 
 namespace MHK.AI
@@ -16,14 +17,20 @@ namespace MHK.AI
         bool throttleKey, brakeKey;
         float steerHeld, throttleHeld, brakeHeld;
 
-        /// <summary>Replaces the wished steer, throttle and brake of <paramref name="input"/> with key presses (0 or ±1).</summary>
-        public void Press(KartPhysics physics, ref KartInput input, float dt, float minHold)
+        /// <summary>
+        /// Replaces the wished steer, throttle and brake of <paramref name="input"/> with key presses (0 or ±1).
+        /// Underground in <paramref name="dig"/> (null for none) the steering keys move its turn rate instead of the wheel.
+        /// </summary>
+        public void Press(KartPhysics physics, MolehillPowerup dig, ref KartInput input, float dt, float minHold)
         {
             steerHeld += dt;
             throttleHeld += dt;
             brakeHeld += dt;
 
-            var steer = SteerKeyFor(Mathf.Clamp(input.steer, -1f, 1f), physics.SteerCommand01, steerKey, ReleaseStep(physics.Profile, minHold));
+            // The suspended kart's wheel stands still underground: the dig's turn rate follows the keys there.
+            var wheel = dig != null ? dig.SteerShare : physics.SteerCommand01;
+            var releaseStep = dig != null ? dig.SteerShareStep(minHold) : ReleaseStep(physics.Profile, minHold);
+            var steer = SteerKeyFor(Mathf.Clamp(input.steer, -1f, 1f), wheel, steerKey, releaseStep);
             if (steer != steerKey && steerHeld >= minHold)
             {
                 steerKey = steer;

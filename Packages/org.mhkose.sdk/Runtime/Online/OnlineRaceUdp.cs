@@ -13,11 +13,12 @@ namespace MHK.Online
     /// The realtime UDP seat of one race (docs/protocol.md, "Realtime UDP"). A background thread resolves the server,
     /// pings it 4×/s, receives Pongs (clock offset from the minimum-RTT sample of the last <see cref="ClockSamples"/>,
     /// own RTT as an EWMA) and Worlds (decoded into pooled <see cref="Received"/> entries for the main thread). The
-    /// main thread sends the local kart's States (<see cref="SendState"/>). Never touches the Unity API.
+    /// main thread sends the local kart's States (<see cref="SendState"/>) and, as AI host, the AI karts' states
+    /// (<see cref="SendAiStates"/>). Never touches the Unity API.
     /// </summary>
     internal sealed class OnlineRaceUdp : IDisposable
     {
-        /// <summary>One other racer's state from a World datagram.</summary>
+        /// <summary>One other kart's state from a World datagram (another racer's, or an AI kart another client hosts).</summary>
         public sealed class Received
         {
             public int slot;
@@ -31,6 +32,8 @@ namespace MHK.Online
         const int ClockSamples = 16;
         const int MaxSampleRttMs = 5000;
         const double RttSmoothing = 1.0 / 8.0;
+        // Payload bytes of a State or AiStates datagram besides its one count byte.
+        const int EntryRoom = RaceProtocol.UdpMaxDatagram - RaceProtocol.UdpHeaderSize - RaceProtocol.UdpMacSize - 1;
 
         readonly string host;
         readonly int port;
@@ -144,25 +147,42 @@ namespace MHK.Online
             Send(s, w, stateMac, stateHash);
         }
 
-        /// <summary>Most reports one State can carry next to a full state (datagram limit).</summary>
-        public static int ReportCapacity(KartState state) =>
-            (RaceProtocol.UdpMaxDatagram - RaceProtocol.UdpHeaderSize - RaceProtocol.UdpMacSize - 1 - 48 - 2 * state.effects.Count) / ProjectileReport.Size;
+        /// <summary>Most reports one State can carry next to <paramref name="state"/> (datagram limit).</summary>
+        public static int ReportCapacity(KartState state) => (EntryRoom - state.EncodedSize) / ProjectileReport.Size;
 
-        /// <summary>Sends an AiProgress datagram with <paramref name="count"/> entries from <paramref name="start"/> (AI host, main thread).</summary>
-        public void SendAiProgress(List<AiProgress> entries, int start, int count)
+        /// <summary>
+        /// Sends an AiStates datagram (AI host, main thread): the states of AI slots <paramref name="slots"/>, entries
+        /// <paramref name="start"/> to <paramref name="start"/> + <paramref name="count"/> (<see cref="AiStatesCapacity"/>).
+        /// </summary>
+        public void SendAiStates(List<int> slots, List<KartState> states, int start, int count)
         {
             var s = socket;
             if (s == null) return;
             var w = stateWriter;
             w.Clear();
-            Header(w, RaceProtocol.UdpAiProgress);
+            Header(w, RaceProtocol.UdpAiStates);
             w.U8((byte)count);
-            for (var i = 0; i < count; i++) entries[start + i].Write(w);
+            for (var i = start; i < start + count; i++)
+            {
+                RaceWire.U8(w, slots[i]);
+                states[i].Write(w);
+            }
             Send(s, w, stateMac, stateHash);
         }
 
-        /// <summary>Most entries one AiProgress datagram carries.</summary>
-        public const int AiProgressCapacity = (RaceProtocol.UdpMaxDatagram - RaceProtocol.UdpHeaderSize - RaceProtocol.UdpMacSize - 1) / AiProgress.Size;
+        /// <summary>How many of <paramref name="states"/> from <paramref name="start"/> one AiStates datagram carries (one always fits).</summary>
+        public static int AiStatesCapacity(List<KartState> states, int start)
+        {
+            var room = EntryRoom;
+            var n = 0;
+            while (start + n < states.Count && n < byte.MaxValue)
+            {
+                room -= 1 + states[start + n].EncodedSize;
+                if (room < 0) break;
+                n++;
+            }
+            return n;
+        }
 
         // The sequence number is written last, under sendLock together with the MAC and the send, so datagrams leave in
         // the order of their numbers whichever thread sends them (the server drops anything not newer than the newest).

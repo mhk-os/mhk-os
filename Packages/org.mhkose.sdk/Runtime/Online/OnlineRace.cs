@@ -11,9 +11,11 @@ namespace MHK.Online
 {
     /// <summary>
     /// One online race (docs/protocol.md, "Multiplayer"): lives from the server's RaceSetup push until the player is
-    /// back in the lobby. It owns the realtime UDP seat (clock sync, own kart states out, other racers' states in),
-    /// routes the race pushes, sends the race notifies and maps grid slots to karts. A child of <see cref="GameRoot"/>,
-    /// so it survives the scene change into the race and back. Everything here runs on the main thread.
+    /// back in the lobby. It owns the realtime UDP seat (clock sync, own kart states out, other karts' states in), runs
+    /// the AI karts while this client is the AI host (their states out, like the own kart's) and makes them follow the
+    /// host's states otherwise, routes the race pushes, sends the race notifies and maps grid slots to karts. A child of
+    /// <see cref="GameRoot"/>, so it survives the scene change into the race and back. Everything here runs on the main
+    /// thread.
     /// </summary>
     [DefaultExecutionOrder(-90)]
     public sealed partial class OnlineRace : MonoBehaviour
@@ -32,9 +34,12 @@ namespace MHK.Online
         public bool Solo => humans == 1;
         /// <summary>The race counts towards the lobby's set (a solo race in a public lobby does not, and gives no points).</summary>
         public bool InSet => Setup.setRace > 0;
-        /// <summary>Grid slot of the human that reports the AI karts' item events (<see cref="AiHost"/>), NoSlot without AI.</summary>
+        /// <summary>
+        /// Grid slot of the human that simulates the AI karts and reports their item events (<see cref="AiHost"/>), NoSlot
+        /// without AI.
+        /// </summary>
         public int AiHostSlot { get; private set; }
-        /// <summary>This client reports for the AI karts (see docs/protocol.md, "AI drivers").</summary>
+        /// <summary>This client simulates and reports for the AI karts (see docs/protocol.md, "AI drivers").</summary>
         public bool IsAiHost => AiHostSlot == LocalSlot && !LocalLeft;
         /// <summary>AI karts in the race.</summary>
         public int AiCount => aiSlots.Count;
@@ -70,7 +75,10 @@ namespace MHK.Online
         /// <summary>The player asked to end the solo race early (sent once).</summary>
         public bool EndRequested { get; private set; }
 
-        /// <summary>Another racer's state arrived (slot, state; the state object is reused after the handlers ran).</summary>
+        /// <summary>
+        /// Another kart's state arrived: another racer's, or an AI kart's from its host (slot, state; the state object is
+        /// reused after the handlers ran).
+        /// </summary>
         public event Action<int, KartState> RemoteState;
         /// <summary>A race push of this race arrived (after the race's own handling).</summary>
         public event Action<IRacePush> Pushed;
@@ -263,8 +271,9 @@ namespace MHK.Online
         void FixedUpdate()
         {
             PumpUdp();
+            if (++fixedSteps % StateEveryTicks != 0) return;
             SendLocalState();
-            SendAiProgress();
+            SendAiStates();
         }
 
         // Out of the lobby during the race (moderator kick, lobby closed): the race cannot go on here.
@@ -319,7 +328,7 @@ namespace MHK.Online
             OnlineLobby.ResultsReceived -= TakeResults;
             OnlineLobby.SoloRaceJoinWaiting -= OnJoinWaiting;
             OnlineLobby.Changed -= OnLobbyChanged;
-            if (localKart != null) localKart.Respawned -= OnLocalRespawned;
+            ReleaseSentKarts();
             udp?.Dispose();
             udp = null;
             Application.runInBackground = previousRunInBackground;
@@ -378,11 +387,15 @@ namespace MHK.Online
             if (slot < 0 || kart == null) return;
             kartsBySlot[slot] = kart;
             if (slot == LocalSlot) WatchLocalKart(kart);
-            else if (aiSlots.Contains(slot)) aiKarts.Add(kart);
+            else if (aiSlots.Contains(slot))
+            {
+                aiKarts.Add(kart);
+                HostOrFollow(slot, kart);
+            }
             else if (kart.TryGetComponent<RemoteKart>(out var remote)) RegisterRemote(slot, remote);
         }
 
-        /// <summary>Grid slot <paramref name="slot"/> is an AI kart (every client simulates it; the AI host reports for it).</summary>
+        /// <summary>Grid slot <paramref name="slot"/> is an AI kart (the AI host simulates it, everyone else follows its states).</summary>
         public bool IsAi(int slot) => aiSlots.Contains(slot);
 
         /// <summary><paramref name="kart"/> is one of the race's AI karts.</summary>
@@ -492,11 +505,14 @@ namespace MHK.Online
             if (kart != null && !kart.Progress.Finished) kart.Progress.ForceFinish(f.finishMs / 1000f);
         }
 
-        // The AI host left: a new host reports from its own AI karts on, first the finishes the old one never sent.
+        // The AI host left or stalled: the new host simulates the AI karts on from where it draws them (and first reports
+        // the finishes the old one never sent); everyone else, a former host too, follows the new host's states.
         void ChangeAiHost(int slot)
         {
             AiHostSlot = slot;
             Debug.Log($"[OnlineRace] AI host is slot {slot}{(IsAiHost ? " (this client)" : "")}.");
+            foreach (var slotAndKart in kartsBySlot)
+                if (aiSlots.Contains(slotAndKart.Key) && slotAndKart.Value != null) HostOrFollow(slotAndKart.Key, slotAndKart.Value);
             if (!IsAiHost) return;
             foreach (var slotAndKart in kartsBySlot)
                 if (aiSlots.Contains(slotAndKart.Key) && slotAndKart.Value != null && slotAndKart.Value.Progress.Finished)

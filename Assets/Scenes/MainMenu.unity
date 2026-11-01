@@ -2083,7 +2083,7 @@ MonoBehaviour:
   installedText: Installed
   readyFormat: '{0} mods | {1}'
   readyNoSizeFormat: '{0} mods'
-  progressFormat: Mod {0} of {1} | {2}
+  progressFormat: '{0} of {1} mods | {2}'
   offlineLine: No internet connection.
   failedLine: Some mods could not be downloaded.
   doneLine: All mods installed.
@@ -3835,6 +3835,8 @@ MonoBehaviour:
   repoUrlFormat: https://github.com/{0}
   downloadedText: Downloaded
   downloadedTip: Apply loads it.
+  updatedText: "Updated \u2013 Apply to load"
+  updatedTip: The update is installed. Apply loads it.
   checkText: Check for Updates
   checkingText: Checking
   checkTip: Checks every mod and asset pack for a new release.

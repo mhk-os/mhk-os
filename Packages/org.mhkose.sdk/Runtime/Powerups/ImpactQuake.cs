@@ -4,7 +4,8 @@ namespace MHK.Powerups
 {
     /// <summary>
     /// Put on a falling visual (e.g. the 16-ton weight of <see cref="TargetEffectPowerup"/>): when it hits the ground
-    /// <see cref="impactDelay"/> seconds after spawning, karts around it shake visually (<see cref="KartQuake"/>).
+    /// <see cref="impactDelay"/> seconds after spawning, karts around it shake visually (<see cref="KartQuake"/>), and the
+    /// camera of the kart it lands on shakes while that kart stays pinned under it.
     /// </summary>
     public class ImpactQuake : MonoBehaviour
     {
@@ -24,7 +25,8 @@ namespace MHK.Powerups
         [Tooltip("Share of the peak hop height over the distance from the impact divided by the radius (x 0 = impact, " +
                  "x 1 = radius). Empty = linear fade to 30 % at the radius.")]
         [SerializeField] AnimationCurve falloff = AnimationCurve.Linear(0f, 1f, 1f, 0f);
-        [Tooltip("Karts closer than this to the impact sit under the falling visual and do not hop (m, 0 = all hop).")]
+        [Tooltip("Karts closer than this to the impact sit under the falling visual: they do not hop, only their camera " +
+                 "shakes (m, 0 = all hop).")]
         [SerializeField] float pinnedRadius;
 
         float age;

@@ -11,6 +11,8 @@ namespace MHK.UI
     public class TouchControlElement : VisualElement
     {
         public const string PressedClass = "pressed";
+        /// <summary>The control does nothing right now (respawn while a hit runs): greyed out, still pressable.</summary>
+        public const string UnavailableClass = "unavailable";
         const float IconShare = 0.48f, WheelIconShare = 0.86f, KnobShare = 0.4f;
 
         readonly VisualElement icon, knob;

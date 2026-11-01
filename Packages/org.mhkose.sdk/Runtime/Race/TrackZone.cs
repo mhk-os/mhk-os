@@ -13,7 +13,7 @@ namespace MHK.Race
     {
         [Tooltip("Karts entering use 'respawnPoint' for respawns until they are back on the racing line (MHK2 'respawn').")] RespawnPoint = 1,
         [Tooltip("Karts entering are respawned immediately.")] Kill = 2,
-        [Tooltip("Speed pad: turns the kart to the zone's forward axis, applies 'effectId' and raises its speed to its current top speed including that effect's multiplier (MHK3 SpeedUp).")] Boost = 3,
+        [Tooltip("Speed pad: turns the kart to the zone's forward axis, applies 'effectId' and raises its speed to its current top speed including that effect's multiplier (MHK3 SpeedUp), along the ground (horizontally for a kart in the air). An effect with gravityMultiplier = maxSpeedMultiplier² keeps the kart on the arcs it takes at its normal top speed over crests and jumps.")] Boost = 3,
         [Tooltip("Push: karts inside drift along the zone's forward axis at 'value' m/s on top of their own motion (conveyor belts, fans with 'pushFalloff').")] Push = 4,
         [Tooltip("Effect: karts inside have 'effectId' (re-applied whenever it has run out, so a short effect lasts while the kart stays inside: oil slicks).")] Effect = 5,
     }
@@ -133,10 +133,15 @@ namespace MHK.Race
         {
             if (kart.Eliminated) return;
             var rb = kart.Physics.Body;
-            var up = kart.transform.up;
+            // On the ground the pad drives along the surface. A kart crossing it in the air (off a crest, nose up) only
+            // gets horizontal speed and keeps its pitch and roll, so the pad never launches it upwards.
+            var grounded = kart.Physics.IsGrounded;
+            var up = grounded ? kart.transform.up : Vector3.up;
             var fwd = Vector3.ProjectOnPlane(transform.forward, up).normalized;
             if (fwd.sqrMagnitude < 0.5f) return;
-            rb.rotation = Quaternion.LookRotation(fwd, up);
+            rb.rotation = grounded
+                ? Quaternion.LookRotation(fwd, up)
+                : Quaternion.AngleAxis(Vector3.SignedAngle(Vector3.ProjectOnPlane(kart.transform.forward, up), fwd, up), up) * rb.rotation;
             rb.angularVelocity = Vector3.zero;
             // MHK3 SpeedUp: the pad effect (higher top speed) first, then straight to the resulting top speed.
             if (Effect != null) kart.Effects.Apply(Effect, kart);

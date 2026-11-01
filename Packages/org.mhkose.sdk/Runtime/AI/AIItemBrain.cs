@@ -156,6 +156,7 @@ namespace MHK.AI
             itemTimer = difficulty.aiItemReactionTime * rng.Range(MinReaction, MaxReaction);
             if (item.Kind == AIItemKind.HomingMissile && AIKartQueries.IsLeading(kart)) return;
             if (IsTrap(item) && RearCapable(item)) return;
+            if (item.Kind == AIItemKind.Dig && !AIItemJudge.DigClear(kart, item, board.direction)) return;
             if (item.Kind == AIItemKind.Unknown && difficulty.aiAimedShots)
             {
                 if (UnknownUse(kart, input.steer)) input.fire = true;

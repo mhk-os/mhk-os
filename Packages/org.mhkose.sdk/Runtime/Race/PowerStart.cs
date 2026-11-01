@@ -6,8 +6,8 @@ using MHK.Karts;
 namespace MHK.Race
 {
     /// <summary>
-    /// Power start: the first throttle press of each kart during the countdown, judged at GO against
-    /// <see cref="GameConfig.powerStartWindow"/>.
+    /// Power start: the first throttle press of each kart during the countdown (with auto-accelerate also the item
+    /// button, <see cref="Input.PlayerKartDriver"/>), judged at GO against <see cref="GameConfig.powerStartWindow"/>.
     /// </summary>
     sealed class PowerStart
     {

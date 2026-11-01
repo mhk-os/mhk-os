@@ -95,7 +95,7 @@ namespace MHK.Modding
                 cache.Remember(s);
                 cache.Save(s.repo);
             }
-            pendingChanges = true;
+            pendingChanges = s.pendingReload = true;
             RefreshInstalled(s);
             SetEvaluated(s);
         }
@@ -243,6 +243,7 @@ namespace MHK.Modding
             if (sources == null) return;
             foreach (var s in sources)
             {
+                s.pendingReload = false;
                 if (s.busy) continue;
                 RefreshInstalled(s);
                 if (s.state is State.NotInstalled or State.UpToDate or State.UpdateAvailable or State.NeedsNewerGame or State.NeedsModUpdate or State.Paused) SetEvaluated(s);

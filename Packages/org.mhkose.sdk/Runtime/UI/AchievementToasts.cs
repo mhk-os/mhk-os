@@ -9,7 +9,8 @@ namespace MHK.UI
     /// <summary>
     /// "Achievement unlocked" toasts (icon, head line, title) at the top centre of whatever is on screen: the open menu
     /// page, else the race results, else the race HUD. Unlocks queue and show one at a time for a few seconds; a toast
-    /// moves along when the page changes. Lives on the <see cref="Core.GameRoot"/>.
+    /// moves along when the page changes (rebuilt there: a page's elements are released with it). Lives on the
+    /// <see cref="Core.GameRoot"/>.
     /// </summary>
     [AddComponentMenu("")]
     public class AchievementToasts : MonoBehaviour
@@ -24,6 +25,8 @@ namespace MHK.UI
         readonly Queue<AchievementView> queue = new();
         UiScreen host;
         VisualElement anchor, toast;
+        // The achievement the toast shows until `until`, null when none shows.
+        AchievementView shown;
         float until, nextSearch;
 
         void OnEnable() => AchievementList.Unlocked += Enqueue;
@@ -34,6 +37,7 @@ namespace MHK.UI
             queue.Clear();
             anchor?.RemoveFromHierarchy();
             anchor = toast = null;
+            shown = null;
             host = null;
         }
 
@@ -44,21 +48,23 @@ namespace MHK.UI
 
         void Update()
         {
-            if (toast == null && queue.Count == 0) return;
+            if (shown == null && queue.Count == 0) return;
             if (!Attach()) return;
             var now = Time.unscaledTime;
-            if (toast == null) Show(queue.Dequeue(), now);
+            if (shown == null) Show(queue.Dequeue(), now);
             var left = until - now;
             if (left <= 0f)
             {
                 toast.RemoveFromHierarchy();
                 toast = null;
+                shown = null;
                 return;
             }
             toast.style.opacity = Mathf.Clamp01(left / FadeSeconds);
         }
 
-        // The anchor follows the screen on top (pages are swapped and rebuilt); searched at most every SearchSeconds.
+        // The anchor follows the screen on top (pages are swapped and rebuilt); searched at most every SearchSeconds. The
+        // old page released its elements, the running toast among them, so the new anchor gets a new one.
         bool Attach()
         {
             if (host != null && host.IsBound && host.isActiveAndEnabled && anchor != null && anchor.parent == host.Root) return true;
@@ -67,13 +73,13 @@ namespace MHK.UI
             nextSearch = now + SearchSeconds;
             host = FindHost();
             anchor?.RemoveFromHierarchy();
-            anchor = null;
+            anchor = toast = null;
             if (host == null) return false;
             anchor = new VisualElement { name = "achievement-toasts", pickingMode = PickingMode.Ignore };
             anchor.AddToClassList("ach-toast-anchor");
             anchor.EnableInClassList("in-race", host is RaceHud);
             host.Root.Add(anchor);
-            if (toast != null) anchor.Add(toast);
+            if (shown != null) toast = Build(shown);
             return true;
         }
 
@@ -94,8 +100,17 @@ namespace MHK.UI
 
         void Show(AchievementView view, float now)
         {
-            toast = new VisualElement();
-            toast.AddToClassList("ach-toast");
+            shown = view;
+            toast = Build(view);
+            UiAnim.Pop(toast, PopScale, PopMs);
+            until = now + ShowSeconds;
+        }
+
+        // The toast of `view` in the anchor.
+        VisualElement Build(AchievementView view)
+        {
+            var t = new VisualElement();
+            t.AddToClassList("ach-toast");
             var medal = new VisualElement();
             medal.AddToClassList("ach-medal");
             var icon = new VisualElement();
@@ -103,7 +118,7 @@ namespace MHK.UI
             icon.AddToClassList("ach-icon");
             AchievementsScreen.SetIcon(icon, view.Icon, view.IconName);
             medal.Add(icon);
-            toast.Add(medal);
+            t.Add(medal);
             var text = new VisualElement();
             text.AddToClassList("ach-text");
             var head = new Label(headText);
@@ -112,11 +127,10 @@ namespace MHK.UI
             title.AddToClassList("ach-toast-title");
             text.Add(head);
             text.Add(title);
-            toast.Add(text);
-            toast.NoPick();
-            anchor.Add(toast);
-            UiAnim.Pop(toast, PopScale, PopMs);
-            until = now + ShowSeconds;
+            t.Add(text);
+            t.NoPick();
+            anchor.Add(t);
+            return t;
         }
     }
 }

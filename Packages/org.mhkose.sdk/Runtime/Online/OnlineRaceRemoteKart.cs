@@ -7,11 +7,11 @@ using UnityEngine;
 namespace MHK.Online
 {
     /// <summary>
-    /// Another online racer's kart: a real <see cref="Kart"/> (targeting, minimap, ranking and hits see it) whose
-    /// kinematic body follows the received states about <see cref="DelayTicks"/> behind the newest one. Positions are
-    /// Hermite-interpolated with the sent velocities, rotations slerped; a short gap is bridged by extrapolation, a cut
-    /// (respawn, teleport) snaps. The render clock runs at the physics rate and is nudged towards
-    /// newest tick − delay, so packet jitter never reaches the picture. Rigidbody interpolation smooths the frames
+    /// Another online racer's kart, or an AI kart another client hosts: a real <see cref="Kart"/> (targeting, minimap,
+    /// ranking and hits see it) whose kinematic body follows the received states about <see cref="DelayTicks"/> behind
+    /// the newest one. Positions are Hermite-interpolated with the sent velocities, rotations slerped; a short gap is
+    /// bridged by extrapolation, a cut (respawn, teleport) snaps. The render clock runs at the physics rate and is nudged
+    /// towards newest tick − delay, so packet jitter never reaches the picture. Rigidbody interpolation smooths the frames
     /// between physics steps.
     /// </summary>
     [DefaultExecutionOrder(-80)]
@@ -30,6 +30,11 @@ namespace MHK.Online
 
         Kart kart;
         OnlineRace race;
+        // An AI kart: its progress is tracked here from the drawn pose, and its driver waits for a takeover (Release).
+        bool ai;
+        IKartDriver aiDriver;
+        // Velocity of the drawn pose (the state's, interpolated): a takeover drives on with it.
+        Vector3 drawnVelocity;
         readonly KartState[] buffer = new KartState[BufferSize];
         readonly bool[] cutBefore = new bool[BufferSize];
         int start, count;
@@ -88,14 +93,44 @@ namespace MHK.Online
         /// <summary>Makes <paramref name="k"/> the stand-in of grid slot <paramref name="slot"/>.</summary>
         public static RemoteKart Attach(Kart k, int slot, OnlineRace race)
         {
-            k.BecomeRemote();
+            var r = Create(k, slot, race);
             k.Progress.ApplyRemote(k.Progress.Lap, k.Progress.RaceDistance);
+            return r;
+        }
+
+        /// <summary>
+        /// Makes AI kart <paramref name="k"/> (grid slot <paramref name="slot"/>) follow the states of the client that hosts
+        /// it. Its laps are still counted here from the drawn pose, and its driver is kept for a takeover
+        /// (<see cref="Release"/>), so the race goes on without a seam should this client become the AI host.
+        /// </summary>
+        public static RemoteKart Follow(Kart k, int slot, OnlineRace race)
+        {
+            var driver = k.Driver;
+            var r = Create(k, slot, race);
+            r.ai = true;
+            r.aiDriver = driver;
+            return r;
+        }
+
+        static RemoteKart Create(Kart k, int slot, OnlineRace race)
+        {
+            k.BecomeRemote();
             var r = k.gameObject.AddComponent<RemoteKart>();
             r.kart = k;
             r.Slot = slot;
             r.race = race;
             for (var i = 0; i < BufferSize; i++) r.buffer[i] = new KartState();
             return r;
+        }
+
+        /// <summary>
+        /// This client became the host of the AI kart it follows: the kart is simulated here again by its AI driver, from
+        /// where it is drawn at the velocity it is drawn with.
+        /// </summary>
+        public void Release()
+        {
+            kart.BecomeLocal(aiDriver, drawnVelocity);
+            Destroy(this);
         }
 
         KartState At(int i) => buffer[(start + i) % BufferSize];
@@ -259,12 +294,15 @@ namespace MHK.Online
         {
             if (snap && applied) snaps++;
             applied = true;
+            drawnVelocity = vel;
             var input = InputOf(s, steer);
             kart.Physics.StepRemote(pos, rot, vel, steer, input.throttle > 0f, input.brake > 0f, s.Has(KartStateFlags.Airborne),
                 s.Has(KartStateFlags.Intangible), snap, h);
             kart.SetRemoteInput(input);
             kart.ControlsEnabled = s.Has(KartStateFlags.ControlsEnabled) && !leaving;
-            kart.Progress.ApplyRemote(s.lap, raceDistance);
+            if (!ai) kart.Progress.ApplyRemote(s.lap, raceDistance);
+            // An AI kart counts its laps here: a teleport re-locates it on the track, as its respawn did on the host.
+            else if (snap) kart.Progress.ResetProjection();
             kart.SetRemoteHealth(s.health);
             race.ApplyRemoteEffects(kart, s);
         }

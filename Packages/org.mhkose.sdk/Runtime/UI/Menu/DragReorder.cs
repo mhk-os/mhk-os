@@ -62,27 +62,35 @@ namespace MHK.UI
             list.RegisterCallback<NavigationMoveEvent>(OnNavigate, TrickleDown.TrickleDown);
             list.RegisterCallback<NavigationCancelEvent>(OnCancel, TrickleDown.TrickleDown);
             list.RegisterCallback<FocusOutEvent>(_ => list.schedule.Execute(CheckCarryFocus));
-            // The list captures the pointer while a row is dragged, and captured pointer events go to the capturing element only.
-            list.RegisterCallback<PointerMoveEvent>(OnPointerMove);
-            list.RegisterCallback<PointerUpEvent>(OnPointerUp);
-            list.RegisterCallback<PointerCancelEvent>(OnPointerCancel);
-            list.RegisterCallback<PointerCaptureOutEvent>(OnCaptureOut);
             if (list.panel != null) Hook();
         }
 
-        // Pointer down sits on the panel root (trickle down): it runs before the scroll view's touch scrolling and the handle's click.
+        // Pointer down sits on the panel root (trickle down): it runs before the scroll view's touch scrolling and the
+        // handle's click. The root also captures the dragging pointer, so its events go to the root only: a ScrollView
+        // hooks the pointer moves of any element inside it that captures a touch and scrolls with them (from wherever its
+        // own pointer down, swallowed here, last was), taking the capture away and ending the drag.
         void Hook()
         {
             Unhook();
             root = list.panel?.visualTree;
-            root?.RegisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
+            if (root == null) return;
+            root.RegisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
+            root.RegisterCallback<PointerMoveEvent>(OnPointerMove);
+            root.RegisterCallback<PointerUpEvent>(OnPointerUp);
+            root.RegisterCallback<PointerCancelEvent>(OnPointerCancel);
+            root.RegisterCallback<PointerCaptureOutEvent>(OnCaptureOut);
         }
 
         void Unhook()
         {
-            root?.UnregisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
-            root = null;
             Abort();
+            if (root == null) return;
+            root.UnregisterCallback<PointerDownEvent>(OnPointerDown, TrickleDown.TrickleDown);
+            root.UnregisterCallback<PointerMoveEvent>(OnPointerMove);
+            root.UnregisterCallback<PointerUpEvent>(OnPointerUp);
+            root.UnregisterCallback<PointerCancelEvent>(OnPointerCancel);
+            root.UnregisterCallback<PointerCaptureOutEvent>(OnCaptureOut);
+            root = null;
         }
 
         VisualElement HandleOf(VisualElement e)
@@ -122,8 +130,10 @@ namespace MHK.UI
             var r = RowOf(handle);
             if (!FindRange(list.IndexOf(r)) || first == last) return;
             e.StopPropagation();
+            // A touch fling may still glide (the scroll view's pointer down, which stops it, never runs): ScrollTo stops it.
+            if (e.pointerType != UnityEngine.UIElements.PointerType.mouse) scroll?.ScrollTo(r);
             pointerId = e.pointerId;
-            list.CapturePointer(pointerId);
+            root.CapturePointer(pointerId);
             pointer = e.position;
             Click();
             Lift(r);
@@ -250,14 +260,14 @@ namespace MHK.UI
 
         void OnCaptureOut(PointerCaptureOutEvent e)
         {
-            if (e.pointerId == pointerId && e.target == list) Drop();
+            if (e.pointerId == pointerId && e.target == root) Drop();
         }
 
         void Drop()
         {
             var id = pointerId;
             pointerId = -1;
-            if (list.HasPointerCapture(id)) list.ReleasePointer(id);
+            if (root != null && root.HasPointerCapture(id)) root.ReleasePointer(id);
             if (row == null || snapping) return;
             tick?.Pause();
             snapping = true;
@@ -300,7 +310,7 @@ namespace MHK.UI
 
         void Abort()
         {
-            if (pointerId >= 0 && list.HasPointerCapture(pointerId)) list.ReleasePointer(pointerId);
+            if (pointerId >= 0 && root != null && root.HasPointerCapture(pointerId)) root.ReleasePointer(pointerId);
             pointerId = -1;
             if (row != null) Clear();
             if (carried != null)

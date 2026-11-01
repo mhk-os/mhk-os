@@ -13,10 +13,11 @@ namespace MHK.Powerups
     /// Items in an online race (<see cref="OnlineRace"/>): the server arbitrates item boxes, item uses and hits. A pickup
     /// waits for ItemGranted; uses are announced (ItemUse) and replayed by the others (ItemUsed, fast-forwarded to the
     /// current tick); every client simulates every use and reports the projectile positions; each racer's client decides
-    /// the hits on its own kart (HitTaken) and only reports those it sees on other humans (HitSeen). AI karts run on
-    /// every client: the AI host reports their pickups, uses, hits, eliminations and finishes like its own kart's
-    /// (<see cref="IsReported"/>); everywhere else they are mirrors (<see cref="IsMirror"/>) that get those from the
-    /// server only. Battle eliminations and collapsing bridges are shared here too. Offline nothing here is active.
+    /// the hits on its own kart (HitTaken) and only reports those it sees on other humans (HitSeen). AI karts run on the
+    /// AI host, which reports their pickups, uses, hits, eliminations and finishes like its own kart's
+    /// (<see cref="IsReported"/>); everywhere else they are stand-ins following its states (<see cref="IsMirror"/>) whose
+    /// inventory the server's events keep. Battle eliminations and collapsing bridges are shared here too. Offline nothing
+    /// here is active.
     /// </summary>
     public static partial class OnlineItems
     {
@@ -76,8 +77,8 @@ namespace MHK.Powerups
         public static bool IsReported(Kart k) => Active && k != null && !k.IsRemote && (!race.IsAiKart(k) || race.IsAiHost);
 
         /// <summary>
-        /// An AI kart simulated here while another client is the AI host: it never takes boxes, uses items or takes hits
-        /// from uses by itself; the server's ItemGranted, ItemUsed, HitApplied and Eliminated drive those.
+        /// An AI kart another client hosts: a stand-in following the host's states. It never takes boxes, uses items or
+        /// takes hits by itself; the server's ItemGranted and ItemUsed keep its inventory, so a takeover goes on with it.
         /// </summary>
         public static bool IsMirror(Kart k) => Active && k != null && !race.IsAiHost && race.IsAiKart(k);
 

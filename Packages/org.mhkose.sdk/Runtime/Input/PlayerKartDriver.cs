@@ -11,13 +11,16 @@ namespace MHK.Input
     /// Human driver: reads the Kart map of a per-player copy of the controls (with the saved rebinds,
     /// <see cref="UserSettings.keyBindings"/>) and merges the on-screen touch controls. Analog touch steering
     /// (joystick, wheel) is turned into steering key presses that hold the wished share of full lock. With
-    /// <see cref="UserSettings.AutoAccelerateActive"/> the throttle is held while the brake is released.
+    /// <see cref="UserSettings.AutoAccelerateActive"/> the throttle is held while the brake is released, and before GO
+    /// the item button is the power start press (the touch layout may have no throttle button).
     /// </summary>
     public sealed class PlayerKartDriver : IKartDriver, IDisposable
     {
         readonly InputActionAsset actions;
         readonly InputAction steer, throttle, brake, fire, lookBack, horn, respawn;
         readonly int playerIndex;
+        // Fire pressed before GO as the auto-accelerate power start press: no item use until it is released.
+        bool fireHeldSinceCountdown;
 
         public InputAction Pause { get; }
         /// <summary>Cycles the race camera view (<see cref="Cameras.ChaseCamera.CycleView"/>).</summary>
@@ -70,12 +73,18 @@ namespace MHK.Input
             input.steer = Mathf.Clamp(steer.ReadValue<float>() + touchSteer, -1f, 1f);
             input.brake = Mathf.Clamp01(brake.ReadValue<float>() + v.brake);
             // Throttle wins over brake in the pedal model, so auto-accelerate lets go while braking (and reversing).
-            // Not before GO: countdown presses stay the player's own power start attempt. Read live: the pause menu's
-            // options can change it mid-race.
-            input.throttle = kart != null && kart.ControlsEnabled && input.brake <= 0f && GameRoot.Instance.Settings.AutoAccelerateActive
+            // Not before GO: countdown presses stay the player's own power start attempt, and fire counts as one (items
+            // cannot be used then; Kart.FilterInput). Read live: the pause menu's options can change it mid-race.
+            var autoAccelerate = GameRoot.Instance.Settings.AutoAccelerateActive;
+            var beforeGo = kart != null && !kart.ControlsEnabled;
+            var fireHeld = fire.IsPressed() || v.fire;
+            var fireAsThrottle = autoAccelerate && beforeGo && fireHeld;
+            input.throttle = kart != null && kart.ControlsEnabled && input.brake <= 0f && autoAccelerate
                 ? 1f
-                : Mathf.Clamp01(throttle.ReadValue<float>() + v.throttle);
-            input.fire = fire.IsPressed() || v.fire;
+                : Mathf.Clamp01(throttle.ReadValue<float>() + v.throttle + (fireAsThrottle ? 1f : 0f));
+            if (!fireHeld) fireHeldSinceCountdown = false;
+            else if (fireAsThrottle) fireHeldSinceCountdown = true;
+            input.fire = fireHeld && !fireHeldSinceCountdown;
             input.lookBack = lookBack.IsPressed() || v.lookBack;
             input.horn = horn.IsPressed() || v.horn;
             input.respawn = respawn.IsPressed() || v.respawn;

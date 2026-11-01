@@ -23,6 +23,14 @@ namespace MHK.AI
         const float LeaderHoldTime = 30f, BoostHoldTime = 20f, BoostThreatDistance = 25f;
         const float RamRange = 20f, RamHalfWidth = 6f, ShieldRadius = 15f, ShieldHoldTime = 15f;
         const float MinDigCheck = 5f, DigCheckShare = 0.5f, DigSampleStep = 2f;
+        // Dig: an opponent is gone for while the head catches it within this share of the dig, from DigMinGap ahead, and
+        // lies within DigSwingSlope (lateral m per m caught up) of the kart's own spot across the road.
+        const float DigChaseShare = 0.85f, DigMinGap = 3f, DigSwingSlope = 0.3f, MinDigClosing = 1f, MinRoadWidth = 1f;
+        // Dig without a kart to launch: the bends over this share of it turn no more than DigTurnShare of the dig's
+        // turn rate allows at its speed (checked over DigBendWindow), or it would plough into the outer wall and pop out.
+        const float DigFollowShare = 0.7f, DigBendWindow = 10f, DigTurnShare = 0.85f;
+        // Dig: waits this long for a kart to launch before it digs as a shortcut; after DigFallbackTime only gaps stop it.
+        const float DigTargetWait = 8f, DigFallbackTime = 25f;
 
         readonly DifficultySettings difficulty;
         readonly AIBlackboard board;
@@ -59,7 +67,7 @@ namespace MHK.AI
             // Dropped behind after a look back. Throwable traps also go in front of a kart ahead.
             AIItemKind.Trap => item.ForwardThrowRange > 0f && ThrowLandsBeforeKart(kart, item),
             AIItemKind.Self => SelfWorth(kart, item, heldTime, steer),
-            AIItemKind.Dig => DigClear(kart, item, board.direction),
+            AIItemKind.Dig => DigWorth(kart, item, heldTime),
             _ => false,
         };
 
@@ -228,6 +236,72 @@ namespace MHK.AI
             if (item.Rams) return AIKartQueries.CountAhead(kart, RamRange, RamHalfWidth) > 0;
             if (item.Boosts) return AIKartQueries.OnStraight(kart, steer, board.direction);
             return AIKartQueries.CountAround(kart, ShieldRadius) > 0 || heldTime > ShieldHoldTime;
+        }
+
+        // Under an opponent the mound launches (on a stretch it can follow up to there), else as a shortcut where the
+        // track ahead is gentle enough to tunnel through.
+        bool DigWorth(Kart kart, AIItemProfile item, float heldTime)
+        {
+            if (!DigClear(kart, item, board.direction)) return false;
+            if (heldTime > DigFallbackTime) return true;
+            var speed = item.DigSpeed(Mathf.Max(0f, kart.Physics.ForwardSpeed), kart.Physics.SpeedScale);
+            if (DigTarget(kart, item.Reach * DigChaseShare, speed, board.direction, out var caught) != null)
+                return DigFollows(kart, item, speed, caught, board.direction);
+            return heldTime > DigTargetWait && DigFollows(kart, item, speed, item.Reach * DigFollowShare, board.direction);
+        }
+
+        /// <summary>
+        /// Nearest unprotected opponent ahead (in <paramref name="direction"/> along the main line) that the head of a dig
+        /// at <paramref name="digSpeed"/> catches within <paramref name="reach"/> metres and can swing over to on the way:
+        /// the mound launches karts it passes under. <paramref name="caught"/>: metres the head digs until it gets there.
+        /// Null for none (also off the main line).
+        /// </summary>
+        public static Kart DigTarget(Kart kart, float reach, float digSpeed, int direction, out float caught)
+        {
+            caught = 0f;
+            var path = AIKartQueries.MainPath();
+            if (path == null || kart.Progress.CurrentBranch != null) return null;
+            var myD = kart.Progress.PathDistance;
+            var width = Mathf.Max(MinRoadWidth, path.GetWidth(myD));
+            var myLane = AIKartQueries.RoadLaneOf(kart);
+            var y = kart.transform.position.y;
+            Kart best = null;
+            var bestGap = float.MaxValue;
+            var karts = Kart.All;
+            for (var i = 0; i < karts.Count; i++)
+            {
+                var o = karts[i];
+                if (!AIKartQueries.IsOpponent(kart, o) || o.Effects.IsProtected || o.Progress.CurrentBranch != null) continue;
+                if (Mathf.Abs(o.transform.position.y - y) > AILanes.SameLevelHeight) continue;
+                var gap = direction * path.Delta(myD, o.Progress.PathDistance);
+                if (gap < DigMinGap || gap >= bestGap) continue;
+                var closing = digSpeed - Mathf.Max(0f, o.Physics.ForwardSpeed);
+                if (closing < MinDigClosing) continue;
+                var dug = gap * digSpeed / closing;
+                if (dug > reach || Mathf.Abs(AIKartQueries.RoadLaneOf(o) - myLane) * width > DigSwingSlope * dug) continue;
+                best = o;
+                bestGap = gap;
+                caught = dug;
+            }
+            return best;
+        }
+
+        // The main line's bends over the first <length> metres (in <direction>), and the kart's heading onto it, turn no
+        // more within DigBendWindow than the dig at <speed> can. True off the main line (no line to judge by).
+        static bool DigFollows(Kart kart, AIItemProfile item, float speed, float length, int direction)
+        {
+            var path = AIKartQueries.MainPath();
+            if (path == null || kart.Progress.CurrentBranch != null) return true;
+            var maxTurn = item.DigTurnRate * DigTurnShare * DigBendWindow / Mathf.Max(MinDigClosing, speed);
+            var d = kart.Progress.PathDistance;
+            var from = kart.transform.forward * direction;
+            for (var x = 0f; x + DigBendWindow <= Mathf.Max(DigBendWindow, length); x += DigSampleStep)
+            {
+                var to = path.GetTangent(d + direction * (x + DigBendWindow), ShotTangentSmoothing);
+                if (Vector3.Angle(new Vector3(from.x, 0f, from.z), new Vector3(to.x, 0f, to.z)) > maxTurn) return false;
+                from = path.GetTangent(d + direction * (x + DigSampleStep), ShotTangentSmoothing);
+            }
+            return true;
         }
 
         /// <summary>The kart is grounded and the first part of the dig ahead (in <paramref name="direction"/> along the track) crosses no gap.</summary>
