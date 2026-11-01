@@ -105,7 +105,7 @@ namespace MHK.Modding
         [Header("Health (used in battles)")]
         [Tooltip("Damage when another kart inflicts this hostile effect, -1 = GameConfig.defaultHitDamage (Thunder: 10).")]
         public int damage = -1;
-        [Tooltip("Health restored when applied (Thunder health pickup: +10).")]
+        [Tooltip("Health restored when applied (Thunder health pickup: +10, the game's battle health pack: +25).")]
         public int heal;
         [Tooltip("Damage this kart deals is multiplied while active (Thunder quad damage 4, hammer 2).")]
         public float damageDealtMultiplier = 1f;

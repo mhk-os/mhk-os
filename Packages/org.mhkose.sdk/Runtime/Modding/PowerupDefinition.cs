@@ -22,6 +22,8 @@ namespace MHK.Modding
         [Min(0)] public float useCooldown;
         [Tooltip("Excluded from random item boxes (still usable by scripts/mods).")]
         public bool excludeFromItemBoxes;
+        [Tooltip("Random item boxes give it in battles only, never in races (health items: health only matters in battles).")]
+        public bool battleOnly;
         [Tooltip("Relative pick weight depending on race position: x = 0 (leader) .. 1 (last place).")]
         public AnimationCurve weightByPosition = AnimationCurve.Constant(0, 1, 1);
         public PowerupAiUsage aiUsage = PowerupAiUsage.OffensiveForward;

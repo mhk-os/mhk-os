@@ -55,6 +55,7 @@ MonoBehaviour:
   finishGraceSeconds: 4
   wrongWaySeconds: 2
   itemBoxRespawnSeconds: 3
+  battleItemBoxRespawnSeconds: 30
   itemBoxReplacesHeld: 1
   usingItemCancelsBuffs: 1
   itemRouletteSeconds: 0

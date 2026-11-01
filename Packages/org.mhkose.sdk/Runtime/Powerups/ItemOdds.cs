@@ -28,7 +28,8 @@ namespace MHK.Powerups
     /// <summary>
     /// Item odds: every item box powerup of every loaded pack has the same chance on every track. Single races and
     /// battles use the player's own odds in percent (else <see cref="Defaults"/>), championships the defaults. Online
-    /// races give only the lobby's powerups.
+    /// races give only the lobby's powerups. Battle-only powerups (<see cref="PowerupDefinition.battleOnly"/>, the
+    /// health pack) are listed with the others but join only battle pools.
     /// </summary>
     public static partial class ItemOdds
     {
@@ -111,19 +112,21 @@ namespace MHK.Powerups
         /// <summary>
         /// Powerups the random item boxes give in <paramref name="session"/>: the session's odds (championships: the
         /// defaults), each powerup's position curve scaled so that its average over all places is its percentage.
-        /// Online races give only the lobby's powerups, so every racer builds the same pool.
+        /// Battle-only powerups join battles only. Online races give only the lobby's powerups, so every racer builds the
+        /// same pool.
         /// </summary>
         public static void BuildPool(ContentRegistry content, GameSession session, List<ItemPoolEntry> into)
         {
             into.Clear();
             var custom = session != null && session.mode != GameMode.Championship && session.powerupOdds.Count > 0 ? session.powerupOdds : null;
             var lobbyPacks = session != null && session.online && OnlineLobby.Current != null ? OnlineLobby.Current.settings.packs : null;
+            var battle = session != null && session.mode == GameMode.Battle;
             Resolve(content, lobbyPacks, custom, scratch);
             for (var i = 0; i < scratch.Count; i++)
             {
                 var p = content.Get<PowerupDefinition>(scratch[i].id);
                 var percent = scratch[i].percent;
-                if (p == null || percent <= 0f) continue;
+                if (p == null || percent <= 0f || (p.battleOnly && !battle)) continue;
                 var average = AverageWeight(p);
                 into.Add(average > 0f ? new ItemPoolEntry(p, percent / average, false) : new ItemPoolEntry(p, percent, true));
             }

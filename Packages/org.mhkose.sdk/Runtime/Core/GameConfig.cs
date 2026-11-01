@@ -111,6 +111,8 @@ namespace MHK.Core
 
         [Header("Items")]
         public float itemBoxRespawnSeconds = 3f;
+        [Tooltip("Battles: item boxes respawn after at least this many seconds, so nobody camps a box and spams its items.")]
+        [Min(0f)] public float battleItemBoxRespawnSeconds = 30f;
         [Tooltip("Picking up a box while holding an item replaces it (MHK2). Otherwise full karts skip boxes.")]
         public bool itemBoxReplacesHeld = true;
         [Tooltip("Using any item ends the active exclusive buff (MHK2).")]

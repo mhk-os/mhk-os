@@ -517,7 +517,6 @@ MonoBehaviour:
   currentVersionLabel: Current version
   olderVersionLabel: Version {0}
   versionPartSeparator: " \xB7 "
-  otherTrackLabel: other track data
   boardLapsLabel: '{0} laps'
   onePlayerText: 1 player
   playersFormat: '{0} players'
@@ -538,6 +537,8 @@ MonoBehaviour:
   leaderboardTab: Leaderboard
   hiddenTab: Hidden
   stateNoHidden: No hidden runs
+  submittedFormat: Submitted {0}
+  submittedDateFormat: d MMM yyyy
   chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
   ghostRowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
   leaderRowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
@@ -564,11 +565,10 @@ MonoBehaviour:
   loginToUploadText: Log in to upload your ghosts to the leaderboards.
   uploadedRankFormat: '#{0}'
   uploadedRankTip: 'On the leaderboard: rank {0}'
-  uploadedSlowerTip: Uploaded. Your best on this board is faster.
   uploadedHiddenTip: Uploaded, but hidden by a moderator.
   uploadedFormat: 'Uploaded: rank {0} on the leaderboard.'
   duplicateText: This ghost was already uploaded.
-  uploadedSlowerText: Uploaded. Your best on this board stays faster.
+  uploadedSlowerFormat: 'Uploaded: rank {0} on the leaderboard. Your best there is faster.'
   downloadingFormat: 'Downloading ghosts: {0} of {1}'
   downloadsFailedFormat: 'Downloads failed ({0} / {1}): {2}'
   unreadableDownloadText: The downloaded ghost could not be read.

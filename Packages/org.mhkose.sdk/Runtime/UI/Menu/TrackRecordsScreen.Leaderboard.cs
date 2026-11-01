@@ -14,8 +14,9 @@ namespace MHK.UI
     /// <summary>
     /// The Version dropdown and the leaderboard of the track records page. Versions come from the track's boards in the
     /// shown class and from the stored ghosts: one entry per content version, Current first, or one per board when a
-    /// version has several (other track data or lap count). The chosen one filters both lists. The leaderboard has
-    /// filters, pages of <see cref="pageSize"/> rows with the player's own row pinned, Watch and picking, rank tags and
+    /// version has several (other lap counts). The chosen one filters both lists. The leaderboard lists every uploaded
+    /// run best to worst with its submission date, in pages of <see cref="pageSize"/> rows with the player's best pinned;
+    /// it has filters, Watch and picking, rank tags and
     /// player cards on the names, and for moderators a Hidden tab (the board's hidden runs with Unhide) and the row
     /// actions. Browsing needs no login; an unreachable server shows inline with Retry, and the board reloads when the
     /// connection or login changes.
@@ -27,8 +28,8 @@ namespace MHK.UI
         int pageSize = 25;
         [SerializeField, Tooltip("Version entries: the current content version, an older one ({0} = version), the separator before extra parts.")]
         string currentVersionLabel = "Current version", olderVersionLabel = "Version {0}", versionPartSeparator = " · ";
-        [SerializeField, Tooltip("Version entry parts when a version has several boards: other track data than this device's, a lap count ({0} = laps).")]
-        string otherTrackLabel = "other track data", boardLapsLabel = "{0} laps";
+        [SerializeField, Tooltip("Version entry part when a version has boards of several lap counts ({0} = laps).")]
+        string boardLapsLabel = "{0} laps";
         [SerializeField, Tooltip("Version entry tooltip parts: one player, players ({0}), ghosts stored on this device only.")]
         string onePlayerText = "1 player", playersFormat = "{0} players", localOnlyText = "Only on this device";
         [SerializeField, Tooltip("Tooltips of the board chips: players, last upload.")]
@@ -47,6 +48,8 @@ namespace MHK.UI
         string leaderboardTab = "Leaderboard", hiddenTab = "Hidden";
         [SerializeField, Tooltip("Hidden tab state without hidden runs on the board.")]
         string stateNoHidden = "No hidden runs";
+        [SerializeField, Tooltip("Second line of a leaderboard row: when the run was submitted ({0} = date), the date format.")]
+        string submittedFormat = "Submitted {0}", submittedDateFormat = "d MMM yyyy";
 
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
         static readonly (string code, string name)[] Continents =
@@ -58,16 +61,13 @@ namespace MHK.UI
         sealed class VersionEntry
         {
             public int contentVersion;
-            /// <summary>Track data of the board or ghosts, empty = any.</summary>
-            public string trackHash = "";
             /// <summary>Laps of the board or ghosts, 0 = any.</summary>
             public int laps;
             /// <summary>The leaderboard, null when nobody uploaded.</summary>
             public BoardInfo board;
             public DateTime last;
 
-            public bool Matches(int versionNumber, string hash, int lapCount) =>
-                contentVersion == versionNumber && string.Equals(trackHash, hash ?? "", StringComparison.OrdinalIgnoreCase) && laps == lapCount;
+            public bool Matches(int versionNumber, int lapCount) => contentVersion == versionNumber && laps == lapCount;
         }
 
         // Kept while the page is left for a race and back; reset per track and class.
@@ -198,36 +198,32 @@ namespace MHK.UI
         // ---- Versions ----
 
         // Rebuilds the entries from the boards (when loaded) and the stored ghosts; keeps the chosen entry, else picks
-        // Current with the local track data, else the most active board of Current.
+        // the most active board of Current.
         void RefreshVersions()
         {
-            var known = Store.KnownTrackHash(trackId) ?? "";
             var kept = version;
             versions.Clear();
             if (boards != null)
                 foreach (var b in boards)
                 {
-                    var v = Entry(b.contentVersion, b.trackHash, b.laps);
+                    var v = Entry(b.contentVersion, b.laps);
                     v.board = b;
                     if (b.lastUpload > v.last) v.last = b.lastUpload;
                 }
             foreach (var e in LocalEntries())
             {
-                var v = Entry(e.header.contentVersion, e.header.trackHash, e.header.laps);
+                var v = Entry(e.header.contentVersion, e.header.laps);
                 if (e.header.Date > v.last) v.last = e.header.Date;
             }
             if (!versions.Exists(v => v.contentVersion == ContentVersion.Current))
-                versions.Add(new VersionEntry { contentVersion = ContentVersion.Current, trackHash = known });
+                versions.Add(new VersionEntry { contentVersion = ContentVersion.Current });
             versions.Sort((a, b) =>
             {
                 if (a.contentVersion != b.contentVersion)
                     return a.contentVersion == ContentVersion.Current ? -1 : b.contentVersion == ContentVersion.Current ? 1 : b.contentVersion.CompareTo(a.contentVersion);
-                var aKnown = known.Length > 0 && string.Equals(a.trackHash, known, StringComparison.OrdinalIgnoreCase);
-                var bKnown = known.Length > 0 && string.Equals(b.trackHash, known, StringComparison.OrdinalIgnoreCase);
-                if (aKnown != bKnown) return aKnown ? -1 : 1;
                 return (b.board?.players ?? 0).CompareTo(a.board?.players ?? 0);
             });
-            version = versionPicked && kept != null ? versions.Find(v => v.Matches(kept.contentVersion, kept.trackHash, kept.laps)) : null;
+            version = versionPicked && kept != null ? versions.Find(v => v.Matches(kept.contentVersion, kept.laps)) : null;
             if (version == null)
             {
                 version = versions[0];
@@ -237,31 +233,23 @@ namespace MHK.UI
             ShowBoardChips();
         }
 
-        VersionEntry Entry(int contentVersion, string hash, int laps)
+        VersionEntry Entry(int contentVersion, int laps)
         {
-            var v = versions.Find(x => x.Matches(contentVersion, hash, laps));
+            var v = versions.Find(x => x.Matches(contentVersion, laps));
             if (v != null) return v;
-            v = new VersionEntry { contentVersion = contentVersion, trackHash = hash ?? "", laps = laps };
+            v = new VersionEntry { contentVersion = contentVersion, laps = laps };
             versions.Add(v);
             return v;
         }
 
-        // "Current version", "Current version · other track data", "Version 3 · Oct 2026".
+        // "Current version", "Current version · 5 laps", "Version 3 · Oct 2026".
         string VersionText(int i)
         {
             if (i >= versions.Count) return currentVersionLabel;
             var v = versions[i];
             var current = v.contentVersion == ContentVersion.Current;
             var text = current ? currentVersionLabel : string.Format(Invariant, olderVersionLabel, v.contentVersion);
-            var siblings = versions.Where(o => o.contentVersion == v.contentVersion).ToList();
-            if (siblings.Count > 1)
-            {
-                var known = Store.KnownTrackHash(trackId);
-                if (siblings.Select(o => o.trackHash.ToLowerInvariant()).Distinct().Count() > 1
-                    && !string.Equals(v.trackHash, known, StringComparison.OrdinalIgnoreCase))
-                    text += versionPartSeparator + otherTrackLabel;
-                if (siblings.Select(o => o.laps).Distinct().Count() > 1) text += versionPartSeparator + string.Format(Invariant, boardLapsLabel, v.laps);
-            }
+            if (versions.Count(o => o.contentVersion == v.contentVersion) > 1) text += versionPartSeparator + string.Format(Invariant, boardLapsLabel, v.laps);
             if (!current && v.last != default) text += versionPartSeparator + v.last.ToLocalTime().ToString("MMM yyyy", Invariant);
             return text;
         }
@@ -283,9 +271,7 @@ namespace MHK.UI
         {
             if (version == null) return true;
             var h = e.header;
-            return h.contentVersion == version.contentVersion
-                   && (version.trackHash.Length == 0 || string.Equals(h.trackHash, version.trackHash, StringComparison.OrdinalIgnoreCase))
-                   && (version.laps == 0 || h.laps == version.laps);
+            return h.contentVersion == version.contentVersion && (version.laps == 0 || h.laps == version.laps);
         }
 
         void ShowBoardChips()
@@ -441,7 +427,7 @@ namespace MHK.UI
             var before = version;
             RefreshVersions();
             // The default may move to a board that just arrived; the shown ghosts follow it.
-            if (before == null || !version.Matches(before.contentVersion, before.trackHash, before.laps)) FillLocal();
+            if (before == null || !version.Matches(before.contentVersion, before.laps)) FillLocal();
             await LoadPageAsync(id);
         }
 
@@ -557,7 +543,7 @@ namespace MHK.UI
         {
             var row = UiTree.Spawn<VisualElement>(leaderRowTemplate, parent);
             if (row == null) return;
-            LeaderRows.Fill(row, run, alt);
+            LeaderRows.Fill(row, run, alt, Submitted(run));
             LeaderRows.AttachPlayer(row, run, ranks, cardOptions);
             globalRows.Add((run, row));
             row.Q<Button>("lb-main").clicked += () =>
@@ -585,6 +571,9 @@ namespace MHK.UI
                 ModerationPrompts.ToggleAccount(account, run.accountId, run.username, Report, LoadPage);
             };
         }
+
+        string Submitted(RunEntry run) =>
+            run.uploaded == default ? null : string.Format(Invariant, submittedFormat, run.uploaded.ToLocalTime().ToString(submittedDateFormat, Invariant));
 
         void Report(string text, bool good) => SetStatus(text);
 

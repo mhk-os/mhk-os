@@ -83,10 +83,12 @@ namespace MHK.Online
             }
         }
 
-        // The commit is printable text of at most 40 bytes on the wire.
+        // The commit is printable text of at most 40 bytes on the wire. The game pack is built into the game, so its
+        // commit is the build's: a build that changes its content (the battle health pack) never contradicts the
+        // manifests of older builds.
         static string Commit(ContentPack pack)
         {
-            var v = pack.version ?? "";
+            var v = string.Equals(pack.packId, GamePackId, StringComparison.OrdinalIgnoreCase) ? BuildInfo.Commit : pack.version ?? "";
             var sb = new StringBuilder(v.Length);
             foreach (var c in v)
                 if (c >= 0x20 && c < 0x7f) sb.Append(c);

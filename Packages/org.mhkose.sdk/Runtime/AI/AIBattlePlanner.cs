@@ -364,12 +364,12 @@ namespace MHK.AI
         bool RoamGoalGone(Kart kart) => Mode == BattleMode.Roam &&
             (box != null ? !box.Available || !box.isActiveAndEnabled : roamTimer <= 0f || Flat(roamPoint - kart.transform.position).magnitude < ArriveDistance);
 
-        // An item box with empty hands (one with the character's special preferred, or a health / power pickup that
-        // helps), else an open spot ahead. Right after the reversal only ones behind the kart.
+        // An item box with empty hands (one with the character's special preferred), else an open spot ahead. Right after
+        // the reversal only ones behind the kart.
         void Roam(Kart kart, TrackRuntime track, float leash, GameConfig cfg)
         {
             var inv = kart.Inventory;
-            if (inv != null && inv.Held == null && !inv.Rolling && PowerupRoller.ItemsEnabled && TryBox(kart, cfg))
+            if (inv != null && inv.Held == null && !inv.Rolling && PowerupRoller.ItemsEnabled && TryBox(kart))
             {
                 turnBack = false;
                 return;
@@ -380,21 +380,18 @@ namespace MHK.AI
             turnBack = false;
         }
 
-        bool TryBox(Kart kart, GameConfig cfg)
+        bool TryBox(Kart kart)
         {
             ItemBox best = null;
             var bestCost = float.PositiveInfinity;
             var pos = kart.transform.position;
             var forward = Flat(kart.transform.forward);
-            var hurt = kart.Health < cfg.maxHealth;
-            var powered = kart.Effects.DamageDealtMultiplier > 1f;
             var boxes = ItemBox.Active;
             for (var i = 0; i < boxes.Count; i++)
             {
                 var b = boxes[i];
                 if (!b.Available || (b == ignoredBox && boxIgnoreTimer > 0f) || (b != box && Claimed(kart, b))) continue;
-                var kind = AIBattleBoxes.KindOf(b);
-                if (!(kind == BattleBoxKind.Item || (kind == BattleBoxKind.Health && hurt) || (kind == BattleBoxKind.Power && !powered))) continue;
+                if (!AIBattleBoxes.Reachable(b)) continue;
                 var to = Flat(b.transform.position - pos);
                 if (turnBack && Vector3.Dot(to, forward) > 0f) continue;
                 var cost = to.magnitude + Vector3.Angle(forward, to) * TurnCostPerDegree + Contest(kart, b);

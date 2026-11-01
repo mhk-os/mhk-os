@@ -139,13 +139,9 @@ namespace MHK.AI
             var dir = kart.transform.forward;
             if (item.AlongTrack)
             {
-                var path = AIKartQueries.MainPath();
-                if (path != null)
-                {
-                    var tangent = path.GetTangent(kart.Progress.PathDistance, ShotTangentSmoothing);
-                    // Shots fly along the line the way the kart faces (StraightProjectile.AimDirection).
-                    if (tangent.sqrMagnitude > MinShotTangentSqr) dir = Vector3.Dot(tangent, kart.transform.forward) < 0f ? -tangent : tangent;
-                }
+                var tangent = kart.Progress.LineTangent(ShotTangentSmoothing);
+                // Shots fly along the followed line the way the kart faces (StraightProjectile.AimDirection).
+                if (tangent.sqrMagnitude > MinShotTangentSqr) dir = Vector3.Dot(tangent, kart.transform.forward) < 0f ? -tangent : tangent;
             }
             var flat = Mathf.Sqrt(dir.x * dir.x + dir.z * dir.z);
             climb = item.Kind == AIItemKind.StraightShot ? dir.y / Mathf.Max(flat, MinShotFlatLength) : 0f;

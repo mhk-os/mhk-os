@@ -11,7 +11,6 @@ namespace MHK.Ghosts
         public const string SearchPattern = "*" + GhostFile.Extension;
         public const string ExportFolderName = "Export";
         public const string ImportFolderName = "Import";
-        public const string TrackHashFile = "track.hash";
         const string BestPrefix = "best-", LastPrefix = "last-", SavedPrefix = "saved-", ImportPrefix = "import-";
         const int ExportIdLength = 8;
 

@@ -86,7 +86,6 @@ namespace MHK.Ghosts
             try
             {
                 TrackHash = GhostFingerprint.TrackHash(race.Track, race.TrackRuntime);
-                Store.RememberTrackHash(race.Track.Id, TrackHash);
             }
             catch (Exception e)
             {

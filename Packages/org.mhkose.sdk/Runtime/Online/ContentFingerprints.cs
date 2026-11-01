@@ -98,6 +98,8 @@ namespace MHK.Online
             b.Add(p.battleCharges);
             b.Add(p.useCooldown);
             b.Add(p.excludeFromItemBoxes);
+            // Only when set: content without battle-only items keeps the manifests released clients announce.
+            if (p.battleOnly) b.Add("battleOnly");
             b.Add((int)p.heldMount);
             b.Add(p.family ?? "");
             for (var i = 0; i < CurveSamples; i++) b.Add(p.WeightFor(i / (CurveSamples - 1f)));

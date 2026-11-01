@@ -7,14 +7,15 @@ namespace MHK.Ghosts
     /// <summary>
     /// Whether a ghost was driven with what this game runs now: decided by the content version and the content
     /// fingerprint, never by the game or pack commit, so builds that change no lap times keep every ghost and record valid.
+    /// The track hash never decides it either: like the online boards, records only reset with the content version.
     /// </summary>
     public enum GhostCompatibility
     {
-        /// <summary>Same content version and the same track, rules, class and kart data: a fair rival and a valid record.</summary>
+        /// <summary>Same content version and the same track pack, rules, class and kart data: a fair rival and a valid record.</summary>
         Current,
         /// <summary>Recorded with another content version (<see cref="ContentVersion"/>): shown and raced, never a record.</summary>
         OtherVersion,
-        /// <summary>Same content version, but the track, rules or kart data (or the lap count) differ, or its kart is not installed.</summary>
+        /// <summary>Same content version, but the track's pack, rules or kart data (or the lap count) differ, or its kart is not installed.</summary>
         OtherContent,
     }
 
@@ -22,10 +23,10 @@ namespace MHK.Ghosts
     public static class GhostCompatibilityRules
     {
         /// <summary>
-        /// Compatibility of <paramref name="h"/>: content version, track pack id, the setup hash recomputed for its class,
-        /// kart and the track's current lap count, and the track hash when known (<see cref="IGhostStore.KnownTrackHash"/>).
+        /// Compatibility of <paramref name="h"/>: content version, track pack id and the setup hash recomputed for its
+        /// class, kart and the track's current lap count.
         /// </summary>
-        public static GhostCompatibility Evaluate(GhostHeader h, string knownTrackHash, Dictionary<(int, string, int), string> setupHashes = null)
+        public static GhostCompatibility Evaluate(GhostHeader h, Dictionary<(int, string, int), string> setupHashes = null)
         {
             if (h.contentVersion != ContentVersion.Current) return GhostCompatibility.OtherVersion;
             var content = GameRoot.Instance.Content;
@@ -35,7 +36,6 @@ namespace MHK.Ghosts
             var pack = track.OwnerPack;
             if (pack != null && pack.packId != h.trackPackId) return GhostCompatibility.OtherContent;
             if (SetupHash(h.engineClass, kart, track.defaultLaps, setupHashes) != h.setupHash) return GhostCompatibility.OtherContent;
-            if (!string.IsNullOrEmpty(knownTrackHash) && knownTrackHash != h.trackHash) return GhostCompatibility.OtherContent;
             return GhostCompatibility.Current;
         }
 
