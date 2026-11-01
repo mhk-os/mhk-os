@@ -38,6 +38,16 @@ namespace MHK.Race
         public TrackPath CurrentBranch => branch >= 0 && track != null ? track.Routes[branch] : null;
         /// <summary>Distance along <see cref="CurrentBranch"/>.</summary>
         public float BranchDistance => branchDistance;
+        /// <summary>
+        /// Unit driving direction of the line the kart follows where it is: along the alternative route it is on, else
+        /// the main line. Zero without a main line.
+        /// </summary>
+        public Vector3 LineTangent(float smoothing = 2f)
+        {
+            var route = CurrentBranch;
+            if (route != null) return route.GetTangent(branchDistance, smoothing);
+            return track != null && track.HasMainPath ? track.MainPath.GetTangent(PathDistance, smoothing) : Vector3.zero;
+        }
         public List<float> LapTimes { get; } = new();
         public float BestLap { get; private set; } = -1f;
         /// <summary>Explicit respawn pose from a respawn zone, used until the kart is back on the racing line.</summary>

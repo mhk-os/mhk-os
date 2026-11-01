@@ -251,6 +251,22 @@
             "guid": "a446ec4f0d5dc4922902cdcaf20630a0",
             "fileId": 11400000,
             "displayName": "Ghost Writer"
+        },
+        {
+            "id": "game.buff.health_pack",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "game",
+            "guid": "5e5e0c73097d4c3d90b3df4da5e7051a",
+            "fileId": 11400000,
+            "displayName": "Health pack"
+        },
+        {
+            "id": "game.health_pack",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "game",
+            "guid": "177ccaf9aca44ea0b6dabb07d58d2936",
+            "fileId": 11400000,
+            "displayName": "Health pack"
         }
     ]
 }

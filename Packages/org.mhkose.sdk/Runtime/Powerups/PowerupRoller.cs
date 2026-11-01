@@ -37,6 +37,16 @@ namespace MHK.Powerups
             }
         }
 
+        /// <summary>The running race is a battle (<see cref="GameMode.Battle"/>).</summary>
+        public static bool Battle
+        {
+            get
+            {
+                var session = RaceSession;
+                return session != null && session.mode == GameMode.Battle;
+            }
+        }
+
         /// <summary>Powerups the random item boxes of the current race can give (the HUD roulette cycles them).</summary>
         public static IReadOnlyList<PowerupDefinition> Pool
         {
@@ -57,8 +67,7 @@ namespace MHK.Powerups
             if (session != null && !session.powerupsEnabled) return null;
             var racers = Mathf.Max(1, Kart.All.Count - 1);
             // Battles have no meaningful race position: use the mid-field weights (Thunder Last Man Standing: equal table).
-            var battle = session != null && session.mode == GameMode.Battle;
-            var fraction = Kart.All.Count <= 1 || battle ? 0.5f : (kart.Progress.Position - 1) / (float)racers;
+            var fraction = Kart.All.Count <= 1 || Battle ? 0.5f : (kart.Progress.Position - 1) / (float)racers;
             Prepare();
             var total = TotalWeight(pool, fraction);
             return total > 0f ? Select(pool, fraction, Random.value * total) : null;

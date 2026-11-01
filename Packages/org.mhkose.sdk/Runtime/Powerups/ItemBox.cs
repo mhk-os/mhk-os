@@ -10,10 +10,12 @@ namespace MHK.Powerups
 {
     /// <summary>
     /// Pickup placed on the track that gives a random powerup (<see cref="PowerupRoller"/>) and respawns after a delay
-    /// (counted in physics steps). A fixed id gives that powerup, applies that status effect on contact, or gives the
-    /// character special (<see cref="CharacterSpecialId"/>). Boxes that give powerups are removed from races without items.
-    /// Online the server decides what a box gives and who got it (<see cref="OnlineItems"/>): only the local kart picks
-    /// up here, status effect boxes stay local.
+    /// (counted in physics steps, in battles at least <see cref="GameConfig.battleItemBoxRespawnSeconds"/>). A fixed id
+    /// gives that powerup, applies that status effect on contact, or gives the character special
+    /// (<see cref="CharacterSpecialId"/>). Boxes that give powerups are removed from races without items, fixed pickups
+    /// (<see cref="FixedPickup"/>) from battles, where random boxes give health instead. Online the server decides what a
+    /// box gives and who got it (<see cref="OnlineItems"/>): only the local kart picks up here, status effect boxes stay
+    /// local.
     /// </summary>
     public partial class ItemBox : MonoBehaviour
     {
@@ -22,7 +24,8 @@ namespace MHK.Powerups
         [Tooltip("Optional fixed powerup / effect id, or '@special'. Empty = random roll.")]
         public string fixedPowerupId;
         [SerializeField] float radius = 1.4f;
-        [Tooltip("Respawn delay (s). <= 0 uses GameConfig.itemBoxRespawnSeconds.")]
+        [Tooltip("Respawn delay (s). <= 0 uses GameConfig.itemBoxRespawnSeconds. Battles wait at least " +
+                 "GameConfig.battleItemBoxRespawnSeconds.")]
         [SerializeField] float respawnSeconds = -1f;
         [Tooltip("Visual root hidden while collected (its ItemBoxLook shows and animates the box).")]
         [SerializeField] GameObject visual;
@@ -40,16 +43,30 @@ namespace MHK.Powerups
         public bool Available => hiddenTimer <= 0f;
         /// <summary>Online box id: index in the stable order of the track's boxes (<see cref="StableOrder"/>), -1 offline.</summary>
         public int NetId { get; internal set; } = -1;
-        /// <summary>Respawn delay (s).</summary>
-        public float RespawnSeconds => respawnSeconds > 0 ? respawnSeconds : GameRoot.Instance.Config.itemBoxRespawnSeconds;
+        /// <summary>Respawn delay (s): the box's own or the default, in battles at least <see cref="GameConfig.battleItemBoxRespawnSeconds"/>.</summary>
+        public float RespawnSeconds
+        {
+            get
+            {
+                var config = GameRoot.Instance.Config;
+                var seconds = respawnSeconds > 0 ? respawnSeconds : config.itemBoxRespawnSeconds;
+                return PowerupRoller.Battle ? Mathf.Max(seconds, config.battleItemBoxRespawnSeconds) : seconds;
+            }
+        }
+
+        /// <summary>
+        /// A fixed powerup or status effect, not a random roll or the character special (Thunder health, quad damage,
+        /// hammer). Battles have none: random boxes give health there.
+        /// </summary>
+        public bool FixedPickup => !string.IsNullOrEmpty(fixedPowerupId) && fixedPowerupId != CharacterSpecialId;
 
         void OnEnable() => active.Add(this);
         void OnDisable() => active.Remove(this);
 
-        // Status effect pickups (Thunder arena health, quad damage) stay when items are off, as they did before.
+        // Status effect pickups stay in races when items are off, as they did before.
         void Start()
         {
-            if (!PowerupRoller.ItemsEnabled && GivesPowerups()) gameObject.SetActive(false);
+            if ((PowerupRoller.Battle && FixedPickup) || (!PowerupRoller.ItemsEnabled && GivesPowerups())) gameObject.SetActive(false);
         }
 
         /// <summary>The box gives a powerup (random, fixed or the character special), not a status effect.</summary>
@@ -104,7 +121,7 @@ namespace MHK.Powerups
         bool TryGive(Kart k)
         {
             var content = GameRoot.Instance.Content;
-            if (!string.IsNullOrEmpty(fixedPowerupId) && fixedPowerupId != CharacterSpecialId)
+            if (FixedPickup)
             {
                 var effect = content.Get<StatusEffectDefinition>(fixedPowerupId);
                 if (effect != null) return k.Effects.Apply(effect, k);

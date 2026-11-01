@@ -41,7 +41,7 @@ namespace MHK.UI
             "Fake item boxes look almost like the real thing. Watch closely.",
             "Shortcuts are risky, but the computer drivers know them too.",
             "Sand, snow and grass slow you down. Stay on the road.",
-            "In a battle, hammers and quad damage make every hit count.",
+            "In a battle, item boxes can give a health pack, but an emptied box takes a while to come back.",
             "Every character can drive every kart.",
             "30 fps on Low keeps laptops and phones cool during long sessions.",
         };

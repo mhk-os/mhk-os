@@ -28,10 +28,6 @@ namespace MHK.Ghosts
         string Export(GhostEntry entry);
         /// <summary>Takes in the ghosts waiting at the import location, returns how many were added and how many failed.</summary>
         (int imported, int failed) ImportPending();
-        /// <summary>Records the track hash a race computed (<see cref="GhostFingerprint.TrackHash"/>) for menus to compare against.</summary>
-        void RememberTrackHash(string trackId, string hash);
-        /// <summary>Track hash last computed for <paramref name="trackId"/> with this content version and its pack (in any build), null when unknown.</summary>
-        string KnownTrackHash(string trackId);
     }
 
     /// <summary>The store the game uses.</summary>

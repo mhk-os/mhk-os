@@ -9,8 +9,9 @@ namespace MHK.Powerups
     public enum ProjectileAim
     {
         [Tooltip("Along the shooter's facing, including its pitch and roll (MHK3 froster / shrinker beams, TINcan rocket).")] KartForward,
-        [Tooltip("Along the racing line at the shooter, the way the kart faces (against the track's direction when it " +
-                 "drives the wrong way), including slope (MHK Extra fireworks rocket).")] TrackDirection,
+        [Tooltip("Along the racing line the shooter follows (the alternative route or shortcut it is on, else the main " +
+                 "line), the way the kart faces (against the track's direction when it drives the wrong way), including " +
+                 "slope (MHK Extra fireworks rocket).")] TrackDirection,
     }
 
     /// <summary>
@@ -77,9 +78,9 @@ namespace MHK.Powerups
         {
             var forward = owner.transform.forward;
             var dir = forward;
-            if (aim == ProjectileAim.TrackDirection && TrackRuntime.TryGetMainPath(out var path))
+            if (aim == ProjectileAim.TrackDirection)
             {
-                var tangent = path.GetTangent(owner.Progress.PathDistance, tangentSmoothing);
+                var tangent = owner.Progress.LineTangent(tangentSmoothing);
                 if (tangent.sqrMagnitude > 0.5f) dir = Vector3.Dot(tangent, forward) < 0f ? -tangent.normalized : tangent.normalized;
             }
             return backwards ? -dir : dir;

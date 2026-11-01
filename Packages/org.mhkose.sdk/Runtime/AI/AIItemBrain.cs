@@ -10,7 +10,7 @@ namespace MHK.AI
     /// <summary>
     /// Item use and rear awareness of a computer driver. Items are judged by <see cref="AIItemProfile"/>, the engine class
     /// decides how cleverly they are aimed or kept, and every item is used before the next item box cluster (in a battle
-    /// after <see cref="GameConfig.aiBattleItemMaxHoldSeconds"/> at the latest).
+    /// after <see cref="GameConfig.aiBattleItemMaxHoldSeconds"/> at the latest). Health items wait until the kart is hurt.
     /// </summary>
     internal sealed class AIItemBrain
     {
@@ -73,6 +73,11 @@ namespace MHK.AI
             if (difficulty.aiDefendMissile && item.Protects && missile.Imminent(kart) && !kart.Effects.IsProtected)
             {
                 input.fire = true;
+                return;
+            }
+            if (item.Heals > 0)
+            {
+                HealUse(kart, inv, item, ref input, cfg);
                 return;
             }
             if (UseDue(kart, inv, cfg))
@@ -139,6 +144,13 @@ namespace MHK.AI
             if (item.Kind == AIItemKind.Dig && !AIItemJudge.DigClear(kart, item, board.direction)) return;
             input.lookBack = IsTrap(item) ? RearCapable(item) : item.CanGoBehind && leading;
             input.fire = true;
+        }
+
+        // Used once the whole heal counts; at the battle hold limit anyway, which frees the slot for item boxes.
+        void HealUse(Kart kart, PowerupInventory inv, AIItemProfile item, ref KartInput input, GameConfig cfg)
+        {
+            if (firedLast || inv.CoolingDown) return;
+            if (cfg.maxHealth - kart.Health >= item.Heals || heldTime >= maxHold) input.fire = true;
         }
 
         bool RearCapable(AIItemProfile item) =>

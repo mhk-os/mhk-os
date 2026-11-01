@@ -31,7 +31,7 @@ namespace MHK.AI
         Area,
         /// <summary>Trap left on the track (x-field, mine, gum, spike strip, black hole, banana rain).</summary>
         Trap,
-        /// <summary>Effect on the user (turbo, blue light, shield, panzer).</summary>
+        /// <summary>Effect on the user (turbo, blue light, shield, panzer, health pack).</summary>
         Self,
         /// <summary>The user digs ahead under the track (Hank's molehill), <see cref="AIItemProfile.Reach"/> is the dig distance.</summary>
         Dig,
@@ -93,6 +93,8 @@ namespace MHK.AI
         public bool Boosts { get; private set; }
         /// <summary>Self effects: rams karts it touches (panzer aura).</summary>
         public bool Rams { get; private set; }
+        /// <summary>Self effects: health they restore (health pack), 0 = none.</summary>
+        public int Heals { get; private set; }
         /// <summary>Dig: turn rate underground at full steering (degrees per second).</summary>
         public float DigTurnRate => dig != null ? dig.TurnRate : 0f;
 
@@ -275,6 +277,7 @@ namespace MHK.AI
                 Protects |= e.blocksHostileEffects;
                 Boosts |= e.maxSpeedMultiplier > BoostThreshold || e.accelerationMultiplier > BoostThreshold || e.forwardImpulse > 0f;
                 Rams |= e.auraEffect != null;
+                Heals += Mathf.Max(0, e.heal);
             }
             return true;
         }

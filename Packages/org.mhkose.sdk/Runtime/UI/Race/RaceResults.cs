@@ -77,7 +77,7 @@ namespace MHK.UI
         string uploadingText = "Uploading your record...";
         [SerializeField, Tooltip("Upload line once uploaded ({0} = rank on the online leaderboard).")]
         string uploadedFormat = "Uploaded: rank #{0} online.";
-        [SerializeField, Tooltip("Upload line once uploaded when the server ranks another run of the account higher.")]
+        [SerializeField, Tooltip("Upload line once uploaded when the run is not ranked (hidden by a moderator).")]
         string uploadedText = "Uploaded to the online leaderboard.";
         [SerializeField, Tooltip("Upload line when the upload failed ({0} = reason).")]
         string uploadFailedFormat = "Upload failed: {0}";

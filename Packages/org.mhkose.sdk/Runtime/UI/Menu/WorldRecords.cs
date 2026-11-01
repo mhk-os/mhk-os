@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MHK.Core;
-using MHK.Ghosts;
 using MHK.Online;
 using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
@@ -11,7 +10,7 @@ namespace MHK.UI
     /// <summary>
     /// World records of the current content version per track and engine class for the Time Trials hub: one
     /// ListBoards request for every track, kept for <see cref="MaxAgeSeconds"/> so visiting the hub does not ask again.
-    /// A track with several boards of this version shows the one of this device's track data, else the most played.
+    /// A track with several boards of this version (other lap counts) shows the most played.
     /// </summary>
     public static partial class WorldRecords
     {
@@ -63,26 +62,13 @@ namespace MHK.UI
             {
                 if (b.bestMs <= 0 || string.IsNullOrEmpty(b.trackId)) continue;
                 var key = (b.trackId.ToLowerInvariant(), b.engineClass);
-                if (!map.TryGetValue(key, out var kept) || Better(b, kept)) map[key] = b;
+                if (!map.TryGetValue(key, out var kept) || b.players > kept.players) map[key] = b;
             }
             boards = map;
             fetchedAt = Time.realtimeSinceStartup;
             Online = true;
             LastError = "";
             return true;
-        }
-
-        // This device's track data first, then the board with more players.
-        static bool Better(BoardInfo candidate, BoardInfo kept)
-        {
-            var known = GhostStores.Current.KnownTrackHash(candidate.trackId);
-            if (!string.IsNullOrEmpty(known))
-            {
-                var candidateKnown = string.Equals(candidate.trackHash, known, System.StringComparison.OrdinalIgnoreCase);
-                var keptKnown = string.Equals(kept.trackHash, known, System.StringComparison.OrdinalIgnoreCase);
-                if (candidateKnown != keptKnown) return candidateKnown;
-            }
-            return candidate.players > kept.players;
         }
     }
 }

@@ -16,7 +16,7 @@ MonoBehaviour:
   title: 'Moorhuhn Kart: Open Source'
   author: MHK:OSE
   version: 
-  description: The game's own definitions (shared kart reactions). Built into the game, always on, not listed in the Mods screen.
+  description: The game's own definitions (shared kart reactions, achievements, the battle health pack). Built into the game, always on, not listed in the Mods screen.
   loadOrder: -100
   includes: []
   logo: {fileID: 0}
@@ -68,6 +68,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 37a880eaa490148bbb3558b9358a7647, type: 2}
   - {fileID: 11400000, guid: 6aae358cf5da242f5b351d569ce11e46, type: 2}
   - {fileID: 11400000, guid: a446ec4f0d5dc4922902cdcaf20630a0, type: 2}
+  - {fileID: 11400000, guid: 5e5e0c73097d4c3d90b3df4da5e7051a, type: 2}
+  - {fileID: 11400000, guid: 177ccaf9aca44ea0b6dabb07d58d2936, type: 2}
   sdkApi: 0
   sdkVersion: 
   unityVersion: 

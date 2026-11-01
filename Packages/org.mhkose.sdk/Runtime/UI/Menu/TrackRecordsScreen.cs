@@ -65,12 +65,12 @@ namespace MHK.UI
         string uploadTip = "Upload to the leaderboard", loginToUploadTip = "Log in to upload your ghosts", uploadingTip = "Uploading...";
         [SerializeField, Tooltip("Status when Upload is pressed logged out (the Account page opens).")]
         string loginToUploadText = "Log in to upload your ghosts to the leaderboards.";
-        [SerializeField, Tooltip("Uploaded mark: rank text ({0} = rank), its tooltip, the tooltip of a run that is not the best on its board, of a hidden one.")]
+        [SerializeField, Tooltip("Uploaded mark: rank text ({0} = rank), its tooltip, the tooltip of a hidden run.")]
         string uploadedRankFormat = "#{0}", uploadedRankTip = "On the leaderboard: rank {0}",
-            uploadedSlowerTip = "Uploaded. Your best on this board is faster.", uploadedHiddenTip = "Uploaded, but hidden by a moderator.";
-        [SerializeField, Tooltip("Status after uploading: a new best ({0} = rank), already there, slower than the best on the board.")]
+            uploadedHiddenTip = "Uploaded, but hidden by a moderator.";
+        [SerializeField, Tooltip("Status after uploading ({0} = rank): a new best, already there, slower than the best on the board.")]
         string uploadedFormat = "Uploaded: rank {0} on the leaderboard.", duplicateText = "This ghost was already uploaded.",
-            uploadedSlowerText = "Uploaded. Your best on this board stays faster.";
+            uploadedSlowerFormat = "Uploaded: rank {0} on the leaderboard. Your best there is faster.";
         [SerializeField, Tooltip("Status while picked ghosts download ({0} = done, {1} = all).")]
         string downloadingFormat = "Downloading ghosts: {0} of {1}";
         [SerializeField, Tooltip("Status when downloads failed ({0} = failed, {1} = all, {2} = reason).")]
@@ -353,7 +353,7 @@ namespace MHK.UI
                     return;
                 }
                 HiddenReasons.Detach(uploaded);
-                uploaded.tooltip = run.rank > 0 ? string.Format(uploadedRankTip, run.rank) : uploadedSlowerTip;
+                uploaded.tooltip = string.Format(uploadedRankTip, run.rank);
                 return;
             }
             var running = uploading.Contains(entry.Id) ||
@@ -384,7 +384,7 @@ namespace MHK.UI
             if (r.Ok)
             {
                 var u = r.value;
-                SetStatus(u.duplicate ? duplicateText : u.personalBest ? string.Format(uploadedFormat, u.run.rank) : uploadedSlowerText);
+                SetStatus(u.duplicate ? duplicateText : string.Format(u.personalBest ? uploadedFormat : uploadedSlowerFormat, u.run.rank));
                 ReloadBoardsAfterUpload(u.run.boardId);
             }
             else SetStatus(r.result.message);
