@@ -15,7 +15,9 @@ namespace MHK.Validation
     /// Online races with anticheat: wires <see cref="RemoteKartChecks"/> to <see cref="OnlineRace"/>. Remote states go in
     /// as received, hits and item uses exempt their racers for a moment, finished, knocked-out and departed racers stop
     /// being checked, and reports go out as <see cref="CheatReport"/>s. Off without other humans and in lobbies without
-    /// anticheat. AI karts are never checked: the server takes no report about them.
+    /// anticheat. AI karts are checked like humans while another client hosts them (their states are that host's word;
+    /// the server counts reports about them against the host), never while this client does; a host change restarts
+    /// their checks, so the new host's first states, drawn from where it saw the karts, are no teleport.
     /// </summary>
     [AddComponentMenu("")]
     public class LiveValidation : MonoBehaviour
@@ -56,7 +58,8 @@ namespace MHK.Validation
 
         void OnRemoteState(int slot, KartState state)
         {
-            if (slot != online.LocalSlot && !online.IsAi(slot) && Ready()) checks.Receive(slot, state);
+            if (slot == online.LocalSlot || (online.IsAiHost && online.IsAi(slot)) || !Ready()) return;
+            checks.Receive(slot, state);
         }
 
         void OnPushed(IRacePush push)
@@ -75,6 +78,10 @@ namespace MHK.Validation
                     break;
                 case PlayerFinished finished:
                     checks.Stop(finished.slot);
+                    break;
+                case AiHost:
+                    foreach (var r in online.Setup.grid)
+                        if (online.IsAi(r.slot)) checks.Restart(r.slot);
                     break;
             }
         }
@@ -307,6 +314,19 @@ namespace MHK.Validation
             if (suspects.TryGetValue(slot, out var s)) s.done = true;
         }
 
+        /// <summary>
+        /// Racer <paramref name="slot"/>'s states come from a new source (an AI kart's new host, which simulates it on from
+        /// where it drew it): its checks and strikes start over with its next state; exemptions stay.
+        /// </summary>
+        public void Restart(int slot)
+        {
+            if (!suspects.TryGetValue(slot, out var s)) return;
+            queue.RemoveAll(r => r.suspect == s);
+            s.validator = null;
+            s.strikes.Clear();
+            s.lastTick = -1;
+        }
+
         /// <summary>Checks the states received since the last call, then re-simulates within the budget.</summary>
         public void Process()
         {
@@ -384,12 +404,17 @@ namespace MHK.Validation
             // A stand-in's physics are not the racer's: only what needs no physics.
             var checks = racer.standIn ? Checks & ValidationChecks.Kinematic : Checks;
             if ((checks & ValidationChecks.Divergence) != 0) track.Prepare(racer.spec);
-            s.validator = new KartValidator(track, racer.spec, effects, laps, tick, checks, resim)
+            var validator = new KartValidator(track, racer.spec, effects, laps, tick, checks, resim)
             {
                 Live = true,
                 ResimInterval = BaseResimInterval * Mathf.Max(1f, suspects.Count / (float)RacersPerResimInterval),
             };
-            s.validator.Found += v => OnFound(s, v);
+            // A re-simulation queued before a Restart finishes later: what the replaced validator finds no longer counts.
+            validator.Found += v =>
+            {
+                if (s.validator == validator) OnFound(s, v);
+            };
+            s.validator = validator;
             return true;
         }
 

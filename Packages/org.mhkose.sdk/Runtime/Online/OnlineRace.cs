@@ -138,10 +138,11 @@ namespace MHK.Online
         /// <summary>
         /// A check of <paramref name="observedSlot"/> by <paramref name="observerSlot"/> for <paramref name="reason"/> counts:
         /// the observer's RTT is known and at most <see cref="EligibleRttMs"/>, and so is the observed racer's unless the
-        /// reason is a speed or acceleration magnitude, which latency does not change (<see cref="LatencyFree"/>).
+        /// reason is a speed or acceleration magnitude, which latency does not change (<see cref="LatencyFree"/>). An AI
+        /// kart's states come from the AI host: the host's RTT stands for it (the server counts such reports against the host).
         /// </summary>
         public bool Eligible(int observerSlot, int observedSlot, FlagReason reason) =>
-            RttEligible(observerSlot) && (LatencyFree(reason) || RttEligible(observedSlot));
+            RttEligible(observerSlot) && (LatencyFree(reason) || RttEligible(IsAi(observedSlot) ? AiHostSlot : observedSlot));
 
         /// <summary>Speed and acceleration findings: magnitudes of the received velocities, the same at any latency.</summary>
         public static bool LatencyFree(FlagReason reason) => reason is FlagReason.Speed or FlagReason.Acceleration;
