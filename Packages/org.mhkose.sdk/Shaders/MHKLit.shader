@@ -7,6 +7,12 @@ Shader "MHK/Lit"
         [MainTexture] _BaseMap ("Texture", 2D) = "white" {}
         [MainColor] _BaseColor ("Color", Color) = (1,1,1,1)
         _Tint ("Tint (effects)", Color) = (1,1,1,1)
+        [HideInInspector] _MeltOrigin ("Melt origin / strength", Vector) = (0,0,0,0)
+        [HideInInspector] _MeltUp ("Melt up / height", Vector) = (0,1,0,1)
+        [HideInInspector] _MeltRight ("Melt right / pooling", Vector) = (1,0,0,0)
+        [HideInInspector] _MeltForward ("Melt forward / wobble", Vector) = (0,0,1,0)
+        [HideInInspector] _MeltHeat ("Melt warmth / elapsed", Vector) = (0,0,0,0)
+        [HideInInspector] _MeltWater ("Melt water colour / opacity", Vector) = (1,1,1,0)
         _Emission ("Emission (self illumination)", Range(0, 1)) = 0
         [Toggle(_GLOW)] _GlowOn ("Glow (lamps / windows painted in the texture)", Float) = 0
         [NoScaleOffset] _GlowMap ("Glow mask (RGB, times texture: white = glows)", 2D) = "white" {}
@@ -97,8 +103,8 @@ Shader "MHK/Lit"
             {
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(v);
-                float3 positionWS = TransformObjectToWorld(v.positionOS.xyz);
-                float3 normalWS = TransformObjectToWorldNormal(v.normalOS);
+                float3 positionWS = MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz));
+                float3 normalWS = MHKMeltNormal(TransformObjectToWorldNormal(v.normalOS));
                 #if _CASTING_PUNCTUAL_LIGHT_SHADOW
                     float3 lightDir = normalize(_LightPosition - positionWS);
                 #else
@@ -138,7 +144,7 @@ Shader "MHK/Lit"
             {
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(v);
-                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.positionCS = TransformWorldToHClip(MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz)));
                 o.uv = MHKUV(v.uv);
                 return o;
             }

@@ -69,8 +69,8 @@ namespace MHK.Karts
 
         /// <summary>
         /// Moves the shown tint towards the burnt look while <paramref name="burned"/>, else towards <paramref name="tint"/>
-        /// (alpha = strength, 0 = none). A new colour shows at once, the strength fades. Back at 0 the renderers drop their
-        /// property block.
+        /// (alpha = strength, 0 = none). A new colour shows at once, the strength fades. Back at 0 only the tint resets;
+        /// other effect properties on the renderer's property block stay intact.
         /// </summary>
         public void UpdateTint(bool burned, Color tint, float dt)
         {
@@ -80,16 +80,10 @@ namespace MHK.Karts
             if (Mathf.Approximately(tintAmount, target) && colour == tintColour) return;
             tintColour = colour;
             tintAmount = Mathf.MoveTowards(tintAmount, target, dt * (target > tintAmount ? TintInRate : TintOutRate));
-            var clear = tintAmount <= 0f;
             var shown = Color.Lerp(Color.white, tintColour, tintAmount);
             foreach (var r in tinted)
             {
                 if (r == null) continue;
-                if (clear)
-                {
-                    r.SetPropertyBlock(null);
-                    continue;
-                }
                 r.GetPropertyBlock(block);
                 block.SetColor(MHKLitIds.Tint, shown);
                 r.SetPropertyBlock(block);

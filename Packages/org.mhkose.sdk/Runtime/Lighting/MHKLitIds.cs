@@ -17,6 +17,12 @@ namespace MHK.Rendering
         public static readonly int BaseMap = Shader.PropertyToID("_BaseMap");
         public static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
         public static readonly int Tint = Shader.PropertyToID("_Tint");
+        public static readonly int MeltOrigin = Shader.PropertyToID("_MeltOrigin");
+        public static readonly int MeltUp = Shader.PropertyToID("_MeltUp");
+        public static readonly int MeltRight = Shader.PropertyToID("_MeltRight");
+        public static readonly int MeltForward = Shader.PropertyToID("_MeltForward");
+        public static readonly int MeltHeat = Shader.PropertyToID("_MeltHeat");
+        public static readonly int MeltWater = Shader.PropertyToID("_MeltWater");
         public static readonly int Emission = Shader.PropertyToID("_Emission");
         public static readonly int GlowOn = Shader.PropertyToID("_GlowOn");
         public static readonly int GlowMap = Shader.PropertyToID("_GlowMap");

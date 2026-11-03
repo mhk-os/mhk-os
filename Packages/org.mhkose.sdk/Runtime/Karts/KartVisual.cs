@@ -34,6 +34,7 @@ namespace MHK.Karts
         float wheelRoll;
         float shownWheelAngleDeg, shownSteer;
         float dropTime;
+        int animationPauses, posePauses;
 
         /// <summary>Wheels and seat of the kart model. Null without a kart prefab or KartModel.</summary>
         public KartModel Model => model;
@@ -190,6 +191,18 @@ namespace MHK.Karts
         /// <summary>Holds the win or lose pose after the finish.</summary>
         public void PlayWin(bool won) => PlayAction(won ? CharacterAnimRole.Win : CharacterAnimRole.Lose, true);
 
+        // Effect-owned holds compose: ending an x-field must not resume a melt that is still running.
+        internal void SetAnimationPaused(bool paused, bool freezePose)
+        {
+            var wasPaused = animationPauses > 0;
+            animationPauses += paused ? 1 : -1;
+            if (freezePose) posePauses += paused ? 1 : -1;
+            var isPaused = animationPauses > 0;
+            if (wasPaused == isPaused) return;
+            if (animator != null) animator.SetPaused(isPaused);
+            if (kartAnimator != null) kartAnimator.SetPaused(isPaused);
+        }
+
         /// <summary>
         /// Driver and kart model animate (default) or freeze in their pose, for a ghost too far away to watch
         /// (<see cref="CharacterAnimator.SetDormant"/>). Wheels, pose, opacity and tints stay live.
@@ -210,10 +223,13 @@ namespace MHK.Karts
             kart.Collided -= OnCollided;
         }
 
-        // Effect animations hold their last frame while the effect freezes or locks the kart and end with it, else they play once.
+        // Stage flattening is the visual squash itself, not a character death animation. In particular Crushed may
+        // fall back to ShotDown on a driver without a crush clip. Item reactions keep their authored animation.
+        // Effect animations hold their last frame while the effect freezes or locks the kart and end with it.
         void OnEffectApplied(StatusEffectDefinition def, Kart source)
         {
-            if (def.useCharacterAnimation) PlayAction(def.characterAnimation, def.freezeKart || def.lockControls);
+            var stageFlatten = source == null && def.runOver && def.verticalScale < 1f;
+            if (def.useCharacterAnimation && !stageFlatten) PlayAction(def.characterAnimation, def.freezeKart || def.lockControls);
         }
 
         void OnEffectEnded(StatusEffectDefinition def)
@@ -240,14 +256,17 @@ namespace MHK.Karts
         {
             if (view == null) return;
             var dt = Time.deltaTime;
-            UpdateShownSteering(dt);
-            UpdateBodyPose(dt);
-            PoseWheels(dt);
+            if (posePauses == 0)
+            {
+                UpdateShownSteering(dt);
+                UpdateBodyPose(dt);
+                PoseWheels(dt);
+            }
             seeThrough.UpdateTint(view.Burned, view.ModelTint, dt);
             seeThrough.UpdateFade(view.Opacity, dt);
             seeThrough.UpdateHidden(view.Hidden);
             wheelVisibility.Update(view.WheelsHidden && !view.RaceOver);
-            driverAnimation.Update(dt, shownSteer);
+            if (animationPauses == 0) driverAnimation.Update(dt, shownSteer);
         }
 
         void UpdateBodyPose(float dt)

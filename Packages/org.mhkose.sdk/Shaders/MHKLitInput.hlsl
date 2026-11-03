@@ -15,6 +15,12 @@ CBUFFER_START(UnityPerMaterial)
     half _Cutoff;
     float4 _Flipbook;
     half _Fog;
+    float4 _MeltOrigin;
+    float4 _MeltUp;
+    float4 _MeltRight;
+    float4 _MeltForward;
+    float4 _MeltHeat;
+    float4 _MeltWater;
 CBUFFER_END
 
 TEXTURE2D(_BaseMap);
@@ -23,6 +29,40 @@ TEXTURE2D_ARRAY(_FlipbookArray);
 SAMPLER(sampler_FlipbookArray);
 TEXTURE2D(_GlowMap);
 SAMPLER(sampler_GlowMap);
+
+// One shared frame for the kart and skinned driver: vertices settle into the same pool, not individual mesh pivots.
+// Origin.w is strength; Up.w is full height; Right.w is spread; Forward.w is wave amplitude; Heat.w is elapsed time.
+float3 MHKMeltPosition(float3 positionWS)
+{
+    UNITY_BRANCH
+    if (_MeltOrigin.w <= 0.0) return positionWS;
+    float3 delta = positionWS - _MeltOrigin.xyz;
+    float x = dot(delta, _MeltRight.xyz);
+    float y = dot(delta, _MeltUp.xyz);
+    float z = dot(delta, _MeltForward.xyz);
+    float height = max(_MeltUp.w, 0.001);
+    float h = saturate(y / height);
+    float strength = _MeltOrigin.w;
+    float spread = 1.0 + strength * _MeltRight.w * (1.0 - 0.65 * h);
+    float phase = _MeltHeat.w * 13.0;
+    float wave = sin(x / height * 9.0 + phase) * sin(z / height * 8.0 - phase * 0.73);
+    float wobble = _MeltForward.w * strength * (0.4 + 0.6 * (1.0 - strength));
+    float pooledY = y * (1.0 - 0.9 * strength);
+    pooledY += wave * wobble * saturate(h * 5.0);
+    float sway = sin(phase * 0.47 + z / height * 6.0) * wobble * h;
+    return _MeltOrigin.xyz + _MeltRight.xyz * (x * spread + sway)
+        + _MeltUp.xyz * max(pooledY, 0.0) + _MeltForward.xyz * (z * spread);
+}
+
+float3 MHKMeltNormal(float3 normalWS)
+{
+    UNITY_BRANCH
+    if (_MeltOrigin.w <= 0.0) return normalWS;
+    // Inverse-transpose of the main pooling/sag scale. The small boiling ripples keep the mesh's smooth normals.
+    float spread = 1.0 + _MeltOrigin.w * _MeltRight.w;
+    float3 horizontal = normalWS - _MeltUp.xyz * dot(normalWS, _MeltUp.xyz);
+    return normalize(horizontal / spread + _MeltUp.xyz * dot(normalWS, _MeltUp.xyz) / (1.0 - 0.9 * _MeltOrigin.w));
+}
 
 half3 MHKGlow(float2 uv, half3 albedo)
 {

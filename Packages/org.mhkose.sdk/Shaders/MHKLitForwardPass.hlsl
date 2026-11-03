@@ -39,12 +39,11 @@ Varyings vert(Attributes v)
     Varyings o;
     UNITY_SETUP_INSTANCE_ID(v);
     UNITY_TRANSFER_INSTANCE_ID(v, o);
-    VertexPositionInputs pos = GetVertexPositionInputs(v.positionOS.xyz);
-    o.positionCS = pos.positionCS;
-    o.positionWS = pos.positionWS;
-    o.normalWS = TransformObjectToWorldNormal(v.normalOS);
+    o.positionWS = MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz));
+    o.positionCS = TransformWorldToHClip(o.positionWS);
+    o.normalWS = MHKMeltNormal(TransformObjectToWorldNormal(v.normalOS));
     o.uv = MHKUV(v.uv);
-    o.fogFactor = ComputeFogFactor(pos.positionCS.z);
+    o.fogFactor = ComputeFogFactor(o.positionCS.z);
     OUTPUT_LIGHTMAP_UV(v.lightmapUV, unity_LightmapST, o.lightmapUV);
     #ifdef _VERTEX_TINT
         o.color = v.color;
@@ -140,6 +139,19 @@ half4 frag(Varyings i) : SV_Target
     #ifdef _GLOW
         col += MHKGlow(i.uv, tex.rgb) * _Tint.rgb;
     #endif
+    UNITY_BRANCH
+    if (_MeltOrigin.w > 0.0)
+    {
+        half heat = _MeltOrigin.w * (0.85 + 0.15 * sin(_MeltHeat.w * 10.0));
+        col = lerp(col, col * half3(1.1, 0.72, 0.45) + _MeltHeat.rgb, heat);
+        float3 surface = (i.positionWS - _MeltOrigin.xyz) / max(_MeltUp.w, 0.001);
+        half ripple = 0.5 + 0.5 * sin(dot(surface, _MeltRight.xyz) * 18.0
+            + dot(surface, _MeltForward.xyz) * 11.0 - _MeltHeat.w * 9.0);
+        half rim = 1.0 - saturate(dot(n, SafeNormalize(GetWorldSpaceViewDir(i.positionWS))));
+        rim *= rim;
+        half sheen = saturate(0.35 + 0.35 * ripple + 0.3 * rim);
+        col = lerp(col, _MeltWater.rgb, saturate(_MeltOrigin.w * _MeltWater.a * sheen));
+    }
     col = lerp(col, MixFog(col, i.fogFactor), _Fog);
     return half4(col, tex.a * _Tint.a);
 }
