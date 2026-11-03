@@ -11,8 +11,10 @@ namespace MHK.Effects
     /// </summary>
     public class KartAnimationPause : MonoBehaviour
     {
+        [Tooltip("Also hold body bob, steering and wheel poses (melting), not just the animation clips.")]
+        [SerializeField] bool freezePose;
         Kart kart;
-        CharacterAnimator[] animators;
+        KartVisual visual;
         StatusEffectDefinition effect;
         bool paused;
 
@@ -20,8 +22,9 @@ namespace MHK.Effects
         {
             kart = GetComponentInParent<Kart>();
             if (kart == null) return;
-            animators = kart.GetComponentsInChildren<CharacterAnimator>();
-            foreach (var a in animators) a.SetPaused(true);
+            visual = kart.Visual;
+            if (visual == null) return;
+            visual.SetAnimationPaused(true, freezePose);
             paused = true;
             kart.Effects.Ended += OnEnded;
         }
@@ -39,6 +42,7 @@ namespace MHK.Effects
             if (effect == null || def == effect) Resume();
         }
 
+        void OnDisable() => Resume();
         void OnDestroy() => Resume();
 
         void Resume()
@@ -46,8 +50,7 @@ namespace MHK.Effects
             if (!paused) return;
             paused = false;
             if (kart != null) kart.Effects.Ended -= OnEnded;
-            foreach (var a in animators)
-                if (a != null) a.SetPaused(false);
+            if (visual != null) visual.SetAnimationPaused(false, freezePose);
         }
     }
 }

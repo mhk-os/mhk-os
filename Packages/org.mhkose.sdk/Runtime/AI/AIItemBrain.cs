@@ -134,13 +134,13 @@ namespace MHK.AI
             return useBy - kart.Progress.RaceDistance < lead;
         }
 
-        // Traps go behind, shots and throws ahead (behind for a leader when they can), the rest at once. The homing missile
-        // hunts the leader, its user included (MHK2): a leader keeps it.
+        // Traps go behind, shots and throws ahead (behind for a leader when they can), the rest at once.
+        // Leader hunters include their user: a leader keeps them rather than attacking itself.
         void BlindUse(Kart kart, PowerupInventory inv, AIItemProfile item, ref KartInput input)
         {
             if (firedLast || inv.CoolingDown) return;
             var leading = AIKartQueries.IsLeading(kart);
-            if (item.Kind == AIItemKind.HomingMissile && leading) return;
+            if ((item.Kind is AIItemKind.HomingMissile or AIItemKind.LeaderChaser) && leading) return;
             if (item.Kind == AIItemKind.Dig && !AIItemJudge.DigClear(kart, item, board.direction)) return;
             input.lookBack = IsTrap(item) ? RearCapable(item) : item.CanGoBehind && leading;
             input.fire = true;
@@ -166,7 +166,7 @@ namespace MHK.AI
             itemTimer -= dt;
             if (itemTimer > 0f) return;
             itemTimer = difficulty.aiItemReactionTime * rng.Range(MinReaction, MaxReaction);
-            if (item.Kind == AIItemKind.HomingMissile && AIKartQueries.IsLeading(kart)) return;
+            if ((item.Kind is AIItemKind.HomingMissile or AIItemKind.LeaderChaser) && AIKartQueries.IsLeading(kart)) return;
             if (IsTrap(item) && RearCapable(item)) return;
             if (item.Kind == AIItemKind.Dig && !AIItemJudge.DigClear(kart, item, board.direction)) return;
             if (item.Kind == AIItemKind.Unknown && difficulty.aiAimedShots)

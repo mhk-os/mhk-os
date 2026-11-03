@@ -57,6 +57,20 @@ namespace MHK.Powerups
             return results.Count > 0 ? results[0] : null;
         }
 
+        /// <summary>The actual active, non-eliminated race leader, including an item's owner and protected racers.</summary>
+        public static Kart RaceLeader()
+        {
+            Kart best = null;
+            var karts = Kart.All;
+            for (var i = 0; i < karts.Count; i++)
+            {
+                var kart = karts[i];
+                if (!kart.isActiveAndEnabled || kart.Eliminated || kart.Progress == null) continue;
+                if (best == null || kart.Progress.Position < best.Progress.Position) best = kart;
+            }
+            return best;
+        }
+
         static void AddIfAny(List<Kart> results, Kart k)
         {
             if (k != null) results.Add(k);

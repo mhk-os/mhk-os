@@ -13,6 +13,8 @@ namespace MHK.AI
         Unknown,
         /// <summary>MHK2 homing missile: always hunts the race leader.</summary>
         HomingMissile,
+        /// <summary>Track-routed shot that dynamically hunts the actual leader, even its owner.</summary>
+        LeaderChaser,
         /// <summary>Straight 3D shot (beams, fireworks and TINcan rockets, soap bubbles).</summary>
         StraightShot,
         /// <summary>Ground-following shot fired along the kart's facing (snowball).</summary>
@@ -128,7 +130,7 @@ namespace MHK.AI
         // First match wins: the order is the priority of the behaviour components.
         void Describe(GameObject prefab, int depth)
         {
-            _ = TryDig(prefab) || TryHomingMissile(prefab) || TryLob(prefab) || TryStraightShot(prefab) || TryProjectile(prefab)
+            _ = TryDig(prefab) || TryHomingMissile(prefab) || TryLeaderChaser(prefab) || TryLob(prefab) || TryStraightShot(prefab) || TryProjectile(prefab)
                 || TryBall(prefab) || TryMelee(prefab) || TryTargeted(prefab) || TryBurst(prefab, depth) || TryPlacement(prefab)
                 || TryDroppedTrap(prefab) || TryScatter(prefab) || TryArea(prefab) || TrySelf(prefab);
         }
@@ -145,6 +147,15 @@ namespace MHK.AI
         {
             if (!prefab.TryGetComponent<TrackHomingMissile>(out _)) return false;
             Kind = AIItemKind.HomingMissile;
+            return true;
+        }
+
+        bool TryLeaderChaser(GameObject prefab)
+        {
+            if (!prefab.TryGetComponent<TrackFireball>(out var shot)) return false;
+            Kind = AIItemKind.LeaderChaser;
+            Speed = shot.speed;
+            Range = shot.speed * shot.lifetime;
             return true;
         }
 
@@ -191,7 +202,7 @@ namespace MHK.AI
             }
             Kind = AIItemKind.GroundShot;
             NeedsLineOfSight = !shot.followTrackPath;
-            CanGoBehind = true;
+            CanGoBehind = shot.allowBackwards;
             return true;
         }
 

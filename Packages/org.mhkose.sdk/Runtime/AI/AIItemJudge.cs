@@ -59,6 +59,7 @@ namespace MHK.AI
         public bool WorthFiring(Kart kart, AIItemProfile item, float heldTime, float steer) => item.Kind switch
         {
             AIItemKind.HomingMissile => HomingMissileWorth(kart, heldTime),
+            AIItemKind.LeaderChaser => LeaderChaserWorth(kart, heldTime),
             AIItemKind.HomingShot => HomingShotWorth(kart, item),
             AIItemKind.StraightShot or AIItemKind.GroundShot or AIItemKind.Ball => AimShot(kart, item, heldTime),
             AIItemKind.Lob => LobWillLand(kart, item, board.direction),
@@ -73,6 +74,14 @@ namespace MHK.AI
 
         static bool HomingMissileWorth(Kart kart, float heldTime) =>
             !AIKartQueries.IsLeading(kart) && (heldTime > HomingFireAnywayTime || !AIKartQueries.LeaderProtected(kart));
+
+        static bool LeaderChaserWorth(Kart kart, float heldTime)
+        {
+            var leader = PowerupTargeting.RaceLeader();
+            // Never deliberately fire an item that hunts ourselves. Routes make direct line of sight irrelevant.
+            return leader != null && leader != kart
+                && (heldTime > HomingFireAnywayTime || !leader.Effects.IsProtected);
+        }
 
         static bool HomingShotWorth(Kart kart, AIItemProfile item)
         {

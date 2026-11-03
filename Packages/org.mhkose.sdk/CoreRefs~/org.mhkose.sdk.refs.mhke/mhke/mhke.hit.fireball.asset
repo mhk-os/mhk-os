@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: mhke.hit.fireball
   m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.StatusEffectDefinition
   id: mhke.hit.fireball
-  displayName: Burnt
+  displayName: Boiling / Melted
   sourceGame: 
   icon: {fileID: 0}
   hidden: 0

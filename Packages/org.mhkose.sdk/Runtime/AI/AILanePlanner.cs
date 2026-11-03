@@ -114,24 +114,29 @@ namespace MHK.AI
         static bool WantsItem(Kart kart)
         {
             var inv = kart.Inventory;
-            return inv != null && inv.Held == null && !inv.Rolling && PowerupRoller.ItemsEnabled;
+            return inv != null && inv.CanReceive && !inv.Rolling && PowerupRoller.ItemsEnabled;
         }
 
-        // Boxes that give powerups (status effect boxes are no item) and fake boxes the driver does not see through.
+        // Empty karts seek normal boxes; a held ordinary item can still be upgraded at a character-special box when
+        // pickups may replace it. Both use the same reachability, lane steering and obstacle avoidance below.
         bool FindPickup(Kart kart, float range, out float lane)
         {
             lane = Lane;
             var best = float.MaxValue;
             var pos = kart.transform.position;
+            var held = kart.Inventory.Held;
             var boxes = ItemBox.Active;
             for (var i = 0; i < boxes.Count; i++)
             {
                 var box = boxes[i];
-                if (box.Available && box.GivesPowerups())
-                    ConsiderPickup(box.transform.position, pos, range, box.GivesSpecial(kart) ? SpecialShare : 1f, ref best, ref lane);
+                if (!box.Available || !box.GivesPowerups()) continue;
+                var special = box.GivesSpecial(kart);
+                if (held != null && (!special || string.Equals(held.Id, kart.Character.specialPowerup.Id,
+                        System.StringComparison.OrdinalIgnoreCase))) continue;
+                ConsiderPickup(box.transform.position, pos, range, special ? SpecialShare : 1f, ref best, ref lane);
             }
             var hazards = PlantedHazards.All;
-            for (var i = 0; i < hazards.Count; i++)
+            for (var i = 0; held == null && i < hazards.Count; i++)
             {
                 var h = hazards[i];
                 if (h.LooksLikeItemBox && h.DangerRadius > 0f && !SeesThrough(h)) ConsiderPickup(h.Position, pos, range, 1f, ref best, ref lane);
