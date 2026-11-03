@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Track choice. Code fills title (battles), tabs, card-grid (one picture card per track) and the info panel (hovered or focused card: picture, name, game, laps or arena, records from the save). empty (with the built-in mods download while they are missing) replaces the body when no track is loaded. Preview classes on page: preview-arena (arena line instead of laps), preview-empty. -->
+    <!-- Track choice. Code fills title (battles, lobby modes), tabs, card-grid (one picture card per track) and the info panel (hovered or focused card: picture, name, game, laps or arena, records from the save). empty (with the built-in mods download while they are missing) replaces the body when no track is loaded. cups (footer) shows only for an online room owner picking between sets of an owner-pick race room and opens the Cup page with the room's cups. Preview classes on page: preview-arena (arena line instead of laps), preview-empty. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="TrackCard" src="/Assets/MHK/UI/Menu/Templates/TrackCard.uxml" />
@@ -137,7 +137,12 @@
                     <ui:Label text="Back" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
-            <ui:VisualElement class="footer-right" />
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="cups" tooltip="Race a whole championship of the room's tracks as the next set" class="mhk-button">
+                    <ui:VisualElement class="icon i-emoji_events" />
+                    <ui:Label text="Championships" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

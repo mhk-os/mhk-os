@@ -31,6 +31,7 @@ MonoBehaviour:
   forwardImpulse: 0
   velocityRetain: 1
   velocityDamping: 0
+  snapToTopSpeed: 0
   lockControls: 0
   forceThrottle: 0
   blockThrottle: 0
@@ -73,6 +74,7 @@ MonoBehaviour:
   endSound: {fileID: 0}
   screenOverlay: {r: 1, g: 1, b: 1, a: 0}
   burnVisual: 0
+  modelTint: {r: 1, g: 1, b: 1, a: 0}
   hideWheels: 0
   bodyBob:
     height: 0

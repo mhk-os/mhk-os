@@ -12,7 +12,8 @@ namespace MHK.UI
     /// hovered or focused cup with its track list. Cards and panel cross-fade through the cup's track pictures.
     /// Picking a cup opens the race settings. Custom championship edits the player's own track list
     /// (<see cref="UserSettings.customChampionship"/>, <see cref="TrackListScreen"/>), then opens the race settings for a
-    /// championship without a cup.
+    /// championship without a cup. For the online room owner (<see cref="LobbyPick.OwnerPick"/>, opened from the Track
+    /// page) it lists the lobby's cups (<see cref="LobbyScreen.LobbyCups"/>) and picking one starts it as the room's next set.
     /// </summary>
     public class CupScreen : CardGridScreen<CupDefinition>
     {
@@ -24,6 +25,8 @@ namespace MHK.UI
         float pictureSeconds = 3.5f;
         [SerializeField, Tooltip("Race settings name of the player's own championship.")]
         string customName = "Custom championship";
+        [SerializeField, Tooltip("Header title when the online room owner picks a cup as the next set.")]
+        string ownerPickTitle = "Choose the room's championship";
 
         readonly Dictionary<CupDefinition, List<Texture2D>> pictures = new();
         readonly List<ImageCycle> cardCycles = new();
@@ -43,9 +46,12 @@ namespace MHK.UI
 
         protected override IEnumerable<CupDefinition> Items => cups;
 
+        bool Lobby => Selection.lobbyPick == LobbyPick.OwnerPick;
+
         protected override void BindPage()
         {
-            cups = Content.All<CupDefinition>().OrderBy(c => c.order).ToList();
+            var lobby = Lobby;
+            cups = lobby ? LobbyScreen.LobbyCups() : Content.All<CupDefinition>().OrderBy(c => c.order).ToList();
             pictures.Clear();
             foreach (var c in cups) pictures[c] = PicturesOf(c);
             trackList = Q<VisualElement>("cup-tracks");
@@ -54,18 +60,28 @@ namespace MHK.UI
             infoCup = null;
             cycleTimer = Root.schedule.Execute(StepNextCard).StartingIn(UiAnim.Ms(pictureSeconds)).Every(UiAnim.Ms(pictureSeconds));
             var custom = OnClick("custom", EditCustom);
-            custom.SetVisible(Content.All<TrackDefinition>().Any(t => t.layout == TrackLayout.Circuit));
+            custom.SetVisible(!lobby && Content.All<TrackDefinition>().Any(t => t.layout == TrackLayout.Circuit));
+            if (!lobby) return;
+            Q<Label>("title").text = ownerPickTitle;
+            Online.OnlineLobby.Changed += OnLobbyChanged;
         }
 
         protected override void Unbind()
         {
             base.Unbind();
+            Online.OnlineLobby.Changed -= OnLobbyChanged;
             cycleTimer?.Pause();
             cycleTimer = null;
             cardCycles.Clear();
             cardCups.Clear();
             infoCycle = null;
             infoCup = null;
+        }
+
+        // The room started a race, the set moved on or the lobby is gone: back to the lobby.
+        void OnLobbyChanged()
+        {
+            if (!LobbyScreen.CanStartCup && Flow.Current == this) LobbyScreen.Return(Flow);
         }
 
         // The cup's track pictures in race order, else its own icon (a mod cup whose tracks have none).
@@ -76,7 +92,9 @@ namespace MHK.UI
             return list;
         }
 
-        protected override string CardTag(CupDefinition c) => string.Format(racesFormat, UiText.GameName(c.SourceGame), c.tracks.Count);
+        protected override string GameName(string game) => Lobby ? OnlineUi.PackName(game) : UiText.GameName(game);
+
+        protected override string CardTag(CupDefinition c) => string.Format(racesFormat, GameName(c.SourceGame), c.tracks.Count);
 
         protected override Texture2D CardImage(CupDefinition c) => pictures[c].Count > 0 ? pictures[c][0] : null;
 
@@ -132,6 +150,11 @@ namespace MHK.UI
 
         protected override void Pick(CupDefinition cup)
         {
+            if (Lobby)
+            {
+                LobbyScreen.StartCup(Flow, cup);
+                return;
+            }
             var selection = Selection;
             Flow.Get<RaceSettingsScreen>().Open(() =>
             {

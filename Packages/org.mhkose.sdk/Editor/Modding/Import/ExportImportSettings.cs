@@ -6,7 +6,11 @@ using UnityEngine;
 
 namespace MHK.Editor.Modding.Import
 {
-    /// <summary>A track whose models and coordinates get an extra scale (narrow tracks enlarged for the remake's karts).</summary>
+    /// <summary>
+    /// A track whose models and coordinates get an extra scale, for exports whose tracks use other units than the karts:
+    /// keep each track's original road width and lap length relative to the karts (enlarging narrow tracks breaks their
+    /// proportions; an imported track is rescaled with <see cref="MHK.Editor.Tracks.TrackScaler"/>).
+    /// </summary>
     [Serializable]
     public class TrackScaleOverride
     {

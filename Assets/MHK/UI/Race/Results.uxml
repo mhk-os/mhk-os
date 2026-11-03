@@ -1,10 +1,12 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <!-- Results (single race). Code fills title (track), info (mode, cup race or engine class), rows (one per racer with the driver's portrait and kart icon; a long table scrolls, the player's row in view), the columns / champion plate / buttons of the mode.
+         Championships and online set races: the Points column shows this race's points, the Standings button opens the standings page (standings-page, Race/Templates/Standings.uxml) in place of panel; there the title says Standings and Results (or Cancel) goes back.
          Time trials (and replays) show the lap table instead of the racer rows: tt-laps (one LapRow per lap and a total row, the delta column against the ghost raced), the New record plate and the note, and the Watch replay / Export buttons.
-         Preview classes on results: preview-championship (Points column, +N cells, champion plate, Next race instead of Race again), preview-battle (Status column instead of Best lap), preview-time-trial (lap table, New record!, Watch replay and Export). -->
+         Preview classes on results: preview-championship (Points column, +N cells, champion plate, Standings and Next race instead of Race again), preview-standings (the standings page instead of panel, Results instead of Standings), preview-battle (Status column instead of Best lap), preview-time-trial (lap table, New record!, Watch replay and Export). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="ResultRow" src="/Assets/MHK/UI/Race/Templates/ResultRow.uxml" />
     <ui:Template name="LapRow" src="/Assets/MHK/UI/Race/Templates/LapRow.uxml" />
+    <ui:Template name="Standings" src="/Assets/MHK/UI/Race/Templates/Standings.uxml" />
     <ui:VisualElement name="results" class="screen hud-results">
         <ui:VisualElement class="vignette" />
         <ui:VisualElement name="column" class="hud-results-column">
@@ -31,7 +33,6 @@
                         <ui:AttributeOverrides element-name="time" text="01:22.40" />
                         <ui:AttributeOverrides element-name="best" text="" />
                         <ui:AttributeOverrides element-name="gain" text="+10" />
-                        <ui:AttributeOverrides element-name="total" text="(18)" />
                     </ui:Instance>
                     <ui:Instance template="ResultRow" class="sample-silver sample-me">
                         <ui:AttributeOverrides element-name="badge-label" text="2" />
@@ -40,7 +41,6 @@
                         <ui:AttributeOverrides element-name="time" text="01:24.10" />
                         <ui:AttributeOverrides element-name="best" text="" />
                         <ui:AttributeOverrides element-name="gain" text="+8" />
-                        <ui:AttributeOverrides element-name="total" text="(18)" />
                     </ui:Instance>
                     <ui:Instance template="ResultRow" class="sample-bronze">
                         <ui:AttributeOverrides element-name="badge-label" text="3" />
@@ -49,7 +49,6 @@
                         <ui:AttributeOverrides element-name="time" text="01:25.80" />
                         <ui:AttributeOverrides element-name="best" text="" />
                         <ui:AttributeOverrides element-name="gain" text="+6" />
-                        <ui:AttributeOverrides element-name="total" text="(12)" />
                     </ui:Instance>
                     <ui:Instance template="ResultRow">
                         <ui:AttributeOverrides element-name="badge-label" text="4" />
@@ -57,7 +56,6 @@
                         <ui:AttributeOverrides element-name="time" text="01:27.50" />
                         <ui:AttributeOverrides element-name="best" text="" />
                         <ui:AttributeOverrides element-name="gain" text="+4" />
-                        <ui:AttributeOverrides element-name="total" text="(8)" />
                     </ui:Instance>
                     <ui:Instance template="ResultRow">
                         <ui:AttributeOverrides element-name="badge-label" text="5" />
@@ -66,7 +64,6 @@
                         <ui:AttributeOverrides element-name="time" text="01:29.20" />
                         <ui:AttributeOverrides element-name="best" text="" />
                         <ui:AttributeOverrides element-name="gain" text="+2" />
-                        <ui:AttributeOverrides element-name="total" text="(4)" />
                     </ui:Instance>
                     <ui:Instance template="ResultRow">
                         <ui:AttributeOverrides element-name="badge-label" text="6" />
@@ -75,7 +72,6 @@
                         <ui:AttributeOverrides element-name="time" text="01:30.90" />
                         <ui:AttributeOverrides element-name="best" text="" />
                         <ui:AttributeOverrides element-name="gain" text="+1" />
-                        <ui:AttributeOverrides element-name="total" text="(2)" />
                     </ui:Instance>
                     </ui:VisualElement>
                 </ui:ScrollView>
@@ -120,6 +116,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement class="checker-strip hud-results-checker" />
             </ui:VisualElement>
+            <ui:Instance template="Standings" name="standings-page" class="hud-standings-page" />
             <ui:VisualElement name="buttons" class="row hud-results-buttons anim" style="transition-delay: 790ms;">
                 <ui:Button name="race-again" class="mhk-button secondary">
                     <ui:VisualElement class="icon i-restart_alt" />
@@ -132,6 +129,14 @@
                 <ui:Button name="export" class="mhk-button secondary">
                     <ui:VisualElement class="icon i-upload" />
                     <ui:Label text="Export" class="button-label" />
+                </ui:Button>
+                <ui:Button name="results-back" class="mhk-button secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Results" class="button-label" />
+                </ui:Button>
+                <ui:Button name="standings" class="mhk-button">
+                    <ui:VisualElement class="icon i-leaderboard" />
+                    <ui:Label text="Standings" class="button-label" />
                 </ui:Button>
                 <ui:Button name="next-race" class="mhk-button go">
                     <ui:VisualElement class="icon i-arrow_forward" />

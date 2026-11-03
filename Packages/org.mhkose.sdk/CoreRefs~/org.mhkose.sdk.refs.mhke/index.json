@@ -136,6 +136,14 @@
             "displayName": "Stuck in chewing gum"
         },
         {
+            "id": "mhke.hit.fireball",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhke",
+            "guid": "a919256a467544f4e88fc89bf6f417b6",
+            "fileId": 11400000,
+            "displayName": "Burnt"
+        },
+        {
             "id": "mhke.rocket",
             "type": "MHK.Modding.PowerupDefinition",
             "pack": "mhke",
@@ -182,6 +190,14 @@
             "guid": "db98a1ee966ed4c4080e942203efbf45",
             "fileId": 11400000,
             "displayName": "Chewing Gum"
+        },
+        {
+            "id": "mhke.fireball",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhke",
+            "guid": "f0c08de2a351f4d15bf91aa2102116e4",
+            "fileId": 11400000,
+            "displayName": "Fireball"
         },
         {
             "id": "mhke.cup_extra",

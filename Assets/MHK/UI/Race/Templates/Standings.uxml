@@ -1,0 +1,72 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Championship standings page (StandingsTable), in Results.uxml and Pause.uxml. Code fills info (after / before which race), rows (one StandingRow per racer by total points; a long table scrolls, the player's row in view) and the champion plate after the last cup race.
+         Code adds no-move to standings-panel when the places moved are unknown (first cup race, first set race, pause menu) and no-gain in the pause menu: those columns hide. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="StandingRow" src="/Assets/MHK/UI/Race/Templates/StandingRow.uxml" />
+    <ui:VisualElement name="standings-panel" class="panel hud-results-panel hud-standings">
+        <ui:Label name="standings-info" text="After race 2 of 4 | Moorhuhn Cup" class="hud-results-info" />
+        <ui:VisualElement class="row hud-results-head">
+            <ui:Label text="Pos" class="hud-res-head hud-res-pos" />
+            <ui:Label text="Racer" class="hud-res-head hud-res-racer" />
+            <ui:Label text="Move" class="hud-res-head hud-std-move" />
+            <ui:Label text="Race" class="hud-res-head hud-std-gain" />
+            <ui:Label text="Points" class="hud-res-head hud-std-total" />
+        </ui:VisualElement>
+        <ui:ScrollView name="standings-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll hud-results-rows">
+            <ui:VisualElement name="standings-rows">
+                <ui:Instance template="StandingRow" class="sample-gold">
+                    <ui:AttributeOverrides element-name="badge-label" text="1" />
+                    <ui:AttributeOverrides element-name="name" text="Lesshuhn" />
+                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_lesshuhn.png" />
+                    <ui:AttributeOverrides element-name="move-label" text="1" />
+                    <ui:AttributeOverrides element-name="gain" text="+10" />
+                    <ui:AttributeOverrides element-name="total" text="18" />
+                </ui:Instance>
+                <ui:Instance template="StandingRow" class="sample-silver sample-me">
+                    <ui:AttributeOverrides element-name="badge-label" text="2" />
+                    <ui:AttributeOverrides element-name="name" text="Hank" />
+                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_hank.png" />
+                    <ui:AttributeOverrides element-name="move-label" text="1" />
+                    <ui:AttributeOverrides element-name="gain" text="+8" />
+                    <ui:AttributeOverrides element-name="total" text="18" />
+                </ui:Instance>
+                <ui:Instance template="StandingRow" class="sample-bronze">
+                    <ui:AttributeOverrides element-name="badge-label" text="3" />
+                    <ui:AttributeOverrides element-name="name" text="Moorfrosch" />
+                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_moorfrosch.png" />
+                    <ui:AttributeOverrides element-name="move-label" text="" />
+                    <ui:AttributeOverrides element-name="gain" text="+6" />
+                    <ui:AttributeOverrides element-name="total" text="12" />
+                </ui:Instance>
+                <ui:Instance template="StandingRow">
+                    <ui:AttributeOverrides element-name="badge-label" text="4" />
+                    <ui:AttributeOverrides element-name="name" text="Moorhuhn" />
+                    <ui:AttributeOverrides element-name="move-label" text="" />
+                    <ui:AttributeOverrides element-name="gain" text="+4" />
+                    <ui:AttributeOverrides element-name="total" text="8" />
+                </ui:Instance>
+                <ui:Instance template="StandingRow">
+                    <ui:AttributeOverrides element-name="badge-label" text="5" />
+                    <ui:AttributeOverrides element-name="name" text="Pumpkin" />
+                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_pumpkin.png" />
+                    <ui:AttributeOverrides element-name="move-label" text="" />
+                    <ui:AttributeOverrides element-name="gain" text="+2" />
+                    <ui:AttributeOverrides element-name="total" text="4" />
+                </ui:Instance>
+                <ui:Instance template="StandingRow">
+                    <ui:AttributeOverrides element-name="badge-label" text="6" />
+                    <ui:AttributeOverrides element-name="name" text="Schneemann" />
+                    <ui:AttributeOverrides element-name="driver-portrait" image="/Assets/MHK/UI/Samples/character_snowman.png" />
+                    <ui:AttributeOverrides element-name="move-label" text="" />
+                    <ui:AttributeOverrides element-name="gain" text="+1" />
+                    <ui:AttributeOverrides element-name="total" text="2" />
+                </ui:Instance>
+            </ui:VisualElement>
+        </ui:ScrollView>
+        <ui:VisualElement name="standings-champion" class="row hud-res-champion">
+            <ui:VisualElement class="icon i-emoji_events hud-res-trophy" />
+            <ui:Label name="standings-champion-label" text="Champion: Lesshuhn with 18 points!" class="hud-res-champion-label" />
+        </ui:VisualElement>
+        <ui:VisualElement class="checker-strip hud-results-checker" />
+    </ui:VisualElement>
+</ui:UXML>

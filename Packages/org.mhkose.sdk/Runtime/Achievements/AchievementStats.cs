@@ -28,6 +28,8 @@ namespace MHK.Achievements
         public const string OnlineRacesWon = "races.online.won";
         /// <summary>Counter: time-trial runs uploaded.</summary>
         public const string TimeTrialsUploaded = "timetrials.uploaded";
+        /// <summary>Counter: seconds the game ran in the foreground (focused, not paused), menus and loading included (<see cref="PlaytimeTracker"/>).</summary>
+        public const string PlaytimeSeconds = "playtime.s";
         /// <summary>Set: ids of the tracks and arenas where a local player finished a race, time trial or battle.</summary>
         public const string TracksFinished = "tracks.finished";
         /// <summary>Set: ids of the championships won with every race won.</summary>

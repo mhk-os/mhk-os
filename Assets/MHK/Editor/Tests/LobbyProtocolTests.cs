@@ -108,14 +108,16 @@ namespace MHK.Tests
         [Test]
         public void LobbyStateAndResultsMatchGo()
         {
-            // The minimal state of lobby_test.go: everything empty or zero but one AI driver.
+            // The minimal state of lobby_test.go: everything empty or zero but one AI driver and the owner's cup.
             var stateHex = new string('0', 2 * 27) + "00" + new string('0', 2 * 14) + "00" + new string('0', 2 * 8) + "00" + "00" + "00" + "00"
-                           + new string('0', 2 * 8) + "00" + "01" + "0163" + "016b" + "ffffffff";
+                           + new string('0', 2 * 8) + "00" + "01" + "0163" + "016b" + "ffffffff" + "0163" + "01" + "0174";
             var state = LobbyState.Read(Reader(stateHex));
             Assert.AreEqual(stateHex, Hex(state.Write));
             Assert.AreEqual(1, state.aiDrivers.Count);
             Assert.AreEqual("c", state.aiDrivers[0].characterId);
             Assert.AreEqual(-1, state.aiDrivers[0].setPoints);
+            Assert.IsTrue(state.RunsCup);
+            CollectionAssert.AreEqual(new[] { "t" }, state.cupTrackIds);
             var results = new RaceResults { raceId = 8, setDone = true };
             for (var i = 0; i < LobbyLimits.RaceRows; i++)
                 results.rows.Add(new RaceResultRow { slot = i, position = i + 1, ai = i > 0, characterId = "c", username = i > 0 ? "" : "Kurt" });

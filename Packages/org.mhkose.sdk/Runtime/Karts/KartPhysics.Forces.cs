@@ -52,7 +52,10 @@ namespace MHK.Karts
         }
 
         // Gearbox and engine (6.2): diff ÷ s stretches every gear over s× the road speed and torque × s² gives s× the
-        // wheel force, so the speed/time curve is the original one × s.
+        // wheel force, so the speed/time curve is the original one × s. Remake: engine braking holds the rear wheels back
+        // the way they roll, whatever gear is in. Signed by the gear like the drive, it pushed a kart rolling against its
+        // gear (left in reverse after stopping with the brake key and shoved forward, or in a forward gear and shoved
+        // back) on, faster the faster it rolled.
         float UpdateGearbox(ref StepFrame s)
         {
             var p = s.p;
@@ -63,8 +66,12 @@ namespace MHK.Karts
             if (Gear >= nGears) Gear = nGears - 1;
             if (Rpm > p.changeUpRpm) { if (Gear < nGears - 1) Gear++; }
             else if (Gear > 0 && GearRatio(p, Gear - 1) / GearRatio(p, Gear) * Rpm < DownshiftRpmShare * p.changeUpRpm) Gear--;
-            var torque = TorqueCurve(p, Rpm / Mathf.Max(0.01f, s.fx.maxSpeed), Throttle, s.classFactor, DriveTorqueScale) * (s.speedScale * s.speedScale);
-            return GearRatio(p, Gear) * s.diff * torque * s.fx.acceleration;
+            var rpm = Rpm / Mathf.Max(0.01f, s.fx.maxSpeed);
+            var ratio = GearRatio(p, Gear);
+            var roll = wheels[2].spinDegPerSec + wheels[3].spinDegPerSec;
+            var rollSign = roll > 0f ? 1f : roll < 0f ? -1f : 0f;
+            var torque = ratio * DriveTorque(p, rpm, Throttle, s.classFactor, DriveTorqueScale) - rollSign * Mathf.Abs(ratio) * EngineBraking(p, rpm, Throttle);
+            return s.diff * torque * (s.speedScale * s.speedScale) * s.fx.acceleration;
         }
 
         float GearRatio(KartPhysicsProfile p, int g) => Reversing ? -p.gearReverse : p.gears[Mathf.Clamp(g, 0, p.gears.Length - 1)];

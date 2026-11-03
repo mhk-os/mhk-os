@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MHK.Modding;
 
 namespace MHK.Core
@@ -73,6 +74,9 @@ namespace MHK.Core
 
         public string CurrentTrackId => raceIndex >= 0 && raceIndex < trackIds.Count ? trackIds[raceIndex] : null;
         public bool HasNextRace => raceIndex + 1 < trackIds.Count;
+
+        /// <summary>Championship standings: the racers by points, a tie in grid order. The first is the champion.</summary>
+        public IEnumerable<RacerSetup> Standings() => racers.OrderByDescending(r => r.points);
 
         public void ResetStandings()
         {

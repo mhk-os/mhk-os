@@ -232,6 +232,22 @@
             "displayName": "Electrocuted"
         },
         {
+            "id": "mhkt.oil",
+            "type": "MHK.Modding.PowerupDefinition",
+            "pack": "mhkt",
+            "guid": "09338d33c5604b2cbd00d1f1e0e83dc8",
+            "fileId": 11400000,
+            "displayName": "Oil"
+        },
+        {
+            "id": "mhkt.hit.oil",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhkt",
+            "guid": "5a392a2f785d44bb84bbf7acbca69167",
+            "fileId": 11400000,
+            "displayName": "Slipped on oil"
+        },
+        {
             "id": "mhkt.kart",
             "type": "MHK.Modding.KartDefinition",
             "pack": "mhkt",

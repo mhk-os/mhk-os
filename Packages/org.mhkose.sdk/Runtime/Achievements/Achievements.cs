@@ -68,6 +68,16 @@ namespace MHK.Achievements
         /// <summary>An account is logged in and its totals are loaded: progress shown is the account's.</summary>
         public static bool Synced => account != null;
 
+        /// <summary>
+        /// The counter <paramref name="stat"/> as achievements count it: the logged-in account's total with what it has
+        /// not received yet once <see cref="Synced"/>, otherwise this device's total.
+        /// </summary>
+        public static long Counter(string stat)
+        {
+            EnsureLoaded();
+            return CounterOf(stat);
+        }
+
         /// <summary>Asks the server how many players unlocked the visible achievements; the views update (<see cref="Changed"/>).</summary>
         public static void RefreshShares()
         {
@@ -422,7 +432,8 @@ namespace MHK.Achievements
             JsonStore.Save(File, file);
         }
 
-        static void SaveIfDirty()
+        /// <summary>Writes achievements.json now when it has unsaved changes (the app may stop before the delayed write).</summary>
+        internal static void SaveIfDirty()
         {
             if (dirty && local != null) Save();
         }

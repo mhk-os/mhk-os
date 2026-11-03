@@ -376,6 +376,14 @@
             "displayName": "Pumpkin splash"
         },
         {
+            "id": "mhk2.hit.pumpkin_fire",
+            "type": "MHK.Modding.StatusEffectDefinition",
+            "pack": "mhk2",
+            "guid": "a7190835256a424ebeccabc4ef940808",
+            "fileId": 11400000,
+            "displayName": "Pumpkin fire"
+        },
+        {
             "id": "mhk2.molehill",
             "type": "MHK.Modding.PowerupDefinition",
             "pack": "mhk2",

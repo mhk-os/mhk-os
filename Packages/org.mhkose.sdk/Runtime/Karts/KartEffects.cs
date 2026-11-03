@@ -116,7 +116,7 @@ namespace MHK.Karts
         /// Ticks, not seconds: a hit right at its end lands on the same step in every run.
         /// </summary>
         public int ProtectedUntilTick { get; set; }
-        /// <summary>The kart whose hostile effect or ram last cost this kart health (battle: who eliminated it). Null = none.</summary>
+        /// <summary>The kart whose hostile effect last cost this kart health (battle: who eliminated it). Null = none or a stage hazard.</summary>
         public Kart LastAttacker { get; internal set; }
 
         /// <summary>Every successful <see cref="Apply"/>, including refreshes of a running effect (ghost recording replays these).</summary>
@@ -153,7 +153,7 @@ namespace MHK.Karts
         public bool Apply(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f, int usage = 0)
         {
             if (kart != null && kart.IsRemote) return ApplyToRemote(def, source, durationOverride, usage);
-            if (IsBlocked(def)) return false;
+            if (Refuses(def)) return false;
             var duration = ResolveDuration(def, durationOverride);
             EndConflictingBuffs(def);
             var existing = def.refreshOnReapply ? Find(def) : null;
@@ -182,7 +182,7 @@ namespace MHK.Karts
         // A hit on a remote racer is reported as seen and lands only visually once its client confirms it (HitApplied).
         bool ApplyToRemote(StatusEffectDefinition def, Kart source, float durationOverride, int usage)
         {
-            if (IsBlocked(def)) return false;
+            if (Refuses(def)) return false;
             if (def.hostile)
             {
                 Powerups.OnlineItems.OnRemoteHit(kart, def, source, usage);
@@ -255,7 +255,11 @@ namespace MHK.Karts
             Recalculate();
         }
 
-        bool IsBlocked(StatusEffectDefinition def)
+        /// <summary>
+        /// <see cref="Apply"/> would refuse <paramref name="def"/> now: no effect, an eliminated kart, a hostile effect on a
+        /// protected kart (<see cref="IsProtected"/>), or a flattening one on a kart already flattened or waiting to respawn.
+        /// </summary>
+        public bool Refuses(StatusEffectDefinition def)
         {
             if (def == null || (kart != null && kart.Eliminated)) return true;
             if (def.hostile && IsProtected) return true;

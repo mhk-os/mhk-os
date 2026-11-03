@@ -382,7 +382,7 @@ namespace MHK.UI
             }
             if (!championship)
             {
-                Segment("how_to_vote", "Track", new[] { ("how_to_vote", "Vote", (string)null), ("edit", "Owner picks", null) },
+                Segment("how_to_vote", "Track", new[] { ("how_to_vote", "Vote", (string)null), ("edit", "Owner picks", "The owner picks each track; in race rooms also a whole cup between sets") },
                     settings.OwnerPicks ? 1 : 0, i => settings.trackPick = i == 1 ? 0 : 1);
                 Stepper("repeat", "Races per set", 1, LobbyLimits.MaxRacesPerSet, () => settings.racesPerSet, v => settings.racesPerSet = v,
                     v => v.ToString(CultureInfo.InvariantCulture), "Points add up over a set");

@@ -669,12 +669,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: MHK.Runtime::MHK.UI.RaceResults
   resultRowTemplate: {fileID: 9197481963319205126, guid: eb4a530ada1014277b5cc82d89c583d2, type: 3}
   lapRowTemplate: {fileID: 9197481963319205126, guid: ade42b840eeb74a98bbb0ade5b9cdaac, type: 3}
+  standings:
+    rowTemplate: {fileID: 9197481963319205126, guid: 6efeb6114910437f9a0d83833512ea4d, type: 3}
   raceOfCupFormat: Race {0} of {1}
   battleInfo: Battle
   raceInfo: Single Race
   survivorText: Survivor
   outText: Out
-  championFormat: 'Champion: {0} with {1} points!'
   timeTrialInfoFormat: Time Trial | {0}
   replayInfoFormat: Replay | {0} | {1}
   retryText: Retry
@@ -1181,6 +1182,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: MHK.Runtime::MHK.UI.PauseMenu
   minimapOffText: Off
   options: {fileID: 1775932251}
+  standings:
+    rowTemplate: {fileID: 9197481963319205126, guid: 6efeb6114910437f9a0d83833512ea4d, type: 3}
 --- !u!1931382934 &1297580874
 PanelRenderer:
   m_ObjectHideFlags: 0

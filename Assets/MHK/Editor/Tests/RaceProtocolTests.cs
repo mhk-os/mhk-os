@@ -16,7 +16,7 @@ namespace MHK.Tests
         const string HumanSlotHex = "01" + "0900000000000000" + "0175" + "024445" + "0163" + "016b" + "02" + "00";
 
         [Test]
-        public void ProtocolVersionIsThree() => Assert.AreEqual(3, Protocol.Version);
+        public void ProtocolVersionIsFour() => Assert.AreEqual(4, Protocol.Version);
 
         [Test]
         public void RaceSlotsMatchGo()

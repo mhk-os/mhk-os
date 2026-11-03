@@ -77,7 +77,10 @@ namespace MHK.AI
         public float ThrowFlightTime { get; private set; }
         /// <summary>Goes to the rear in a throw rather than left at the bumper (<see cref="BackwardThrowRange"/>).</summary>
         public bool ThrownBehind => BackwardThrowRange > 0f;
-        /// <summary>Thrown charges that explode on contact or landing (<see cref="ExplosiveCharge"/>): blast radius (m), 0 = none.</summary>
+        /// <summary>
+        /// Thrown charges that explode on contact or landing (<see cref="ExplosiveCharge"/>): reach (m) of the blast or of
+        /// the fire it leaves (<see cref="ExplosiveCharge.HitReach"/>), 0 = none.
+        /// </summary>
         public float BlastRadius { get; private set; }
         /// <summary>Homing and targeted items: whom they go for.</summary>
         public TargetSelection Selection { get; private set; } = TargetSelection.NextAhead;
@@ -238,7 +241,7 @@ namespace MHK.AI
             var range = PlacementPowerup.ThrowOriginForward + place.throwSpeed * ThrowFlightTime;
             if (place.throwForward) ForwardThrowRange = range;
             if (place.throwBackwards) BackwardThrowRange = range;
-            if (prefab.TryGetComponent<ExplosiveCharge>(out var charge)) BlastRadius = charge.hitRadius;
+            if (prefab.TryGetComponent<ExplosiveCharge>(out var charge)) BlastRadius = charge.HitReach;
             return true;
         }
 

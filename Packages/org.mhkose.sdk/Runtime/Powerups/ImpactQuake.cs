@@ -3,14 +3,12 @@ using UnityEngine;
 namespace MHK.Powerups
 {
     /// <summary>
-    /// Put on a falling visual (e.g. the 16-ton weight of <see cref="TargetEffectPowerup"/>): when it hits the ground
-    /// <see cref="impactDelay"/> seconds after spawning, karts around it shake visually (<see cref="KartQuake"/>), and the
-    /// camera of the kart it lands on shakes while that kart stays pinned under it.
+    /// Put on a falling visual (e.g. the 16-ton weight of <see cref="TargetEffectPowerup"/>): when its effect lands on the
+    /// kart under it (<see cref="Impact"/>), karts around it shake visually (<see cref="KartQuake"/>), and the camera of the
+    /// kart it lands on shakes while that kart stays pinned under it. A visual whose effect failed never shakes anything.
     /// </summary>
     public class ImpactQuake : MonoBehaviour
     {
-        [Tooltip("Seconds from spawn to impact (match the spawning powerup's delay).")]
-        [SerializeField] float impactDelay = 1.4f;
         [Tooltip("Karts within this distance of the impact shake (m).")]
         [SerializeField] float radius = 30f;
         [SerializeField] float duration = 1.6f;
@@ -29,14 +27,22 @@ namespace MHK.Powerups
                  "shakes (m, 0 = all hop).")]
         [SerializeField] float pinnedRadius;
 
-        float age;
+        bool struck;
 
-        void Update()
+        /// <summary>Shakes the karts around this object's position, once.</summary>
+        public void Impact()
         {
-            age += Time.deltaTime;
-            if (age < impactDelay) return;
+            if (struck) return;
+            struck = true;
             KartQuake.Shake(transform.position, radius, duration, amplitude, frequency, waveSpeed, decay, falloff, pinnedRadius);
-            enabled = false;
+        }
+
+        /// <summary>The <see cref="Impact"/> of the quake on <paramref name="visual"/> or below it, if it has one.</summary>
+        public static void Strike(GameObject visual)
+        {
+            if (visual == null) return;
+            var quake = visual.GetComponentInChildren<ImpactQuake>();
+            if (quake != null) quake.Impact();
         }
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using MHK.Core;
 using MHK.Karts;
 using MHK.Powerups;
@@ -8,16 +7,14 @@ using UnityEngine;
 namespace MHK.Race
 {
     /// <summary>
-    /// Battle rules (MHK Thunder mode 3, Last Man Standing there): ramming costs health, karts at 0 health are
-    /// eliminated, the round ends when all humans are out or one kart is left. Online each racer's client decides its
-    /// own health and elimination (<see cref="OnlineItems"/>): rams only cost the local kart health here, and other
-    /// racers are eliminated when the server says so.
+    /// Battle rules (MHK Thunder mode 3, Last Man Standing there): karts lose health only to powerups and stage hazards
+    /// (<see cref="KartReactions.ApplyHazard"/>), never by running into each other; karts at 0 health are eliminated, the
+    /// round ends when all humans are out or one kart is left. Online each racer's client decides its own health and
+    /// elimination (<see cref="OnlineItems"/>): other racers are eliminated when the server says so.
     /// </summary>
     public class BattleRules : MonoBehaviour
     {
         RaceManager race;
-        // Race tick until which a kart takes no ram damage again.
-        readonly Dictionary<Kart, int> ramCooldownUntil = new();
         float roundEndTimer = -1f;
 
         /// <summary>Karts not eliminated yet.</summary>
@@ -36,36 +33,7 @@ namespace MHK.Race
 
         public event Action<Kart> KartEliminated;
 
-        public void Begin(RaceManager raceManager)
-        {
-            race = raceManager;
-            foreach (var k in race.Karts) k.Collided += OnCollided;
-        }
-
-        void OnDestroy()
-        {
-            if (race == null) return;
-            foreach (var k in race.Karts)
-                if (k != null) k.Collided -= OnCollided;
-        }
-
-        // Thunder 0x4bf590: A rams B when B lies within the cone in front of a moving A.
-        void OnCollided(Kart a, Collision c)
-        {
-            if (race.Phase != RacePhase.Racing || a.Eliminated) return;
-            var b = Kart.FromCollider(c.collider);
-            if (b == null || b == a || b.Eliminated || b.IsRemote) return;
-            var cfg = GameRoot.Instance.Config;
-            if (OnlineItems.VelocityOf(a).magnitude <= cfg.ramMinSpeed * a.Physics.SpeedScale) return;
-            var toB = b.transform.position - a.transform.position;
-            if (Vector3.Angle(a.transform.forward, toB) > cfg.ramConeDegrees) return;
-            var now = RaceClock.Ticks;
-            if (ramCooldownUntil.TryGetValue(b, out var until) && now < until) return;
-            if (b.Effects.IsProtected) return;
-            ramCooldownUntil[b] = now + Mathf.CeilToInt(cfg.ramCooldown / RaceClock.Step);
-            b.Effects.LastAttacker = a;
-            b.TakeDamage(cfg.ramDamage, a);
-        }
+        public void Begin(RaceManager raceManager) => race = raceManager;
 
         void FixedUpdate()
         {

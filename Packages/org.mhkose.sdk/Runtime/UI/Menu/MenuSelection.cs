@@ -16,7 +16,7 @@ namespace MHK.UI
         Loadout,
         /// <summary>A track or arena of the lobby (or Random) for the running vote.</summary>
         Vote,
-        /// <summary>The room owner's track for the next race.</summary>
+        /// <summary>The room owner's track for the next race, or between sets of an owner-pick race room a cup (the Cup page) as the next set.</summary>
         OwnerPick,
         /// <summary>A track (or Random) for a race against AI while the player is alone in the lobby.</summary>
         Solo,

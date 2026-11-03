@@ -43,11 +43,13 @@ namespace MHK.Core
         [Tooltip("Gain of every sound effect (engines, skids, surfaces, collisions, voices, items, hazards, ambience and " +
                  "prop loops, UI clicks, also AudioSources placed in scenes or prefabs without code) on top of the " +
                  "player's master × effects volume settings. Applied through AudioListener.volume, so every source that " +
-                 "is not music follows it.")]
-        [Range(0f, 1f)] public float sfxMixGain = 0.4f;
+                 "is not music follows it. Compensates for source-game SFX normalization to the quietest group's " +
+                 "median, preserving each game's relative cue levels.")]
+        [Range(0f, 1f)] public float sfxMixGain = 0.55f;
         [Tooltip("Gain of the music (menu and track music, × the track's own musicVolume) on top of the player's master × " +
-                 "music volume settings.")]
-        [Range(0f, 1f)] public float musicMixGain = 0.6f;
+                 "music volume settings. Compensates for songs normalized individually to -16 LUFS; local cue and " +
+                 "track gains remain authored.")]
+        [Range(0f, 1f)] public float musicMixGain = 0.75f;
 
         [Header("Simulation")]
         [Tooltip("Physics ticks per second (kart simulation is tuned for this rate).")]
@@ -143,16 +145,9 @@ namespace MHK.Core
 
         [Header("Health / Battle (Thunder)")]
         public int maxHealth = 100;
-        [Tooltip("Damage of hostile effects inflicted by another kart unless the effect sets its own (Thunder: 10).")]
+        [Tooltip("Damage of hostile effects inflicted by another kart's item or a stage hazard unless the effect sets its " +
+                 "own (Thunder: 10). Karts running into each other cost no health.")]
         public int defaultHitDamage = 10;
-        [Tooltip("Ramming damage in battles (Thunder hit 18: 5).")]
-        public int ramDamage = 5;
-        [Tooltip("A kart can be rammed at most once per this many seconds (Thunder: 3).")]
-        public float ramCooldown = 3f;
-        [Tooltip("Rammer must be faster than this (original m/s, × the kart's SpeedScale, Thunder 1 unit/s).")]
-        public float ramMinSpeed = 0.7f;
-        [Tooltip("Victim must lie within this angle of the rammer's forward vector (Thunder: 45).")]
-        public float ramConeDegrees = 45f;
         [Tooltip("Seconds between the last elimination and the results screen.")]
         public float eliminationGraceSeconds = 3f;
 
@@ -287,9 +282,9 @@ namespace MHK.Core
         [Tooltip("Battle skill of computer drivers per engine class (50cc, 100cc, 150cc).")]
         public BattleAiSettings[] battleAi =
         {
-            new() { decisionInterval = 0.8f, huntRange = 35f, ramRange = 8f, aggression = 0.35f, aimLead = 0.3f },
-            new() { decisionInterval = 0.5f, huntRange = 45f, ramRange = 12f, aggression = 0.6f, aimLead = 0.65f },
-            new() { decisionInterval = 0.3f, huntRange = 55f, ramRange = 15f, aggression = 0.85f, aimLead = 1f },
+            new() { decisionInterval = 0.8f, huntRange = 35f, aggression = 0.35f, aimLead = 0.3f },
+            new() { decisionInterval = 0.5f, huntRange = 45f, aggression = 0.6f, aimLead = 0.65f },
+            new() { decisionInterval = 0.3f, huntRange = 55f, aggression = 0.85f, aimLead = 1f },
         };
         [Tooltip("On circuits computer drivers hunting an opponent in a battle roam up to this far (m) beyond the road " +
                  "edges of the racing line and its alternative routes, offroad included, but never onto walls, fall zones, " +

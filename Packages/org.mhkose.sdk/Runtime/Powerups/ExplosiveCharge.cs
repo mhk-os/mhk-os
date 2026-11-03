@@ -7,7 +7,8 @@ namespace MHK.Powerups
     /// <summary>
     /// A thrown charge (Pumpkin's grenade, combine with a <see cref="PlacementPowerup"/>) that explodes when a kart comes
     /// within <see cref="contactRadius"/> or when it lands. Karts in <see cref="hitRadius"/> get <see cref="hitEffect"/>,
-    /// karts out to <see cref="splashRadius"/> get <see cref="splashEffect"/> and are pushed away.
+    /// karts out to <see cref="splashRadius"/> get <see cref="splashEffect"/> and are pushed away. It can leave fire on the
+    /// ground where it goes off (<see cref="groundFire"/>, a <see cref="FireRing"/>).
     /// </summary>
     public class ExplosiveCharge : PowerupBehaviour
     {
@@ -36,6 +37,10 @@ namespace MHK.Powerups
         [SerializeField] float splashLift = 3f;
         [Tooltip("Karts higher or lower than this above the blast are not affected (m).")]
         [SerializeField] float blastHeight = 3f;
+        [Tooltip("Left on the ground where the charge goes off, with its user and use (a FireRing). Lit by every blast, " +
+                 "the contact ones too: online, a client that sets the charge off on another's confirmed hit cannot tell " +
+                 "which it was, and a contact blast goes off at kart height anyway. None without ground below.")]
+        [SerializeField] GameObject groundFire;
 
         [Header("Presentation")]
         [Tooltip("Spawned at the blast (e.g. VFX_Explosion).")]
@@ -61,6 +66,12 @@ namespace MHK.Powerups
         [SerializeField, Range(0f, 1f)] float quakeDecay = 0.8f;
 
         bool exploded;
+
+        /// <summary>
+        /// Distance (m) from where it goes off within which karts get hit: the hit radius, or the radius of the fire it
+        /// leaves (<see cref="FireRing.radius"/>) when that is larger.
+        /// </summary>
+        public float HitReach => groundFire != null && groundFire.TryGetComponent<FireRing>(out var fire) ? Mathf.Max(hitRadius, fire.radius) : hitRadius;
 
         protected override void OnLaunch()
         {
@@ -114,6 +125,7 @@ namespace MHK.Powerups
                 if (!IsTangible(k) || OwnerImmune(k)) continue;
                 AffectKart(k, at);
             }
+            if (groundFire != null) PowerupFx.SpawnAndLaunch(groundFire, at, Quaternion.identity, Context);
             Remove();
         }
 

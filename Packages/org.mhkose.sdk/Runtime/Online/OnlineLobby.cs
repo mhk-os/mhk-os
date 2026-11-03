@@ -326,6 +326,16 @@ namespace MHK.Online
         /// <summary>Owner of a private room: starts the next race on <paramref name="trackId"/> (owner pick), or the voting ("").</summary>
         public static Task<OnlineResult> StartRace(string trackId) => Request(LobbyMessageType.StartRace, w => w.String(trackId ?? "", LobbyLimits.ContentId));
 
+        /// <summary>
+        /// Owner of an owner-pick race room, between sets: starts <paramref name="cupId"/> as the next set, its
+        /// <paramref name="trackIds"/> in race order (the first race starts at once, <see cref="StartRace"/> runs the next ones).
+        /// </summary>
+        public static Task<OnlineResult> StartCup(string cupId, IReadOnlyList<string> trackIds) => Request(LobbyMessageType.StartCup, w =>
+        {
+            w.String(cupId ?? "", LobbyLimits.ContentId);
+            LobbyWire.Strings(w, trackIds, LobbyLimits.CupTracks, LobbyLimits.ContentId);
+        });
+
         /// <summary>Ends the player's race against AI early (someone waits to race them).</summary>
         public static Task<OnlineResult> EndRaceEarly() => Request(LobbyMessageType.EndRaceEarly, null);
 

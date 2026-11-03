@@ -8,8 +8,11 @@ namespace MHK.Powerups
     /// <summary>
     /// Applies an effect directly to selected opponents (16-tons weight on the leader, flash on everybody ahead, ...),
     /// optionally dropping a visual onto each target during <see cref="delay"/> (counted in physics steps). The activation
-    /// sound plays at once, then the hit sound at each target, or the fail sound when there is none. Online a single
-    /// target is the one its user chose; every client then decides only about its own kart.
+    /// sound plays at once, then the hit sound at each target, or the fail sound when there is none. A target that
+    /// refuses the effect (shield, respawn protection, already flattened) holds a dropped visual off at
+    /// <see cref="hoverHeight"/>: when the effect fails there it hovers on, then goes back up to the drop height without
+    /// its impact (<see cref="ImpactQuake"/>), and the fail sound plays at the target. Online a single target is the one
+    /// its user chose; every client then decides only about its own kart.
     /// </summary>
     public class TargetEffectPowerup : PowerupBehaviour
     {
@@ -43,12 +46,26 @@ namespace MHK.Powerups
         [SerializeField] float bobAmplitude;
         [Tooltip("Seconds per up and down cycle of the bob.")]
         [SerializeField] float bobPeriod = 1f;
+        [Tooltip("Height (m) above a target that refuses the effect (shield, respawn protection, already flattened) at " +
+                 "which the dropped visual stops falling and hovers.")]
+        [SerializeField] float hoverHeight = 3f;
+        [Tooltip("Seconds the dropped visual hovers on over a target the effect failed on before it goes back up.")]
+        [SerializeField] float failHoverTime = 0.4f;
+        [Tooltip("Seconds it then takes back up to the drop height, where it disappears.")]
+        [SerializeField] float riseTime = 0.8f;
         [Tooltip("Only karts within this distance are targeted (0 = unlimited).")]
         public float maxDistance;
 
         List<Kart> victims;
+        // Dropped visual per victim (null when none, or once a landed one is left to linger), the point below it (the
+        // victim's position, the last one seen if it went away) and its height above that: where a failed one starts
+        // back up from.
         List<GameObject> visuals;
-        float t, hang;
+        Vector3[] below;
+        float[] heights;
+        // The effect failed on that victim: its visual hovers, then goes back up.
+        bool[] failed;
+        float t, hang, sinceApplied;
         bool applied;
 
         protected override void OnLaunch()
@@ -56,6 +73,9 @@ namespace MHK.Powerups
             victims = SelectVictims();
             ChosenTarget = victims.Count > 0 ? victims[0] : null;
             visuals = SpawnDropVisuals(victims);
+            below = new Vector3[victims.Count];
+            heights = new float[victims.Count];
+            failed = new bool[victims.Count];
             PlaySfx(activationSound, victims.Count > 0 ? victims[0].transform : Owner.transform);
             hang = Mathf.Clamp(hangTime, 0f, delay);
         }
@@ -69,15 +89,29 @@ namespace MHK.Powerups
             MoveDropVisuals(1f, 0f);
             ApplyToVictims();
             if (victims.Count == 0 && Owner != null) PlaySfx(failSound, Owner.transform);
-            Destroy(gameObject, SelfDestroyDelay);
+            Destroy(gameObject, Mathf.Max(SelfDestroyDelay, failHoverTime + riseTime));
         }
 
-        // The dropping visuals follow the frame's time between steps.
+        // The dropping visuals follow the frame's time between steps; after the effect the failed ones go back up.
         void Update()
         {
-            if (applied || visuals == null) return;
+            if (visuals == null) return;
+            if (applied)
+            {
+                sinceApplied += Time.deltaTime;
+                RiseFailed();
+                return;
+            }
             var shown = Mathf.Min(t + PoseInterpolation.StepShare * Time.fixedDeltaTime, delay);
             MoveDropVisuals(Mathf.Clamp01((shown - hang) / Mathf.Max(delay - hang, MinDelay)), BobOffset(shown, hang));
+        }
+
+        // A visual still waiting for its effect (the powerup went away early) or going back up goes with it.
+        void OnDestroy()
+        {
+            if (visuals == null) return;
+            foreach (var v in visuals)
+                if (v != null) Destroy(v);
         }
 
         // Single targets (leader, next ahead, nearest) are the user's choice online; groups are selected here.
@@ -107,13 +141,36 @@ namespace MHK.Powerups
             return visuals;
         }
 
+        // k: share of the fall (0 = drop height, 1 = on the kart). A victim the effect would not land on now holds its
+        // visual off at the hover height.
         void MoveDropVisuals(float k, float bob)
         {
             var height = dropHeight * (1f - k * k) + bob;
             for (var i = 0; i < victims.Count; i++)
             {
                 if (visuals[i] == null || victims[i] == null) continue;
-                visuals[i].transform.position = victims[i].transform.position + Vector3.up * height;
+                below[i] = victims[i].transform.position;
+                heights[i] = victims[i].Effects.Refuses(effect) ? Mathf.Max(height, hoverHeight) : height;
+                visuals[i].transform.position = below[i] + Vector3.up * heights[i];
+            }
+        }
+
+        // Failed visuals hover on for failHoverTime, then speed up back to the drop height above their kart and vanish.
+        void RiseFailed()
+        {
+            var u = Mathf.Clamp01((sinceApplied - failHoverTime) / Mathf.Max(riseTime, MinDelay));
+            for (var i = 0; i < victims.Count; i++)
+            {
+                var visual = visuals[i];
+                if (!failed[i] || visual == null) continue;
+                if (u >= 1f)
+                {
+                    Destroy(visual);
+                    visuals[i] = null;
+                    continue;
+                }
+                if (victims[i] != null) below[i] = victims[i].transform.position;
+                visual.transform.position = below[i] + Vector3.up * Mathf.Lerp(heights[i], Mathf.Max(dropHeight, heights[i]), u * u);
             }
         }
 
@@ -131,9 +188,23 @@ namespace MHK.Powerups
                 var v = victims[i];
                 if (v == null) continue;
                 var landed = KartReactions.Apply(v, effect, Owner, -1f, Usage);
-                if (visuals[i] != null) Destroy(visuals[i], VisualLinger);
-                PowerupFx.Spawn(visuals[i] != null ? null : targetVfx, v.transform.position, landed ? hitSound : failSound, soundVolume,
-                    landSoundRange);
+                var visual = visuals[i];
+                var sound = landed ? hitSound : failSound;
+                if (visual == null)
+                {
+                    var fx = PowerupFx.Spawn(targetVfx, v.transform.position, sound, soundVolume, landSoundRange);
+                    if (landed) ImpactQuake.Strike(fx);
+                    continue;
+                }
+                PowerupFx.Spawn(null, v.transform.position, sound, soundVolume, landSoundRange);
+                if (!landed)
+                {
+                    failed[i] = true;
+                    continue;
+                }
+                ImpactQuake.Strike(visual);
+                Destroy(visual, VisualLinger);
+                visuals[i] = null;
             }
         }
     }

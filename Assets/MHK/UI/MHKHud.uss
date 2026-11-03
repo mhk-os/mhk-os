@@ -512,15 +512,9 @@ TemplateContainer.sample-gold .sunburst.hud-res-burst { display: flex; }
     color: var(--mhk-gray-900);
     padding: 0; margin: 0;
 }
-.hud-res-total {
-    -unity-font-definition: var(--font-bold);
-    font-size: 20px;
-    color: var(--mhk-gray-500);
-    margin-left: 8px;
-}
-.hud-results-row.me .hud-res-cell, .hud-results-row.me .hud-res-total, .hud-results-row.me .hud-res-gain,
-TemplateContainer.sample-me > .hud-results-row .hud-res-cell, TemplateContainer.sample-me > .hud-results-row .hud-res-total,
-TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
+.hud-results-row.me .hud-res-cell, .hud-results-row.me .hud-res-gain, .hud-results-row.me .hud-std-total,
+TemplateContainer.sample-me > .hud-results-row .hud-res-cell, TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
+TemplateContainer.sample-me > .hud-results-row .hud-std-total,
 .hud-lapres-row.total .hud-res-cell, TemplateContainer.sample-total > .hud-lapres-row .hud-res-cell { color: var(--mhk-gray-900); }
 .hud-res-champion, .hud-tt-record {
     align-self: center;
@@ -569,6 +563,35 @@ TemplateContainer.sample-me > .hud-results-row .hud-res-gain,
     white-space: normal;
     -unity-text-align: middle-center;
 }
+
+/* Standings page (Standings.uxml, StandingRow.uxml; StandingsTable): in place of the results panel (Standings button)
+ * or of the pause panel (standings-column). Rows: rank, racer, places moved since before the race (.up / .down /
+ * .same), this race's points, total points. .no-move / .no-gain on the panel hide those columns. */
+.hud-standings-page { flex-shrink: 1; min-height: 0; }
+.hud-results .hud-standings-page, .hud-results #standings, .hud-results #results-back { display: none; }
+.preview-championship #standings, .preview-standings .hud-standings-page, .preview-standings #results-back { display: flex; }
+.preview-standings .hud-results-column > .hud-results-panel, .preview-standings #standings { display: none; }
+.hud-pause-standings { display: none; max-height: 100%; }
+.hud-pause.preview-standings > .hud-pause-standings { display: flex; }
+.hud-pause.preview-standings > #panel { display: none; }
+.hud-std-move { width: 140px; flex-shrink: 0; flex-direction: row; justify-content: center; align-items: center; }
+.icon.hud-std-move-icon { width: 28px; height: 28px; -unity-background-image-tint-color: var(--mhk-gray-400); }
+.hud-std-move-label { -unity-font-definition: var(--font-bold); font-size: 22px; color: var(--mhk-gray-500); padding: 0; margin: 0 0 0 2px; }
+.hud-std-move.up .icon.hud-std-move-icon { -unity-background-image-tint-color: var(--mhk-good-ink); }
+.hud-std-move.up .hud-std-move-label { color: var(--mhk-good-ink); }
+.hud-std-move.down .icon.hud-std-move-icon { -unity-background-image-tint-color: var(--mhk-bad-ink); }
+.hud-std-move.down .hud-std-move-label { color: var(--mhk-bad-ink); }
+.hud-std-gain { width: 160px; flex-shrink: 0; }
+.hud-res-cell.hud-std-gain { color: var(--mhk-gray-600); }
+.hud-std-total { width: 180px; flex-shrink: 0; }
+.hud-results-row .hud-std-total {
+    -unity-font-definition: var(--font-display);
+    font-size: 30px;
+    color: var(--mhk-gray-900);
+    -unity-text-align: middle-center;
+    padding: 0; margin: 0;
+}
+.hud-standings.no-move .hud-std-move, .hud-standings.no-gain .hud-std-gain { display: none; }
 
 /* Touch controls. With touch controls (.touch on the speedometer and the minimap) those two take the places below, clear
  * of bottom corner buttons (Minimap fits its height between its bottom offset and the lap text). The default touch layout

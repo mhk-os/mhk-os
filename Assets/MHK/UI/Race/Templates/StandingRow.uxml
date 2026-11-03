@@ -1,0 +1,25 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
+    <!-- One standings row (sample: 4th, not the player, up one place). Code sets the rank badge tier, shows + spins the burst for the champion (hidden by MHKHud.uss otherwise), the driver's portrait and kart icon, the name, .me, the movement (.up / .down / .same, its arrow and the places) and the points of the last race and in total. Samples in Standings.uxml add sample-gold / sample-silver / sample-bronze / sample-me on their Instance. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:VisualElement class="row hud-results-row">
+        <ui:VisualElement name="pos" class="hud-res-pos">
+            <ui:VisualElement name="burst" class="sunburst hud-res-burst" usage-hints="DynamicTransform" />
+            <ui:VisualElement name="badge" class="badge hud-res-badge">
+                <ui:Label name="badge-label" text="4" class="badge-label" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="row hud-res-racer">
+            <ui:VisualElement class="driver-icons hud-res-driver">
+                <mhk:ContentImage name="driver-portrait" class="driver-icon driver-portrait" image="/Assets/MHK/UI/Samples/character_moorhuhn.png" />
+                <mhk:ContentImage name="driver-kart" class="driver-icon driver-kart" image="/Assets/MHK/UI/Samples/mhk2.kart_icon.png" />
+            </ui:VisualElement>
+            <ui:Label name="name" text="Moorhuhn" class="hud-res-cell hud-res-name" />
+        </ui:VisualElement>
+        <ui:VisualElement name="move" class="row hud-std-move up">
+            <ui:VisualElement name="move-icon" class="icon i-arrow_upward hud-std-move-icon" />
+            <ui:Label name="move-label" text="1" class="hud-std-move-label" />
+        </ui:VisualElement>
+        <ui:Label name="gain" text="+4" class="hud-res-cell hud-std-gain" />
+        <ui:Label name="total" text="8" class="hud-std-total" />
+    </ui:VisualElement>
+</ui:UXML>
