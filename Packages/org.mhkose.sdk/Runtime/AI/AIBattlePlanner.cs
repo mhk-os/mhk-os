@@ -14,7 +14,7 @@ namespace MHK.AI
         Race,
         /// <summary>Circuits: turns around on the road to its direction along the track.</summary>
         Turn,
-        /// <summary>Hunts an opponent to take it down with its item (or a ram).</summary>
+        /// <summary>Hunts an opponent to take it down with its item.</summary>
         Hunt,
         /// <summary>Arenas: roams to item boxes and open spots at full speed.</summary>
         Roam,
@@ -24,9 +24,9 @@ namespace MHK.AI
     /// What a computer driver in a battle does. On circuits it races the track in its direction (<see cref="BattleMode.Race"/>,
     /// the race driving with its item box pickups), in arenas it roams to item boxes and open spots (<see cref="BattleMode.Roam"/>).
     /// Holding an attacking item with an opponent in sight within <see cref="BattleAiSettings.huntRange"/> it hunts that
-    /// opponent (<see cref="BattleMode.Hunt"/>, also a ram of a close opponent right in front without an item) until the
-    /// item is used up, the target is gone or it stays too far or out of sight; then it races on the way it faces. With
-    /// fewer than <see cref="EndgameKarts"/> karts left it seeks out the others wherever they are, armed or ramming. Once per
+    /// opponent (<see cref="BattleMode.Hunt"/>) until the item is used up, the target is gone or it stays too far or out
+    /// of sight; then it races on the way it faces (running into karts costs them nothing). With fewer than
+    /// <see cref="EndgameKarts"/> karts left an armed driver seeks out the others wherever they are. Once per
     /// battle, at a seeded time after GO, it reverses its direction, and it turns back at dead ends (a gap jumped the
     /// other way, the end of an open line); a speed pad sets the direction to the pad's. Every change of direction is a
     /// turn on the road (<see cref="BattleMode.Turn"/>).
@@ -43,7 +43,7 @@ namespace MHK.AI
         // Hunting: the cost of a target is its distance plus BehindCost when it is behind, HuntedCost per other computer
         // driver hunting it, less bonuses for the current target, the item brain's aim target and a wounded one.
         const float BehindCost = 25f, HuntedCost = 15f, KeepTargetBonus = 10f, AimTargetBonus = 8f, WoundedBonus = 20f;
-        const float LevelHeight = 4f, RamCone = 30f, RamContact = 3.5f, RamLeaveShare = 1.5f;
+        const float LevelHeight = 4f;
         const float MaxLeadSeconds = 1.5f, MinLeadSpeed = 5f;
         const float ProgressStep = 3f, GiveUpSeconds = 4f, IgnoreSeconds = 8f;
         // Arenas: a box costs its distance plus TurnCostPerDegree per degree to turn towards it, ContestCost when an
@@ -64,7 +64,7 @@ namespace MHK.AI
         readonly AIBattleArea.Hints roamHints = new();
         float decideTimer, deadEndTimer, loseTimer, kartIgnoreTimer, boxIgnoreTimer, roamTimer, closest, stallTimer;
         float lastClock = -1f;
-        bool started, reversed, turnBack, ramming, targetVisible, endgame;
+        bool started, reversed, turnBack, targetVisible, endgame;
         TrackZone lastPad;
         ItemBox box, ignoredBox;
         Kart ignoredKart;
@@ -110,7 +110,7 @@ namespace MHK.AI
             roamTimer -= dt;
             var armed = Armed(kart);
             WatchEndgame();
-            if (Mode == BattleMode.Hunt && !KeepHunting(kart, armed, cfg, dt)) EndHunt(kart, track);
+            if (Mode == BattleMode.Hunt && !KeepHunting(kart, armed, dt)) EndHunt(kart, track);
             WatchReverse(kart, clock);
             FollowSpeedPad(kart, track);
             if (!arena) WatchDirection(kart, track, line, cfg);
@@ -131,7 +131,7 @@ namespace MHK.AI
         void Restart(Kart kart, TrackRuntime track)
         {
             started = true;
-            reversed = turnBack = ramming = endgame = false;
+            reversed = turnBack = endgame = false;
             lastPad = null;
             opponent = null;
             box = null;
@@ -245,16 +245,17 @@ namespace MHK.AI
             };
         }
 
-        // In the endgame every opponent is hunted, however far, on whichever level and out of sight, rammed when unarmed.
+        // An armed driver hunts an opponent in sight within huntRange; in the endgame every opponent, however far, on
+        // whichever level and out of sight.
         bool TryHunt(Kart kart, bool armed, GameConfig cfg)
         {
-            if (Mode == BattleMode.Hunt && ramming && !armed) return true;
+            if (!armed) return false;
             Kart best = null;
             var bestCost = float.PositiveInfinity;
             var pos = kart.transform.position;
             var forward = Flat(kart.transform.forward);
-            var range = endgame ? float.PositiveInfinity : armed ? skill.huntRange : skill.ramRange;
-            if (range <= 0f || (!armed && !endgame && !rng.Roll(skill.aggression))) return false;
+            var range = endgame ? float.PositiveInfinity : skill.huntRange;
+            if (range <= 0f) return false;
             var karts = Kart.All;
             for (var i = 0; i < karts.Count; i++)
             {
@@ -266,8 +267,6 @@ namespace MHK.AI
                 var distance = flat.magnitude;
                 if (distance > range) continue;
                 var behind = Vector3.Dot(flat, forward) < 0f;
-                // A ram goes for an opponent right in front only, never one to turn around for (but for the last ones).
-                if (!armed && !endgame && Vector3.Angle(forward, flat) > RamCone) continue;
                 var cost = distance + (behind ? BehindCost : 0f) + HuntedCost * Hunters(kart, o)
                     - skill.aggression * WoundedBonus * (1f - o.Health / (float)Mathf.Max(1, cfg.maxHealth))
                     - (o == board.aimTarget ? AimTargetBonus : 0f) - (o == opponent && Mode == BattleMode.Hunt ? KeepTargetBonus : 0f);
@@ -282,33 +281,20 @@ namespace MHK.AI
             }
             if (Mode != BattleMode.Hunt || best != opponent) loseTimer = 0f;
             opponent = best;
-            ramming = !armed;
             targetVisible = true;
             Mode = BattleMode.Hunt;
             box = null;
             return true;
         }
 
-        // Each step: the hunt goes on while armed (a ram: until contact or the target pulls away) and the target is
-        // still there, not too far and in sight for longer than huntLoseSeconds. In the endgame distance and sight don't count.
-        bool KeepHunting(Kart kart, bool armed, GameConfig cfg, float dt)
+        // Each step: the hunt goes on while armed and the target is still there, not too far and in sight for longer than
+        // huntLoseSeconds. In the endgame distance and sight don't count.
+        bool KeepHunting(Kart kart, bool armed, float dt)
         {
             var o = opponent;
-            if (o == null || !AIKartQueries.IsOpponent(kart, o) || o.Effects.IsProtected || Ignored(o)) return false;
-            var distance = Flat(o.transform.position - kart.transform.position).magnitude;
-            if (ramming && !armed)
-            {
-                // A rammed kart takes no ramming damage for GameConfig.ramCooldown: race on and come back later.
-                if (distance < RamContact)
-                {
-                    Ignore(o, cfg.ramCooldown);
-                    return false;
-                }
-                return endgame || distance <= skill.ramRange * RamLeaveShare;
-            }
-            if (!armed) return false;
-            ramming = false;
+            if (!armed || o == null || !AIKartQueries.IsOpponent(kart, o) || o.Effects.IsProtected || Ignored(o)) return false;
             if (endgame) return true;
+            var distance = Flat(o.transform.position - kart.transform.position).magnitude;
             var lost = distance > skill.huntRange * skill.huntLeaveShare || !targetVisible;
             loseTimer = lost ? loseTimer + dt : 0f;
             return loseTimer < skill.huntLoseSeconds;
@@ -318,7 +304,6 @@ namespace MHK.AI
         void EndHunt(Kart kart, TrackRuntime track)
         {
             opponent = null;
-            ramming = false;
             pursued = null;
             Mode = arena ? BattleMode.Roam : BattleMode.Race;
             if (!arena) Direction = FacingSign(kart, track);

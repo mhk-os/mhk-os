@@ -27,11 +27,13 @@ namespace MHK.Online
         public const ushort SetReady = 265;
         /// <summary>trackId ("" = Random) → empty.</summary>
         public const ushort Vote = 266;
-        /// <summary>trackId (owner pick; else "") → empty.</summary>
+        /// <summary>trackId (owner pick; the next track of a running set list or cup; else "") → empty.</summary>
         public const ushort StartRace = 267;
         public const ushort EndRaceEarly = 268;
         /// <summary>accountId u64, reason string → empty.</summary>
         public const ushort KickMember = 269;
+        /// <summary>cupId, trackIds (the cup's tracks in race order) → empty: the owner of an owner-pick race room starts a cup as the next set.</summary>
+        public const ushort StartCup = 270;
     }
 
     /// <summary>Push types of lobbies and the race results (their own numbering, see <see cref="PushType"/>).</summary>
@@ -111,6 +113,8 @@ namespace MHK.Online
         public const int Lobbies = 500, Members = 50, Code = 8, RaceRows = 50, KickReason = 256, Message = 256;
         public const int ItemOdds = 64, Username = 20, Country = 2, Laps = 99, AiDrivers = 49, TrackIds = 35;
         public const int MinPlayers = 2, MaxPlayers = 50, MaxRacesPerSet = 16;
+        /// <summary>Tracks of a cup the room owner starts (<see cref="LobbyMessageType.StartCup"/>, <see cref="LobbyState.cupTrackIds"/>): at most a set.</summary>
+        public const int CupTracks = MaxRacesPerSet;
     }
 
     /// <summary>Encoding helpers of the lobby structures.</summary>
@@ -577,9 +581,16 @@ namespace MHK.Online
         public List<RaceResultRow> lastResults = new();
         /// <summary>The set's AI drivers in grid order; empty between sets.</summary>
         public List<AiDriver> aiDrivers = new();
+        /// <summary>The cup the owner started as the current set (<see cref="LobbyMessageType.StartCup"/>), "" = none.</summary>
+        public string cupId = "";
+        /// <summary>Tracks of <see cref="cupId"/> in race order; empty without it.</summary>
+        public List<string> cupTrackIds = new();
 
         public LobbyPhase Phase => summary.phase;
         public bool IsPrivate => !summary.isPublic;
+
+        /// <summary>The current set is a cup the owner started.</summary>
+        public bool RunsCup => !string.IsNullOrEmpty(cupId);
 
         public LobbyMember Member(long accountId) => members.Find(m => m.accountId == accountId);
 
@@ -612,6 +623,8 @@ namespace MHK.Online
             LobbyWire.Rows(w, lastResults, LobbyLimits.RaceRows);
             w.ListCount(aiDrivers.Count, LobbyLimits.AiDrivers);
             foreach (var d in aiDrivers) d.Write(w);
+            w.String(cupId, LobbyLimits.ContentId);
+            LobbyWire.Strings(w, cupTrackIds, LobbyLimits.CupTracks, LobbyLimits.ContentId);
         }
 
         public static LobbyState Read(WireReader r)
@@ -629,6 +642,8 @@ namespace MHK.Online
             s.lastResults = LobbyWire.Rows(r, LobbyLimits.RaceRows);
             count = r.ListCount(LobbyLimits.AiDrivers, 1 + 1 + 4);
             for (var i = 0; i < count; i++) s.aiDrivers.Add(AiDriver.Read(r));
+            s.cupId = r.String(LobbyLimits.ContentId);
+            s.cupTrackIds = LobbyWire.Strings(r, LobbyLimits.CupTracks, LobbyLimits.ContentId);
             return s;
         }
     }

@@ -39,5 +39,24 @@ namespace MHK.Karts
             if (reaction.hostile) Achievements.RaceAchievements.KartHit(victim, source, usage);
             return true;
         }
+
+        /// <summary>
+        /// Applies a stage hazard's <paramref name="reaction"/> (MHK3 and TINcan stompers, crushers, rolling boulders:
+        /// <see cref="Race.TrackHazard"/>) to <paramref name="victim"/> like <see cref="Apply"/> without a source. A new
+        /// hostile hit, not one keeping a running effect going, costs the kart health as a hit by an opponent's item does
+        /// (the reaction's damage, else <see cref="Core.GameConfig.defaultHitDamage"/>) and credits no kart with it. Only
+        /// the kart's own client decides (remote racers and mirrored AI karts are left to theirs). Other track effects
+        /// (zones, surfaces, falls) never cost health.
+        /// </summary>
+        public static bool ApplyHazard(Kart victim, StatusEffectDefinition reaction)
+        {
+            if (victim == null || reaction == null) return false;
+            var running = victim.Effects.Has(reaction);
+            if (!Apply(victim, reaction)) return false;
+            if (running || !reaction.hostile || victim.IsRemote || Powerups.OnlineItems.IsMirror(victim)) return true;
+            victim.Effects.LastAttacker = null;
+            victim.TakeDamage(reaction.damage >= 0 ? reaction.damage : Core.GameRoot.Instance.Config.defaultHitDamage, null);
+            return true;
+        }
     }
 }

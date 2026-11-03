@@ -1,6 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Pause menu (shown state: code removes .shown from panel and adds it back to scale it in). Options opens the menu's Options page over the scrim; code hides panel meanwhile. -->
+    <!-- Pause menu (shown state: code removes .shown from panel and adds it back to scale it in). Options opens the menu's Options page over the scrim; code hides panel meanwhile.
+         Championships from the second race on: Standings (hidden otherwise) swaps panel for standings-column, the standings before this race (Race/Templates/Standings.uxml); Back, Cancel or the Pause key return. Preview class on pause: preview-standings (standings-column instead of panel). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Standings" src="/Assets/MHK/UI/Race/Templates/Standings.uxml" />
     <ui:VisualElement name="pause" class="screen hud-pause">
         <ui:VisualElement class="vignette" />
         <ui:VisualElement name="panel" class="hud-pause-column shown">
@@ -9,6 +11,10 @@
                 <ui:Button name="continue" class="mhk-button go">
                     <ui:VisualElement class="icon i-play_arrow" />
                     <ui:Label text="Continue" class="button-label" />
+                </ui:Button>
+                <ui:Button name="standings" class="mhk-button">
+                    <ui:VisualElement class="icon i-leaderboard" />
+                    <ui:Label text="Standings" class="button-label" />
                 </ui:Button>
                 <ui:Button name="restart" class="mhk-button">
                     <ui:VisualElement class="icon i-restart_alt" />
@@ -25,6 +31,16 @@
                 <ui:Button name="quit" class="mhk-button secondary">
                     <ui:VisualElement class="icon i-home" />
                     <ui:Label text="Quit to menu" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="standings-column" class="hud-pause-column hud-pause-standings shown">
+            <ui:Label name="standings-title" text="Standings" class="page-title hud-pause-title" />
+            <ui:Instance template="Standings" name="standings-page" class="hud-standings-page" />
+            <ui:VisualElement class="row hud-results-buttons">
+                <ui:Button name="standings-back" class="mhk-button go">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>

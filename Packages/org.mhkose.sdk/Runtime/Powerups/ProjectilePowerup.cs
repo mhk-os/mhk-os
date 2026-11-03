@@ -7,7 +7,9 @@ namespace MHK.Powerups
 {
     /// <summary>
     /// Ground-following projectile (missiles, rockets, thrown balls). Optionally follows the racing line and homes in on
-    /// a target once it is close enough (MHK2 homing missile model: activation and lock distances).
+    /// a target once it is close enough (MHK2 homing missile model: activation and lock distances). A homing shot waits
+    /// for a respawning target (falling or respawn-protected) behind it on the racing line and strikes when the protection
+    /// ends, so a respawn never dodges it (like <see cref="TrackHomingMissile"/>).
     /// </summary>
     public class ProjectilePowerup : ProjectileBehaviour, INetProjectile
     {
@@ -21,6 +23,8 @@ namespace MHK.Powerups
         const float HoverSharpness = 20f;
         const float SegmentEpsilon = 1e-8f;
         const float MinCorrectSpeedSqr = 0.01f;
+        const float MinTravelSqr = 1e-4f;
+        const float WaitArriveDistance = 0.5f;
         const float PathTangentSmoothing = 3f;
 
         [Header("Flight")]
@@ -52,6 +56,10 @@ namespace MHK.Powerups
         [SerializeField] float lockDistance = 20f;
         [SerializeField] float lockedSpeed = 50f;
         [SerializeField] float turnRateDegrees = 240f;
+        [Tooltip("Distance (m) behind a respawning target (falling or respawn-protected) on the racing line where the " +
+                 "projectile waits until the target can be hit. It does not hit anything and its lifetime does not run while " +
+                 "it waits.")]
+        [SerializeField] float respawnWaitDistance = 6f;
 
         [Header("Impact")]
         [Tooltip("Spawned wherever the projectile ends (kart hit, wall, lifetime).")]
@@ -62,13 +70,15 @@ namespace MHK.Powerups
         Vector3 direction;
         Kart target;
         bool locked;
+        // Parked behind a respawning target (no motion this step).
+        bool holding;
         int bounces;
         int pathSegment = -1;
         float pathDirection = 1f;
 
         public bool Flying => true;
         public Vector3 NetPosition => SimulatedPosition;
-        public Vector3 NetVelocity => direction * (locked ? lockedSpeed : speed);
+        public Vector3 NetVelocity => holding ? Vector3.zero : direction * (locked ? lockedSpeed : speed);
 
         public void Correct(Vector3 position, Vector3 velocity)
         {
@@ -100,6 +110,13 @@ namespace MHK.Powerups
 
         protected override void Step(float dt)
         {
+            if (TargetRespawning)
+            {
+                ApplyCorrection();
+                WaitForTarget(dt);
+                return;
+            }
+            holding = false;
             if (TickLifetime(dt, impactVfx)) return;
             ApplyCorrection();
             Steer(dt);
@@ -112,6 +129,30 @@ namespace MHK.Powerups
             if (followGround) pos.y = HoverAbove(pos, dt);
             transform.SetPositionAndRotation(pos, Quaternion.LookRotation(direction, Vector3.up));
             CheckHits(from, pos);
+        }
+
+        // The homing target is falling back or respawn-protected: a hit now would be wasted on it.
+        bool TargetRespawning => homing && target != null && target.isActiveAndEnabled && !target.Eliminated
+                                 && (target.Effects.HasRespawnPending || target.Effects.RespawnProtected);
+
+        // Holds still while the target falls back; once it is on the track again the projectile moves along the racing
+        // line to respawnWaitDistance behind it and stays there until the protection ends.
+        void WaitForTarget(float dt)
+        {
+            holding = true;
+            if (target.Effects.HasRespawnPending || !TrackRuntime.TryGetMainPath(out var path)) return;
+            var myD = path.Project(transform.position, ref pathSegment, out _);
+            var delta = path.Delta(myD, target.Progress.PathDistance - respawnWaitDistance);
+            if (Mathf.Abs(delta) < WaitArriveDistance) return;
+            var aim = path.GetPoint(myD + Mathf.Sign(delta) * Mathf.Min(Mathf.Abs(delta), pathLookAhead));
+            var to = aim - transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude < MinTravelSqr) return;
+            holding = false;
+            direction = to.normalized;
+            var pos = transform.position + direction * Mathf.Min(speed * dt, to.magnitude);
+            if (followGround) pos.y = HoverAbove(pos, dt);
+            transform.SetPositionAndRotation(pos, Quaternion.LookRotation(direction, Vector3.up));
         }
 
         bool TryHitWall(float stepLength)

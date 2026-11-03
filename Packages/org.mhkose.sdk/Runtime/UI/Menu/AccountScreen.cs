@@ -1,14 +1,17 @@
 using System.Globalization;
+using MHK.Achievements;
 using MHK.Core;
 using MHK.Online;
 using UnityEngine;
 using UnityEngine.UIElements;
+using AchievementList = MHK.Achievements.Achievements;
 
 namespace MHK.UI
 {
     /// <summary>
     /// Online account (Account.uxml): log in or register (username, password, confirmation, checked against the server's
-    /// rules first), or, logged in, the account with its score rank, its country, the players list switch
+    /// rules first), or, logged in, the account with its score rank, its time played (<see cref="PlaytimeTracker"/>, once
+    /// the account's achievement totals are loaded), its country, the players list switch
     /// (<see cref="OnlineProfiles.SetListed"/>), Your profile (the Players page), Change username (a text prompt checked
     /// against the rules first, <see cref="OnlineAccount.ChangeUsername"/>), Log out and Delete account (a box in place
     /// of the account rows asks for the password and whether the time-trial runs go too, <see cref="OnlineAccount.Delete"/>).
@@ -45,6 +48,8 @@ namespace MHK.UI
         string listedOnText = "On", listedOffText = "Off";
         [SerializeField, Tooltip("Rank line: ranked ({0} = rank, {1} = points), unranked ({0} = points).")]
         string rankFormat = "Rank #{0} with {1} points", unrankedFormat = "Unranked: {0} points. Race online to climb the ranking.";
+        [SerializeField, Tooltip("Time played line (the account's playtime on every device): from an hour ({0} = hours, {1} = minutes), under an hour ({0} = minutes).")]
+        string playtimeFormat = "Played {0} h {1} min", playtimeMinutesFormat = "Played {0} min";
         [SerializeField, Tooltip("Delete account: the confirm button while the server is asked, the error of an empty password, the status after deleting (runs kept as Anonymous, runs deleted too).")]
         string deletingText = "Deleting...", deletePasswordMissing = "Enter your password to confirm.",
             deletedText = "Your account was deleted. Your time trial runs stay on the leaderboards as Anonymous.",
@@ -58,7 +63,7 @@ namespace MHK.UI
         TextField username, password, confirm, server, deletePassword;
         Button submit, reconnect, deleteConfirm, deleteCancel, rename;
         VisualElement signedOut, signedIn, confirmBlock, status, statusIcon, connectionBar, connectionIcon, serverBox, deleteStatus;
-        Label submitLabel, statusLabel, connectionLabel, deleteConfirmLabel, deleteStatusLabel;
+        Label submitLabel, statusLabel, connectionLabel, deleteConfirmLabel, deleteStatusLabel, playtime;
         VisualElement submitIcon;
         SettingChoice country, deleteRunsChoice;
         string deleteConfirmText;
@@ -72,6 +77,8 @@ namespace MHK.UI
         bool? sentListed;
         ulong profileFor;
         int profileRequests;
+        // The minutes the playtime line shows (-1: none yet).
+        long shownPlaytimeMinutes = -1;
 
         void Reset() => showcaseVisible = false;
 
@@ -114,9 +121,11 @@ namespace MHK.UI
             countryApply = Root.schedule.Execute(ApplyCountry);
             countryApply.Pause();
             BindServer();
+            playtime = Q<Label>("account-playtime");
             BindDelete();
             OnlineService.Changed += ShowState;
-            tick = Root.schedule.Execute(ShowConnection).Every(500);
+            AchievementList.Changed += ShowPlaytime;
+            tick = Root.schedule.Execute(Tick).Every(500);
             shownLoggedIn = OnlineService.IsLoggedIn;
             FocusTarget = shownLoggedIn ? country.Button : username;
             ShowMode();
@@ -129,6 +138,7 @@ namespace MHK.UI
         {
             base.Unbind();
             OnlineService.Changed -= ShowState;
+            AchievementList.Changed -= ShowPlaytime;
             tick?.Pause();
             countryApply?.Pause();
             // A country picked just before leaving is still sent.
@@ -137,7 +147,8 @@ namespace MHK.UI
             username = password = confirm = server = deletePassword = null;
             submit = reconnect = deleteConfirm = deleteCancel = rename = null;
             signedOut = signedIn = confirmBlock = status = statusIcon = connectionBar = connectionIcon = serverBox = submitIcon = deleteStatus = null;
-            submitLabel = statusLabel = connectionLabel = deleteConfirmLabel = deleteStatusLabel = null;
+            submitLabel = statusLabel = connectionLabel = deleteConfirmLabel = deleteStatusLabel = playtime = null;
+            shownPlaytimeMinutes = -1;
             deleteRunsChoice = null;
             country = null;
             listed = null;
@@ -438,7 +449,7 @@ namespace MHK.UI
             ShowStatus(result.Ok ? null : result.message, false);
         }
 
-        // Login state, account and connection, whenever the service changes.
+        // Login state, account, playtime and connection, whenever the service changes.
         void ShowState()
         {
             if (signedIn == null) return;
@@ -465,6 +476,28 @@ namespace MHK.UI
                 FocusLater(loggedIn ? country.Button : username);
             }
             ShowConnection();
+            ShowPlaytime();
+        }
+
+        void Tick()
+        {
+            ShowConnection();
+            ShowPlaytime();
+        }
+
+        // Logged in with the account's totals loaded: its time played, with the seconds not recorded yet. The text only
+        // changes with the minute.
+        void ShowPlaytime()
+        {
+            if (playtime == null) return;
+            var shown = OnlineService.Account != null && AchievementList.Synced;
+            playtime.SetVisible(shown);
+            if (!shown) return;
+            var minutes = PlaytimeTracker.Seconds / 60;
+            if (minutes == shownPlaytimeMinutes) return;
+            shownPlaytimeMinutes = minutes;
+            playtime.text = minutes < 60 ? string.Format(CultureInfo.InvariantCulture, playtimeMinutesFormat, minutes)
+                : string.Format(CultureInfo.InvariantCulture, playtimeFormat, minutes / 60, minutes % 60);
         }
 
         void ShowConnection()

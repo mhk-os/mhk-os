@@ -19,8 +19,8 @@ MonoBehaviour:
   gameLogo: {fileID: 2800000, guid: 96864abf95ac46318d55c9468c014a2a, type: 3}
   uiGlassShader: {fileID: 4800000, guid: 937669cacd9e0409fb216d79508d1b9c, type: 3}
   litShader: {fileID: 4800000, guid: 168435bd04a614963bc0c3cf91cb4b34, type: 3}
-  sfxMixGain: 0.4
-  musicMixGain: 0.6
+  sfxMixGain: 0.55
+  musicMixGain: 0.75
   physicsHz: 60
   gravity: 19.62
   offroadResistance: 0.3
@@ -69,10 +69,6 @@ MonoBehaviour:
   respawnProtectionSeconds: 0.7
   maxHealth: 100
   defaultHitDamage: 10
-  ramDamage: 5
-  ramCooldown: 3
-  ramMinSpeed: 0.7
-  ramConeDegrees: 45
   eliminationGraceSeconds: 3
   ghostOpacity: 0.45
   maxGhosts: 50
@@ -160,7 +156,6 @@ MonoBehaviour:
     huntRange: 35
     huntLeaveShare: 1.5
     huntLoseSeconds: 3
-    ramRange: 8
     aggression: 0.35
     aimLead: 0.3
     reverseMinSeconds: 20
@@ -169,7 +164,6 @@ MonoBehaviour:
     huntRange: 45
     huntLeaveShare: 1.5
     huntLoseSeconds: 3
-    ramRange: 12
     aggression: 0.6
     aimLead: 0.65
     reverseMinSeconds: 20
@@ -178,7 +172,6 @@ MonoBehaviour:
     huntRange: 55
     huntLeaveShare: 1.5
     huntLoseSeconds: 3
-    ramRange: 15
     aggression: 0.85
     aimLead: 1
     reverseMinSeconds: 20

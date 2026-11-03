@@ -18,11 +18,7 @@ namespace MHK.Core
         [Min(1f)] public float huntLeaveShare = 1.5f;
         [Tooltip("Seconds a hunted opponent may stay too far or out of sight before the driver gives up and races on.")]
         [Min(0f)] public float huntLoseSeconds = 3f;
-        [Tooltip("Without an item, an opponent this close (m) right in front is rammed (ramming damages in battles), " +
-                 "with the chance aggression per decision. 0 = never.")]
-        [Min(0f)] public float ramRange = 12f;
-        [Tooltip("Eagerness to fight (0 to 1): chance per decision to ram an opponent within ramRange, and how much a " +
-                 "wounded opponent is preferred as a target.")]
+        [Tooltip("Eagerness to fight (0 to 1): how much a wounded opponent is preferred as a target.")]
         [Range(0, 1)] public float aggression = 0.6f;
         [Tooltip("Share of a fleeing or crossing opponent's motion a hunter leads its chase by (0 = drives at where it is).")]
         [Range(0, 1)] public float aimLead = 0.6f;

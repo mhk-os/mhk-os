@@ -14,8 +14,9 @@ namespace MHK.Race
     }
 
     /// <summary>
-    /// Moving kinematic hazard (MHK3 crushers) that applies <see cref="effectId"/> to karts it hits. Touch hazards are
-    /// triggers, Stomp hazards stay solid and only fire when coming down on a kart's roof. Moved by a
+    /// Moving kinematic hazard (MHK3 and TINcan crushers) that applies <see cref="effectId"/> to karts it hits, costing
+    /// them health (<see cref="KartReactions.ApplyHazard"/>). Touch hazards are triggers, Stomp hazards stay solid and
+    /// only fire when coming down on a kart's roof. Moved by a
     /// <see cref="PropAnimator"/> on the <see cref="RaceClock"/>; execution order 10 so the step's start pose is read
     /// after the animator placed its bodies (it teleports them on the first step after GO and on replay seeks).
     /// </summary>
@@ -83,12 +84,12 @@ namespace MHK.Race
 
         void Touch(Collider other)
         {
-            if (kind == HazardKind.Touch && Victim(other, out var kart, out var def)) KartReactions.Apply(kart, def);
+            if (kind == HazardKind.Touch && Victim(other, out var kart, out var def)) KartReactions.ApplyHazard(kart, def);
         }
 
         void Hit(Collision c)
         {
-            if (kind == HazardKind.Stomp && Victim(c.collider, out var kart, out var def) && Stomps(kart, c)) KartReactions.Apply(kart, def);
+            if (kind == HazardKind.Stomp && Victim(c.collider, out var kart, out var def) && Stomps(kart, c)) KartReactions.ApplyHazard(kart, def);
         }
 
         bool Victim(Collider other, out Kart kart, out StatusEffectDefinition def)

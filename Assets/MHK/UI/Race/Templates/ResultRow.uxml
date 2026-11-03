@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
-    <!-- One result row (sample: 4th, not the player). Code sets the texts, the driver's portrait and kart icon (.missing: placeholder for content that is not loaded), .me, the badge tier, shows + spins burst for the winner (hidden by MHKHud.uss otherwise) and shows points in championships. Samples in Results.uxml add sample-gold / sample-silver / sample-bronze / sample-me on their Instance. -->
+    <!-- One result row (sample: 4th, not the player). Code sets the texts, the driver's portrait and kart icon (.missing: placeholder for content that is not loaded), .me, the badge tier, shows + spins burst for the winner (hidden by MHKHud.uss otherwise) and shows this race's points in championships and online sets (the totals are on the standings page). Samples in Results.uxml add sample-gold / sample-silver / sample-bronze / sample-me on their Instance. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="row hud-results-row">
         <ui:VisualElement name="pos" class="hud-res-pos">
@@ -19,7 +19,6 @@
         <ui:Label name="best" text="00:49.87" class="hud-res-cell hud-res-time hud-res-best" />
         <ui:VisualElement name="points" class="row hud-res-points">
             <ui:Label name="gain" text="+10" class="hud-res-gain" />
-            <ui:Label name="total" text="(25)" class="hud-res-total" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

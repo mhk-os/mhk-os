@@ -96,6 +96,22 @@ namespace MHK.UI
             for (var i = 0; i < e.childCount; i++) e[i].NoPick();
         }
 
+        /// <summary>
+        /// Scrolls <paramref name="item"/> of a freshly filled list into view as soon as it has its place (a long table
+        /// keeps the player's row in view), also when the list is hidden until later.
+        /// </summary>
+        public static void ScrollToWhenLaidOut(this ScrollView scroll, VisualElement item)
+        {
+            EventCallback<GeometryChangedEvent> once = null;
+            once = _ =>
+            {
+                if (!(item.layout.height > 0f)) return;
+                item.UnregisterCallback(once);
+                scroll.ScrollTo(item);
+            };
+            item.RegisterCallback(once);
+        }
+
         /// <summary>Reads the USS custom colour <paramref name="property"/> into <paramref name="color"/>, which keeps its value when the property is not set.</summary>
         public static void ReadColor(this ICustomStyle style, CustomStyleProperty<Color> property, ref Color color)
         {

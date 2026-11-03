@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Linq;
 using System.Threading.Tasks;
 using MHK.Core;
 using MHK.Ghosts;
@@ -13,7 +12,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// Results layer (Results.uxml): result table or time-trial lap table, champion and record plates, and the
-    /// next-step buttons.
+    /// next-step buttons. Championships and online set races add the Standings button: the standings page
+    /// (<see cref="StandingsTable"/>) takes the result table's place until Results or Cancel goes back.
     /// </summary>
     public class RaceResults : RaceLayer
     {
@@ -21,6 +21,8 @@ namespace MHK.UI
         VisualTreeAsset resultRowTemplate;
         [SerializeField, Tooltip("One time-trial lap row (Race/Templates/LapRow.uxml).")]
         VisualTreeAsset lapRowTemplate;
+        [SerializeField, Tooltip("The standings page of championships and online sets (Standings button): its row template, texts and timing.")]
+        StandingsTable standings = new();
 
         [Header("Texts")]
         [SerializeField, Tooltip("Info line in championships ({0} = race number, {1} = races in the cup). The cup name is appended.")]
@@ -33,8 +35,6 @@ namespace MHK.UI
         string survivorText = "Survivor";
         [SerializeField, Tooltip("Status of a knocked-out battle racer.")]
         string outText = "Out";
-        [SerializeField, Tooltip("Champion plate after the last cup race ({0} = name, {1} = points).")]
-        string championFormat = "Champion: {0} with {1} points!";
 
         [Header("Time trial texts")]
         [SerializeField, Tooltip("Info line of a time trial ({0} = engine class).")]
@@ -123,11 +123,14 @@ namespace MHK.UI
         [SerializeField, Min(1), Tooltip("Rows that enter one after another; the rows after them enter with the last of them (a table of up to 51 karts scrolls).")]
         int staggeredRows = 10;
 
-        const float GainPopScale = 2f, WinnerSpinDegreesPerSecond = 30f;
+        const float GainPopScale = 2f;
         const int GainPopMs = 420;
-        static readonly string[] MedalClasses = { "gold", "silver", "bronze" };
 
-        VisualElement staggered;
+        VisualElement staggered, resultsPanel, standingsPage;
+        Button standingsButton, resultsButton, continueButton;
+        Label title;
+        string trackTitle, standingsTitle;
+        bool standingsOpen;
         // Bumped on every unbind, so an upload finishing later leaves a closed screen alone.
         int bindVersion;
 
@@ -158,6 +161,7 @@ namespace MHK.UI
             var laps = BindTimeTrial(race.TimeTrial);
             staggered = laps ?? rows;
             if (laps != null) afterRows = RowDelay(laps.childCount);
+            BindStandings(race, session, champ && !online, online && !solo, rowCount);
             if (online) BindOnlineButtons(race, afterRows, rowCount);
             else BindButtons(race, champ && session.HasNextRace, champ, afterRows);
             onlineReturnArmed = online;
@@ -207,6 +211,7 @@ namespace MHK.UI
             menu.tooltip = "";
             returnCountdown.tooltip = autoReturnTip;
             menu.clicked += () => race.Continue();
+            continueButton = menu;
             Q<VisualElement>("buttons").SetTransitionDelay(afterRows + UiAnim.Ms(buttonsDelay));
             Root.schedule.Execute(() => menu.Focus());
             if (rowCount == 0) InfoChips.Add(Q<VisualElement>("online-chips"), "cloud_off", noResultText, null, InfoChipState.Bad);
@@ -214,15 +219,62 @@ namespace MHK.UI
 
         protected override void AfterBind() => UiAnim.Stagger(staggered, rowsStep, rowsFirstDelay, "from-left", staggeredRows);
 
+        // Championships and online set races: the standings page in place of the result table (Standings button,
+        // Results or Cancel go back). An online race without the server's rows has no set points to show.
+        void BindStandings(RaceManager race, GameSession session, bool cup, bool set, int rowCount)
+        {
+            resultsPanel = Q<VisualElement>("panel");
+            standingsPage = Q<VisualElement>("standings-page");
+            standingsButton = Q<Button>("standings");
+            resultsButton = Q<Button>("results-back");
+            standingsOpen = false;
+            var setup = set && race.Online != null ? race.Online.Setup : null;
+            set = setup != null && setup.setRace > 0 && rowCount > 0;
+            standingsButton.SetVisible(cup || set);
+            resultsButton.SetVisible(false);
+            standingsPage.SetVisible(false);
+            if (!cup && !set) return;
+            standingsTitle = cup ? standings.FillAfterCupRace(standingsPage, session, race.Results, this)
+                : standings.FillAfterSetRace(standingsPage, race.Results, setup.setRace, setup.setSize, this);
+            standingsButton.clicked += () => ShowStandings(true);
+            resultsButton.clicked += () => ShowStandings(false);
+            Root.RegisterCallback<NavigationCancelEvent>(OnCancel);
+        }
+
+        void ShowStandings(bool show)
+        {
+            standingsOpen = show;
+            resultsPanel.SetVisible(!show);
+            standingsPage.SetVisible(show);
+            standingsButton.SetVisible(!show);
+            resultsButton.SetVisible(show);
+            title.text = show ? standingsTitle : trackTitle;
+            if (show) standings.Show(standingsPage);
+            // Next frame: a button shown just now takes the focus once its style applies.
+            var focus = show ? continueButton : standingsButton;
+            Root.schedule.Execute(() => focus.Focus());
+        }
+
+        void OnCancel(NavigationCancelEvent e)
+        {
+            if (!standingsOpen) return;
+            e.StopPropagation();
+            ShowStandings(false);
+        }
+
         protected override void Unbind()
         {
-            staggered = null;
+            staggered = resultsPanel = standingsPage = null;
+            standingsButton = resultsButton = continueButton = null;
+            title = null;
+            standingsOpen = false;
             bindVersion++;
         }
 
         void BindHeader(RaceManager race, GameSession session, bool champ, bool battle)
         {
-            Q<Label>("title").text = race.Track.DisplayName;
+            title = Q<Label>("title");
+            title.text = trackTitle = race.Track.DisplayName;
             var info = Q<Label>("info");
             var chips = Q<VisualElement>("online-chips");
             returnCountdown = Q<Label>("return-countdown");
@@ -261,20 +313,8 @@ namespace MHK.UI
                 if (r.isHuman) me ??= row;
                 index++;
             }
-            if (me != null) ScrollIntoViewWhenLaidOut(Q<ScrollView>("rows-scroll"), me);
+            if (me != null) Q<ScrollView>("rows-scroll").ScrollToWhenLaidOut(me);
             return index;
-        }
-
-        // A long table scrolls: the player's row comes into view as soon as it has its place.
-        static void ScrollIntoViewWhenLaidOut(ScrollView scroll, VisualElement row)
-        {
-            EventCallback<GeometryChangedEvent> once = null;
-            once = _ =>
-            {
-                row.UnregisterCallback(once);
-                scroll.ScrollTo(row);
-            };
-            row.RegisterCallback(once);
         }
 
         void FillResultRow(VisualElement row, RaceResult r, bool champ, bool battle, long gainPopMs)
@@ -282,16 +322,8 @@ namespace MHK.UI
             row.EnableInClassList("me", r.isHuman);
             var outcome = OutcomeBadge(r.outcome, battle);
             // Medals and the winner's burst only for racers who finished (online a leaver can be ranked 2nd of 3).
-            var medal = outcome.icon == null ? r.position - 1 : -1;
-            var burst = row.Q<VisualElement>("burst");
-            if (medal == 0)
-            {
-                burst.SetVisible(true);
-                UiAnim.Spin(burst, WinnerSpinDegreesPerSecond);
-            }
-            else burst.RemoveFromHierarchy();
-            row.Q<VisualElement>("badge").SetExclusiveClass(medal, MedalClasses);
-            row.SetText("badge-label", r.position.ToString(CultureInfo.InvariantCulture));
+            var finished = outcome.icon == null;
+            StandingsTable.SetRank(row, r.position, finished ? r.position : 0, finished && r.position == 1);
             row.SetText("name", r.name);
             ContentDisplay.SetDriver(row, r.characterId, r.kartId);
             AddPlatform(row, r);
@@ -313,9 +345,8 @@ namespace MHK.UI
             row.Q<VisualElement>("points").SetVisible(champ);
             if (!champ) return;
             var gain = row.Q<Label>("gain");
-            // Online, a racer who gained nothing shows only its set standing.
+            // Online, a racer who gained nothing shows no points.
             gain.text = r.online && r.pointsGained == 0 ? "" : "+" + r.pointsGained.ToString(CultureInfo.InvariantCulture);
-            row.SetText("total", "(" + r.totalPoints.ToString(CultureInfo.InvariantCulture) + ")");
             if (r.pointsGained > 0) gain.schedule.Execute(() => UiAnim.Pop(gain, GainPopScale, GainPopMs)).ExecuteLater(gainPopMs);
         }
 
@@ -345,14 +376,15 @@ namespace MHK.UI
             _ => (null, null, null),
         };
 
+        // After the last cup race the champion shows here too: the moment the cup ends, also for a player who goes
+        // straight to the menu without opening the standings.
         void BindChampion(GameSession session, bool champ, long afterRows)
         {
             var champion = Q<VisualElement>("champion");
             var cupOver = champ && !session.HasNextRace;
             champion.SetVisible(cupOver);
             if (!cupOver) return;
-            var winner = session.racers.OrderByDescending(r => r.points).First();
-            Q<Label>("champion-label").text = string.Format(championFormat, winner.displayName, winner.points);
+            Q<Label>("champion-label").text = standings.ChampionText(session);
             champion.SetTransitionDelay(afterRows + UiAnim.Ms(championDelay));
         }
 
@@ -368,7 +400,9 @@ namespace MHK.UI
             next.clicked += () => race.Continue();
             menu.clicked += () => race.Continue();
             Q<VisualElement>("buttons").SetTransitionDelay(afterRows + UiAnim.Ms(buttonsDelay));
-            var focus = !champ ? raceAgain : hasNext ? next : menu;
+            continueButton = hasNext ? next : menu;
+            // Championships: the race's table first, Standings is the default next step.
+            var focus = champ ? standingsButton : raceAgain;
             Root.schedule.Execute(() => focus.Focus());
         }
 

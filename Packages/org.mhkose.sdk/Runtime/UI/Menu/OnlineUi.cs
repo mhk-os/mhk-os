@@ -120,7 +120,8 @@ namespace MHK.UI
 
         static string TrackCount(int n) => n == 1 ? "1 track" : n.ToString(CultureInfo.InvariantCulture) + " tracks";
 
-        static string CupName(string cupId)
+        /// <summary>Name of a lobby's cup, "Championship" when it is not loaded.</summary>
+        public static string CupName(string cupId)
         {
             var cup = GameRoot.Instance.Content.Get<Modding.CupDefinition>(cupId);
             return cup != null ? cup.DisplayName : "Championship";

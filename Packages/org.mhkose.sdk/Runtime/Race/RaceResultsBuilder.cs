@@ -159,7 +159,7 @@ namespace MHK.Race
 
         static void MarkCupWon(GameSession session, SaveData save)
         {
-            var winner = session.racers.OrderByDescending(r => r.points).FirstOrDefault();
+            var winner = session.Standings().FirstOrDefault();
             if (winner != null && winner.isHuman && !string.IsNullOrEmpty(session.cupId) && !save.wonCups.Contains(session.cupId))
                 save.wonCups.Add(session.cupId);
         }

@@ -12,7 +12,8 @@ namespace MHK.UI
     /// records). Battles list arenas first, the other modes circuits only. A time trial (track fixed on its records page)
     /// starts at once, the other modes open the race settings. For the online lobby it lists the lobby's tracks (arenas
     /// in battle lobbies): a Random card first and the remaining time while voting (<see cref="LobbyPick.Vote"/>), the
-    /// next race's track for the room owner (<see cref="LobbyPick.OwnerPick"/>).
+    /// next race's track for the room owner (<see cref="LobbyPick.OwnerPick"/>; between sets of a race room the footer's
+    /// Championships opens the Cup page with the lobby's cups, <see cref="LobbyScreen.CanStartCup"/>).
     /// </summary>
     public class TrackScreen : CardGridScreen<TrackDefinition>
     {
@@ -82,6 +83,8 @@ namespace MHK.UI
             lapsText = Q<Label>("info-laps-text");
             bestLap = Q<Label>("info-best-lap");
             bestRace = Q<Label>("info-best-race");
+            OnClick("cups", () => Flow.Show<CupScreen>())
+                .SetVisible(lobby == LobbyPick.OwnerPick && LobbyScreen.CanStartCup && LobbyScreen.LobbyCups().Count > 0);
             if (lobby == LobbyPick.None) return;
             Online.OnlineLobby.Changed += OnLobbyChanged;
             if (lobby == LobbyPick.Vote) voteClock = Root.schedule.Execute(ShowVoteTime).Every(250);

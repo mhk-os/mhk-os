@@ -18,7 +18,8 @@ namespace MHK.UI
     /// points), ranked together by set points, and a tile for the free places up to the room size. Side: the player's
     /// driver and kart (the Character and Kart pages limited to the lobby's content), Ready in private rooms, Vote while
     /// voting (the Track page with the lobby's tracks and Random, opened by itself when voting starts), Race AI while the
-    /// player is alone in a public lobby without AI, the owner's Start and Room settings, the last race's results (names
+    /// player is alone in a public lobby without AI, the owner's Start (in owner-pick race rooms the Track page, which
+    /// between sets also offers the lobby's cups: a cup is then the set) and Room settings, the last race's results (names
     /// with rank and player card, AI drivers marked) and Leave. Races start from RaceSetup (OnlineRace) and come back here
     /// with <see cref="OnlineLobby.ReturnToLobby"/>.
     /// </summary>
@@ -46,6 +47,7 @@ namespace MHK.UI
         [SerializeField] string readyText = "Ready", notReadyText = "Ready?";
         [SerializeField] string voteText = "Vote", changeVoteText = "Change vote";
         [SerializeField] string startVoteText = "Start voting", pickTrackText = "Choose track";
+        [SerializeField, Tooltip("Start of an owner-pick race room between sets when the room's content has cups.")] string pickTrackOrCupText = "Choose track or cup";
         [SerializeField] string soloText = "Race AI while you wait";
         [SerializeField, Tooltip("Championship start. {0} = next track of the cup.")] string startCupFormat = "Start: {0}";
         [SerializeField] string lastRaceTitle = "Last race", setTitle = "Set results", soloTitle = "Last race vs AI";
@@ -95,6 +97,30 @@ namespace MHK.UI
             }
         }
 
+        /// <summary>
+        /// The player owns the current lobby, a waiting race room where the owner picks the tracks, between sets: the
+        /// next set may be a cup (<see cref="LobbyCups"/>, <see cref="StartCup"/>) instead of a single track.
+        /// </summary>
+        public static bool CanStartCup
+        {
+            get
+            {
+                var lobby = OnlineLobby.Current;
+                return lobby != null && lobby.IsPrivate && OnlineLobby.IsOwner && lobby.Phase == LobbyPhase.Waiting && lobby.settings.mode == RoomMode.RaceSet
+                       && lobby.settings.OwnerPicks && lobby.setRace == 0 && !lobby.RunsCup;
+            }
+        }
+
+        /// <summary>The cups of the current lobby's content whose tracks are all race tracks of it (1 to a set's races), in cup order.</summary>
+        public static List<CupDefinition> LobbyCups()
+        {
+            var tracks = LobbyContent<TrackDefinition>();
+            var cups = LobbyContent<CupDefinition>().FindAll(c => c.tracks.Count > 0 && c.tracks.Count <= LobbyLimits.CupTracks
+                                                                  && c.tracks.TrueForAll(t => t != null && t.layout == TrackLayout.Circuit && tracks.Contains(t)));
+            cups.Sort((a, b) => a.order.CompareTo(b.order));
+            return cups;
+        }
+
         /// <summary>The menu as title → Online → lobby, the lobby on top (after a card page, a race or a link).</summary>
         public static void Return(MenuFlow flow)
         {
@@ -122,6 +148,13 @@ namespace MHK.UI
         public static void StartOn(MenuFlow flow, string trackId)
         {
             Report(flow, OnlineLobby.StartRace(trackId));
+            Return(flow);
+        }
+
+        /// <summary>Cup page of the room owner: starts <paramref name="cup"/> as the next set and returns to the lobby.</summary>
+        public static void StartCup(MenuFlow flow, CupDefinition cup)
+        {
+            Report(flow, OnlineLobby.StartCup(cup.Id, cup.tracks.ConvertAll(t => t.Id)));
             Return(flow);
         }
 
@@ -271,6 +304,7 @@ namespace MHK.UI
             Q<VisualElement>("phase-icon").SetIcon(icon);
             var parts = new List<string>();
             if (lobby.setRace > 0) parts.Add(string.Format(setRaceFormat, lobby.setRace, lobby.setSize));
+            if (lobby.RunsCup) parts.Add(OnlineUi.CupName(lobby.cupId));
             if (!string.IsNullOrEmpty(lobby.trackId) && lobby.Phase is not (LobbyPhase.Loading or LobbyPhase.Waiting or LobbyPhase.Voting))
                 parts.Add(ContentDisplay.TrackName(lobby.trackId));
             var sub = Q<Label>("phase-sub");
@@ -480,15 +514,18 @@ namespace MHK.UI
 
         string StartLabel(LobbyState lobby)
         {
-            if (lobby.settings.mode == RoomMode.Championship) return string.Format(startCupFormat, ContentDisplay.TrackName(NextChampionshipTrack(lobby)));
-            return lobby.settings.OwnerPicks ? pickTrackText : startVoteText;
+            if (lobby.settings.mode == RoomMode.Championship || lobby.RunsCup) return string.Format(startCupFormat, ContentDisplay.TrackName(NextChampionshipTrack(lobby)));
+            if (!lobby.settings.OwnerPicks) return startVoteText;
+            return CanStartCup && LobbyCups().Count > 0 ? pickTrackOrCupText : pickTrackText;
         }
 
-        // The cup's (or the room's own list's) track after the races of the set so far (a finished set starts over), "" when none.
+        // The owner's running cup's, the championship cup's (or the room's own list's) track after the races of the set
+        // so far (a finished set starts over), "" when none.
         static string NextChampionshipTrack(LobbyState lobby)
         {
-            var s = lobby.settings;
             var done = lobby.setRace;
+            if (lobby.RunsCup) return lobby.cupTrackIds.Count > 0 ? lobby.cupTrackIds[done >= lobby.cupTrackIds.Count ? 0 : done] : "";
+            var s = lobby.settings;
             if (s.CustomTracks) return s.trackIds.Count > 0 ? s.trackIds[done >= s.trackIds.Count ? 0 : done] : "";
             var cup = GameRoot.Instance.Content.Get<CupDefinition>(s.cupId);
             if (cup == null || cup.tracks.Count == 0) return "";
@@ -634,7 +671,7 @@ namespace MHK.UI
         {
             var lobby = OnlineLobby.Current;
             if (lobby == null) return;
-            if (lobby.settings.mode == RoomMode.Championship)
+            if (lobby.settings.mode == RoomMode.Championship || lobby.RunsCup)
             {
                 var r = await OnlineLobby.StartRace(NextChampionshipTrack(lobby));
                 if (!r.Ok) SetStatus(r.message, false);

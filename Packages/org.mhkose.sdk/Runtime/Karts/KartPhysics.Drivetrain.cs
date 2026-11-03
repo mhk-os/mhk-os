@@ -46,13 +46,19 @@ namespace MHK.Karts
         static float ClampSpeedScale(float speedScale) => Mathf.Clamp(speedScale, MinSpeedScale, MaxSpeedScale);
         static float DiffRatio(KartPhysicsProfile p, float classFactor, float speedScale) => p.diffRatio / (classFactor * speedScale);
 
-        // t·T(x)·torqueScale − (1−t)·E(x), T scaled by class factor and mass, E by mass (0x440110). torqueScale
-        // (GameConfig.driveTorqueScale, remake) only scales the drive torque.
-        static float TorqueCurve(KartPhysicsProfile p, float rpm, float throttle, float classFactor, float torqueScale)
+        // t·T(x)·torqueScale − (1−t)·E(x), T scaled by class factor and mass, E by mass (0x440110), split into its two
+        // terms: the drive pushes the way the gear turns the wheels, engine braking holds back the way they roll
+        // (EngineBraking). torqueScale (GameConfig.driveTorqueScale, remake) only scales the drive torque.
+        static float DriveTorque(KartPhysicsProfile p, float rpm, float throttle, float classFactor, float torqueScale)
         {
-            p.EvaluateTorque(rpm, out var t, out var e);
-            throttle = Mathf.Clamp01(throttle);
-            return throttle * t * classFactor * torqueScale * p.mass - (1f - throttle) * e * p.mass;
+            p.EvaluateTorque(rpm, out var t, out _);
+            return Mathf.Clamp01(throttle) * t * classFactor * torqueScale * p.mass;
+        }
+
+        static float EngineBraking(KartPhysicsProfile p, float rpm, float throttle)
+        {
+            p.EvaluateTorque(rpm, out _, out var e);
+            return (1f - Mathf.Clamp01(throttle)) * e * p.mass;
         }
 
         /// <summary>Theoretical top speed (m/s) in top gear at the end of the torque curve (section 7).</summary>
@@ -86,7 +92,7 @@ namespace MHK.Karts
             var wheelForce = p.torqueCoefficientFront / Mathf.Max(0.01f, p.wheelsRadiusFront)
                              + p.torqueCoefficientRear / Mathf.Max(0.01f, p.wheelsRadiusRear);
             var peak = 0f;
-            foreach (var point in p.torqueCurve) peak = Mathf.Max(peak, TorqueCurve(p, point.rpm, 1f, f, torqueScale));
+            foreach (var point in p.torqueCurve) peak = Mathf.Max(peak, DriveTorque(p, point.rpm, 1f, f, torqueScale));
             var gear = 0f;
             foreach (var g in p.gears) gear = Mathf.Max(gear, Mathf.Abs(g));
             return gear * diff * peak * (s * s) * Mathf.Abs(wheelForce) / p.mass;
@@ -169,7 +175,7 @@ namespace MHK.Karts
 
             float Net(int gear, float v)
             {
-                var drive = p.gears[gear] * diff * TorqueCurve(p, Rpm(gear, v), 1f, f, torqueScale) * (s * s) * wheelForce;
+                var drive = p.gears[gear] * diff * DriveTorque(p, Rpm(gear, v), 1f, f, torqueScale) * (s * s) * wheelForce;
                 return drive - (LinearDamping * p.mass * v + drag * v * v);
             }
 

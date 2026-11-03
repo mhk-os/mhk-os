@@ -21,8 +21,10 @@ MonoBehaviour:
   heldPrefab: {fileID: 0}
   heldMount: 0
   charges: 1
+  battleCharges: 0
   useCooldown: 0
   excludeFromItemBoxes: 0
+  battleOnly: 0
   weightByPosition:
     serializedVersion: 2
     m_Curve:
