@@ -83,9 +83,8 @@ namespace MHK.Modding
             s.downloadBytes = s.latest?.zipSize ?? 0;
         }
 
-        // Releases come newest first. The first with a usable mod.json tells whether the newest is made for a newer or an
-        // older game, the first with this game's mod API level (ModSdk.Level: a mod.json without sdkApi predates the level
-        // and has the first one) and this platform's zip is the one to install.
+        // Releases are ordered by publication time. The first usable mod.json tells whether the newest is made for a
+        // newer or older game; the first with this game's mod API level and this platform's zip is the one to install.
         static async Awaitable ChooseModAsync(Source s, GitHubRelease[] releases, RepoCache cache, CancellationToken ct)
         {
             var target = ModSdk.CurrentBuildTarget;
