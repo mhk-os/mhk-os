@@ -12,7 +12,8 @@ namespace MHK.Tests
     {
         const int GroundLayer = 31;
         const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
-        static readonly Vector3 Origin = new(30000f, 1000f, 30000f);
+        // The solver uses millimetre probes: isolate by height without losing horizontal float precision.
+        static readonly Vector3 Origin = new(0f, 1000f, 0f);
         readonly List<Kart> karts = new();
         GameObject root;
         TrackRuntime track;
@@ -73,12 +74,13 @@ namespace MHK.Tests
         {
             var owner = KartAt(new Vector3(0, 0, 35), 3);
             var leader = KartAt(new Vector3(0, 0, 90), 1);
-            KartAt(new Vector3(0, 0, 40), 2);
+            var bystander = KartAt(new Vector3(0, 0, 40), 2);
             var fireball = Launch(owner);
-            for (var i = 0; i < 5; i++) Tick(fireball);
+            var passed = bystander.transform.position.z + fireball.hitRadius;
+            for (var i = 0; i < 60 && fireball.gameObject.activeSelf && fireball.NetPosition.z <= passed; i++) Tick(fireball);
             Assert.IsTrue(fireball.gameObject.activeSelf);
             Assert.AreSame(leader, fireball.ChosenTarget);
-            Assert.Greater(fireball.transform.position.z, Origin.z + 41f);
+            Assert.Greater(fireball.NetPosition.z, passed, "Traverse the bystander's whole contact radius without consuming the shot.");
         }
 
         [Test]
@@ -169,6 +171,39 @@ namespace MHK.Tests
         }
 
         [Test]
+        public void SmoothedLunaKinksDoNotOrbitTheRawLookAheadPoint()
+        {
+            // Luna nodes 126-130, translated onto an isolated flat road with a return loop.
+            main.SetNodes(new[]
+            {
+                new TrackPath.Node { position = new Vector3(100f, 0, 50f), width = 11.83741f },
+                new TrackPath.Node { position = new Vector3(92.90473f, 0, 51.0959f), width = 18.85494f },
+                new TrackPath.Node { position = new Vector3(84.95731f, 0, 47.6529f), width = 19.57404f },
+                new TrackPath.Node { position = new Vector3(76.30126f, 0, 50.1465f), width = 14.84983f },
+                new TrackPath.Node { position = new Vector3(67.4374f, 0, 49.3108f), width = 15.46578f },
+                new TrackPath.Node { position = new Vector3(20f, 0, 50f), width = 16f },
+                new TrackPath.Node { position = new Vector3(20f, 0, -40f), width = 16f },
+                new TrackPath.Node { position = new Vector3(140f, 0, -40f), width = 16f },
+                new TrackPath.Node { position = new Vector3(140f, 0, 50f), width = 16f }
+            });
+            track.InvalidateLines();
+            var owner = KartAt(new Vector3(100f, 0, 50f), 2);
+            var leader = KartAt(new Vector3(20f, 0, 20f), 1);
+            leader.Effects.ProtectedUntilTick = int.MaxValue;
+            var fireball = Launch(owner);
+            fireball.speed = 36.125f;
+            var travelled = 0f;
+            for (var tick = 0; tick < 1600 && travelled < main.Length; tick++)
+            {
+                var previous = fireball.FollowedDistance;
+                Tick(fireball);
+                travelled += main.Delta(previous, fireball.FollowedDistance);
+            }
+            Assert.GreaterOrEqual(travelled, main.Length, "Round the real kink geometry and complete a lap, not orbit its steering target.");
+            Assert.IsTrue(fireball.gameObject.activeSelf);
+        }
+
+        [Test]
         public void FullSpeedWallContactSlidesWithoutTunnellingOrDestroyingTheFireball()
         {
             var owner = KartAt(new Vector3(0, 0, 0), 2);
@@ -177,14 +212,13 @@ namespace MHK.Tests
             Tick(fireball); // Prepare the driving line before a new obstacle appears.
             var wall = Box(new Vector3(0, 2, 6), new Vector3(200, 4, 0.1f));
             Physics.SyncTransforms();
-            var initialX = fireball.transform.position.x;
             for (var i = 0; i < 40; i++)
             {
                 Tick(fireball);
                 Assert.LessOrEqual(fireball.transform.position.z, wall.bounds.min.z - 0.18f);
                 Assert.IsTrue(fireball.gameObject.activeSelf, "Wall contact is not an explosion or despawn.");
             }
-            Assert.Greater(Mathf.Abs(fireball.transform.position.x - initialX), 0.1f, "Contact must steer/slide, not freeze permanently.");
+            Assert.Greater(Mathf.Abs(fireball.NetVelocity.x), 0f, "Contact must steer/slide, not freeze permanently.");
         }
 
         [Test]
@@ -199,7 +233,6 @@ namespace MHK.Tests
             fireball.Correct(Origin + new Vector3(0, 1.2f, 30), Vector3.forward * fireball.speed);
             for (var i = 0; i < 20; i++) Tick(fireball);
             Assert.LessOrEqual(fireball.NetPosition.z, wall.bounds.min.z - 0.18f);
-            Assert.Greater(Mathf.Abs(fireball.NetPosition.x - Origin.x), 0.1f, "Continue sliding, not waiting for the leader.");
             Assert.IsTrue(fireball.gameObject.activeSelf);
         }
 

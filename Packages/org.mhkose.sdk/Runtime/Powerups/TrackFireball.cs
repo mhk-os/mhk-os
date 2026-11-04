@@ -315,24 +315,20 @@ namespace MHK.Powerups
         {
             var path = FollowedPath;
             var d = FollowedDistance;
+            var samePath = target != null && target.Progress.CurrentBranch == (routeIndex >= 0 ? path : null);
+            var td = samePath ? (routeIndex >= 0 ? target.Progress.BranchDistance : target.Progress.PathDistance) : 0f;
+            var gap = samePath ? path.Delta(d, td) : float.PositiveInfinity;
+            // Finish the approach at the kart, not a look-ahead point beyond it. Skip line solving for direct contact.
+            if (gap >= 0f && gap <= lookAhead) return target.transform.position;
             var margin = GameRoot.Instance != null && GameRoot.Instance.Config != null
                 ? GameRoot.Instance.Config.aiRacingLineMargin : collisionRadius;
             var road = AIRacingLine.Of(track, path, margin);
-            var ahead = d + lookAhead;
+            var ahead = road.LookAheadDistance(transform.position, d, lookAhead, 0);
             var lane = road.Lane(ahead, 0);
-            var samePath = target != null && target.Progress.CurrentBranch == (routeIndex >= 0 ? path : null);
-            if (samePath)
+            if (gap >= 0f && gap < TargetLaneReach)
             {
-                var td = routeIndex >= 0 ? target.Progress.BranchDistance : target.Progress.PathDistance;
-                var gap = path.Delta(d, td);
-                // Finish the approach at the kart, not another look-ahead point beyond it. Otherwise a leader near
-                // the road edge can be passed before the lane blend ever brings the fireball into contact.
-                if (gap >= 0f && gap <= lookAhead) return target.transform.position;
-                if (gap >= 0f && gap < TargetLaneReach)
-                {
-                    var targetLane = Mathf.Clamp(road.RoadLaneOf(target.transform.position, td), 0.05f, 0.95f);
-                    lane = Mathf.Lerp(lane, targetLane, 1f - gap / TargetLaneReach);
-                }
+                var targetLane = Mathf.Clamp(road.RoadLaneOf(target.transform.position, td), 0.05f, 0.95f);
+                lane = Mathf.Lerp(lane, targetLane, 1f - gap / TargetLaneReach);
             }
             return road.PointAt(ahead, lane);
         }

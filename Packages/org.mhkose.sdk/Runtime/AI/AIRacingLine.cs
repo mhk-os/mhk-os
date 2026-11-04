@@ -122,6 +122,69 @@ namespace MHK.AI
             return new Vector3(p.x, height, p.y);
         }
 
+        /// <summary>
+        /// Steering distance reached by projecting onto the solved line, then advancing in world metres. At a rounded
+        /// corner raw track distances can bunch up at almost the same world point; adding a raw look-ahead would orbit it.
+        /// </summary>
+        public float LookAheadDistance(Vector3 position, float near, float ahead, int line)
+        {
+            var offsets = Offsets(line);
+            var reach = Mathf.Max(sampleSpacing, Width(near));
+            var first = Mathf.FloorToInt((near - reach - Start) / sampleSpacing);
+            var last = Mathf.CeilToInt((near + reach - Start) / sampleSpacing);
+            if (!closed)
+            {
+                first = Mathf.Clamp(first, 0, road.n - 2);
+                last = Mathf.Clamp(last, 0, road.n - 2);
+            }
+            var point = new Vector2(position.x, position.z);
+            var index = closed ? (first % road.n + road.n) % road.n : first;
+            var a = frameCentre[index] + frameSide[index] * offsets[index];
+            var best = float.PositiveInfinity;
+            var segmentIndex = first;
+            var fraction = 0f;
+            var closest = a;
+            for (var i = first; i <= last; i++)
+            {
+                var next = closed ? (index + 1) % road.n : index + 1;
+                var b = frameCentre[next] + frameSide[next] * offsets[next];
+                var segment = b - a;
+                var t = Mathf.Clamp01(Vector2.Dot(point - a, segment) / Mathf.Max(1e-8f, segment.sqrMagnitude));
+                var projected = a + segment * t;
+                var score = (point - projected).sqrMagnitude;
+                if (score < best)
+                {
+                    best = score;
+                    segmentIndex = i;
+                    fraction = t;
+                    closest = projected;
+                }
+                a = b;
+                index = next;
+            }
+            index = closed ? (segmentIndex % road.n + road.n) % road.n : segmentIndex;
+            a = closest;
+            for (var step = 0; step < road.n; step++)
+            {
+                var next = closed ? (index + 1) % road.n : index + 1;
+                var b = frameCentre[next] + frameSide[next] * offsets[next];
+                var span = Vector2.Distance(a, b);
+                if (ahead <= span)
+                {
+                    var t = Mathf.Lerp(fraction, 1f, ahead / Mathf.Max(1e-8f, span));
+                    var distance = Start + (segmentIndex + t) * sampleSpacing;
+                    return closed ? path.WrapDistance(distance) : distance;
+                }
+                ahead -= span;
+                if (!closed && next == road.n - 1) return End;
+                a = b;
+                index = next;
+                segmentIndex++;
+                fraction = 0f;
+            }
+            return closed ? path.WrapDistance(Start + segmentIndex * sampleSpacing) : End;
+        }
+
         /// <summary>Road lane (unclamped) of <paramref name="position"/> beside <paramref name="distance"/>.</summary>
         public float RoadLaneOf(Vector3 position, float distance)
         {
