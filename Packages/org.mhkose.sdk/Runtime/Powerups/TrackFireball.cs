@@ -17,12 +17,10 @@ namespace MHK.Powerups
         const float JunctionMargin = 0.5f;
         const float ForkReach = AIRacingLine.RouteRunOn + 5f;
         const float TargetLaneReach = 12f;
-        const float TargetBodyHeight = 0.7f;
 
         [Header("Track flight")]
         [SerializeField] float hoverHeight = 1.2f;
         [SerializeField] float collisionRadius = 0.2f;
-        [SerializeField] float ownerImmunity = 2f;
         [SerializeField] float lookAhead = 3f;
         [SerializeField] float turnRateDegrees = 900f;
         [Tooltip("A centered visual pivot. Only this child spins; navigation rotates the root around world up.")]
@@ -30,10 +28,24 @@ namespace MHK.Powerups
         [SerializeField] float spinDegreesPerSecond = 720f;
 
         [Header("Leader pursuit")]
-        [Tooltip("Slow from full flight speed to the leader's normal cruising pace inside this track distance.")]
-        [SerializeField, Min(0.1f)] float leaderSlowDistance = 12.75f;
+        [Tooltip("Slow from full flight speed to the leader's normal cruising pace inside this distance from its rear chassis.")]
+        [SerializeField, Min(0.1f)] float leaderSlowDistance = 4f;
         [Tooltip("Close pursuit uses this share of the leader's unboosted top speed, not its instantaneous speed: braking lets the fireball catch up.")]
-        [SerializeField, Range(0.1f, 1f)] float leaderSpeedShare = 0.65f;
+        [SerializeField, Range(0.1f, 1f)] float leaderSpeedShare = 0.95f;
+        [Tooltip("Drive forwards without targeting the launcher during these first seconds. Other leaders can be targeted immediately.")]
+        [SerializeField, Min(0f)] float selfTargetDelay = 1f;
+        [Tooltip("Side-to-side aim drift in metres during close pursuit. Fades out at contact and stays inside the drivable road.")]
+        [SerializeField, Min(0f)] float pursuitDriftWidth = 0.65f;
+        [SerializeField, Min(0.1f)] float pursuitDriftPeriod = 2.4f;
+
+        [Header("Ahead waiting")]
+        [SerializeField, Min(0f)] float waitingCreepSpeed = 3f;
+        [SerializeField, Range(0.1f, 1f)] float waitingNearSpeedShare = 0.85f;
+        [SerializeField, Min(0.01f)] float waitingPulsePeriod = 0.5f;
+        [SerializeField, Min(0.01f)] float waitingPulseDuration = 0.2f;
+
+        [Header("End effect")]
+        [SerializeField] GameObject endVfx;
 
         readonly RaycastHit[] sweepHits = new RaycastHit[16];
         readonly Collider[] overlaps = new Collider[16];
@@ -41,8 +53,8 @@ namespace MHK.Powerups
         TrackPath main;
         int mainHint = -1, routeHint = -1, routeIndex = -1;
         float mainDistance, routeDistance, raceDistance;
-        bool enteredRoute, holding;
-        Vector3 direction, correction, velocity;
+        bool enteredRoute, holding, ownerCleared;
+        Vector3 direction, flightCorrection, velocity;
         Quaternion visualRotation;
         float spin;
 
@@ -57,20 +69,38 @@ namespace MHK.Powerups
         public void Correct(Vector3 position, Vector3 newVelocity)
         {
             // Base ApplyCorrection moves without a collision query. Keep this correction swept too, even while waiting.
-            correction = position - SimulatedPosition;
+            flightCorrection = position - SimulatedPosition;
             newVelocity.y = 0f;
             if (newVelocity.sqrMagnitude > 0.01f) direction = newVelocity.normalized;
         }
 
-        protected internal override float NetHitReach => hitRadius + TargetBodyHeight;
+        protected internal override float NetHitReach
+        {
+            get
+            {
+                if (hitRadius <= 0f) return 0f;
+                // A confirmed victim may no longer be the leader. Cover any active chassis, not just the current target.
+                var reach = 0f;
+                var karts = Kart.All;
+                for (var i = 0; i < karts.Count; i++)
+                {
+                    var kart = karts[i];
+                    var chassis = kart.Physics.Chassis;
+                    if (chassis == null) continue;
+                    var bounds = chassis.bounds;
+                    reach = Mathf.Max(reach, (bounds.center - kart.transform.position).magnitude + bounds.extents.magnitude);
+                }
+                return hitRadius + reach;
+            }
+        }
         // Race order may change while a confirmed hit is in flight; it still spends this shot.
-        protected internal override void OnNetHit(Kart victim) => Despawn(null, SimulatedPosition, hitSound);
+        protected internal override void OnNetHit(Kart victim) => Despawn(endVfx, SimulatedPosition, hitSound);
 
         protected override void OnLaunch()
         {
             track = TrackRuntime.Current;
             main = track != null && track.HasMainPath ? track.MainPath : null;
-            ChosenTarget = PowerupTargeting.RaceLeader();
+            ChosenTarget = LeaderTarget();
             transform.position = Owner.transform.position + Vector3.up * hoverHeight;
             if (main != null)
             {
@@ -89,30 +119,36 @@ namespace MHK.Powerups
             if (visual != null) visualRotation = visual.localRotation;
             PlayLaunch();
             InterpolatePose();
+            // Spare the launcher only while leaving its body, never for a timed grace period after locking on.
+            ownerCleared = !LeaderContact(Owner, transform.position, transform.position, out _);
         }
 
         protected override void Step(float dt)
         {
-            if (TickLifetime(dt, null)) return;
-            ChosenTarget = PowerupTargeting.RaceLeader();
+            if (TickLifetime(dt, endVfx)) return;
+            ChosenTarget = LeaderTarget();
             SpinVisual(dt);
             holding = false;
             velocity = Vector3.zero;
-            if (correction.sqrMagnitude > 0.000001f)
+            if (flightCorrection.sqrMagnitude > 0.000001f)
             {
                 var from = transform.position;
-                var move = correction * 0.2f;
+                var move = flightCorrection * 0.2f;
                 var clear = SweepMove(from, from + move, out var corrected, out _);
                 transform.position = corrected;
-                correction = clear ? correction - move : Vector3.zero;
+                flightCorrection = clear ? flightCorrection - move : Vector3.zero;
             }
             var target = ChosenTarget;
             var targetReady = target != null && !target.Effects.HasRespawnPending && !target.Effects.RespawnProtected;
+            if (!ownerCleared && !LeaderContact(Owner, transform.position, transform.position, out _)) ownerCleared = true;
+            // Contact is decisive even while stationary, waiting, or already exactly on the steering aim point.
+            if (targetReady && TryHitLeader(target, transform.position, transform.position)) return;
             if (main == null)
             {
                 holding = true;
                 return;
             }
+            var rearReach = targetReady ? RearReach(target) : 0f;
             var steps = Mathf.Max(1, Mathf.CeilToInt(speed * dt / MaxSubstepDistance));
             var subDt = dt / steps;
             for (var i = 0; i < steps; i++)
@@ -124,20 +160,23 @@ namespace MHK.Powerups
                     break;
                 }
                 var gap = targetReady ? target.Progress.RaceDistance - raceDistance : float.PositiveInfinity;
-                if (gap < 0f)
+                var waiting = gap < 0f;
+                var travelSpeed = waiting ? WaitingSpeed(target, -gap) : PursuitSpeed(targetReady ? target : null, gap - rearReach);
+                if (waiting)
                 {
-                    // An active leader behind us must drive up to the fireball. Respawning leaders never park it.
-                    holding = true;
-                    TryHitLeader(target, transform.position, transform.position);
-                    return;
+                    if (travelSpeed <= 0f)
+                    {
+                        holding = true;
+                        return;
+                    }
                 }
-                var aim = AimPoint(targetReady ? target : null);
+                var aim = AimPoint(waiting || !targetReady ? null : target, rearReach);
                 var desired = Vector3.ProjectOnPlane(aim - transform.position, Vector3.up);
                 if (desired.sqrMagnitude < 0.0001f) { holding = true; break; }
                 var turn = Vector3.Angle(direction, desired);
                 direction = Vector3.RotateTowards(direction, desired.normalized, turnRateDegrees * Mathf.Deg2Rad * subDt, 0f);
                 // Brake into a tight turn instead of overshooting the road at full straight-line speed.
-                var travelSpeed = PursuitSpeed(targetReady ? target : null, gap) * Mathf.Clamp01(1f - turn / 100f);
+                travelSpeed *= Mathf.Clamp01(1f - turn / 100f);
                 var from = transform.position;
                 var to = Hover(from + direction * (travelSpeed * subDt));
                 var clear = SweepMove(from, to, out var reached, out var wallNormal);
@@ -164,13 +203,42 @@ namespace MHK.Powerups
             }
         }
 
+        Kart LeaderTarget()
+        {
+            var leader = PowerupTargeting.RaceLeader();
+            return leader == Owner && Age < selfTargetDelay ? null : leader;
+        }
+
+        float RearReach(Kart target)
+        {
+            var chassis = target.Physics.Chassis;
+            if (chassis == null) return 0f;
+            var t = chassis.transform;
+            var scale = t.lossyScale;
+            var half = Vector3.Scale(chassis.size * 0.5f, new Vector3(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+            var back = -direction;
+            return Mathf.Max(0f, Vector3.Dot(t.TransformPoint(chassis.center) - target.transform.position, back)
+                + half.x * Mathf.Abs(Vector3.Dot(t.right, back))
+                + half.y * Mathf.Abs(Vector3.Dot(t.up, back))
+                + half.z * Mathf.Abs(Vector3.Dot(t.forward, back)));
+        }
+
         float PursuitSpeed(Kart target, float gap)
         {
             if (target == null || gap >= leaderSlowDistance) return speed;
             var closeSpeed = Mathf.Min(speed, target.NormalTopSpeed * leaderSpeedShare);
             // A close-speed plateau keeps a cruising leader outside contact range instead of guaranteeing a hit.
-            var approach = Mathf.InverseLerp(leaderSlowDistance * 0.5f, leaderSlowDistance, gap);
+            var approach = Mathf.InverseLerp(leaderSlowDistance * 0.45f, leaderSlowDistance, gap);
             return Mathf.Lerp(closeSpeed, speed, approach);
+        }
+
+        float WaitingSpeed(Kart target, float distance)
+        {
+            // Launch age is fixed-step and fast-forwarded online, so each client uses the same pulse clock.
+            if (Mathf.Repeat(Age, waitingPulsePeriod) >= waitingPulseDuration) return 0f;
+            var creep = Mathf.Min(speed, waitingCreepSpeed);
+            var near = Mathf.Clamp(target.NormalTopSpeed * waitingNearSpeedShare, creep, speed);
+            return Mathf.Lerp(near, creep, Mathf.Clamp01(distance / leaderSlowDistance));
         }
 
         void SpinVisual(float dt)
@@ -311,26 +379,52 @@ namespace MHK.Powerups
             }
         }
 
-        Vector3 AimPoint(Kart target)
+        Vector3 AimPoint(Kart target, float rearReach)
         {
             var path = FollowedPath;
             var d = FollowedDistance;
             var samePath = target != null && target.Progress.CurrentBranch == (routeIndex >= 0 ? path : null);
             var td = samePath ? (routeIndex >= 0 ? target.Progress.BranchDistance : target.Progress.PathDistance) : 0f;
-            var gap = samePath ? path.Delta(d, td) : float.PositiveInfinity;
-            // Finish the approach at the kart, not a look-ahead point beyond it. Skip line solving for direct contact.
-            if (gap >= 0f && gap <= lookAhead) return target.transform.position;
+            var gap = samePath ? path.Delta(d, td) - rearReach : float.PositiveInfinity;
+            var close = gap >= 0f && gap <= lookAhead;
+            var drift = 0f;
+            if (gap >= 0f && gap < TargetLaneReach && pursuitDriftWidth > 0f)
+            {
+                // Launch age also advances during online catch-up. Fade the weave before contact so a brief
+                // hesitation still gets caught instead of sending the fireball around the leader.
+                var weight = Mathf.InverseLerp(hitRadius, hitRadius + 0.5f, gap)
+                    * (1f - Mathf.InverseLerp(lookAhead, TargetLaneReach, gap));
+                drift = Mathf.Sin(Age * (2f * Mathf.PI / pursuitDriftPeriod)) * pursuitDriftWidth * weight;
+            }
+            // Finish the approach at the actual kart, not a projected point beyond it.
+            if (close && drift == 0f) return target.transform.position;
             var margin = GameRoot.Instance != null && GameRoot.Instance.Config != null
                 ? GameRoot.Instance.Config.aiRacingLineMargin : collisionRadius;
             var road = AIRacingLine.Of(track, path, margin);
+            if (close)
+            {
+                var targetLane = road.RoadLaneOf(target.transform.position, td);
+                var driftLane = DriftLane(road, td, targetLane, drift);
+                return target.transform.position + (road.PointAt(td, driftLane) - road.PointAt(td, targetLane));
+            }
             var ahead = road.LookAheadDistance(transform.position, d, lookAhead, 0);
             var lane = road.Lane(ahead, 0);
             if (gap >= 0f && gap < TargetLaneReach)
             {
                 var targetLane = Mathf.Clamp(road.RoadLaneOf(target.transform.position, td), 0.05f, 0.95f);
                 lane = Mathf.Lerp(lane, targetLane, 1f - gap / TargetLaneReach);
+                if (drift != 0f) lane = DriftLane(road, ahead, lane, drift);
             }
             return road.PointAt(ahead, lane);
+        }
+
+        float DriftLane(AIRacingLine road, float distance, float lane, float drift)
+        {
+            var width = road.Width(distance);
+            road.RoadEdges(distance, out var left, out var right);
+            var inset = Mathf.Min(collisionRadius / width, (right - left) * 0.5f);
+            // If the kart is already outside the solved edges, only limit outward drift; don't snap the aim back in.
+            return Mathf.Clamp(lane + drift / width, Mathf.Min(lane, left + inset), Mathf.Max(lane, right - inset));
         }
 
         Vector3 Hover(Vector3 position)
@@ -372,15 +466,31 @@ namespace MHK.Powerups
             return allowed >= length;
         }
 
+        bool LeaderContact(Kart target, Vector3 from, Vector3 to, out Vector3 contact)
+        {
+            contact = to;
+            if (target == null || hitRadius <= 0f) return false;
+            var chassis = target.Physics.Chassis;
+            if (chassis == null || !chassis.enabled || !chassis.gameObject.activeInHierarchy) return false;
+            var count = Physics.OverlapCapsuleNonAlloc(from, to, hitRadius, overlaps,
+                1 << chassis.gameObject.layer, QueryTriggerInteraction.Ignore);
+            for (var i = 0; i < count; i++)
+            {
+                if (overlaps[i] != chassis) continue;
+                var nearest = GeometryUtil.ClosestOnSegment(chassis.bounds.center, from, to, 1e-8f);
+                contact = chassis.ClosestPoint(nearest);
+                // Reaching the body through a wall is still not contact.
+                return !Physics.Linecast(from, contact, ObstacleMask, QueryTriggerInteraction.Ignore);
+            }
+            return false;
+        }
+
         bool TryHitLeader(Kart target, Vector3 from, Vector3 to)
         {
-            if (target == Owner && Age < ownerImmunity) return false;
-            var centre = target.transform.position + Vector3.up * TargetBodyHeight;
-            if (GeometryUtil.DistanceSqToSegment(centre, from, to, 1e-8f, 1f) > hitRadius * hitRadius) return false;
-            // The contact radius must not boil a racer on the other side of a thin solid wall.
-            if (Physics.Linecast(to, centre, ObstacleMask, QueryTriggerInteraction.Ignore)) return false;
+            if (target == Owner && !ownerCleared) return false;
+            if (!LeaderContact(target, from, to, out var contact)) return false;
             HitKart(target, hitEffect);
-            Despawn(null, to, hitSound);
+            Despawn(endVfx, contact, hitSound);
             return true;
         }
     }

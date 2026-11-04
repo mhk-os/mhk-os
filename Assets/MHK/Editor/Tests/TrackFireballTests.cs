@@ -70,6 +70,44 @@ namespace MHK.Tests
         }
 
         [Test]
+        public void LeadingLauncherGetsForwardFlightBeforeSelfTargeting()
+        {
+            var owner = KartAt(new Vector3(0, 0, 10), 1);
+            KartAt(new Vector3(0, 0, 90), 2);
+            var fireball = Launch(owner, selfTargetDelay: 1f);
+            fireball.speed = 36.125f;
+            Assert.IsNull(fireball.ChosenTarget);
+            var start = fireball.NetPosition;
+            var dt = Time.fixedDeltaTime;
+            var graceTicks = Mathf.FloorToInt(0.75f / dt);
+            for (var i = 0; i < graceTicks; i++)
+            {
+                Tick(fireball);
+                Assert.IsNull(fireball.ChosenTarget, "Release must not immediately lock onto the leading launcher.");
+            }
+            Assert.Greater(fireball.NetPosition.z - start.z, 20f, "The launch window drives forwards instead of waiting ahead.");
+            for (var i = graceTicks; i < Mathf.CeilToInt(1.1f / dt); i++) Tick(fireball);
+            Assert.AreSame(owner, fireball.ChosenTarget, "A leading launcher becomes eligible after the short launch window.");
+        }
+
+        [Test]
+        public void LaunchWindowDelaysOnlyTheOwnerAndAdaptsToRankChanges()
+        {
+            var owner = KartAt(new Vector3(0, 0, 10), 2);
+            var other = KartAt(new Vector3(0, 0, 90), 1);
+            var fireball = Launch(owner, selfTargetDelay: 1f);
+            Assert.AreSame(other, fireball.ChosenTarget, "Launching must not delay pursuit of another leader.");
+            Rank(owner, 1);
+            Rank(other, 2);
+            Tick(fireball);
+            Assert.IsNull(fireball.ChosenTarget, "Becoming leader during the launch window does not cancel its protection.");
+            Rank(owner, 2);
+            Rank(other, 1);
+            Tick(fireball);
+            Assert.AreSame(other, fireball.ChosenTarget, "Another leader is immediately eligible during that same window.");
+        }
+
+        [Test]
         public void BystandersInTheSweptFlightPathDoNotReplaceOrAbsorbTheLeader()
         {
             var owner = KartAt(new Vector3(0, 0, 35), 3);
@@ -268,36 +306,288 @@ namespace MHK.Tests
         }
 
         [Test]
-        public void AheadOfActiveLeaderWaitsButRespawningLeaderDoesNotParkIt()
+        public void AheadWaitingStepsForwardAndAcceleratesWhenTheLeaderApproaches()
         {
-            var owner = KartAt(new Vector3(0, 0, 35), 1);
-            KartAt(new Vector3(0, 0, 90), 2);
-            var fireball = Launch(owner);
-            var waitingAt = fireball.NetPosition;
-            for (var i = 0; i < 10; i++) Tick(fireball);
-            Assert.AreEqual(waitingAt, fireball.NetPosition);
-            Assert.AreEqual(Vector3.zero, fireball.NetVelocity);
-            owner.Effects.ProtectedUntilTick = int.MaxValue;
-            for (var i = 0; i < 10; i++) Tick(fireball);
-            Assert.Greater(fireball.NetPosition.z, waitingAt.z + 5f);
-            owner.Effects.ProtectedUntilTick = 0;
-            Tick(fireball);
-            Assert.AreEqual(Vector3.zero, fireball.NetVelocity, "Once active again, the leader behind it is waited for.");
+            var owner = KartAt(new Vector3(0, 0, 35), 2);
+            var leader = KartAt(Vector3.zero, 1);
+            var profile = CruisingProfile(leader);
+            try
+            {
+                var fireball = Launch(owner);
+                var start = fireball.NetPosition;
+                var sawPause = false;
+                var sawStep = false;
+                var ticks = Mathf.CeilToInt(1f / Time.fixedDeltaTime);
+                for (var i = 0; i < ticks; i++)
+                {
+                    Tick(fireball);
+                    sawPause |= fireball.NetVelocity == Vector3.zero;
+                    sawStep |= fireball.NetVelocity.z > 0f;
+                }
+                var farTravel = fireball.NetPosition.z - start.z;
+                Assert.IsTrue(sawPause && sawStep, "Waiting consists of forward increments separated by pauses.");
+                Move(leader, fireball.FollowedDistance - 2.5f, 0f);
+                var nearStart = fireball.NetPosition;
+                for (var i = 0; i < ticks; i++) Tick(fireball);
+                Assert.Greater(fireball.NetPosition.z - nearStart.z, farTravel,
+                    "The same waiting interval advances further when the leader is nearby.");
+                leader.Effects.ProtectedUntilTick = int.MaxValue;
+                Tick(fireball);
+                Assert.Greater(fireball.NetVelocity.magnitude, leader.NormalTopSpeed,
+                    "Respawn protection resumes full route traversal instead of the waiting steps.");
+            }
+            finally { Object.DestroyImmediate(profile); }
+        }
+
+        [TestCase(8f)]
+        [TestCase(1.2f)]
+        public void ClosePursuitMovesAcrossBothSidesOfCruisingLeaderWithinTheRoad(float roadWidth)
+        {
+            var nodes = new TrackPath.Node[main.Nodes.Count];
+            for (var i = 0; i < nodes.Length; i++)
+            {
+                nodes[i] = main.Nodes[i];
+                nodes[i].width = roadWidth;
+            }
+            main.SetNodes(nodes);
+            track.InvalidateLines();
+            var owner = KartAt(new Vector3(0, 0, 10), 2);
+            var leader = KartAt(new Vector3(0, 0, 13), 1);
+            var profile = CruisingProfile(leader);
+            try
+            {
+                var fireball = Launch(owner);
+                fireball.speed = 36.125f;
+                fireball.hitRadius = 0f;
+                var distance = 13f;
+                var cruise = leader.NormalTopSpeed;
+                var dt = Time.fixedDeltaTime;
+                var left = float.PositiveInfinity;
+                var right = float.NegativeInfinity;
+                for (var i = 0; i < Mathf.CeilToInt(2.8f / dt); i++)
+                {
+                    distance += cruise * dt;
+                    Move(leader, distance, cruise);
+                    var previous = fireball.NetPosition;
+                    Tick(fireball);
+                    var lateral = Vector3.Dot(fireball.NetPosition - leader.transform.position, leader.transform.right);
+                    left = Mathf.Min(left, lateral);
+                    right = Mathf.Max(right, lateral);
+                    Assert.LessOrEqual(Mathf.Abs(lateral), 1f, "The visible weave stays mild.");
+                    var lane = main.GetRoadLane(fireball.NetPosition, fireball.FollowedDistance,
+                        main.GetWidth(fireball.FollowedDistance));
+                    Assert.That(lane, Is.InRange(0f, 1f), "The physical projectile stays inside the road, including on a narrow track.");
+                    Assert.LessOrEqual(Vector3.Distance(previous, fireball.NetPosition), fireball.speed * dt + 0.02f);
+                }
+                Assert.Less(left, -0.15f, "The moving projectile must visibly pass to the leader's left.");
+                Assert.Greater(right, 0.15f, "The moving projectile must visibly pass to the leader's right.");
+                Assert.Greater(fireball.NetPosition.z, 50f, "Side changes happen during forward pursuit, not stationary oscillation.");
+                Assert.Less(fireball.NetPosition.z, leader.transform.position.z, "Cruising pursuit remains behind the leader.");
+            }
+            finally { Object.DestroyImmediate(profile); }
         }
 
         [Test]
-        public void ClosePursuitKeepsReferenceSpeedWhenLeaderBrakes()
+        public void ClosePursuitWeavesAgainstASolidSideWallWithoutCrossingIt()
+        {
+            var owner = KartAt(new Vector3(0, 0, 10), 2);
+            var leader = KartAt(new Vector3(0, 0, 16), 1);
+            var profile = CruisingProfile(leader);
+            try
+            {
+                var fireball = Launch(owner);
+                fireball.speed = 36.125f;
+                fireball.hitRadius = 0f;
+                Tick(fireball);
+                var wall = Box(new Vector3(0.4f, 2f, 50f), new Vector3(0.04f, 4f, 140f));
+                Physics.SyncTransforms();
+                var start = fireball.NetPosition;
+                var distance = 16f;
+                var cruise = leader.NormalTopSpeed;
+                var dt = Time.fixedDeltaTime;
+                var nearest = float.NegativeInfinity;
+                var left = float.PositiveInfinity;
+                for (var i = 0; i < Mathf.CeilToInt(2.8f / dt); i++)
+                {
+                    distance += cruise * dt;
+                    Move(leader, distance, cruise);
+                    Tick(fireball);
+                    nearest = Mathf.Max(nearest, fireball.NetPosition.x);
+                    left = Mathf.Min(left, fireball.NetPosition.x - leader.transform.position.x);
+                    Assert.LessOrEqual(fireball.NetPosition.x, wall.bounds.min.x - 0.18f,
+                        "Every weaving tick must keep the projectile's collision volume on the original side of the thin wall.");
+                    Assert.IsTrue(fireball.gameObject.activeSelf);
+                }
+                Assert.Greater(nearest, wall.bounds.min.x - 0.27f, "The weave must actually approach the wall, not avoid exercising collision.");
+                Assert.Less(left, -0.15f, "A wall on one side must not suppress the clear half of the weave.");
+                Assert.Greater(fireball.NetPosition.z - start.z, 50f, "Wall contact must allow continued forward pursuit.");
+            }
+            finally { Object.DestroyImmediate(profile); }
+        }
+
+        [TestCase(0f, -2f, 0f, -1f)]
+        [TestCase(1.25f, 0.25f, 1f, 0f)]
+        public void LeaderContactRecognizesBodyTouchesOutsideTheRootRadius(
+            float x, float z, float outwardX, float outwardZ)
         {
             var owner = KartAt(Vector3.zero, 2);
-            var leader = KartAt(new Vector3(0, 0, 7), 1);
-            var cruise = leader.NormalTopSpeed;
-            leader.Physics.Body.linearVelocity = Vector3.forward * cruise;
+            var leader = KartAt(new Vector3(0f, 0f, 20f), 1);
+            var profile = ContactProfile(leader);
+            try
+            {
+                var fireball = Launch(owner);
+                fireball.hitRadius = 0.3f;
+                var touch = leader.transform.TransformPoint(new Vector3(x, 1.2f, z));
+                var clear = touch + new Vector3(outwardX, 0f, outwardZ) * 0.1f;
+                Physics.SyncTransforms();
+
+                Assert.Greater(Vector3.Distance(touch, leader.transform.position), fireball.hitRadius,
+                    "The rear/side body touch must exercise a hit the old root-centre test missed.");
+                Assert.That(Vector3.Distance(touch, leader.Physics.Chassis.ClosestPoint(touch)),
+                    Is.EqualTo(0.25f).Within(0.001f));
+                Assert.IsFalse(Contact(fireball, leader, clear, clear),
+                    "Being near the chassis is not enough when the whole sphere is clear.");
+                Assert.IsTrue(Contact(fireball, leader, touch, touch),
+                    "A stationary sphere touching the locked leader's body hits immediately.");
+            }
+            finally { Object.DestroyImmediate(profile); }
+        }
+
+        [Test]
+        public void LeaderContactSweepsThroughTheChassisWhenBothEndpointsMiss()
+        {
+            var owner = KartAt(Vector3.zero, 2);
+            var leader = KartAt(new Vector3(0f, 0f, 20f), 1);
+            var profile = ContactProfile(leader);
+            try
+            {
+                var fireball = Launch(owner);
+                fireball.hitRadius = 0.3f;
+                var from = leader.transform.TransformPoint(new Vector3(-3f, 1.2f, 0.25f));
+                var to = leader.transform.TransformPoint(new Vector3(3f, 1.2f, 0.25f));
+                Physics.SyncTransforms();
+
+                Assert.IsFalse(Contact(fireball, leader, from, from));
+                Assert.IsFalse(Contact(fireball, leader, to, to));
+                Assert.IsTrue(Contact(fireball, leader, from, to),
+                    "A full-step crossing cannot tunnel through the leader between clear endpoints.");
+                Assert.IsTrue(Contact(fireball, leader, to, from),
+                    "Swept body contact must not depend on which side the projectile approaches.");
+            }
+            finally { Object.DestroyImmediate(profile); }
+        }
+
+        [Test]
+        public void LeaderContactUsesTheRotatedAndScaledBodyRatherThanItsWorldBounds()
+        {
+            var owner = KartAt(Vector3.zero, 2);
+            var leader = KartAt(new Vector3(0f, 0f, 20f), 1);
+            var profile = ContactProfile(leader);
+            try
+            {
+                leader.transform.rotation = Quaternion.Euler(0f, 37f, 0f);
+                leader.transform.localScale = new Vector3(1.5f, 0.8f, 0.6f);
+                var fireball = Launch(owner);
+                fireball.hitRadius = 0.3f;
+                var touch = leader.transform.TransformPoint(new Vector3(1.15f, 1.2f, 0.25f));
+                var clear = leader.transform.TransformPoint(new Vector3(1.25f, 1.2f, 0.25f));
+                Physics.SyncTransforms();
+
+                Assert.That(Vector3.Distance(touch, leader.Physics.Chassis.ClosestPoint(touch)),
+                    Is.EqualTo(0.225f).Within(0.001f));
+                Assert.IsTrue(leader.Physics.Chassis.bounds.Contains(clear),
+                    "The clear control must lie inside the enclosing AABB, but outside the actual oriented box.");
+                Assert.IsFalse(Contact(fireball, leader, clear, clear),
+                    "World bounds cannot stand in for the rotated chassis.");
+                Assert.IsTrue(Contact(fireball, leader, touch, touch),
+                    "Body contacts follow both rotation and nonuniform scale.");
+            }
+            finally { Object.DestroyImmediate(profile); }
+        }
+
+        [Test]
+        public void LeaderContactCannotReachTheChassisThroughAnInterveningSolidWall()
+        {
+            var owner = KartAt(Vector3.zero, 2);
+            var leader = KartAt(new Vector3(0f, 0f, 20f), 1);
+            var profile = ContactProfile(leader);
+            try
+            {
+                var fireball = Launch(owner);
+                fireball.hitRadius = 0.3f;
+                var from = leader.transform.TransformPoint(new Vector3(0f, 1.2f, -5f));
+                var to = leader.transform.TransformPoint(new Vector3(0f, 1.2f, -2f));
+                Physics.SyncTransforms();
+                Assert.IsTrue(Contact(fireball, leader, from, to),
+                    "The unobstructed sweep reaches the rear chassis.");
+
+                var wall = Box(new Vector3(0f, 1.2f, 17f), new Vector3(4f, 3f, 0.1f));
+                Physics.SyncTransforms();
+                Assert.IsFalse(Contact(fireball, leader, from, to),
+                    "A solid wall before body contact blocks the hit, even though the capsule reaches the chassis.");
+
+                wall.enabled = false;
+                Physics.SyncTransforms();
+                Assert.IsTrue(Contact(fireball, leader, from, to),
+                    "Removing the obstruction restores the same body contact.");
+            }
+            finally { Object.DestroyImmediate(profile); }
+        }
+
+        [Test]
+        public void ClosePursuitReachesContactRangeAfterOneBriefPartialSlowdown()
+        {
+            var owner = KartAt(Vector3.zero, 2);
+            var leader = KartAt(new Vector3(0, 0, 20), 1);
+            var profile = CruisingProfile(leader);
+            try
+            {
+                var fireball = Launch(owner);
+                fireball.speed = 36.125f;
+                // Measure pursuit independently of the runtime-only Destroy/boiling lifecycle.
+                var contactRadius = fireball.hitRadius;
+                fireball.hitRadius = 0f;
+                var distance = 20f;
+                var cruise = leader.NormalTopSpeed;
+                var dt = Time.fixedDeltaTime;
+                for (var i = 0; i < Mathf.CeilToInt(2f / dt); i++)
+                {
+                    distance += cruise * dt;
+                    Move(leader, distance, cruise);
+                    Tick(fireball);
+                    Assert.Greater(ChassisDistance(leader, fireball.NetPosition), contactRadius,
+                        "Every normal cruising step must remain clear of the actual chassis.");
+                }
+                Assert.Greater(ChassisDistance(leader, fireball.NetPosition),
+                    contactRadius, "Cruising normally is not an unavoidable hit.");
+                var closest = float.PositiveInfinity;
+                for (var i = 0; i < Mathf.CeilToInt(0.4f / dt); i++)
+                {
+                    distance += cruise * 0.8f * dt;
+                    Move(leader, distance, cruise * 0.8f);
+                    Tick(fireball);
+                    closest = Mathf.Min(closest, ChassisDistance(leader, fireball.NetPosition));
+                }
+                Assert.Less(closest, contactRadius,
+                    "A 20% slowdown for 0.4 seconds reaches contact range without stopping the leader.");
+            }
+            finally { Object.DestroyImmediate(profile); }
+        }
+
+        [Test]
+        public void AheadWaitingStepsRemainBlockedBySolidWalls()
+        {
+            var owner = KartAt(new Vector3(0, 0, 35), 2);
+            KartAt(Vector3.zero, 1);
             var fireball = Launch(owner);
-            Tick(fireball);
-            Assert.Less(fireball.NetVelocity.z, leader.Physics.Body.linearVelocity.z, "A cruising leader pulls away at close range.");
-            leader.Physics.Body.linearVelocity = Vector3.zero;
-            Tick(fireball);
-            Assert.Greater(fireball.NetVelocity.z, leader.Physics.Body.linearVelocity.z, "Braking lets the fireball close the gap.");
+            var wall = Box(new Vector3(0, 2, 38), new Vector3(200, 4, 0.1f));
+            Physics.SyncTransforms();
+            for (var i = 0; i < Mathf.CeilToInt(8f / Time.fixedDeltaTime); i++)
+            {
+                Tick(fireball);
+                Assert.LessOrEqual(fireball.NetPosition.z, wall.bounds.min.z - 0.18f);
+            }
+            Assert.IsTrue(fireball.gameObject.activeSelf);
         }
 
         [Test]
@@ -346,9 +636,52 @@ namespace MHK.Tests
             return kart;
         }
 
+        static KartPhysicsProfile CruisingProfile(Kart kart)
+        {
+            kart.gameObject.layer = MHK.Core.GameLayers.Kart;
+            var profile = ScriptableObject.CreateInstance<KartPhysicsProfile>();
+            kart.Physics.Profile = profile;
+            kart.Physics.SpeedScale = KartPhysics.SpeedScaleFor(profile, kart.Physics.ClassFactor, 26f, 1f);
+            return profile;
+        }
+
+        static KartPhysicsProfile ContactProfile(Kart kart)
+        {
+            kart.gameObject.layer = MHK.Core.GameLayers.Kart;
+            var profile = ScriptableObject.CreateInstance<KartPhysicsProfile>();
+            // Profile axes are forward/up/side; the resulting box is 2m wide and 4m long.
+            profile.chassisSize = new Vector3(2f, 0.5f, 1f);
+            profile.chassisCollOffset = new Vector3(0.25f, 1.2f, 0f);
+            kart.Physics.Profile = profile;
+            return profile;
+        }
+
+        static float ChassisDistance(Kart kart, Vector3 position) =>
+            Vector3.Distance(position, kart.Physics.Chassis.ClosestPoint(position));
+
+        static bool Contact(TrackFireball fireball, Kart target, Vector3 from, Vector3 to)
+        {
+            var method = typeof(TrackFireball).GetMethod("LeaderContact", PrivateInstance);
+            Assert.IsNotNull(method, "TrackFireball must expose its side-effect-free private contact query.");
+            return (bool)method.Invoke(fireball, new object[] { target, from, to, Vector3.zero });
+        }
+
+        void Move(Kart kart, float distance, float speed)
+        {
+            // Keep the profile-backed chassis above the road, as in an actual race.
+            kart.transform.SetPositionAndRotation(main.GetPoint(distance) + Vector3.up * 0.4f,
+                Quaternion.LookRotation(main.GetFlatTangent(distance)));
+            kart.Physics.Body.position = kart.transform.position;
+            kart.Physics.Body.rotation = kart.transform.rotation;
+            kart.Physics.Body.linearVelocity = kart.transform.forward * speed;
+            kart.Progress.Begin(track, 3);
+            kart.Progress.ApplyRemote(1, distance);
+            Physics.SyncTransforms();
+        }
+
         static void Rank(Kart kart, int rank) => typeof(RacerProgress).GetProperty("Position").SetValue(kart.Progress, rank);
 
-        TrackFireball Launch(Kart owner, bool backwards = false)
+        TrackFireball Launch(Kart owner, bool backwards = false, float selfTargetDelay = 0f)
         {
             var go = new GameObject("Fireball");
             go.transform.SetParent(root.transform, false);
@@ -356,6 +689,7 @@ namespace MHK.Tests
             fireball.speed = 72.25f;
             fireball.lifetime = 30f;
             fireball.hitRadius = 1f;
+            typeof(TrackFireball).GetField("selfTargetDelay", PrivateInstance).SetValue(fireball, selfTargetDelay);
             Physics.SyncTransforms();
             fireball.Launch(new PowerupContext(owner, null, backwards, 0));
             return fireball;
