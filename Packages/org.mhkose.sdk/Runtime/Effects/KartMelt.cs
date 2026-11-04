@@ -9,7 +9,7 @@ namespace MHK.Effects
 {
     /// <summary>
     /// An attached status-effect visual: kart and driver soften into one warm, wobbling pool in MHK/Lit.
-    /// Only property blocks and conservative renderer bounds change; meshes and shared materials stay untouched.
+    /// Property blocks, the visual Body pose and conservative renderer bounds change; physics and meshes stay untouched.
     /// </summary>
     [DefaultExecutionOrder(200)]
     public sealed class KartMelt : MonoBehaviour
@@ -18,6 +18,10 @@ namespace MHK.Effects
         [SerializeField, Range(0.1f, 1f)] float meltCompletion = 0.85f;
         [Tooltip("Horizontal spread of the melted kart, relative to its original width and length.")]
         [SerializeField, Range(0f, 2f)] float pooling = 0.9f;
+        [Tooltip("Uniform visual scale when fully melted, blended from the normal model size. Does not change the chassis.")]
+        [SerializeField, Range(0.1f, 1f)] float flattenedScale = 1f;
+        [Tooltip("Minimum full-melt clearance above the wheel-contact support plane (metres). Only lifts the visual Body.")]
+        [SerializeField, Min(0f)] float groundClearance = 0.02f;
         [Tooltip("Boiling ripple amplitude as a fraction of the combined kart and driver height.")]
         [SerializeField, Range(0f, 0.1f)] float wobbleHeight = 0.025f;
         [Tooltip("Warm light added while melting; does not replace other effect tints or opacity.")]
@@ -39,8 +43,12 @@ namespace MHK.Effects
         Transform body;
         KartEffects.ActiveEffect effect;
         Bounds bodyBounds;
+        Vector3 originalBodyPosition, originalBodyScale, appliedBodyPosition;
+        float appliedScale = 1f;
         bool showing;
         GameObject boilingVfx;
+        ParticleSystem boilingParticles;
+        bool boilingStopped;
 
         void Awake() => block = new MaterialPropertyBlock();
 
@@ -54,6 +62,9 @@ namespace MHK.Effects
             if (effect == null) return;
             body = kart.Visual.Body;
             if (body == null) return;
+            originalBodyPosition = body.localPosition;
+            originalBodyScale = body.localScale;
+            appliedBodyPosition = originalBodyPosition;
             CacheRenderers();
             if (renderers.Count == 0) return;
             ExpandBounds();
@@ -68,6 +79,7 @@ namespace MHK.Effects
             if (boilingVfxPrefab == null) return;
             var origin = body.TransformPoint(new Vector3(bodyBounds.center.x, bodyBounds.min.y, bodyBounds.center.z));
             boilingVfx = Instantiate(boilingVfxPrefab, origin, body.rotation, transform);
+            boilingParticles = boilingVfx.GetComponent<ParticleSystem>();
             var size = Vector3.Scale(bodyBounds.size, body.lossyScale);
             var parentScale = transform.lossyScale;
             boilingVfx.transform.localScale = new Vector3(
@@ -122,7 +134,20 @@ namespace MHK.Effects
         {
             if (!showing) return;
             if (kart == null || !kart.isActiveAndEnabled || body == null) { ResetMelt(); return; }
-            var strength = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(effect.Progress / meltCompletion));
+            var progress = effect.Progress;
+            var stopBoiling = progress >= meltCompletion;
+            if (boilingStopped != stopBoiling)
+            {
+                if (boilingParticles != null)
+                {
+                    if (stopBoiling) boilingParticles.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                    else boilingParticles.Play(true); // A refreshed hit starts a new active melting interval.
+                }
+                boilingStopped = stopBoiling;
+            }
+            var strength = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(progress / meltCompletion));
+            var scale = Mathf.Lerp(1f, flattenedScale, strength);
+            ApplyPose(scale, strength);
             var origin = body.TransformPoint(new Vector3(bodyBounds.center.x, bodyBounds.min.y, bodyBounds.center.z));
             var height = body.TransformVector(Vector3.up * bodyBounds.size.y).magnitude;
             var up = body.up;
@@ -149,6 +174,51 @@ namespace MHK.Effects
             }
         }
 
+        void ApplyPose(float scale, float strength)
+        {
+            if (scale != appliedScale)
+            {
+                body.localScale = originalBodyScale * scale;
+                appliedScale = scale;
+            }
+            var anchor = new Vector3(bodyBounds.center.x, bodyBounds.min.y, bodyBounds.center.z);
+            // Shrink about the cached model base, then lift that base to the actual road, not its mesh bounds.
+            var position = originalBodyPosition
+                + body.localRotation * Vector3.Scale(anchor, originalBodyScale * (1f - scale));
+            var origin = body.parent.TransformPoint(position) + body.TransformVector(anchor);
+            position += body.parent.InverseTransformVector(GroundLift(origin, strength));
+            if (position.Equals(appliedBodyPosition)) return;
+            body.localPosition = position;
+            appliedBodyPosition = position;
+        }
+
+        Vector3 GroundLift(Vector3 origin, float strength)
+        {
+            var physics = kart.Physics;
+            if (strength <= 0f || physics == null || !physics.IsGrounded) return Vector3.zero;
+            var normal = Vector3.zero;
+            for (var i = 0; i < 4; i++)
+                if (physics.WheelOnGround(i)) normal += physics.WheelContactNormal(i);
+            if (normal.sqrMagnitude < 0.001f) return Vector3.zero;
+            normal.Normalize();
+            // The shader clamps pooled height to zero. Its base is the lowest point only while facing the road.
+            if (Vector3.Dot(normal, body.up) <= 0f) return Vector3.zero;
+            var roadHeight = float.NegativeInfinity;
+            for (var i = 0; i < 4; i++)
+                if (physics.WheelOnGround(i))
+                    roadHeight = Mathf.Max(roadHeight, Vector3.Dot(physics.WheelContactPoint(i) - origin, normal));
+            // Enclose the shader's spread and sideways sway, so a bank cannot bury the outer edge of the pool.
+            var height = body.TransformVector(Vector3.up * bodyBounds.size.y).magnitude;
+            var spread = 1f + strength * pooling;
+            var sway = height * wobbleHeight * strength * (1f - 0.6f * strength);
+            var halfWidth = body.TransformVector(Vector3.right * bodyBounds.extents.x).magnitude * spread + sway;
+            var halfLength = body.TransformVector(Vector3.forward * bodyBounds.extents.z).magnitude * spread;
+            var edgeDepth = Mathf.Abs(Vector3.Dot(normal, body.right)) * halfWidth
+                + Mathf.Abs(Vector3.Dot(normal, body.forward)) * halfLength;
+            // Blend in without a start pop; at full melt the entire conservative pool clears the support plane.
+            return normal * (Mathf.Max(0f, roadHeight + edgeDepth + groundClearance) * strength);
+        }
+
         void OnEnded(StatusEffectDefinition definition)
         {
             if (effect != null && effect.Definition == definition) ResetMelt();
@@ -162,8 +232,15 @@ namespace MHK.Effects
         {
             if (!showing) return;
             showing = false;
+            if (body != null)
+            {
+                body.localPosition = originalBodyPosition;
+                body.localScale = originalBodyScale;
+            }
             if (boilingVfx != null) Destroy(boilingVfx);
             boilingVfx = null;
+            boilingParticles = null;
+            boilingStopped = false;
             if (kart != null)
             {
                 kart.Effects.Ended -= OnEnded;

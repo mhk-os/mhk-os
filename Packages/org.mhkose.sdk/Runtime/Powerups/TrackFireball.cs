@@ -17,12 +17,19 @@ namespace MHK.Powerups
         const float JunctionMargin = 0.5f;
         const float ForkReach = AIRacingLine.RouteRunOn + 5f;
         const float TargetLaneReach = 12f;
+        const float InterceptConeDot = -0.70710678f; // Original seeking-first cone: +/-135 degrees.
 
         [Header("Track flight")]
         [SerializeField] float hoverHeight = 1.2f;
         [SerializeField] float collisionRadius = 0.2f;
         [SerializeField] float lookAhead = 3f;
         [SerializeField] float turnRateDegrees = 900f;
+        [Tooltip("Release keeps the kart's forward-facing angle briefly before normal road steering takes over.")]
+        [SerializeField, Min(0f)] float launchSteeringTime = 0.3f;
+        [SerializeField, Min(0f)] float launchTurnRateDegrees = 180f;
+        [Tooltip("A real wall impact hesitates, then makes a short swept escape before resuming pursuit.")]
+        [SerializeField, Min(0f)] float wallPauseTime = 0.14f;
+        [SerializeField, Min(0f)] float wallRecoveryTime = 0.35f;
         [Tooltip("A centered visual pivot. Only this child spins; navigation rotates the root around world up.")]
         [SerializeField] Transform visual;
         [SerializeField] float spinDegreesPerSecond = 720f;
@@ -37,15 +44,21 @@ namespace MHK.Powerups
         [Tooltip("Side-to-side aim drift in metres during close pursuit. Fades out at contact and stays inside the drivable road.")]
         [SerializeField, Min(0f)] float pursuitDriftWidth = 0.65f;
         [SerializeField, Min(0.1f)] float pursuitDriftPeriod = 2.4f;
+        [Tooltip("Directly steer into a nearby leader inside the original side/front interception cone, on the same route with clear sight.")]
+        [SerializeField, Min(0.1f)] float leaderInterceptDistance = 10.625f;
+        [SerializeField, Min(0f)] float leaderInterceptTurnRate = 2700f;
 
         [Header("Ahead waiting")]
         [SerializeField, Min(0f)] float waitingCreepSpeed = 3f;
         [SerializeField, Range(0.1f, 1f)] float waitingNearSpeedShare = 0.85f;
+        [Tooltip("Inside this ahead-of-leader gap, maintain pressure speed without the far-ahead coast pauses.")]
+        [SerializeField, Min(0.1f)] float waitingPressDistance = 12.75f;
         [SerializeField, Min(0.01f)] float waitingPulsePeriod = 0.5f;
         [SerializeField, Min(0.01f)] float waitingPulseDuration = 0.2f;
 
         [Header("End effect")]
         [SerializeField] GameObject endVfx;
+        [SerializeField] GameObject impactVfx;
 
         readonly RaycastHit[] sweepHits = new RaycastHit[16];
         readonly Collider[] overlaps = new Collider[16];
@@ -53,8 +66,9 @@ namespace MHK.Powerups
         TrackPath main;
         int mainHint = -1, routeHint = -1, routeIndex = -1;
         float mainDistance, routeDistance, raceDistance;
-        bool enteredRoute, holding, ownerCleared;
-        Vector3 direction, flightCorrection, velocity;
+        bool enteredRoute, holding, ownerCleared, spent, angledRelease;
+        Vector3 direction, flightCorrection, velocity, recoveryDirection;
+        float wallPauseRemaining, wallRecoveryRemaining;
         Quaternion visualRotation;
         float spin;
 
@@ -94,28 +108,33 @@ namespace MHK.Powerups
             }
         }
         // Race order may change while a confirmed hit is in flight; it still spends this shot.
-        protected internal override void OnNetHit(Kart victim) => Despawn(endVfx, SimulatedPosition, hitSound);
+        protected internal override void OnNetHit(Kart victim) => FinishImpact(SimulatedPosition);
 
         protected override void OnLaunch()
         {
             track = TrackRuntime.Current;
             main = track != null && track.HasMainPath ? track.MainPath : null;
             ChosenTarget = LeaderTarget();
+            direction = Vector3.ProjectOnPlane(Owner.transform.forward, Vector3.up).normalized;
             transform.position = Owner.transform.position + Vector3.up * hoverHeight;
             if (main != null)
             {
                 AdoptLaunchRoute();
                 raceDistance = Owner.Progress.RaceDistance + main.Delta(Owner.Progress.PathDistance, mainDistance);
-                direction = FollowedPath.GetFlatTangent(Mathf.Max(0f, FollowedDistance));
+                var course = FollowedPath.GetFlatTangent(Mathf.Max(0f, FollowedDistance));
+                // Look-back is a camera/input choice, not a reversed shot. A backwards/wrong-way chassis must
+                // still release forward-course; ordinary angled forward releases retain their real heading.
+                if (Vector3.Dot(direction, course) <= 0.1f) direction = course;
+                angledRelease = Vector3.Angle(direction, course) > 5f;
             }
-            else direction = Vector3.ProjectOnPlane(Owner.transform.forward, Vector3.up).normalized;
             if (direction.sqrMagnitude < 0.01f) direction = Vector3.forward;
             var liftFrom = Owner.transform.position + Vector3.up * (collisionRadius + Skin);
             SweepMove(liftFrom, transform.position, out var lifted, out _);
             var from = lifted;
             var to = Hover(from + direction * spawnDistance);
-            SweepMove(from, to, out to, out _);
+            var clear = SweepMove(from, to, out to, out var wallNormal);
             transform.SetPositionAndRotation(to, Quaternion.LookRotation(direction, Vector3.up));
+            if (!clear && main != null) BeginWallRecovery(wallNormal);
             if (visual != null) visualRotation = visual.localRotation;
             PlayLaunch();
             InterpolatePose();
@@ -125,11 +144,14 @@ namespace MHK.Powerups
 
         protected override void Step(float dt)
         {
+            if (spent) return;
             if (TickLifetime(dt, endVfx)) return;
             ChosenTarget = LeaderTarget();
             SpinVisual(dt);
             holding = false;
             velocity = Vector3.zero;
+            var target = ChosenTarget;
+            var targetReady = target != null && !target.Effects.HasRespawnPending && !target.Effects.RespawnProtected;
             if (flightCorrection.sqrMagnitude > 0.000001f)
             {
                 var from = transform.position;
@@ -137,9 +159,8 @@ namespace MHK.Powerups
                 var clear = SweepMove(from, from + move, out var corrected, out _);
                 transform.position = corrected;
                 flightCorrection = clear ? flightCorrection - move : Vector3.zero;
+                if (targetReady && TryHitLeader(target, from, corrected)) return;
             }
-            var target = ChosenTarget;
-            var targetReady = target != null && !target.Effects.HasRespawnPending && !target.Effects.RespawnProtected;
             if (!ownerCleared && !LeaderContact(Owner, transform.position, transform.position, out _)) ownerCleared = true;
             // Contact is decisive even while stationary, waiting, or already exactly on the steering aim point.
             if (targetReady && TryHitLeader(target, transform.position, transform.position)) return;
@@ -149,6 +170,12 @@ namespace MHK.Powerups
                 return;
             }
             var rearReach = targetReady ? RearReach(target) : 0f;
+            if (wallPauseRemaining > 0f)
+            {
+                wallPauseRemaining = Mathf.Max(0f, wallPauseRemaining - dt);
+                holding = true;
+                return;
+            }
             var steps = Mathf.Max(1, Mathf.CeilToInt(speed * dt / MaxSubstepDistance));
             var subDt = dt / steps;
             for (var i = 0; i < steps; i++)
@@ -170,13 +197,28 @@ namespace MHK.Powerups
                         return;
                     }
                 }
-                var aim = AimPoint(waiting || !targetReady ? null : target, rearReach);
+                var aim = AimPoint(targetReady ? target : null, rearReach, out var intercepting);
                 var desired = Vector3.ProjectOnPlane(aim - transform.position, Vector3.up);
-                if (desired.sqrMagnitude < 0.0001f) { holding = true; break; }
-                var turn = Vector3.Angle(direction, desired);
-                direction = Vector3.RotateTowards(direction, desired.normalized, turnRateDegrees * Mathf.Deg2Rad * subDt, 0f);
-                // Brake into a tight turn instead of overshooting the road at full straight-line speed.
-                travelSpeed *= Mathf.Clamp01(1f - turn / 100f);
+                if (desired.sqrMagnitude < 0.0001f && wallRecoveryRemaining <= 0f) { holding = true; break; }
+                var recovering = wallRecoveryRemaining > 0f;
+                if (recovering)
+                {
+                    wallRecoveryRemaining = Mathf.Max(0f, wallRecoveryRemaining - subDt);
+                    direction = recoveryDirection;
+                    travelSpeed = speed * 0.5f;
+                }
+                else
+                {
+                    var turn = Vector3.Angle(direction, desired);
+                    var releasing = angledRelease && Age < launchSteeringTime;
+                    var steering = releasing ? launchTurnRateDegrees : turnRateDegrees;
+                    // Keep close-pursuit interception responsive outside an angled release, without changing corners.
+                    if (intercepting && !releasing) steering = Mathf.Max(steering, leaderInterceptTurnRate);
+                    var turnStep = steering * subDt;
+                    direction = Vector3.RotateTowards(direction, desired.normalized, turnStep * Mathf.Deg2Rad, 0f);
+                    if (intercepting) turn = Mathf.Max(0f, turn - turnStep);
+                    travelSpeed *= Mathf.Clamp01(1f - turn / 100f);
+                }
                 var from = transform.position;
                 var to = Hover(from + direction * (travelSpeed * subDt));
                 var clear = SweepMove(from, to, out var reached, out var wallNormal);
@@ -184,23 +226,30 @@ namespace MHK.Powerups
                 velocity = (reached - from) / subDt;
                 if (targetReady && TryHitLeader(target, from, reached)) return;
                 if (clear) continue;
-                // Sweep the wall-slide separately: a chord from the original point would cut solid corners.
-                var remaining = to - reached;
-                var slide = Vector3.ProjectOnPlane(remaining, wallNormal);
-                slide.y = 0f;
-                if (slide.sqrMagnitude < 0.0001f && remaining.sqrMagnitude > 0.0001f && wallNormal.sqrMagnitude > 0.01f)
-                {
-                    var tangent = Vector3.Cross(Vector3.up, wallNormal).normalized;
-                    if (Vector3.Dot(tangent, FollowedPath.GetFlatTangent(Mathf.Max(0f, FollowedDistance))) < 0f) tangent = -tangent;
-                    slide = tangent * remaining.magnitude;
-                }
-                SweepMove(reached, Hover(reached + slide), out var slid, out _);
-                if (slide.sqrMagnitude > 0.0001f) direction = slide.normalized;
-                transform.SetPositionAndRotation(slid, Quaternion.LookRotation(direction, Vector3.up));
-                velocity = (slid - from) / subDt;
-                if (targetReady && TryHitLeader(target, reached, slid)) return;
-                holding = (slid - from).sqrMagnitude < 0.000001f;
+                // Native opponent driving records repeated collision flags before entering timed stuck recovery.
+                // Keep that visible hesitation, but bound it and sweep the escape instead of reproducing a pin.
+                BeginWallRecovery(wallNormal);
+                holding = true;
+                velocity = Vector3.zero;
+                break;
             }
+        }
+
+        void BeginWallRecovery(Vector3 normal)
+        {
+            normal = Vector3.ProjectOnPlane(normal, Vector3.up).normalized;
+            var course = FollowedPath.GetFlatTangent(Mathf.Max(0f, FollowedDistance));
+            if (normal.sqrMagnitude < 0.01f) normal = -direction;
+            var tangent = Vector3.ProjectOnPlane(course, normal).normalized;
+            if (tangent.sqrMagnitude < 0.01f)
+            {
+                tangent = Vector3.Cross(Vector3.up, normal).normalized;
+                if (Vector3.Dot(tangent, direction) < 0f) tangent = -tangent;
+            }
+            recoveryDirection = (tangent + normal * 0.35f).normalized;
+            // A second face encountered during the escape changes direction without repeatedly restarting the pause.
+            if (wallRecoveryRemaining <= 0f) wallPauseRemaining = wallPauseTime;
+            wallRecoveryRemaining = wallRecoveryTime;
         }
 
         Kart LeaderTarget()
@@ -234,11 +283,12 @@ namespace MHK.Powerups
 
         float WaitingSpeed(Kart target, float distance)
         {
-            // Launch age is fixed-step and fast-forwarded online, so each client uses the same pulse clock.
-            if (Mathf.Repeat(Age, waitingPulsePeriod) >= waitingPulseDuration) return 0f;
             var creep = Mathf.Min(speed, waitingCreepSpeed);
             var near = Mathf.Clamp(target.NormalTopSpeed * waitingNearSpeedShare, creep, speed);
-            return Mathf.Lerp(near, creep, Mathf.Clamp01(distance / leaderSlowDistance));
+            // Original seeking-first switches to the player's pressure speed throughout its nearby band.
+            if (distance <= waitingPressDistance) return near;
+            // Fixed-step approximation of its far-ahead throttle/coast creep, also fast-forwarded online.
+            return Mathf.Repeat(Age, waitingPulsePeriod) < waitingPulseDuration ? creep : 0f;
         }
 
         void SpinVisual(float dt)
@@ -379,14 +429,26 @@ namespace MHK.Powerups
             }
         }
 
-        Vector3 AimPoint(Kart target, float rearReach)
+        Vector3 AimPoint(Kart target, float rearReach, out bool intercepting)
         {
             var path = FollowedPath;
             var d = FollowedDistance;
             var samePath = target != null && target.Progress.CurrentBranch == (routeIndex >= 0 ? path : null);
             var td = samePath ? (routeIndex >= 0 ? target.Progress.BranchDistance : target.Progress.PathDistance) : 0f;
-            var gap = samePath ? path.Delta(d, td) - rearReach : float.PositiveInfinity;
-            var close = gap >= 0f && gap <= lookAhead;
+            var rootGap = samePath ? path.Delta(d, td) : float.PositiveInfinity;
+            var gap = rootGap - rearReach;
+            intercepting = false;
+            if (samePath && Mathf.Abs(rootGap) <= leaderInterceptDistance)
+            {
+                var delta = Vector3.ProjectOnPlane(target.transform.position - transform.position, Vector3.up);
+                var distanceSq = delta.sqrMagnitude;
+                if (distanceSq <= leaderInterceptDistance * leaderInterceptDistance
+                    && Vector3.Dot(direction, delta) >= InterceptConeDot * Mathf.Sqrt(distanceSq))
+                {
+                    var sight = transform.position + delta;
+                    intercepting = !Physics.Linecast(transform.position, sight, ObstacleMask, QueryTriggerInteraction.Ignore);
+                }
+            }
             var drift = 0f;
             if (gap >= 0f && gap < TargetLaneReach && pursuitDriftWidth > 0f)
             {
@@ -396,12 +458,12 @@ namespace MHK.Powerups
                     * (1f - Mathf.InverseLerp(lookAhead, TargetLaneReach, gap));
                 drift = Mathf.Sin(Age * (2f * Mathf.PI / pursuitDriftPeriod)) * pursuitDriftWidth * weight;
             }
-            // Finish the approach at the actual kart, not a projected point beyond it.
-            if (close && drift == 0f) return target.transform.position;
+            // The original directly targets a leader entering the side/front cone, even before its root passes.
+            if (intercepting && drift == 0f) return target.transform.position;
             var margin = GameRoot.Instance != null && GameRoot.Instance.Config != null
                 ? GameRoot.Instance.Config.aiRacingLineMargin : collisionRadius;
             var road = AIRacingLine.Of(track, path, margin);
-            if (close)
+            if (intercepting)
             {
                 var targetLane = road.RoadLaneOf(target.transform.position, td);
                 var driftLane = DriftLane(road, td, targetLane, drift);
@@ -489,9 +551,24 @@ namespace MHK.Powerups
         {
             if (target == Owner && !ownerCleared) return false;
             if (!LeaderContact(target, from, to, out var contact)) return false;
+            if (spent) return true;
+            spent = true; // Reserve the hit before applying an effect, which can synchronously echo online.
             HitKart(target, hitEffect);
-            Despawn(endVfx, contact, hitSound);
+            SpawnImpact(contact);
             return true;
+        }
+
+        void FinishImpact(Vector3 contact)
+        {
+            if (spent || !gameObject.activeSelf) return;
+            spent = true;
+            SpawnImpact(contact);
+        }
+
+        void SpawnImpact(Vector3 contact)
+        {
+            PowerupFx.Spawn(impactVfx, contact);
+            Despawn(endVfx, contact, hitSound);
         }
     }
 }
