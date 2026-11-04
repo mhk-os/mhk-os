@@ -51,6 +51,9 @@ namespace MHK.Editor.Modding
         // NPOT scaling is left out (sampling by UV looks the same). Null: the source file is right as it is.
         static byte[] Reencoded(TextureImporter t, string assetPath, string platform)
         {
+            // A collected loose texture may still be awaiting its first import, especially on a cold CI Library.
+            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceSynchronousImport);
+            t = (TextureImporter)AssetImporter.GetAtPath(assetPath);
             t.GetSourceTextureWidthAndHeight(out var width, out var height);
             var settings = t.GetPlatformTextureSettings(platform);
             var max = settings.overridden ? settings.maxTextureSize : t.maxTextureSize;
