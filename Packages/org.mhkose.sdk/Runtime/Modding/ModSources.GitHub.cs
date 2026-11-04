@@ -87,7 +87,12 @@ namespace MHK.Modding
             try
             {
                 var list = JsonUtility.FromJson<ReleaseList>("{\"items\":" + body + "}");
-                if (list?.items != null) return list.items;
+                if (list?.items != null)
+                {
+                    // GitHub can list older releases first. Its UTC publication timestamps sort chronologically as strings.
+                    Array.Sort(list.items, static (a, b) => string.CompareOrdinal(b?.published_at, a?.published_at));
+                    return list.items;
+                }
             }
             catch (ArgumentException)
             {
@@ -147,7 +152,7 @@ namespace MHK.Modding
         [Serializable]
         internal sealed class GitHubRelease
         {
-            public string tag_name;
+            public string tag_name, published_at;
             public bool draft, prerelease;
             public GitHubAsset[] assets;
 
