@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One player of the Players page. Code sets the texts and classes: .medal-1 / .medal-2 / .medal-3 on pl-rank (top three of the ranking), .mine (the player's own row: highlighted, the You tag), .alt (every second row). pl-rank shows on the Ranking tab (.pl-ranking on the page), pl-player-rank (the rank next to the name, hidden when unranked) on All players (.pl-all). pl-mod marks moderators, pl-online players online now; pl-sub says since when the player is registered (or Online now), pl-score the points. pl-main and hovering or tapping pl-name open the player card; pl-runs opens the player's time trial runs. Samples: sample-mine, sample-gold. -->
+    <!-- One player of the Players page. Code sets the texts and classes: .medal-1 / .medal-2 / .medal-3 on pl-rank (top three of the ranking), .mine (the player's own row: highlighted, the You tag), .alt (every second row). pl-rank shows on the Ranking tab (.pl-ranking on the page), pl-player-rank (the rank next to the name, hidden when unranked) on All players (.pl-all). pl-mod marks moderators, pl-online players online now; pl-sub says since when the player is registered (or Online now), pl-playtime the player's time played (hidden when the server sends none), pl-score the points. pl-main and hovering or tapping pl-name open the player card; pl-runs opens the player's time trial runs. Samples: sample-mine, sample-gold. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="lb-row pl-row">
         <ui:Button name="pl-main" class="lb-main pl-main">
@@ -15,6 +15,10 @@
                 <ui:Label name="pl-sub" text="Registered 26 Oct 2026" class="pl-sub" />
             </ui:VisualElement>
             <ui:VisualElement name="pl-online" tooltip="Online now" class="pl-online" />
+            <ui:VisualElement name="pl-playtime" tooltip="Time played" class="pl-playtime">
+                <ui:VisualElement class="icon i-hourglass_top pl-playtime-icon" />
+                <ui:Label name="pl-playtime-label" text="12 h 34 min" class="pl-playtime-label" />
+            </ui:VisualElement>
             <ui:Label name="pl-score" text="1240" tooltip="Points from online races" class="pl-score" />
         </ui:Button>
         <ui:VisualElement class="row lb-actions">

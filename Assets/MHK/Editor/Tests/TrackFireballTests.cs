@@ -705,6 +705,63 @@ namespace MHK.Tests
             Assert.IsTrue(fireball.gameObject.activeSelf);
         }
 
+        [TestCase(1.6f)]
+        [TestCase(2.4f)]
+        [TestCase(3f)]
+        public void LowRoofDoesNotLiftTheFireballIntoIt(float roofHeight)
+        {
+            var owner = KartAt(Vector3.zero, 2);
+            KartAt(new Vector3(0, 0, 95), 1);
+            // A thin roof whose top is inside the ground probe's start height, like Rome's arcades.
+            Box(new Vector3(0, roofHeight + 0.05f, 35), new Vector3(20, 0.1f, 50));
+            var fireball = Launch(owner, speed: 36.125f);
+            var dt = Time.fixedDeltaTime;
+            for (var i = 0; i < Mathf.CeilToInt(2f / dt) && fireball.NetPosition.z < 65f; i++)
+            {
+                Tick(fireball);
+                var position = fireball.NetPosition;
+                if (position.z > 10.5f && position.z < 59.5f)
+                    Assert.AreEqual(1.2f, position.y - Origin.y, 0.01f, "Under the roof the shot keeps hovering over the road.");
+            }
+            Assert.Greater(fireball.NetPosition.z, 65f, "The shot drives through instead of pinning itself to the roof.");
+        }
+
+        [Test]
+        public void GapIsCrossedLevel()
+        {
+            // Replace the solid floor by a road with a 6 m gap the karts jump, above a deep pit floor.
+            Object.DestroyImmediate(root.GetComponentInChildren<BoxCollider>().gameObject);
+            Box(new Vector3(0, -0.5f, 10), new Vector3(20, 1, 40));
+            Box(new Vector3(0, -0.5f, 70), new Vector3(20, 1, 68));
+            Box(new Vector3(0, -3.5f, 50), new Vector3(20, 1, 200));
+            var owner = KartAt(Vector3.zero, 2);
+            KartAt(new Vector3(0, 0, 95), 1);
+            var fireball = Launch(owner, speed: 36.125f);
+            var dt = Time.fixedDeltaTime;
+            for (var i = 0; i < Mathf.CeilToInt(2f / dt) && fireball.NetPosition.z < 60f; i++)
+            {
+                Tick(fireball);
+                Assert.AreEqual(1.2f, fireball.NetPosition.y - Origin.y, 0.01f, "Gaps keep the road's hover height.");
+            }
+            Assert.Greater(fireball.NetPosition.z, 60f, "The shot crosses instead of dropping in and pinning at the far edge.");
+        }
+
+        [Test]
+        public void LongDropIsFollowedDown()
+        {
+            // The road continues 3 m lower: no far edge within a kart jump, so this is no gap.
+            Object.DestroyImmediate(root.GetComponentInChildren<BoxCollider>().gameObject);
+            Box(new Vector3(0, -0.5f, 10), new Vector3(20, 1, 40));
+            Box(new Vector3(0, -3.5f, 115), new Vector3(20, 1, 170));
+            var owner = KartAt(Vector3.zero, 2);
+            KartAt(new Vector3(0, -3, 95), 1);
+            var fireball = Launch(owner, speed: 36.125f);
+            var dt = Time.fixedDeltaTime;
+            for (var i = 0; i < Mathf.CeilToInt(2f / dt) && fireball.NetPosition.z < 60f; i++) Tick(fireball);
+            Assert.Greater(fireball.NetPosition.z, 60f);
+            Assert.AreEqual(-1.8f, fireball.NetPosition.y - Origin.y, 0.01f, "Past a kart jump the shot hovers over the lower road.");
+        }
+
         [Test]
         public void MissingLeaderKeepsFollowingTrack()
         {

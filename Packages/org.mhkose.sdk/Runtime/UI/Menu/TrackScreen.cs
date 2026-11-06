@@ -63,6 +63,9 @@ namespace MHK.UI
 
         LobbyPick Lobby => Selection.lobbyPick is LobbyPick.Vote or LobbyPick.OwnerPick or LobbyPick.Solo ? Selection.lobbyPick : LobbyPick.None;
 
+        // A vote, the owner's next track and a race against AI are explicit picks of a card (Random included).
+        protected override bool OffersNext => Lobby == LobbyPick.None;
+
         protected override void BindPage()
         {
             var lobby = Lobby;

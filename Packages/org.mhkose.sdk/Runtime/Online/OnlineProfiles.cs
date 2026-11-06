@@ -59,7 +59,7 @@ namespace MHK.Online
             for (var i = 0; i < accountIds.Count && request.ids.Count < PlayerSummary.MaxList; i++)
                 if (!request.ids.Contains(accountIds[i])) request.ids.Add(accountIds[i]);
             if (request.ids.Count == 0) return new OnlineResult<List<PlayerSummary>>(OnlineResult.Success, new List<PlayerSummary>());
-            var r = await OnlineService.Call(MessageType.GetProfiles, request.Write, PlayerSummary.ReadList, false);
+            var r = await OnlineService.Call(MessageType.GetProfiles, request.Write, PlayerSummary.ReadSummaries, false);
             if (r.Ok) Remember(r.value, null);
             return r;
         }

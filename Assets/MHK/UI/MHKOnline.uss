@@ -283,6 +283,9 @@
 .icon.pl-mod { width: 20px; height: 20px; margin-left: 6px; flex-shrink: 0; -unity-background-image-tint-color: var(--mhk-gray-600); }
 .pl-sub { font-size: 14px; color: var(--mhk-gray-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; margin: 0; -unity-text-align: middle-left; }
 .pl-online { width: 12px; height: 12px; margin: 0 10px; flex-shrink: 0; border-radius: 6px; background-color: var(--mhk-good-ink); }
+.pl-playtime { flex-direction: row; align-items: center; justify-content: flex-end; width: 130px; flex-shrink: 0; margin-left: 6px; }
+.icon.pl-playtime-icon { width: 18px; height: 18px; margin-right: 4px; flex-shrink: 0; -unity-background-image-tint-color: var(--mhk-gray-500); }
+.pl-playtime-label { font-size: 15px; color: var(--mhk-gray-600); white-space: nowrap; padding: 0; margin: 0; -unity-text-align: middle-right; }
 .pl-score { width: 120px; flex-shrink: 0; -unity-font-definition: var(--font-display); font-size: 26px; color: var(--mhk-gray-900); padding: 0; margin: 0; -unity-text-align: middle-right; }
 .icon.pr-head-icon { width: 26px; height: 26px; margin-right: 6px; -unity-background-image-tint-color: var(--mhk-gray-600); }
 .pr-note { flex-grow: 1; font-size: 14px; color: var(--mhk-gray-500); -unity-text-align: middle-right; padding: 0; margin: 0; }

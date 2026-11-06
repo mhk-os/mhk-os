@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Driver choice. Code fills tabs, card-grid (one card per character, no tags: class no-tags) and the info panel (hovered or focused card) at the bottom centre of the side. showcase-area frames the 3D turntable above the panel. empty (with the built-in mods download while they are missing) replaces the body when no driver is loaded (preview class on page: preview-empty). Samples: the first open, Hank selected and focused. -->
+    <!-- Driver choice. Code fills tabs, card-grid (one card per character, no tags: class no-tags) and the info panel (hovered or focused card) at the bottom centre of the side. showcase-area frames the 3D turntable above the panel. The current card (class current, thick ring: focused, else the chosen driver, else the first) is what next (footer) goes on with; picking a card goes on at once. empty (with the built-in mods download while they are missing) replaces the body when no driver is loaded (preview class on page: preview-empty). Samples: the first open, Hank selected and focused. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="PortraitCard" src="/Assets/MHK/UI/Menu/Templates/PortraitCard.uxml" />
@@ -108,7 +108,12 @@
                     <ui:Label text="Back" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
-            <ui:VisualElement class="footer-right" />
+            <ui:VisualElement class="footer-right">
+                <ui:Button name="next" tooltip="Go on with the highlighted driver" class="mhk-button go">
+                    <ui:VisualElement class="icon i-arrow_forward" />
+                    <ui:Label text="Next" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

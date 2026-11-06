@@ -67,7 +67,7 @@ namespace MHK.Online
         public const ushort SetProfileListed = 21;
         /// <summary><see cref="PlayerListRequest"/> (with sort) → <see cref="PlayerPage"/> (listed accounts).</summary>
         public const ushort ListPlayers = 22;
-        /// <summary><see cref="GetProfilesRequest"/> → list of <see cref="PlayerSummary"/>.</summary>
+        /// <summary><see cref="GetProfilesRequest"/> → list of <see cref="PlayerSummary"/> with their playtimes.</summary>
         public const ushort GetProfiles = 23;
         /// <summary>accountId u64 → <see cref="PlayerProfile"/>.</summary>
         public const ushort GetProfile = 24;

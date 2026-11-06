@@ -32,6 +32,9 @@ SAMPLER(sampler_GlowMap);
 
 // One shared frame for the kart and skinned driver: vertices settle into the same pool, not individual mesh pivots.
 // Origin.w is strength; Up.w is full height; Right.w is spread; Forward.w is wave amplitude; Heat.w is elapsed time.
+// The fully melted pool keeps 1 - MHK_MELT_SAG of its height: with the Extra boil's two-thirds visual scale the kart
+// ends at half its normal height instead of flat on the road.
+#define MHK_MELT_SAG 0.25
 float3 MHKMeltPosition(float3 positionWS)
 {
     UNITY_BRANCH
@@ -47,7 +50,7 @@ float3 MHKMeltPosition(float3 positionWS)
     float phase = _MeltHeat.w * 13.0;
     float wave = sin(x / height * 9.0 + phase) * sin(z / height * 8.0 - phase * 0.73);
     float wobble = _MeltForward.w * strength * (0.4 + 0.6 * (1.0 - strength));
-    float pooledY = y * (1.0 - 0.9 * strength);
+    float pooledY = y * (1.0 - MHK_MELT_SAG * strength);
     pooledY += wave * wobble * saturate(h * 5.0);
     float sway = sin(phase * 0.47 + z / height * 6.0) * wobble * h;
     return _MeltOrigin.xyz + _MeltRight.xyz * (x * spread + sway)
@@ -61,7 +64,7 @@ float3 MHKMeltNormal(float3 normalWS)
     // Inverse-transpose of the main pooling/sag scale. The small boiling ripples keep the mesh's smooth normals.
     float spread = 1.0 + _MeltOrigin.w * _MeltRight.w;
     float3 horizontal = normalWS - _MeltUp.xyz * dot(normalWS, _MeltUp.xyz);
-    return normalize(horizontal / spread + _MeltUp.xyz * dot(normalWS, _MeltUp.xyz) / (1.0 - 0.9 * _MeltOrigin.w));
+    return normalize(horizontal / spread + _MeltUp.xyz * dot(normalWS, _MeltUp.xyz) / (1.0 - MHK_MELT_SAG * _MeltOrigin.w));
 }
 
 half3 MHKGlow(float2 uv, half3 albedo)

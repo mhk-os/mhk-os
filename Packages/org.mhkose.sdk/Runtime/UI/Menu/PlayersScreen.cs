@@ -10,7 +10,8 @@ namespace MHK.UI
     /// The players page (Players.uxml), opened from the Online page, the Time Trials hub and the Account page. Ranking:
     /// the score ranking (<see cref="OnlineProfiles.ScoreLeaderboard"/>) with the player's own row pinned; All players:
     /// the listed accounts (<see cref="OnlineProfiles.ListPlayers"/>) newest or A-Z with their rank next to the name.
-    /// Both search by name and page <see cref="pageSize"/> rows at a time. A row (or its name) opens the player card, its
+    /// Both search by name and page <see cref="pageSize"/> rows at a time. Rows show the player's time played
+    /// (<see cref="PlayerSummary.playtime"/>, in the card texts' format). A row (or its name) opens the player card, its
     /// runs button the player's time trial runs (<see cref="PlayerRunsScreen"/>). Also holds the texts of every player
     /// card (<see cref="CardTexts"/>).
     /// </summary>
@@ -306,6 +307,11 @@ namespace MHK.UI
             row.Q("pl-online").SetVisible(s.online);
             row.Q("pl-online").tooltip = onlineNowText;
             row.SetText("pl-sub", s.online ? onlineNowText : string.Format(registeredFormat, s.created == default ? "-" : s.created.ToLocalTime().ToString(dateFormat, Invariant)));
+            // A server without playtimes sends none (-1): the column stays hidden.
+            var playtime = row.Q("pl-playtime");
+            playtime.SetVisible(s.playtime >= 0);
+            playtime.tooltip = cardTexts.playtimeTip;
+            row.SetText("pl-playtime-label", cardTexts.Playtime(s.playtime));
             var score = row.Q<Label>("pl-score");
             score.text = string.Format(Invariant, scoreFormat, s.score);
             score.tooltip = scoreTip;

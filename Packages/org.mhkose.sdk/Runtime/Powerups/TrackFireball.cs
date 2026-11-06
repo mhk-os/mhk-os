@@ -18,6 +18,15 @@ namespace MHK.Powerups
         const float ForkReach = AIRacingLine.RouteRunOn + 5f;
         const float TargetLaneReach = 12f;
         const float InterceptConeDot = -0.70710678f; // Original seeking-first cone: +/-135 degrees.
+        const float GroundProbeAbove = 2f;
+        // Deep enough for the drops between Castle's levels; gaps are kept level by MaxGapRun anyway.
+        const float GroundProbeBelow = 30f;
+        // Ground this far below the shot's hover level is a gap the karts jump, a hole in the road or a drop.
+        const float GapDepth = 1f;
+        const float MaxGapRun = 12f;
+        const float AvoidStep = 0.6f;
+        const int AvoidSteps = 4;
+        const float WalkableNormalY = 0.5f;
 
         [Header("Track flight")]
         [SerializeField] float hoverHeight = 1.2f;
@@ -68,7 +77,7 @@ namespace MHK.Powerups
         float mainDistance, routeDistance, raceDistance;
         bool enteredRoute, holding, ownerCleared, spent, angledRelease;
         Vector3 direction, flightCorrection, velocity, recoveryDirection;
-        float wallPauseRemaining, wallRecoveryRemaining;
+        float wallPauseRemaining, wallRecoveryRemaining, gapRun;
         Quaternion visualRotation;
         float spin;
 
@@ -131,8 +140,8 @@ namespace MHK.Powerups
             var liftFrom = Owner.transform.position + Vector3.up * (collisionRadius + Skin);
             SweepMove(liftFrom, transform.position, out var lifted, out _);
             var from = lifted;
-            var to = Hover(from + direction * spawnDistance);
-            var clear = SweepMove(from, to, out to, out var wallNormal);
+            var to = Hover(from + direction * spawnDistance, out _);
+            var clear = FlyTo(from, to, out to, out var wallNormal);
             transform.SetPositionAndRotation(to, Quaternion.LookRotation(direction, Vector3.up));
             if (!clear && main != null) BeginWallRecovery(wallNormal);
             if (visual != null) visualRotation = visual.localRotation;
@@ -220,10 +229,14 @@ namespace MHK.Powerups
                     travelSpeed *= Mathf.Clamp01(1f - turn / 100f);
                 }
                 var from = transform.position;
-                var to = Hover(from + direction * (travelSpeed * subDt));
-                var clear = SweepMove(from, to, out var reached, out var wallNormal);
+                var step = travelSpeed * subDt;
+                var to = Hover(from + direction * step, out var overGap);
+                // Follow a drop down no steeper than it advances, like a falling kart, rather than in one step.
+                to.y = Mathf.Max(to.y, from.y - step);
+                var clear = FlyTo(from, to, out var reached, out var wallNormal);
                 transform.SetPositionAndRotation(reached, Quaternion.LookRotation(direction, Vector3.up));
                 velocity = (reached - from) / subDt;
+                gapRun = overGap ? gapRun + Vector3.ProjectOnPlane(reached - from, Vector3.up).magnitude : 0f;
                 if (targetReady && TryHitLeader(target, from, reached)) return;
                 if (clear) continue;
                 // Native opponent driving records repeated collision flags before entering timed stuck recovery.
@@ -477,7 +490,47 @@ namespace MHK.Powerups
                 lane = Mathf.Lerp(lane, targetLane, 1f - gap / TargetLaneReach);
                 if (drift != 0f) lane = DriftLane(road, ahead, lane, drift);
             }
-            return road.PointAt(ahead, lane);
+            return ClearAim(road, ahead, lane);
+        }
+
+        Vector3 ClearAim(AIRacingLine road, float distance, float lane)
+        {
+            // The solved line can run through scenery the karts steer around (the pillar inside Rome's arcade). Aim
+            // beside it, nearer side first, instead of ramming it again after every wall recovery.
+            var aim = road.PointAt(distance, lane);
+            if (Reachable(aim)) return aim;
+            var width = road.Width(distance);
+            road.RoadEdges(distance, out var left, out var right);
+            var inset = Mathf.Min(collisionRadius / width, (right - left) * 0.5f);
+            var side = road.RoadLaneOf(transform.position, distance) < lane ? -1f : 1f;
+            for (var i = 1; i <= AvoidSteps; i++)
+                for (var s = 0; s < 2; s++, side = -side)
+                {
+                    var candidate = lane + side * i * AvoidStep / width;
+                    if (candidate < left + inset || candidate > right - inset) continue;
+                    var point = road.PointAt(distance, candidate);
+                    if (Reachable(point)) return point;
+                }
+            return aim;
+        }
+
+        bool Reachable(Vector3 aim)
+        {
+            var from = transform.position;
+            var delta = Vector3.ProjectOnPlane(aim - from, Vector3.up);
+            var length = delta.magnitude;
+            if (length < 0.01f) return true;
+            var count = Physics.SphereCastNonAlloc(from, collisionRadius, delta / length, sweepHits, length,
+                ObstacleMask, QueryTriggerInteraction.Ignore);
+            for (var i = 0; i < count; i++)
+            {
+                var hit = sweepHits[i];
+                // Slopes the shot hovers up and initial overlaps do not block the way.
+                if (hit.distance <= 0f || hit.normal.y >= WalkableNormalY || Kart.FromCollider(hit.collider) != null
+                    || hit.collider.transform.IsChildOf(transform)) continue;
+                return false;
+            }
+            return true;
         }
 
         float DriftLane(AIRacingLine road, float distance, float lane, float drift)
@@ -489,14 +542,68 @@ namespace MHK.Powerups
             return Mathf.Clamp(lane + drift / width, Mathf.Min(lane, left + inset), Mathf.Max(lane, right - inset));
         }
 
-        Vector3 Hover(Vector3 position)
+        Vector3 Hover(Vector3 position, out bool overGap)
         {
-            if (GroundProbe.Down(position, 2f, 6f, ObstacleMask, out var ground))
-                position.y = ground.point.y + hoverHeight;
+            // Probe from under any roof. Started above a low ceiling (Rome's arcades), the ray lands on the roof's
+            // top and every following sweep presses the shot into its underside.
+            var above = GroundProbeAbove;
+            if (Physics.Raycast(position, Vector3.up, out var roof, above, ObstacleMask, QueryTriggerInteraction.Ignore))
+                above = Mathf.Max(0f, roof.distance - Skin);
+            // Fall zones only catch karts (ItemPhysics): over them the shot has no ground, like over a gap.
+            var groundY = GroundProbe.Down(position, above, GroundProbeBelow, ObstacleMask, out var ground)
+                && !ItemPhysics.IsPassThrough(ground.collider) ? ground.point.y : float.NegativeInfinity;
+            // Cross gaps the karts jump and holes in road colliders level, like a jumping kart: descending into them
+            // pins the shot against their far edge (Rome's crusher pits, Island's broken bridge) or traps it in a pit
+            // beside the road. Ground still far below after MaxGapRun is a real drop, which the shot follows down.
+            var level = position.y - hoverHeight;
+            overGap = groundY < level - GapDepth;
+            if (overGap && gapRun < MaxGapRun) groundY = level;
+            if (float.IsNegativeInfinity(groundY)) return position;
+            // Under a roof lower than the hover height, fly as high as it leaves room for instead of pinning to it.
+            var clearance = collisionRadius + Skin;
+            var height = hoverHeight > clearance
+                ? clearance + Headroom(new Vector3(position.x, groundY + clearance, position.z), hoverHeight - clearance)
+                : hoverHeight;
+            position.y = groundY + height;
             return position;
         }
 
+        float Headroom(Vector3 from, float distance)
+        {
+            var count = Physics.SphereCastNonAlloc(from, collisionRadius, Vector3.up, sweepHits, distance + Skin,
+                ObstacleMask, QueryTriggerInteraction.Ignore);
+            var free = distance;
+            for (var i = 0; i < count; i++)
+            {
+                var hit = sweepHits[i];
+                // Initial overlaps (the sloped road under the probe) report zero distance; they are no roof.
+                if (hit.distance <= 0f || Kart.FromCollider(hit.collider) != null || hit.collider.transform.IsChildOf(transform)) continue;
+                free = Mathf.Min(free, Mathf.Max(0f, hit.distance - Skin));
+            }
+            return free;
+        }
+
         int ObstacleMask => worldMask & ~GameLayers.KartAndItemMask;
+
+        bool FlyTo(Vector3 from, Vector3 to, out Vector3 reached, out Vector3 normal)
+        {
+            if (to.y < from.y)
+            {
+                // Leaving a ramp or a barrier top: travel level, then descend. A straight diagonal sweep clips the edge
+                // being left and pins the shot on it.
+                if (SweepMove(from, new Vector3(to.x, from.y, to.z), out var level, out _))
+                {
+                    SweepMove(level, new Vector3(level.x, to.y, level.z), out reached, out _);
+                    normal = Vector3.zero;
+                    return true;
+                }
+                // Ducking under a lintel: descend first, then travel level.
+                if (SweepMove(from, new Vector3(from.x, to.y, from.z), out var low, out _)
+                    && SweepMove(low, to, out reached, out normal)) return true;
+            }
+            // Climbing stays one sweep, so walls still stop the shot.
+            return SweepMove(from, to, out reached, out normal);
+        }
 
         bool SweepMove(Vector3 from, Vector3 requested, out Vector3 reached, out Vector3 normal)
         {

@@ -250,10 +250,18 @@ namespace MHK.Race
             var allowance = ProjectionAllowance();
             var dMain = path.Track(pos, ref segment, reset ? float.NaN : PathDistance, allowance, out var latMain, out var scoreMain);
             ReacquireIfLost(path, pos, reset, ref dMain, ref latMain, ref scoreMain);
-            if (branch >= 0 && TryStayOnBranch(alts[branch], pos, reset, allowance, scoreMain)) return;
-            if (TryEnterBranch(path, pos, reset, dMain, latMain, scoreMain)) return;
+            if (branch >= 0 && TryStayOnBranch(alts[branch], pos, reset, allowance, scoreMain))
+            {
+                // Routes forking at the same place (Ventilation's Routes 1 and 5) can claim a kart that cuts into the
+                // other one at the fork. Once it has left that route's road, a route that fits clearly better takes over.
+                if (OffRoad(alts[branch], branchDistance, LateralOffset)) TryEnterBranch(path, pos, reset, routeScore, branch);
+                return;
+            }
+            if ((reset || OffRoad(path, dMain, latMain)) && TryEnterBranch(path, pos, reset, scoreMain, -1)) return;
             SetProjection(dMain, latMain, scoreMain);
         }
+
+        static bool OffRoad(TrackPath line, float distance, float lateral) => lateral > Mathf.Min(0.5f * line.GetWidth(distance), OffMainRoadMax);
 
         float ProjectionAllowance()
         {
@@ -261,16 +269,21 @@ namespace MHK.Race
             return BaseAllowance + AllowanceSpeedFactor * speed * Time.fixedDeltaTime;
         }
 
-        // Lost the local window (cut across an unmapped shortcut, pushed, teleported): global search, taken only when
-        // clearly better so parallel sections never steal a kart that is on its road.
+        // Lost the local window (cut across an unmapped shortcut, pushed, teleported, or kept on a route the kart left
+        // somewhere the local window cannot follow): global search, taken only when clearly better so parallel sections
+        // never steal a kart that is on its road. On a route, the route's own fit is the one to beat.
         void ReacquireIfLost(TrackPath path, Vector3 pos, bool reset, ref float dMain, ref float latMain, ref float scoreMain)
         {
             reacquireTimer -= Time.fixedDeltaTime;
-            if (!(reset || (branch < 0 && reacquireTimer <= 0f && scoreMain > Mathf.Max(ReacquireMinScore, path.GetWidth(dMain))))) return;
+            var onRoute = !reset && branch >= 0;
+            var current = onRoute ? routeScore : scoreMain;
+            var width = onRoute ? track.Routes[branch].GetWidth(branchDistance) : path.GetWidth(dMain);
+            if (!(reset || (reacquireTimer <= 0f && current > Mathf.Max(ReacquireMinScore, width)))) return;
             reacquireTimer = ReacquireInterval;
             var g = -1;
             var dG = path.Project(pos, ref g, out var latG, out var scoreG);
-            if (!(scoreG < scoreMain * ReacquireGain)) return;
+            if (!(scoreG < current * ReacquireGain)) return;
+            if (onRoute) branch = -1;
             segment = g;
             dMain = dG;
             latMain = latG;
@@ -291,18 +304,19 @@ namespace MHK.Race
             return true;
         }
 
-        bool TryEnterBranch(TrackPath path, Vector3 pos, bool reset, float dMain, float latMain, float scoreMain)
+        // The alternative route (other than `current`) that fits better than `scoreToBeat` by RouteHysteresis and covers
+        // the kart's lap position.
+        bool TryEnterBranch(TrackPath path, Vector3 pos, bool reset, float scoreToBeat, int current)
         {
             var alts = track.Routes;
             var best = -1;
-            var bestScore = scoreMain - RouteHysteresis;
+            var bestScore = scoreToBeat - RouteHysteresis;
             float bestD = 0f, bestLat = 0f;
             var bestSeg = -1;
-            var offMainRoad = reset || latMain > Mathf.Min(0.5f * path.GetWidth(dMain), OffMainRoadMax);
-            for (var i = 0; offMainRoad && i < alts.Count; i++)
+            for (var i = 0; i < alts.Count; i++)
             {
                 var alt = alts[i];
-                if (alt == null || alt.Count < 2) continue;
+                if (i == current || alt == null || alt.Count < 2) continue;
                 var bounds = alt.WorldBounds;
                 bounds.Expand(BranchBoundsWidths * Mathf.Max(BranchBoundsMinWidth, alt.GetNodeWidth(0)));
                 if (!bounds.Contains(pos)) continue;

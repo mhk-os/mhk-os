@@ -12,7 +12,11 @@ namespace MHK.Online
         Name = 1,
     }
 
-    /// <summary>An account's public summary: the name in lists with its rank (ListPlayers, GetProfiles, ScoreLeaderboard).</summary>
+    /// <summary>
+    /// An account's public summary: the name in lists with its rank (ListPlayers, GetProfiles, ScoreLeaderboard).
+    /// <see cref="playtime"/> is not part of its own encoding: the message carrying summaries ends with the playtimes of
+    /// all of them (<see cref="ReadPlaytimes"/>), which older servers do not send.
+    /// </summary>
     public sealed class PlayerSummary
     {
         public const int MaxList = 100;
@@ -34,6 +38,11 @@ namespace MHK.Online
         public int score;
         /// <summary>1 + accounts with a higher score, 0 = unranked (score 0 or disabled).</summary>
         public int rank;
+        /// <summary>
+        /// Seconds the account played (the game's time played counter, AchievementStats.PlaytimeSeconds, summed over
+        /// every device by the server); 0 = none synced, -1 = unknown (a server without playtimes).
+        /// </summary>
+        public long playtime = -1;
 
         public bool IsModerator => role == AccountRole.Moderator;
 
@@ -71,6 +80,40 @@ namespace MHK.Online
             for (var i = 0; i < count; i++) list.Add(Read(r));
             return list;
         }
+
+        /// <summary>Answer of GetProfiles: the summaries and their playtimes.</summary>
+        internal static List<PlayerSummary> ReadSummaries(WireReader r)
+        {
+            var list = ReadList(r);
+            ReadPlaytimes(r, list, null);
+            return list;
+        }
+
+        /// <summary>The end of a message carrying summaries: list&lt;u64&gt; with the playtime of each, <paramref name="players"/> first, then <paramref name="mine"/> when not null.</summary>
+        internal static void WritePlaytimes(WireWriter w, List<PlayerSummary> players, PlayerSummary mine)
+        {
+            var count = players?.Count ?? 0;
+            w.ListCount(count + (mine != null ? 1 : 0), MaxList + 1);
+            for (var i = 0; i < count; i++) w.U64((ulong)Math.Max(0L, players[i].playtime));
+            if (mine != null) w.U64((ulong)Math.Max(0L, mine.playtime));
+        }
+
+        /// <summary>
+        /// Reads what <see cref="WritePlaytimes"/> wrote. A body that ends before it (an older server) leaves every
+        /// <see cref="playtime"/> at -1; a list of another length than the summaries is malformed.
+        /// </summary>
+        internal static void ReadPlaytimes(WireReader r, List<PlayerSummary> players, PlayerSummary mine)
+        {
+            if (r.Remaining == 0) return;
+            var count = players?.Count ?? 0;
+            var expected = count + (mine != null ? 1 : 0);
+            var got = r.ListCount(expected, 8);
+            if (got != expected) throw new WireFormatException($"{got} playtimes for {expected} players.");
+            for (var i = 0; i < count; i++) players[i].playtime = Seconds(r.U64());
+            if (mine != null) mine.playtime = Seconds(r.U64());
+        }
+
+        static long Seconds(ulong v) => v > long.MaxValue ? long.MaxValue : (long)v;
     }
 
     /// <summary>An account's mini-profile (GetProfile). The moderation fields are set for moderators only.</summary>
@@ -113,15 +156,21 @@ namespace MHK.Online
             TimeTrialWire.U32(w, contentStrikes);
             TimeTrialWire.U32(w, hiddenRuns);
             TimeTrialWire.U32(w, flaggedRuns);
+            PlayerSummary.WritePlaytimes(w, null, player);
         }
 
-        public static PlayerProfile Read(WireReader r) => new()
+        public static PlayerProfile Read(WireReader r)
         {
-            player = PlayerSummary.Read(r), listed = r.Bool(), races = TimeTrialWire.U32(r), wins = TimeTrialWire.U32(r),
-            podiums = TimeTrialWire.U32(r), ttRuns = TimeTrialWire.U32(r), ttBoards = TimeTrialWire.U32(r), ttBestRank = TimeTrialWire.U32(r),
-            disabled = r.Bool(), disabledReason = r.String(ModAccountInfo.MaxReason), cheatKicks = TimeTrialWire.U32(r),
-            contentStrikes = TimeTrialWire.U32(r), hiddenRuns = TimeTrialWire.U32(r), flaggedRuns = TimeTrialWire.U32(r),
-        };
+            var p = new PlayerProfile
+            {
+                player = PlayerSummary.Read(r), listed = r.Bool(), races = TimeTrialWire.U32(r), wins = TimeTrialWire.U32(r),
+                podiums = TimeTrialWire.U32(r), ttRuns = TimeTrialWire.U32(r), ttBoards = TimeTrialWire.U32(r), ttBestRank = TimeTrialWire.U32(r),
+                disabled = r.Bool(), disabledReason = r.String(ModAccountInfo.MaxReason), cheatKicks = TimeTrialWire.U32(r),
+                contentStrikes = TimeTrialWire.U32(r), hiddenRuns = TimeTrialWire.U32(r), flaggedRuns = TimeTrialWire.U32(r),
+            };
+            PlayerSummary.ReadPlaytimes(r, null, p.player);
+            return p;
+        }
     }
 
     /// <summary>Answer of ListPlayers and ScoreLeaderboard: one page of players.</summary>
@@ -133,14 +182,20 @@ namespace MHK.Online
         /// <summary>ScoreLeaderboard: the logged-in account when ranked, else null.</summary>
         public PlayerSummary mine;
 
-        /// <summary>ListPlayers: total and the page.</summary>
-        public static PlayerPage Read(WireReader r) => new() { total = TimeTrialWire.U32(r), players = PlayerSummary.ReadList(r) };
+        /// <summary>ListPlayers: total, the page and its playtimes.</summary>
+        public static PlayerPage Read(WireReader r)
+        {
+            var p = new PlayerPage { total = TimeTrialWire.U32(r), players = PlayerSummary.ReadList(r) };
+            PlayerSummary.ReadPlaytimes(r, p.players, null);
+            return p;
+        }
 
-        /// <summary>ScoreLeaderboard: total, the page and the own row.</summary>
+        /// <summary>ScoreLeaderboard: total, the page, the own row and their playtimes.</summary>
         public static PlayerPage ReadRanked(WireReader r)
         {
-            var p = Read(r);
+            var p = new PlayerPage { total = TimeTrialWire.U32(r), players = PlayerSummary.ReadList(r) };
             if (r.Bool()) p.mine = PlayerSummary.Read(r);
+            PlayerSummary.ReadPlaytimes(r, p.players, p.mine);
             return p;
         }
 
@@ -148,9 +203,12 @@ namespace MHK.Online
         {
             TimeTrialWire.U32(w, total);
             PlayerSummary.WriteList(w, players);
-            if (!ranked) return;
-            w.Bool(mine != null);
-            mine?.Write(w);
+            if (ranked)
+            {
+                w.Bool(mine != null);
+                mine?.Write(w);
+            }
+            PlayerSummary.WritePlaytimes(w, players, ranked ? mine : null);
         }
     }
 
