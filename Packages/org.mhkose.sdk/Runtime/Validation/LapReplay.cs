@@ -67,7 +67,7 @@ namespace MHK.Validation
         float branchDistance;
         int safeBranch = -1;
         float safeBranchDistance;
-        float lapDistance, lineSide, reacquireTimer, wrongWayTimer;
+        float lapDistance, lineSide, reacquireTimer, wrongWayTimer, routeScore;
         bool relocate, wrongWay;
         int crossings, lapsCounted, stage, undoStage;
         bool lastCrossForward;
@@ -178,19 +178,29 @@ namespace MHK.Validation
             var allowance = BaseAllowance + AllowanceSpeedFactor * speed * dt;
             var dMain = path.Track(pos, ref segment, reset ? float.NaN : PathDistance, allowance, out var latMain, out var scoreMain);
             ReacquireIfLost(path, reset, ref dMain, ref latMain, ref scoreMain);
-            if (branch >= 0 && TryStayOnBranch(alts[branch], reset, allowance, scoreMain)) return;
-            if (TryEnterBranch(path, reset, dMain, latMain, scoreMain)) return;
+            if (branch >= 0 && TryStayOnBranch(alts[branch], reset, allowance, scoreMain))
+            {
+                if (OffRoad(alts[branch], branchDistance, LateralOffset)) TryEnterBranch(path, reset, routeScore, branch);
+                return;
+            }
+            if ((reset || OffRoad(path, dMain, latMain)) && TryEnterBranch(path, reset, scoreMain, -1)) return;
             SetProjection(dMain, latMain, scoreMain);
         }
+
+        static bool OffRoad(TrackPath line, float distance, float lateral) => lateral > Mathf.Min(0.5f * line.GetWidth(distance), OffMainRoadMax);
 
         void ReacquireIfLost(TrackPath path, bool reset, ref float dMain, ref float latMain, ref float scoreMain)
         {
             reacquireTimer -= dt;
-            if (!(reset || (branch < 0 && reacquireTimer <= 0f && scoreMain > Mathf.Max(ReacquireMinScore, path.GetWidth(dMain))))) return;
+            var onRoute = !reset && branch >= 0;
+            var current = onRoute ? routeScore : scoreMain;
+            var width = onRoute ? track.Routes[branch].GetWidth(branchDistance) : path.GetWidth(dMain);
+            if (!(reset || (reacquireTimer <= 0f && current > Mathf.Max(ReacquireMinScore, width)))) return;
             reacquireTimer = ReacquireInterval;
             var g = -1;
             var dG = path.Project(pos, ref g, out var latG, out var scoreG);
-            if (!(scoreG < scoreMain * ReacquireGain)) return;
+            if (!(scoreG < current * ReacquireGain)) return;
+            if (onRoute) branch = -1;
             segment = g;
             dMain = dG;
             latMain = latG;
@@ -211,18 +221,17 @@ namespace MHK.Validation
             return true;
         }
 
-        bool TryEnterBranch(TrackPath path, bool reset, float dMain, float latMain, float scoreMain)
+        bool TryEnterBranch(TrackPath path, bool reset, float scoreToBeat, int current)
         {
             var alts = track.Routes;
             var best = -1;
-            var bestScore = scoreMain - RouteHysteresis;
+            var bestScore = scoreToBeat - RouteHysteresis;
             float bestD = 0f, bestLat = 0f;
             var bestSeg = -1;
-            var offMainRoad = reset || latMain > Mathf.Min(0.5f * path.GetWidth(dMain), OffMainRoadMax);
-            for (var i = 0; offMainRoad && i < alts.Count; i++)
+            for (var i = 0; i < alts.Count; i++)
             {
                 var alt = alts[i];
-                if (alt == null || alt.Count < 2) continue;
+                if (i == current || alt == null || alt.Count < 2) continue;
                 var bounds = alt.WorldBounds;
                 bounds.Expand(BranchBoundsWidths * Mathf.Max(BranchBoundsMinWidth, alt.GetNodeWidth(0)));
                 if (!bounds.Contains(pos)) continue;
@@ -254,6 +263,7 @@ namespace MHK.Validation
         {
             PathDistance = pathDistance;
             LateralOffset = lateral;
+            routeScore = score;
         }
 
         float SignedLapOffset(float lap)
