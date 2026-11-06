@@ -126,6 +126,36 @@ half4 MHKSurface(Varyings i)
     return tex;
 }
 
+float3 MHKMeltHash(float3 p)
+{
+    p = frac(p * float3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yxz + 33.33);
+    return frac((p.xxy + p.yxx) * p.zyx);
+}
+
+// One layer of boiling bubbles in melt-local cells: each cell may hold a bubble at a random spot that swells, holds
+// and pops on its own random cycle. A bubble stays inside its cell, so only that cell is evaluated. x = bubble film
+// (brighter rim), y = specular glint.
+half2 MHKMeltBubbles(float3 p, float time)
+{
+    float3 cell = floor(p);
+    float3 h = MHKMeltHash(cell);
+    float3 g = MHKMeltHash(cell + 17.31);
+    float life = frac(time / (0.55 + 0.75 * g.x) + g.y);
+    float maxRadius = 0.22 + 0.2 * g.z;
+    float3 centre = 0.5 + (h - 0.5) * (1.0 - 2.0 * maxRadius);
+    // Swell, then burst slightly wider while fading; a fifth of the cells stay empty.
+    float radius = maxRadius * (smoothstep(0.0, 0.7, life) + 0.15 * smoothstep(0.82, 1.0, life));
+    half alive = step(0.2, h.x) * smoothstep(0.0, 0.08, life) * (1.0 - smoothstep(0.82, 0.95, life));
+    float3 offset = p - cell - centre;
+    float d = length(offset);
+    float aa = max(fwidth(d), 1e-4);
+    half disc = 1.0 - smoothstep(radius - aa, radius + aa, d);
+    half rim = smoothstep(radius * 0.55, radius, d) * disc;
+    half glint = 1.0 - smoothstep(0.0, radius * 0.3 + aa, length(offset - float3(-0.35, 0.35, 0.35) * radius));
+    return half2(disc * 0.25 + rim * 0.75, glint) * alive;
+}
+
 half4 frag(Varyings i) : SV_Target
 {
     UNITY_SETUP_INSTANCE_ID(i);
@@ -144,13 +174,17 @@ half4 frag(Varyings i) : SV_Target
     {
         half heat = _MeltOrigin.w * (0.85 + 0.15 * sin(_MeltHeat.w * 10.0));
         col = lerp(col, col * half3(1.1, 0.72, 0.45) + _MeltHeat.rgb, heat);
-        float3 surface = (i.positionWS - _MeltOrigin.xyz) / max(_MeltUp.w, 0.001);
-        half ripple = 0.5 + 0.5 * sin(dot(surface, _MeltRight.xyz) * 18.0
-            + dot(surface, _MeltForward.xyz) * 11.0 - _MeltHeat.w * 9.0);
+        float3 delta = (i.positionWS - _MeltOrigin.xyz) / max(_MeltUp.w, 0.001);
+        float3 local = float3(dot(delta, _MeltRight.xyz), dot(delta, _MeltUp.xyz), dot(delta, _MeltForward.xyz));
+        half2 bubbles = max(MHKMeltBubbles(local * 3.0, _MeltHeat.w),
+            MHKMeltBubbles(local * 5.0 + 5.3, _MeltHeat.w * 1.3));
         half rim = 1.0 - saturate(dot(n, SafeNormalize(GetWorldSpaceViewDir(i.positionWS))));
         rim *= rim;
-        half sheen = saturate(0.35 + 0.35 * ripple + 0.3 * rim);
-        col = lerp(col, _MeltWater.rgb, saturate(_MeltOrigin.w * _MeltWater.a * sheen));
+        half water = _MeltOrigin.w * _MeltWater.a;
+        col = lerp(col, _MeltWater.rgb, saturate(water * (0.3 + 0.3 * rim)));
+        // Bubble films read clearly over the thin sheen; a sheen with zero strength has no bubbles either.
+        half bubbleStrength = _MeltOrigin.w * saturate(_MeltWater.a * 2.0);
+        col = lerp(col, _MeltWater.rgb, saturate(bubbles.x * bubbleStrength * 0.85)) + bubbles.y * bubbleStrength * 0.5;
     }
     col = lerp(col, MixFog(col, i.fogFactor), _Fog);
     return half4(col, tex.a * _Tint.a);
