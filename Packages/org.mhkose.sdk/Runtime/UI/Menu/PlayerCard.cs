@@ -28,6 +28,8 @@ namespace MHK.UI
         public string onlineNowText = "Online now", neverActiveText = "Never", lastActiveTip = "Last active";
         [Tooltip("Tooltip of the registration date.")]
         public string registeredTip = "Registered";
+        [Tooltip("Time played (the player's playtime on every device) in the card and the players list: from an hour ({0} = hours, {1} = minutes), under an hour ({0} = minutes), and its tooltip.")]
+        public string playtimeFormat = "{0} h {1} min", playtimeMinutesFormat = "{0} min", playtimeTip = "Time played";
         [Tooltip("Section headings: online races, time trials, moderation.")]
         public string racesHeading = "Online races", timeTrialsHeading = "Time trials", moderationHeading = "Moderation";
         [Tooltip("Tooltips of the online race chips: races, wins, podiums.")]
@@ -45,6 +47,15 @@ namespace MHK.UI
         public string kickText = "Kick", runsText = "Time trial runs", disableText = "Disable", enableText = "Enable";
         [Tooltip("Date format of the card (.NET custom format).")]
         public string dateFormat = "d MMM yyyy";
+
+        /// <summary>A playtime in seconds as hours and minutes ("12 h 34 min", under an hour "34 min"); "-" when none was recorded.</summary>
+        public string Playtime(long seconds)
+        {
+            if (seconds <= 0) return "-";
+            var minutes = seconds / 60;
+            return minutes < 60 ? string.Format(CultureInfo.InvariantCulture, playtimeMinutesFormat, minutes)
+                : string.Format(CultureInfo.InvariantCulture, playtimeFormat, minutes / 60, minutes % 60);
+        }
     }
 
     /// <summary>What a screen offers on its player cards besides the profile.</summary>
@@ -59,9 +70,9 @@ namespace MHK.UI
     }
 
     /// <summary>
-    /// The mini-profile next to a player's name (one at a time): name, country, moderator badge, rank and score, online
-    /// races, registration, last activity and time trials (<see cref="OnlineProfiles.Get"/>), for moderators the
-    /// account's state with Disable / Enable (<see cref="ModerationPrompts.ToggleAccount"/>); Kick where the screen
+    /// The mini-profile next to a player's name (one at a time): name, country, moderator badge, rank and score,
+    /// registration, last activity, time played, online races and time trials (<see cref="OnlineProfiles.Get"/>), for
+    /// moderators the account's state with Disable / Enable (<see cref="ModerationPrompts.ToggleAccount"/>); Kick where the screen
     /// allows it and 'Time trial runs' outside lobbies (<see cref="PlayerCardOptions"/>). Hovering the name with a mouse
     /// or focusing it shows the card (moving onto the card keeps it), clicking or tapping the name or pressing Submit on
     /// it pins it with the focus on its actions; Back, a tap outside, scrolling or leaving the screen close it. Styles:
@@ -386,6 +397,8 @@ namespace MHK.UI
                 InfoChips.Add(dates, "person_add", Date(summary.created, x), x.registeredTip);
                 InfoChips.Add(dates, "history", summary.online ? x.onlineNowText : summary.lastActive == default ? x.neverActiveText : Date(summary.lastActive, x),
                     x.lastActiveTip, summary.online ? InfoChipState.Good : InfoChipState.Normal);
+                // A server without playtimes sends none (-1).
+                if (summary.playtime >= 0) InfoChips.Add(dates, "hourglass_top", x.Playtime(summary.playtime), x.playtimeTip);
             }
             // A profile built from the cached summary alone has no race or time trial numbers yet.
             var full = s.loaded;
