@@ -9,7 +9,9 @@ namespace MHK.UI
     /// <summary>
     /// A selection page: game filter chips (<c>tabs</c>), a grid of content cards (<c>card-scroll</c>, <c>card-grid</c>),
     /// the info panel of the hovered or focused card (<c>info-panel</c>) and a one-line empty state (<c>empty</c>).
-    /// An optional <c>showcase-area</c> frames the 3D turntable. Subclasses list, describe, pick and decorate the items.
+    /// An optional <c>showcase-area</c> frames the 3D turntable. Picking a card goes on at once. The current card (class
+    /// <c>current</c>: the focused card, else the current choice, else the first) is what the info panel returns to,
+    /// and an optional footer button <c>next</c> goes on with it. Subclasses list, describe, pick and decorate the items.
     /// </summary>
     public abstract class CardGridScreen<T> : MenuScreen where T : ContentDefinition
     {
@@ -27,13 +29,15 @@ namespace MHK.UI
         int hoverRestoreMs = 120;
 
         const string AllGamesLabel = "All";
+        const string CurrentClass = "current";
         const int InfoPopMs = 220;
 
-        VisualElement grid, tabs, info, infoImage;
+        VisualElement grid, tabs, info, infoImage, current;
         Label infoName, infoGame;
         IVisualElementScheduledItem restore;
         bool filterShown;
-        // Resting: the card the panel returns to (focused, else the selected or first one). Shown: the described card.
+        // Resting: the card the panel returns to (focused, else the selected or first one), marked current. Shown: the
+        // described card.
         T resting, shown;
 
         /// <summary>Every item the page lists (before the game filter), in display order.</summary>
@@ -67,6 +71,9 @@ namespace MHK.UI
         /// <summary>The grid was emptied before it is filled again (first fill and every game filter change).</summary>
         protected virtual void OnGridCleared() { }
 
+        /// <summary>The page offers its footer's Next (when the UXML has one).</summary>
+        protected virtual bool OffersNext => true;
+
         protected override void Bind()
         {
             grid = Q<VisualElement>("card-grid");
@@ -76,17 +83,28 @@ namespace MHK.UI
             infoGame = Q<Label>("info-game");
             infoImage = Root.Q("info-image");
             resting = shown = null;
+            current = null;
             BindPage();
             var empty = !Items.Any();
             ShowEmptyState(empty);
+            var next = Root.Q<Button>("next");
+            next?.SetVisible(!empty && OffersNext);
             if (empty)
             {
                 FocusTarget = BindEmptyDownload() ?? Root.Q<Button>("back");
                 Flow.SetShowcaseVisible(false);
                 return;
             }
+            if (next != null)
+                next.clicked += () =>
+                {
+                    if (resting == null) return;
+                    Click();
+                    Pick(resting);
+                };
             KeepFocusedInView(Q<ScrollView>("card-scroll"), grid);
             grid.RegisterCallback<NavigationMoveEvent>(OnGridNavigate);
+            grid.RegisterCallback<FocusInEvent>(OnGridFocusIn);
             tabs.RegisterCallback<NavigationMoveEvent>(OnTabsNavigate);
             restore = grid.schedule.Execute(() => Show(resting));
             restore.Pause();
@@ -150,11 +168,26 @@ namespace MHK.UI
             if (infoPopScale != 1f) UiAnim.Pop(info, infoPopScale, InfoPopMs);
         }
 
-        void OnCardFocused(T item)
+        void OnCardFocused(T item, VisualElement card)
         {
             restore.Pause();
             resting = item;
+            SetCurrent(card);
             Show(item);
+        }
+
+        void SetCurrent(VisualElement card)
+        {
+            if (card == current) return;
+            current?.RemoveFromClassList(CurrentClass);
+            current = card;
+            current?.AddToClassList(CurrentClass);
+        }
+
+        // A grid card without an item (the lobby's Random track) has the focus: no item card is current then.
+        void OnGridFocusIn(FocusInEvent e)
+        {
+            if (e.target is VisualElement card && card.parent == grid && card.userData is not T) SetCurrent(null);
         }
 
         void OnCardHovered(T item)
@@ -242,6 +275,7 @@ namespace MHK.UI
         VisualElement FillGrid()
         {
             grid.Clear();
+            current = null;
             OnGridCleared();
             var filter = GameFilter;
             T first = null, selectedItem = null;
@@ -262,8 +296,18 @@ namespace MHK.UI
             }
             UiAnim.Stagger(grid, cardStep, cardFirst, "pop");
             resting = selectedItem != null ? selectedItem : first;
+            var restingCard = selected ?? (grid.childCount > 0 && first != null ? CardOf(first) : null);
+            SetCurrent(restingCard);
             Show(resting);
             return selected ?? (grid.childCount > 0 ? grid[0] : null);
+        }
+
+        // The card spawned for item (cards keep their item in userData).
+        VisualElement CardOf(T item)
+        {
+            foreach (var card in grid.Children())
+                if (card.userData is T cardItem && cardItem == item) return card;
+            return null;
         }
 
         Button SpawnCard(T item)
@@ -284,7 +328,8 @@ namespace MHK.UI
                 Click();
                 Pick(item);
             };
-            card.RegisterCallback<FocusInEvent>(_ => OnCardFocused(item));
+            card.userData = item;
+            card.RegisterCallback<FocusInEvent>(_ => OnCardFocused(item, card));
             card.RegisterCallback<PointerEnterEvent>(_ => OnCardHovered(item));
             card.RegisterCallback<PointerLeaveEvent>(_ => restore.ExecuteLater(hoverRestoreMs));
             return card;

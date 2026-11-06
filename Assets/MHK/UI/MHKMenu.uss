@@ -162,7 +162,8 @@
 
 .browser { flex-direction: row; flex-grow: 1; }
 .browser-list { width: 61%; }
-.card.track-card { width: 222px; height: 196px; padding: 14px 14px 12px 14px; justify-content: flex-start; }
+/* The 16 px side padding keeps the picture inside the current card's thick ring. */
+.card.track-card { width: 222px; height: 196px; padding: 16px 16px 14px 16px; justify-content: flex-start; }
 .track-card .card-image { flex-grow: 1; width: 100%; margin: 0; border-radius: 8px; }
 .card-caption { flex-shrink: 0; width: 100%; padding: 4px 2px 0 2px; }
 .track-card .card-label { font-size: 19px; }

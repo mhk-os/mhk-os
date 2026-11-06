@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Track choice. Code fills title (battles, lobby modes), tabs, card-grid (one picture card per track) and the info panel (hovered or focused card: picture, name, game, laps or arena, records from the save). empty (with the built-in mods download while they are missing) replaces the body when no track is loaded. cups (footer) shows only for an online room owner picking between sets of an owner-pick race room and opens the Cup page with the room's cups. Preview classes on page: preview-arena (arena line instead of laps), preview-empty. -->
+    <!-- Track choice. Code fills title (battles, lobby modes), tabs, card-grid (one picture card per track) and the info panel (hovered or focused card: picture, name, game, laps or arena, records from the save). The current card (class current, thick ring: focused, else the chosen track, else the first) is what next (footer) goes on with; picking a card goes on at once. next is hidden in the lobby modes, where a card (Random included) is the vote or pick. empty (with the built-in mods download while they are missing) replaces the body when no track is loaded. cups (footer) shows only for an online room owner picking between sets of an owner-pick race room and opens the Cup page with the room's cups. Preview classes on page: preview-arena (arena line instead of laps), preview-empty. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
     <ui:Template name="TrackCard" src="/Assets/MHK/UI/Menu/Templates/TrackCard.uxml" />
@@ -141,6 +141,10 @@
                 <ui:Button name="cups" tooltip="Race a whole championship of the room's tracks as the next set" class="mhk-button">
                     <ui:VisualElement class="icon i-emoji_events" />
                     <ui:Label text="Championships" class="button-label" />
+                </ui:Button>
+                <ui:Button name="next" tooltip="Go on with the highlighted track" class="mhk-button go">
+                    <ui:VisualElement class="icon i-arrow_forward" />
+                    <ui:Label text="Next" class="button-label" />
                 </ui:Button>
             </ui:VisualElement>
         </ui:VisualElement>

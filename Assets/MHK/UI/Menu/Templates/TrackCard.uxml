@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
-    <!-- Track / cup card: the picture fills the card, title and tag sit on a dark fade at its bottom. Code sets card-image, card-title, card-tag and card-badge (won cups, hidden by MHKMenu.uss until then). The image here is a sample that instances override (AttributeOverrides element-name="card-image" image=...). -->
+    <!-- Track / cup card: the picture fills the card, title and tag sit on a dark fade at its bottom. Code sets card-image, card-title, card-tag, card-badge (won cups, hidden by MHKMenu.uss until then), .selected (the saved choice) and .current (the card the page's Next goes on with: thick accent ring). The image here is a sample that instances override (AttributeOverrides element-name="card-image" image=...). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Button class="card track-card">
         <mhk:ContentImage name="card-image" class="card-image" picking-mode="Ignore" image="/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png" />

@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
-    <!-- Character / kart card. Code sets card-image (portrait or kart icon), card-title, card-tag and .selected (the check badge shows then). The image here is a sample that instances override (AttributeOverrides element-name="card-image" image=...). -->
+    <!-- Character / kart card. Code sets card-image (portrait or kart icon), card-title, card-tag, .selected (the saved choice: the check badge shows then) and .current (the card the page's Next goes on with: thick accent ring). The image here is a sample that instances override (AttributeOverrides element-name="card-image" image=...). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Button class="card portrait-card">
         <ui:VisualElement class="card-well" picking-mode="Ignore">
