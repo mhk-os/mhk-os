@@ -13,6 +13,9 @@ namespace MHK.Modding
         [Tooltip("Vehicle physics. Empty = GameConfig default (MHK2 reference kart).")]
         public KartPhysicsProfile physics;
         public float modelScale = 1f;
+        [Tooltip("Version of what decides lap times with this kart (physics profile, scale, chassis). Bump it when a change " +
+                 "alters lap times for identical inputs: older records with the kart no longer count.")]
+        [Min(1)] public int contentVersion = 1;
         [Tooltip("Kart body animations played in sync with the driver's roles (MHK3 / Extra karts).")]
         public List<CharacterAnimBinding> animations = new();
 

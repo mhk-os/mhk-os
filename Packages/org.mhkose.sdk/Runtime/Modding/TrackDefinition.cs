@@ -4,7 +4,10 @@ using UnityEngine;
 
 namespace MHK.Modding
 {
-    /// <summary>A track: its scene, layout, laps, music and physics overrides.</summary>
+    /// <summary>
+    /// A track: its scene, layout, laps, music and physics overrides. Its variants (reverse, night, rain) come from
+    /// <see cref="TrackOverlayDefinition"/>s (<see cref="TrackVariants"/>).
+    /// </summary>
     [CreateAssetMenu(menuName = "MHK/Content/Track", fileName = "Track")]
     public class TrackDefinition : ContentDefinition
     {
@@ -15,8 +18,9 @@ namespace MHK.Modding
         public AudioClip music;
         [Range(0, 1)] public float musicVolume = 0.7f;
         public Texture2D previewImage;
-        [Tooltip("Gameplay variant label shown in menus (e.g. 'Reverse').")]
-        public string variant;
+        [Tooltip("Version of what decides lap times on this track (geometry, racing lines, zones, physics overrides). Bump it " +
+                 "when a change alters lap times for identical inputs: older records of the track no longer count.")]
+        [Min(1)] public int contentVersion = 1;
         [Tooltip("Physics gravity override (0 = game default, MHK2 19.62).")]
         public float gravity;
         [Tooltip("Kart physics overrides on this track (slope gravity).")]

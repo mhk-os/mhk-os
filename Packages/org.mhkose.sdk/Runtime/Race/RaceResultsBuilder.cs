@@ -44,20 +44,24 @@ namespace MHK.Race
             }
         }
 
-        /// <summary>Fills <paramref name="results"/> in ranking order, awards points and updates the track records.</summary>
+        /// <summary>
+        /// Fills <paramref name="results"/> in ranking order, awards points and updates the track records (only races on the
+        /// track's default variant over its own lap count set them).
+        /// </summary>
         public static void Build(RaceManager race, IReadOnlyList<Kart> ranking, List<RaceResult> results)
         {
             var cfg = GameRoot.Instance.Config;
             var save = GameRoot.Instance.Save;
             var session = race.Session;
             var battle = race.Battle != null;
+            var recordRace = !battle && race.Variant.IsDefault && race.Laps == race.Track.defaultLaps;
             results.Clear();
             for (var i = 0; i < ranking.Count; i++)
             {
                 var k = ranking[i];
                 var gained = session.mode == GameMode.Championship && i < cfg.championshipPoints.Length ? cfg.championshipPoints[i] : 0;
                 results.Add(Award(k, i + 1, gained, battle));
-                if (k.IsHuman && !battle) UpdateTrackRecord(save.GetRecord(race.Track.Id), k, race.Laps);
+                if (k.IsHuman && recordRace) UpdateTrackRecord(save.GetRecord(race.Track.Id), k, race.Laps);
             }
             if (session.mode == GameMode.Championship && !session.HasNextRace) MarkCupWon(session, save);
             GameRoot.Instance.SaveProgress();

@@ -7,11 +7,13 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// Pause menu (Pause.uxml), open while the race is paused: Continue / Standings / Restart / Options / Quit to menu. The
-    /// title and plate scale in (<c>.hud-pause-column.shown</c>). Standings (championships, from the second race on)
+    /// Pause menu (Pause.uxml), open while the race is paused: Continue / Standings / Screenshot / Restart / Options / Quit to
+    /// menu. The title and plate scale in (<c>.hud-pause-column.shown</c>). Standings (championships, from the second race on)
     /// swaps the plate for the standings before this race (<see cref="StandingsTable"/>); Back, Cancel or the Pause key
-    /// return. Options opens the main menu's Options page (and its UI layout, graphics and keyboard keys screens) in the
-    /// <see cref="options"/> overlay over the pause scrim; the race stays paused and takes the changed settings when it closes.
+    /// return. Screenshot (offline races, championships and battles) opens the <see cref="photo"/> mode, which hides this menu
+    /// and the HUD while it is open; the race stays paused. Options opens the main menu's Options page (and its UI layout,
+    /// graphics and keyboard keys screens) in the <see cref="options"/> overlay over the pause scrim; the race stays paused
+    /// and takes the changed settings when it closes.
     /// </summary>
     public class PauseMenu : RaceLayer
     {
@@ -22,6 +24,9 @@ namespace MHK.UI
         MenuFlow options;
         [SerializeField, Tooltip("The championship standings before this race (Standings button): row template, texts and timing.")]
         StandingsTable standings = new();
+        [SerializeField, Tooltip("Photo mode (a GameObject next to the HUD), opened by the Screenshot button in offline races, " +
+                                 "championships and battles. Empty: no Screenshot button.")]
+        PhotoMode photo;
 
         [Header("Online")]
         [SerializeField, Tooltip("Quit button in online races.")]
@@ -34,7 +39,7 @@ namespace MHK.UI
         string endRaceFormat = "End race for {0}";
 
         VisualElement panel, standingsColumn, standingsPage;
-        Button continueButton, optionsButton, endRaceButton, standingsButton, standingsBack;
+        Button continueButton, optionsButton, endRaceButton, standingsButton, standingsBack, photoButton;
         InputAction uiCancel;
         bool shownEndRace, standingsOpen;
         // Escape is the UI cancel (closes the standings) and the Pause key: the frame they closed in, whichever came first.
@@ -58,6 +63,7 @@ namespace MHK.UI
             else optionsButton.SetVisible(false);
             Race.PauseKeyHandler = OnPauseKey;
             BindStandings();
+            BindPhoto();
             var quit = Q<Button>("quit");
             endRaceButton = Q<Button>("end-race");
             endRaceButton.SetVisible(false);
@@ -84,6 +90,31 @@ namespace MHK.UI
             standingsButton.clicked += OpenStandings;
             standingsBack.clicked += CloseStandings;
             Root.RegisterCallback<NavigationCancelEvent>(OnCancel);
+        }
+
+        // Offline single races, championships and battles: not online (the race goes on), time trials, replays or the menu
+        // background race.
+        void BindPhoto()
+        {
+            photoButton = Q<Button>("photo");
+            var session = Race.Session;
+            var shown = photo != null && session != null && !Race.IsOnline && !Race.IsAttract && Race.RaceCamera != null &&
+                        session.mode is GameMode.SingleRace or GameMode.Championship or GameMode.Battle;
+            photoButton.SetVisible(shown);
+            if (!shown) return;
+            photoButton.clicked += OpenPhoto;
+            photo.Closed += OnPhotoClosed;
+        }
+
+        void OpenPhoto()
+        {
+            photoButton.Blur();
+            photo.Open(Race, Hud);
+        }
+
+        void OnPhotoClosed()
+        {
+            if (IsBound) ShowPanel(photoButton);
         }
 
         void OpenStandings()
@@ -161,9 +192,15 @@ namespace MHK.UI
                 }
                 options.Closed -= OnOptionsClosed;
             }
+            if (photo != null)
+            {
+                // Unpaused another way while taking photos: the camera goes back to the race first.
+                photo.Closed -= OnPhotoClosed;
+                photo.Close();
+            }
             if (Race != null) Race.PauseKeyHandler = null;
             panel = standingsColumn = standingsPage = null;
-            continueButton = optionsButton = endRaceButton = standingsButton = standingsBack = null;
+            continueButton = optionsButton = endRaceButton = standingsButton = standingsBack = photoButton = null;
             standingsOpen = false;
         }
 
@@ -194,11 +231,12 @@ namespace MHK.UI
         }
 
         // The Pause key is the standings' Back (the race stays paused); Escape is also the UI cancel, which may have
-        // closed them already this frame. While the options are open the Pause key is their Back too: a cancel on the
-        // focused element, so the screens' own cancel handling (prompts, key capture) applies. Escape already goes back
-        // there by itself.
+        // closed them already this frame. In the photo mode it goes back one step there (PhotoMode.TakePauseKey). While the
+        // options are open the Pause key is their Back too: a cancel on the focused element, so the screens' own cancel
+        // handling (prompts, key capture) applies. Escape already goes back there by itself.
         bool OnPauseKey()
         {
+            if (photo != null && photo.TakePauseKey()) return true;
             if (standingsOpen)
             {
                 CloseStandings();

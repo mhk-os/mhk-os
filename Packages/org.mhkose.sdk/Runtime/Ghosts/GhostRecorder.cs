@@ -118,6 +118,7 @@ namespace MHK.Ghosts
             if (kart.Progress.Finished || kart.Eliminated) flags |= GhostFrameFlags.RaceOver;
             if (input.lookBack) flags |= GhostFrameFlags.LookBack;
             if (fx.Burned) flags |= GhostFrameFlags.Burned;
+            if (kart.Headlights) flags |= GhostFrameFlags.Headlights;
             return flags;
         }
 

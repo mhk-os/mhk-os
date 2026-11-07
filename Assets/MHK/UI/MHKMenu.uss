@@ -544,6 +544,21 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .tl-count { flex-shrink: 0; margin: 0 10px; font-size: 18px; color: var(--mhk-gray-600); transition-property: color, scale; transition-duration: 0.15s; }
 .tl-count.warn { color: var(--mhk-bad-ink); scale: 1.12 1.12; }
 
+/* With race settings (.tl-setups on main, custom championship): the library narrows, a third panel edits the selected race, race rows select and sum up their settings instead of the game. */
+.panel.tl-setup-panel { display: none; }
+.tl-setups .panel.music-library { width: 32%; }
+.tl-setups .panel.tl-setup-panel { display: flex; width: 28%; flex-shrink: 0; margin-left: 18px; }
+.tl-setup { display: none; width: 210px; flex-shrink: 1; font-size: 15px; color: var(--mhk-gray-600); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; -unity-text-align: middle-left; }
+.tl-setups .tl-list-races .song-game.tl-game { display: none; }
+.tl-setups .tl-list-races .tl-setup { display: flex; }
+.tl-setups .tl-list-races .song-main.tl-main:hover { background-color: var(--mhk-row-hover); }
+.tl-setups .tl-list-races .tl-row.selected, .tl-setups .tl-list-races TemplateContainer.sample-selected > .tl-row { background-color: var(--mhk-accent-soft); }
+.tl-setup-race { margin: 0 4px 8px 4px; font-size: 18px; color: var(--mhk-gray-600); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-setup-panel .setting-row { min-width: 0; flex-direction: column; align-items: stretch; padding: 6px 8px; }
+.tl-setup-panel .setting-label { margin-bottom: 4px; }
+.tl-setup-panel .setting-row .mhk-button.setting-value { min-width: 0; }
+.tl-setup-hint { margin: 12px 8px 4px 8px; font-size: 15px; color: var(--mhk-gray-500); white-space: normal; }
+
 /* Account: the form or the logged-in account on one panel, the connection line and the server box on a slim one below. */
 .panel.account-panel { width: 640px; flex-shrink: 1; }
 .acc-modes { margin-bottom: 8px; }

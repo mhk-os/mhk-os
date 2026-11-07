@@ -3,6 +3,10 @@
 
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 #include "MHKAmbient.hlsl"
+#include "MHKWet.hlsl"
+
+// Share of the lightning flash reaching covered surfaces (the wet cover map: tunnels, under roofs).
+#define MHK_FLASH_COVERED 0.15
 
 struct Attributes
 {
@@ -99,7 +103,15 @@ Light MHKMainLight(Varyings i, half4 shadowMask)
     return light;
 }
 
-void MHKAddAdditionalLights(Varyings i, half3 n, half4 shadowMask, inout half3 light)
+void MHKAddLight(Light l, half3 n, MHKWetSurface wet, inout half3 light, inout half3 specular)
+{
+    light += MHKLambert(l, n);
+    UNITY_BRANCH
+    if (wet.amount > 0.0) specular += MHKWetSpecular(l, n, wet);
+}
+
+// Lambert of the additional lights into light and, on a wet surface, their highlights into specular.
+void MHKAddAdditionalLights(Varyings i, half3 n, half4 shadowMask, MHKWetSurface wet, inout half3 light, inout half3 specular)
 {
     #if defined(_ADDITIONAL_LIGHTS)
         InputData inputData = (InputData)0;
@@ -108,10 +120,10 @@ void MHKAddAdditionalLights(Varyings i, half3 n, half4 shadowMask, inout half3 l
         uint lightCount = GetAdditionalLightsCount();
         #if USE_CLUSTER_LIGHT_LOOP
             [loop] for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
-                light += MHKLambert(GetAdditionalLight(lightIndex, i.positionWS, shadowMask), n);
+                MHKAddLight(GetAdditionalLight(lightIndex, i.positionWS, shadowMask), n, wet, light, specular);
         #endif
         LIGHT_LOOP_BEGIN(lightCount)
-            light += MHKLambert(GetAdditionalLight(lightIndex, i.positionWS, shadowMask), n);
+            MHKAddLight(GetAdditionalLight(lightIndex, i.positionWS, shadowMask), n, wet, light, specular);
         LIGHT_LOOP_END
     #endif
 }
@@ -161,11 +173,25 @@ half4 frag(Varyings i) : SV_Target
     UNITY_SETUP_INSTANCE_ID(i);
     half4 tex = MHKSurface(i);
     half3 n = normalize(i.normalWS);
+    MHKWetSurface wet = MHKWetSurfaceAt(i.positionWS, n);
     half4 shadowMask = MHKShadowMask(i);
-    half3 light = MHKAmbient(i, n) + MHKLambert(MHKMainLight(i, shadowMask), n);
-    MHKAddAdditionalLights(i, n, shadowMask, light);
-    light = lerp(saturate(light), half3(1, 1, 1), _Emission);
-    half3 col = tex.rgb * light * _Tint.rgb;
+    Light mainLight = MHKMainLight(i, shadowMask);
+    half3 light = MHKAmbient(i, n) + MHKLambert(mainLight, n);
+    half3 specular = 0;
+    MHKAddAdditionalLights(i, n, shadowMask, wet, light, specular);
+    // The lightning flash lights everything outdoors (under cover only a glimmer); self-illuminated surfaces only
+    // brighten with it when unfogged (sky domes).
+    half3 flash = _MHKFlash.rgb;
+    UNITY_BRANCH
+    if (any(flash > 0.0))
+    {
+        half ground;
+        flash *= lerp(MHK_FLASH_COVERED, 1.0, MHKWetUncovered(i.positionWS, ground));
+    }
+    light = lerp(saturate(light + flash), 1.0 + flash * (1.0 - _Fog), _Emission);
+    half3 col = tex.rgb * MHKWetAlbedo(wet) * light * _Tint.rgb;
+    UNITY_BRANCH
+    if (wet.amount > 0.0) col = MHKWetShine(col, n, wet, mainLight, specular);
     #ifdef _GLOW
         col += MHKGlow(i.uv, tex.rgb) * _Tint.rgb;
     #endif

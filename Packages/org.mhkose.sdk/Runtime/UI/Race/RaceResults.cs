@@ -37,10 +37,12 @@ namespace MHK.UI
         string outText = "Out";
 
         [Header("Time trial texts")]
-        [SerializeField, Tooltip("Info line of a time trial ({0} = engine class).")]
+        [SerializeField, Tooltip("Info line of a time trial ({0} = engine class, with the track variant and laps when not the track's usual race).")]
         string timeTrialInfoFormat = "Time Trial | {0}";
-        [SerializeField, Tooltip("Info line of a replay ({0} = player name, {1} = engine class).")]
+        [SerializeField, Tooltip("Info line of a replay ({0} = player name, {1} = engine class, with the track variant and laps when not the track's usual race).")]
         string replayInfoFormat = "Replay | {0} | {1}";
+        [SerializeField, Tooltip("Laps of a time trial that are not the track's, in the info line ({0} = laps).")]
+        string timeTrialLapsFormat = "{0} laps";
         [SerializeField, Tooltip("Race again button in time trials.")]
         string retryText = "Retry";
         [SerializeField, Tooltip("Race again button in replays.")]
@@ -65,9 +67,9 @@ namespace MHK.UI
         string notSavedText = "This run could not be saved.";
         [SerializeField, Tooltip("Note in a replay ({0} = date, {1} = version and commit it was recorded with).")]
         string recordedNoteFormat = "Recorded {0} | build {1}";
-        [SerializeField, Tooltip("Appended to the replay note for a ghost of another content version or other track or kart data.")]
+        [SerializeField, Tooltip("Appended to the replay note for a ghost of another rules, track or kart version.")]
         string otherVersionNote = " | Other version";
-        [SerializeField, Tooltip("Tooltip of the replay note of a ghost of another content version or other track or kart data.")]
+        [SerializeField, Tooltip("Tooltip of the replay note of a ghost of another rules, track or kart version.")]
         string otherVersionTip = "Recorded with another version. It can be raced but never counts as a record.";
         [SerializeField, Tooltip("Note after exporting ({0} = file).")]
         string exportedFormat = "Exported: {0}";
@@ -274,7 +276,8 @@ namespace MHK.UI
         void BindHeader(RaceManager race, GameSession session, bool champ, bool battle)
         {
             title = Q<Label>("title");
-            title.text = trackTitle = race.Track.DisplayName;
+            var variantLabel = race.Variant.Label();
+            title.text = trackTitle = variantLabel.Length > 0 ? race.Track.DisplayName + " · " + variantLabel : race.Track.DisplayName;
             var info = Q<Label>("info");
             var chips = Q<VisualElement>("online-chips");
             returnCountdown = Q<Label>("return-countdown");
@@ -428,7 +431,7 @@ namespace MHK.UI
             var run = replay ? tt.Spectated != null ? tt.Spectated.Data.header : null : tt.Run != null ? tt.Run.header : null;
             var saved = tt.Saved;
             var entry = replay ? tt.Spectated != null ? tt.Spectated.Entry : null : saved != null ? saved.entry : null;
-            var classLabel = GameRoot.Instance.Config.GetDifficulty(Race.Session.difficulty).label;
+            var classLabel = WithSetup(GameRoot.Instance.Config.GetDifficulty(Race.Session.difficulty).label, Race.Variant.Key, Race.Laps);
             BindTimeTrialHeader(replay, run, classLabel);
             // Deltas against the ghost raced (the personal best first), none in replays.
             var reference = !replay && tt.Reference != null ? tt.Reference.Data.header : null;
@@ -445,9 +448,16 @@ namespace MHK.UI
 
         void BindTimeTrialHeader(bool replay, GhostHeader run, string classLabel)
         {
-            Q<Label>("info").text = replay && run != null ? string.Format(replayInfoFormat, PlayerName(run), run.engineClassLabel)
+            Q<Label>("info").text = replay && run != null ? string.Format(replayInfoFormat, PlayerName(run), WithSetup(run.engineClassLabel, run.variant, run.laps))
                 : string.Format(timeTrialInfoFormat, classLabel);
             Q<Label>("race-again-label").text = replay ? watchAgainText : retryText;
+        }
+
+        // The engine class plus the track variant and laps when they are not the track's usual race.
+        string WithSetup(string classLabel, string variantKey, int laps)
+        {
+            var setup = UiText.VariantAndLaps(Race.Track.Id, variantKey, laps, timeTrialLapsFormat);
+            return setup.Length > 0 ? classLabel + " · " + setup : classLabel;
         }
 
         void BindDeltaHeader(TimeTrialRun tt, GhostHeader reference)

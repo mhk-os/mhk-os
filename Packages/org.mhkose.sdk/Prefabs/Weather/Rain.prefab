@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8239922052128609127}
   - component: {fileID: 5197307667725043826}
+  - component: {fileID: 8615562357994695949}
   m_Layer: 0
   m_Name: Rain
   m_TagString: Untagged
@@ -46,21 +47,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: MHK.Runtime::MHK.Effects.WeatherEffect
   targetCamera: {fileID: 0}
   material: {fileID: 2100000, guid: df5ce1c166bee461a925957d45f0165f, type: 2}
-  count: 2000
+  count: 4500
   area: {x: 30, y: 14, z: 30}
   center: {x: 0, y: 3, z: 8}
   edgeFade: 0.35
-  nearFade: 2.5
-  fallSpeed: 9
+  nearFade: 2
+  nearShare: 0.3
+  nearDivisor: 2
+  fallSpeed: 11
   speedVariation: 0.15
-  wind: {x: 0.8, y: 0, z: 0.3}
+  wind: {x: 1.2, y: 0, z: 0.5}
   swayAmplitude: 0
   swayFrequency: 0
-  color: {r: 0.78, g: 0.82, b: 0.9, a: 0.55}
-  size: {x: 0.02, y: 0.7}
-  sizeVariation: 0.2
-  cameraMotionStretch: 0.2
+  color: {r: 0.78, g: 0.82, b: 0.9, a: 0.45}
+  size: {x: 0.018, y: 0.9}
+  sizeVariation: 0.25
+  cameraMotionStretch: 0.3
+  splashCount: 350
+  splashArea: 24
+  splashAhead: 6
+  splashLifetime: 0.3
+  splashSize: {x: 0.2, y: 0.13}
+  splashOpacity: 0.55
   cover: []
+  coverTrackVisual: 1
   coverTexel: 1
   coverMaxResolution: 1024
   coverBias: 0.1
@@ -71,3 +81,29 @@ MonoBehaviour:
   - 0.6
   - 1
   - 1
+--- !u!114 &8615562357994695949
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6292152758666588972}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87c62f089d6840648d4ebe75143a83cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Effects.WeatherAmbience
+  loop: {fileID: 8300000, guid: 43887f7d5901456db61172677a3d59f6, type: 3}
+  loopVolume: 0.55
+  fadeIn: 2
+  fadeOut: 1
+  thunderClips:
+  - {fileID: 8300000, guid: fdcf08371ff644829e75e912eb2310fd, type: 3}
+  - {fileID: 8300000, guid: ec1f40a980e7418f8dffda2f6d0f2589, type: 3}
+  firstStrike: {x: 5, y: 15}
+  strikeInterval: {x: 10, y: 35}
+  thunderDelay: {x: 0.3, y: 3}
+  thunderVolume: {x: 0.45, y: 1}
+  thunderPitch: {x: 0.85, y: 1.1}
+  flashColor: {r: 0.82, g: 0.87, b: 1, a: 1}
+  flashIntensity: {x: 0.35, y: 1.2}

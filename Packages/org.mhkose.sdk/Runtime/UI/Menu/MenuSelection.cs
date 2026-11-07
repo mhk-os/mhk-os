@@ -40,8 +40,24 @@ namespace MHK.UI
         public int championshipOpponents = -1;
         public int laps = 3;
         public bool useTrackLaps = true;
-        /// <summary>Single race or battle: the picked track.</summary>
-        public TrackDefinition track;
+        /// <summary>Single race, battle or time trial: the picked track. Picking another one resets <see cref="variantKey"/>.</summary>
+        public TrackDefinition track
+        {
+            get => pickedTrack;
+            set
+            {
+                if (value != pickedTrack) variantKey = "";
+                pickedTrack = value;
+            }
+        }
+        TrackDefinition pickedTrack;
+        /// <summary>
+        /// Single race, battle and time trial: key of the picked variant of <see cref="track"/>
+        /// (<see cref="TrackVariant.Key"/>, "" = the track's default). Championships pick theirs per race (<see cref="BuildSession"/>).
+        /// </summary>
+        public string variantKey = "";
+        /// <summary>Time trial: laps to race, 1 for a single lap, 0 for the track's default (<see cref="TrackDefinition.defaultLaps"/>).</summary>
+        public int timeTrialLaps;
         /// <summary>
         /// <see cref="track"/> was chosen before the driver (a time trial from the track's records page): the kart page goes
         /// straight on to what follows the track choice. Cleared when the player backs out of the driver page.
@@ -85,12 +101,26 @@ namespace MHK.UI
             return GameRoot.Instance.Content.Get<KartDefinition>(c.defaultKart.Id) == c.defaultKart ? c.defaultKart : null;
         }
 
+        /// <summary>The picked variant of <paramref name="t"/>: <see cref="variantKey"/> when the track offers it, else its default.</summary>
+        public TrackVariant VariantOf(TrackDefinition t)
+        {
+            var set = TrackVariants.Of(t);
+            return set?.Resolve(variantKey) ?? set?.Default;
+        }
+
+        /// <summary>Laps of a time trial on <paramref name="t"/>: 1 when <see cref="timeTrialLaps"/> asks for a single lap, else the track's default.</summary>
+        public int TimeTrialLapsOn(TrackDefinition t) => timeTrialLaps == 1 ? 1 : t.defaultLaps;
+
         /// <summary>
         /// Session for <paramref name="tracks"/>: the player plus <paramref name="opponentCount"/> computer drivers. Single
-        /// races and battles get the player's item odds (<see cref="ItemOdds.PlayerOdds"/>).
+        /// races and battles get the player's item odds (<see cref="ItemOdds.PlayerOdds"/>) and the picked variant
+        /// (<see cref="VariantOf"/>). Championships race a variant of every track rolled now (one random generator per
+        /// championship): without <paramref name="setups"/> (cups) a random one, with them (a custom championship, same order
+        /// as the tracks) each race's fixed options and laps (<see cref="CustomRaceSetup"/>, a missing setup = all random).
         /// </summary>
-        public GameSession BuildSession(IEnumerable<TrackDefinition> tracks, int opponentCount)
+        public GameSession BuildSession(IEnumerable<TrackDefinition> tracks, int opponentCount, IReadOnlyList<CustomRaceSetup> setups = null)
         {
+            var list = tracks.ToList();
             var session = new GameSession
             {
                 mode = mode,
@@ -98,19 +128,44 @@ namespace MHK.UI
                 laps = laps,
                 lapsFromTrack = useTrackLaps || mode != GameMode.SingleRace,
             };
-            session.trackIds.AddRange(tracks.Select(t => t.Id));
-            if (mode == GameMode.SingleRace || mode == GameMode.Battle) ApplyItemOdds(session);
+            session.trackIds.AddRange(list.Select(t => t.Id));
+            if (mode == GameMode.SingleRace || mode == GameMode.Battle)
+            {
+                ApplyItemOdds(session);
+                session.variants.AddRange(list.Select(t => VariantOf(t)?.Key ?? ""));
+            }
+            else if (mode == GameMode.Championship) RollChampionship(session, list, setups);
             session.racers.Add(PlayerSetup());
             AddOpponents(session, opponentCount);
             session.ResetStandings();
             return session;
         }
 
-        /// <summary>A time trial on <paramref name="track"/> against the ghosts picked on its records page.</summary>
+        // Each race's variant (and with setups its laps), rolled with one generator for the whole championship.
+        static void RollChampionship(GameSession session, List<TrackDefinition> tracks, IReadOnlyList<CustomRaceSetup> setups)
+        {
+            var rng = new System.Random();
+            for (var i = 0; i < tracks.Count; i++)
+            {
+                var setup = setups != null && i < setups.Count ? setups[i] : null;
+                var variant = setup != null ? setup.Roll(tracks[i], rng) : TrackVariants.Of(tracks[i])?.Random(rng);
+                session.variants.Add(variant?.Key ?? "");
+                if (setups != null) session.raceLaps.Add(setup != null ? Math.Clamp(setup.laps, 0, CustomRaceSetup.MaxLaps) : 0);
+            }
+        }
+
+        /// <summary>
+        /// A time trial on <paramref name="track"/> (the picked variant and laps, <see cref="TimeTrialLapsOn"/>) against the
+        /// ghosts picked on its records page.
+        /// </summary>
         public GameSession BuildTimeTrialSession(TrackDefinition track)
         {
             var session = BuildSession(new[] { track }, 0);
             session.powerupsEnabled = false;
+            session.variants.Add(VariantOf(track)?.Key ?? "");
+            var laps = TimeTrialLapsOn(track);
+            session.lapsFromTrack = laps == track.defaultLaps;
+            session.laps = laps;
             session.raceOwnBest = raceOwnBest;
             session.ghostIds.AddRange(ghostIds);
             return session;

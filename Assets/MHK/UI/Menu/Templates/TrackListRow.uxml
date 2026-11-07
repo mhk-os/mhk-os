@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- One track of the track list editor (TrackList page). Code sets the picture, name, game and race number. The library (.tl-list-library) shows tl-add (tl-main adds too), the race list (.tl-list-races) shows the tl-drag handle (DragReorder), the race number, the game and tl-remove (tl-main is not focusable there). -->
+    <!-- One track of the track list editor (TrackList page). Code sets the picture, name, game and race number. The library (.tl-list-library) shows tl-add (tl-main adds too), the race list (.tl-list-races) shows the tl-drag handle (DragReorder), the race number, the game and tl-remove (tl-main is not focusable there). With race settings (.tl-setups on the page main) race rows show tl-setup (the race's options and laps) instead of the game, tl-main selects the race (.selected) and opens its settings. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement class="song-row tl-row">
         <ui:VisualElement name="tl-drag" focusable="true" tooltip="Drag to move" class="drag-handle song-drag tl-edit">
@@ -10,6 +10,7 @@
             <ui:VisualElement name="tl-image" class="tl-image" picking-mode="Ignore" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2_moorhuhn_x_preview.png&quot;);" />
             <ui:Label name="tl-name" text="Moorhuhn X" class="song-title" picking-mode="Ignore" />
             <ui:Label name="tl-game" text="Moorhuhn Kart 2" class="song-game tl-game" picking-mode="Ignore" />
+            <ui:Label name="tl-setup" text="Random · 3 laps" class="tl-setup" picking-mode="Ignore" />
         </ui:Button>
         <ui:VisualElement class="row song-actions">
             <ui:Button name="tl-add" tooltip="Add to the list" class="mhk-button small secondary icon-only tl-add">

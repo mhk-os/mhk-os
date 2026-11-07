@@ -67,21 +67,27 @@ namespace MHK.Validation
         }
 
         /// <summary>
-        /// Builds the context of <paramref name="track"/> (a loaded track scene). <paramref name="template"/>: the race
-        /// kart's physics, whose inspector settings re-simulation karts take.
+        /// Builds the context of <paramref name="track"/> (a loaded track scene) with the overlay scenes of the running race's
+        /// variant (<see cref="RaceManager.OverlayScenes"/>). <paramref name="template"/>: the race kart's physics, whose
+        /// inspector settings re-simulation karts take.
         /// </summary>
         public static TrackContext Create(TrackRuntime track, KartPhysics template)
         {
             var ctx = new TrackContext(track, template);
-            ctx.Collect(track.gameObject.scene);
+            var root = new GameObject("Static copy");
+            SceneManager.MoveGameObjectToScene(root, ctx.scene);
+            var holders = new Dictionary<TrackSurface, Transform>();
+            ctx.Collect(track.gameObject.scene, root.transform, holders);
+            var race = RaceManager.Current;
+            if (race != null && race.TrackRuntime == track)
+                foreach (var overlay in race.OverlayScenes)
+                    if (overlay.IsValid() && overlay.isLoaded) ctx.Collect(overlay, root.transform, holders);
+            ctx.AddProbe(root.transform);
             return ctx;
         }
 
-        void Collect(Scene source)
+        void Collect(Scene source, Transform root, Dictionary<TrackSurface, Transform> holders)
         {
-            var root = new GameObject("Static copy");
-            SceneManager.MoveGameObjectToScene(root, scene);
-            var holders = new Dictionary<TrackSurface, Transform>();
             var colliders = new List<Collider>();
             foreach (var go in source.GetRootGameObjects())
             {
@@ -91,10 +97,14 @@ namespace MHK.Validation
                     foreach (var c in animator.GetComponentsInChildren<Collider>())
                         AddMover(c.bounds);
                 go.GetComponentsInChildren(colliders);
-                foreach (var c in colliders) Consider(c, root.transform, holders);
+                foreach (var c in colliders) Consider(c, root, holders);
             }
+        }
+
+        void AddProbe(Transform root)
+        {
             var probeObject = new GameObject("Probe") { layer = 2 };
-            probeObject.transform.SetParent(root.transform, false);
+            probeObject.transform.SetParent(root, false);
             probe = probeObject.AddComponent<BoxCollider>();
             probe.isTrigger = true;
         }

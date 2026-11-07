@@ -5,7 +5,7 @@ namespace MHK.Modding
 {
     /// <summary>
     /// Visual-only bobbing of a kart's body while a status effect is active (MHK Extra spike strip: the flat tyres make
-    /// the kart hop along). Physics, colliders and the ghost fingerprint never see it.
+    /// the kart hop along). Physics, colliders and ghost validation never see it.
     /// </summary>
     [Serializable]
     public class BodyBob

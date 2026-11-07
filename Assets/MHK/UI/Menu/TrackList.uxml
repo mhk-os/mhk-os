@@ -1,13 +1,14 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Track list editor (custom championship, online championship rooms). Code sets the title, fills library-list (a tl-group heading per game, then one TrackListRow per allowed track) and race-list (one TrackListRow per race, numbered; race-empty instead while it is empty), race-count (.warn for a moment when an add is refused because the list is full), Clear and the confirm button (text from the caller, disabled while the list is empty). -->
+    <!-- Track list editor (custom championship, online championship rooms). Code sets the title, fills library-list (a tl-group heading per game, then one TrackListRow per allowed track) and race-list (one TrackListRow per race, numbered; race-empty instead while it is empty), race-count (.warn for a moment when an add is refused because the list is full), Clear and the confirm button (text from the caller, disabled while the list is empty). With race settings (custom championship) main has .tl-setups: setup-panel shows the selected race (.selected row): setup-race names it, setup-rows receives one SettingRow per track option with a choice (TrackVariantRows, values plus Random), setup-laps picks its laps; setup-empty instead while the list is empty. Without race settings code removes .tl-setups and the panel hides. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="TrackListRow" src="/Assets/MHK/UI/Menu/Templates/TrackListRow.uxml" />
+    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
             <ui:Label name="title" text="Custom championship" class="page-title" />
         </ui:VisualElement>
         <ui:VisualElement class="page-body">
-            <ui:VisualElement name="main" class="page-main wide music-main anim from-left">
+            <ui:VisualElement name="main" class="page-main wide music-main tl-setups anim from-left">
                 <ui:VisualElement class="music-browser">
                     <ui:VisualElement name="library-panel" class="panel music-library">
                         <ui:Label text="Tracks" class="music-section-title" />
@@ -36,7 +37,9 @@
                         </ui:VisualElement>
                         <ui:ScrollView name="race-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
                             <ui:VisualElement name="race-list" class="tl-list-races">
-                                <ui:Instance template="TrackListRow" />
+                                <ui:Instance template="TrackListRow" class="sample-selected">
+                                    <ui:AttributeOverrides element-name="tl-setup" text="Rain · Random · 5 laps" />
+                                </ui:Instance>
                                 <ui:Instance template="TrackListRow">
                                     <ui:AttributeOverrides element-name="tl-number" text="2" />
                                     <ui:AttributeOverrides element-name="tl-name" text="Stone Age" />
@@ -48,6 +51,28 @@
                             </ui:VisualElement>
                         </ui:ScrollView>
                         <ui:Label name="race-empty" text="No races yet. Add tracks from the list on the left." class="music-empty" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="setup-panel" class="panel tl-setup-panel">
+                        <ui:Label text="Race settings" class="music-section-title" />
+                        <ui:Label name="setup-race" text="Race 1 · Moorhuhn X" class="tl-setup-race" />
+                        <ui:ScrollView name="setup-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                            <ui:VisualElement name="setup-rows">
+                                <ui:Instance template="SettingRow" class="setting-row">
+                                    <ui:AttributeOverrides element-name="setting-label" text="Direction" />
+                                    <ui:AttributeOverrides element-name="setting-value-label" text="Random" />
+                                </ui:Instance>
+                                <ui:Instance template="SettingRow" class="setting-row">
+                                    <ui:AttributeOverrides element-name="setting-label" text="Weather" />
+                                    <ui:AttributeOverrides element-name="setting-value-label" text="Rain" />
+                                </ui:Instance>
+                            </ui:VisualElement>
+                            <ui:Instance template="SettingRow" name="setup-laps" class="setting-row setting-dropdown">
+                                <ui:AttributeOverrides element-name="setting-label" text="Laps" />
+                                <ui:AttributeOverrides element-name="setting-value-label" text="5 laps" />
+                            </ui:Instance>
+                            <ui:Label text="Random options are rolled when the championship starts." class="tl-setup-hint" />
+                        </ui:ScrollView>
+                        <ui:Label name="setup-empty" text="Add a race to choose its settings." class="music-empty" />
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>

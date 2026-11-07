@@ -74,6 +74,8 @@ namespace MHK.Race
             var pose = TrackRuntime.GetGridPose(slot);
             var kart = Instantiate(cfg.kartRootPrefab, pose.position, pose.rotation, kartsRoot).GetComponent<Kart>();
             kart.Initialize(slot, setup, character, kartDef, profile);
+            // Night variants start every kart with its headlights on; computer drivers never switch them.
+            kart.SetHeadlights(Variant != null && Variant.Headlights);
             kart.Physics.ClassFactor = Difficulty.engineClassFactor;
             if (TrackRuntime.FindGridGround(pose.position, out var ground))
                 kart.Physics.PlaceOnGround(ground.point, ground.normal, pose.forward);

@@ -1,0 +1,60 @@
+/* Photo mode (Photo.uxml, PhotoMode): the race picture with a close button at the top right and a dark glass hint bar at
+ * the bottom centre, the photo preview over the pause scrim (.hud-pause, .hud-pause-column from MHKHud.uss) and the
+ * shutter flash. The preview and the other hint groups are hidden here; code shows them inline (preview classes on photo:
+ * preview-photo, preview-pad, preview-touch). */
+.photo-root { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.photo-surface { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.photo-chrome { position: absolute; left: 0; right: 0; top: 0; bottom: 0; justify-content: space-between; align-items: center; padding: 18px 22px 22px 22px; }
+.photo-top { align-self: stretch; justify-content: flex-end; }
+.mhk-button.small.icon-only.photo-close { min-width: 64px; margin: 0; }
+
+.panel.photo-hints {
+    max-width: 100%;
+    padding: 10px 20px 12px 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    background-color: var(--mhk-glass-dark-lite-fill); border-color: var(--mhk-glass-dark-rim);
+}
+.icon.photo-hints-icon { width: 30px; height: 30px; margin-right: 10px; -unity-background-image-tint-color: var(--mhk-white); }
+.photo-hint-group { flex-wrap: wrap; justify-content: center; flex-shrink: 1; }
+.photo-key {
+    -unity-font-definition: var(--font-bold);
+    font-size: 17px;
+    color: var(--mhk-gray-900);
+    background-color: var(--mhk-gray-100);
+    border-radius: 7px;
+    padding: 1px 9px 3px 9px;
+    margin: 3px 6px 3px 10px;
+}
+.photo-hint { font-size: 19px; color: var(--mhk-white-85); margin: 3px 4px 3px 0; padding: 0; }
+.photo-speed { font-size: 19px; color: var(--mhk-accent); -unity-font-definition: var(--font-bold); margin: 3px 0 3px 16px; padding: 0; }
+#hints-pad, #hints-touch { display: none; }
+.photo-root.preview-pad #hints-keys, .photo-root.preview-touch #hints-keys { display: none; }
+.photo-root.preview-pad #hints-pad, .photo-root.preview-touch #hints-touch { display: flex; }
+
+.photo-root.touch .mhk-button.small.icon-only.photo-close { min-width: 96px; min-height: 72px; }
+.photo-root.touch .mhk-button.small.icon-only.photo-close .icon { width: 36px; height: 36px; }
+
+.photo-preview { display: none; }
+.photo-root.preview-photo .photo-preview { display: flex; }
+.photo-preview-column { align-items: center; max-width: 100%; max-height: 100%; }
+.panel.photo-preview-panel { align-items: center; padding: 22px 24px 18px 24px; }
+.photo-preview-image {
+    width: 1024px; height: 576px;
+    border-radius: 10px;
+    background-color: var(--mhk-gray-900);
+    -unity-background-scale-mode: scale-to-fit;
+}
+.photo-file { font-size: 19px; color: var(--mhk-gray-600); margin: 10px 0 4px 0; padding: 0; -unity-text-align: middle-center; }
+.photo-preview-buttons { justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+.photo-preview-buttons .mhk-button { min-width: 180px; }
+
+.photo-flash {
+    position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+    background-color: var(--mhk-white);
+    opacity: 0;
+    transition-property: opacity;
+    transition-duration: 0.35s;
+    transition-timing-function: ease-out;
+}
+.photo-flash.flash-on { opacity: 0.85; transition-duration: 0s; }

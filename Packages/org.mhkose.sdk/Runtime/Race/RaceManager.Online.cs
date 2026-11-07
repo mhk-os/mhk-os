@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using MHK.Cameras;
 using MHK.Core;
-using MHK.Ghosts;
 using MHK.Karts;
 using MHK.Modding;
 using MHK.Online;
@@ -82,27 +81,14 @@ namespace MHK.Race
             if (!Online.Solo) gameObject.AddComponent<Validation.LiveValidation>();
             var loaded = new RaceLoaded
             {
-                trackHash = OnlineTrackHash(),
+                trackVersion = Variant.ContentVersion,
+                variant = Variant.Key,
                 laps = IsBattle ? 0 : Mathf.Clamp(Laps, 1, RaceProtocol.MaxLaps),
                 effects = OnlineRace.EffectTable(OnlineLobby.Current != null ? OnlineLobby.Current.settings.packs : null),
             };
             Powerups.NetItemContent.Fill(loaded, this);
             Powerups.OnlineItems.Begin(Online);
             Online.SendLoaded(loaded);
-        }
-
-        string OnlineTrackHash()
-        {
-            try
-            {
-                return GhostFingerprint.TrackHash(Track, TrackRuntime);
-            }
-            catch (Exception e)
-            {
-                // The server sees a hash nobody else has and takes this racer out (desync): nothing to race on.
-                Debug.LogException(e);
-                return "";
-            }
         }
 
         // Instead of the intro and the local countdown: the camera orbits until the server's GO is due, the countdown

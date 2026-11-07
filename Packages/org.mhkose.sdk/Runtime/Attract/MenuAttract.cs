@@ -234,13 +234,19 @@ namespace MHK.Attract
 
         async Awaitable UnloadRaceAsync(CancellationToken ct)
         {
-            var scene = race != null ? race.TrackScene : default;
-            if (race != null) Destroy(race.gameObject);
+            var scenes = new List<Scene>();
+            if (race != null)
+            {
+                scenes.Add(race.TrackScene);
+                scenes.AddRange(race.OverlayScenes);
+                Destroy(race.gameObject);
+            }
             race = null;
             director = null;
             if (gameObject.scene.IsValid()) SceneManager.SetActiveScene(gameObject.scene);
-            if (scene.IsValid() && scene.isLoaded)
+            foreach (var scene in scenes)
             {
+                if (!scene.IsValid() || !scene.isLoaded) continue;
                 var unload = SceneManager.UnloadSceneAsync(scene);
                 while (unload != null && !unload.isDone) await Awaitable.NextFrameAsync(ct);
             }

@@ -370,11 +370,13 @@ namespace MHK.Karts
         }
 
         /// <summary>
-        /// Respawn: ends the buffs (MHK2: buffs cancelled) and the hits waiting for this respawn
-        /// (<see cref="StatusEffectDefinition.respawnOnEnd"/>) without their end-of-effect respawn. Other hostile effects
+        /// Respawn: ends the buffs (MHK2: buffs cancelled), the hits waiting for this respawn
+        /// (<see cref="StatusEffectDefinition.respawnOnEnd"/>) and the effects that end on any respawn
+        /// (<see cref="StatusEffectDefinition.endOnRespawn"/>), without their end-of-effect respawn. Other hostile effects
         /// run on with the time they have left: a forced respawn (kill zone, fall, AI recovery) never shortens a hit.
         /// </summary>
-        public void ClearForRespawn() => EndWhere(e => !e.Definition.hostile || e.Definition.respawnOnEnd);
+        public void ClearForRespawn() =>
+            EndWhere(e => !e.Definition.hostile || e.Definition.respawnOnEnd || e.Definition.endOnRespawn);
 
         /// <summary>Ends exclusive buffs (MHK2: using any item ends shield / blue light / turbo).</summary>
         public void EndExclusiveBuffs() => EndWhere(e => e.Definition.exclusiveBuff);

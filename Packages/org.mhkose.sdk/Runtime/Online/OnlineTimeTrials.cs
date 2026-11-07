@@ -37,10 +37,17 @@ namespace MHK.Online
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ForgetRequests() => autoUpload = null;
 
-        /// <summary>Boards of <paramref name="trackId"/>, most recent upload first. 255 = any engine class, contentVersion 0 = any.</summary>
-        public static Task<OnlineResult<List<BoardInfo>>> ListBoards(string trackId, int engineClass, int contentVersion)
+        /// <summary>
+        /// Boards of <paramref name="trackId"/>, most recent upload first. 255 = any engine class, rulesVersion 0 = any,
+        /// variant <see cref="BoardInfo.AnyVariant"/> = any.
+        /// </summary>
+        public static Task<OnlineResult<List<BoardInfo>>> ListBoards(string trackId, int engineClass, int rulesVersion, string variant)
         {
-            var request = new ListBoardsRequest { trackId = trackId ?? "", engineClass = (byte)Mathf.Clamp(engineClass, 0, 255), contentVersion = contentVersion };
+            var request = new ListBoardsRequest
+            {
+                trackId = trackId ?? "", engineClass = (byte)Mathf.Clamp(engineClass, 0, 255), rulesVersion = rulesVersion,
+                variant = variant ?? BoardInfo.AnyVariant,
+            };
             return OnlineService.Call(MessageType.ListBoards, request.Write, ListBoardsRequest.ReadAnswer, false);
         }
 
@@ -57,8 +64,8 @@ namespace MHK.Online
 
         /// <summary>
         /// Uploads the stored file of a local ghost; remembers the run for <see cref="TryGetUploaded"/>. Refused here when the
-        /// run's kart, character or track is replaced by a mod (as the server would), and only sent once the content is
-        /// announced: the server checks the run against it.
+        /// run's kart, character, track or the options and overlays of its variant are replaced by a mod (as the server would
+        /// for the ids it knows), and only sent once the content is announced: the server checks the run against it.
         /// </summary>
         public static async Task<OnlineResult<UploadResult>> Upload(GhostEntry entry)
         {
@@ -89,12 +96,46 @@ namespace MHK.Online
             return r;
         }
 
-        // Why the server refuses this run for its content, as far as this game can tell (replaced ids), null when it would not.
+        // Why the server refuses this run for its content, as far as this game can tell (replaced ids, a variant's option or
+        // overlay replaced by a mod), null when it would not.
         static string ModifiedContent(GhostHeader h)
         {
             var registry = GameRoot.Instance != null ? GameRoot.Instance.Content : null;
             if (registry == null || h == null) return null;
-            return Replaced(registry, h.kartId) ?? Replaced(registry, h.characterId) ?? Replaced(registry, h.trackId);
+            return Replaced(registry, h.kartId) ?? Replaced(registry, h.characterId) ?? Replaced(registry, h.trackId)
+                ?? ModifiedVariant(registry, h);
+        }
+
+        // The variant's options and overlays: replaced by id through the load order (options of the game's own pack such as
+        // core.night are named after the core, not the pack 'game'), or an overlay of another pack for the same track and
+        // option replaced by the selected one.
+        static string ModifiedVariant(Modding.ContentRegistry registry, GhostHeader h)
+        {
+            var variant = Modding.TrackVariants.Of(registry.Get<Modding.TrackDefinition>(h.trackId), registry)?.Resolve(h.variant);
+            if (variant == null) return null;
+            var replaced = Modding.TrackVariants.ReplacedOverlays(registry);
+            for (var i = 0; i < variant.Selected.Count; i++)
+            {
+                var overlay = variant.Selected[i];
+                var modified = ReplacedInLoadOrder(registry, variant.OptionOf(i)) ?? ReplacedInLoadOrder(registry, overlay);
+                if (modified != null) return modified;
+                foreach (var (old, by) in replaced)
+                    if (by == overlay)
+                        return $"This run uses {old.Id} replaced by {by.OwnerPackId}. Runs with modified content can't be uploaded.";
+            }
+            return null;
+        }
+
+        static string ReplacedInLoadOrder(Modding.ContentRegistry registry, Modding.ContentDefinition effective)
+        {
+            foreach (var pack in registry.Packs)
+            {
+                if (pack == null || pack == effective.OwnerPack) continue;
+                foreach (var def in pack.content)
+                    if (def != null && string.Equals(def.Id, effective.Id, StringComparison.OrdinalIgnoreCase))
+                        return $"This run uses {effective.Id} replaced by {effective.OwnerPackId}. Runs with modified content can't be uploaded.";
+            }
+            return null;
         }
 
         static string Replaced(Modding.ContentRegistry registry, string id)

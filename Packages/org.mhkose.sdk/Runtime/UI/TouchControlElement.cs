@@ -70,6 +70,7 @@ namespace MHK.UI
             TouchControlType.Pause => "i-pause",
             TouchControlType.Horn => "i-campaign",
             TouchControlType.Joystick => "i-joystick",
+            TouchControlType.Headlights => "i-highlight",
             _ => "i-search_hands_free",
         };
 

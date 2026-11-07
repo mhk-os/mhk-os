@@ -91,9 +91,10 @@ namespace MHK.AI
             else RandomUse(kart, item, ref input, dt);
         }
 
+        // A battle item still loading counts as none yet: the hold timers start, and the fire edge is free, once it is usable.
         void TrackHeld(Kart kart, PowerupInventory inv, float dt, GameConfig cfg)
         {
-            var def = inv.HasItem ? inv.Held : null;
+            var def = inv.HasItem && !inv.Loading ? inv.Held : null;
             if (def != heldDef || (def != null && inv.Received != heldReceived))
             {
                 heldDef = def;

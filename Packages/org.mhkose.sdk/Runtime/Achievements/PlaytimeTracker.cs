@@ -6,10 +6,11 @@ namespace MHK.Achievements
     /// <summary>
     /// Counts the time the game runs in the foreground into <see cref="AchievementStats.PlaytimeSeconds"/>: real time
     /// (menus, races and loading alike) while the app has focus and is not paused. An unfocused window does not count:
-    /// the game stops there unless an online lobby or race keeps it running, and a window left open in the background
-    /// is not time played. Whole seconds are recorded every <see cref="RecordSeconds"/> (each recording writes
-    /// achievements.json and syncs the account once no race runs), when the app loses focus or pauses and when it
-    /// quits; the fraction carries over. A component of the <see cref="Core.GameRoot"/>.
+    /// the game stops there unless <see cref="Core.BackgroundRun"/> keeps it running (an online lobby or race, a mod
+    /// download on the Mods page), and a window left open in the background is not time played. Whole seconds are
+    /// recorded every <see cref="RecordSeconds"/> (each recording writes achievements.json and syncs the account once no
+    /// race runs), when the app loses focus or pauses and when it quits; the fraction carries over. A component of the
+    /// <see cref="Core.GameRoot"/>.
     /// </summary>
     [AddComponentMenu("")]
     public sealed partial class PlaytimeTracker : MonoBehaviour

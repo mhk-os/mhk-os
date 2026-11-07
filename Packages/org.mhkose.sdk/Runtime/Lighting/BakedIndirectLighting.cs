@@ -34,6 +34,7 @@ namespace MHK.Lighting
             if (isActiveAndEnabled) Apply();
         }
 
-        void Apply() => Shader.SetGlobalVector(MHKLitIds.BakedIndirect, new Vector4(1f, intensity, minimum, 0f));
+        /// <summary>Uploads <see cref="intensity"/> and <see cref="minimum"/> (after changing them at runtime, e.g. a night overlay).</summary>
+        public void Apply() => Shader.SetGlobalVector(MHKLitIds.BakedIndirect, new Vector4(1f, intensity, minimum, 0f));
     }
 }

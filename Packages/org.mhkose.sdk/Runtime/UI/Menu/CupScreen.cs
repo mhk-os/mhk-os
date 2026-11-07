@@ -10,9 +10,10 @@ namespace MHK.UI
     /// <summary>
     /// Championship browser (Cup.uxml): a card per cup (won cups carry a trophy badge) and the info panel of the
     /// hovered or focused cup with its track list. Cards and panel cross-fade through the cup's track pictures.
-    /// Picking a cup opens the race settings. Custom championship edits the player's own track list
-    /// (<see cref="UserSettings.customChampionship"/>, <see cref="TrackListScreen"/>), then opens the race settings for a
-    /// championship without a cup. For the online room owner (<see cref="LobbyPick.OwnerPick"/>, opened from the Track
+    /// Picking a cup opens the race settings; every race gets a random variant of its track when the cup starts. Custom
+    /// championship edits the player's own track list and each race's settings (<see cref="UserSettings.customChampionship"/>,
+    /// <see cref="UserSettings.customChampionshipSetups"/>, <see cref="TrackListScreen.OpenWithSetups"/>), then opens the race
+    /// settings for a championship without a cup. For the online room owner (<see cref="LobbyPick.OwnerPick"/>, opened from the Track
     /// page) it lists the lobby's cups (<see cref="LobbyScreen.LobbyCups"/>) and picking one starts it as the room's next set.
     /// </summary>
     public class CupScreen : CardGridScreen<CupDefinition>
@@ -171,24 +172,36 @@ namespace MHK.UI
 
         // Every edit is stored right away; Next opens the race settings of the list.
         void EditCustom() =>
-            Flow.Get<TrackListScreen>().Open(Settings.customChampionship, null, PickCustom, StoreCustom, customName);
+            Flow.Get<TrackListScreen>().OpenWithSetups(Settings.customChampionship, Settings.customChampionshipSetups, null,
+                PickCustom, StoreCustom, customName);
 
-        static void StoreCustom(List<string> trackIds)
+        static void StoreCustom(List<string> trackIds, List<CustomRaceSetup> setups)
         {
             var settings = GameRoot.Instance.Settings;
             settings.customChampionship.Clear();
             settings.customChampionship.AddRange(trackIds);
+            settings.customChampionshipSetups.Clear();
+            settings.customChampionshipSetups.AddRange(setups);
             GameRoot.Instance.SaveSettings();
         }
 
-        void PickCustom(List<string> trackIds)
+        // The races' random options are rolled when Start! builds the session.
+        void PickCustom(List<string> trackIds, List<CustomRaceSetup> setups)
         {
-            StoreCustom(trackIds);
-            var tracks = trackIds.Select(id => Content.Get<TrackDefinition>(id)).Where(t => t != null).ToList();
+            StoreCustom(trackIds, setups);
+            var tracks = new List<TrackDefinition>();
+            var raceSetups = new List<CustomRaceSetup>();
+            for (var i = 0; i < trackIds.Count; i++)
+            {
+                var t = Content.Get<TrackDefinition>(trackIds[i]);
+                if (t == null) continue;
+                tracks.Add(t);
+                raceSetups.Add(i < setups.Count ? setups[i] : new CustomRaceSetup());
+            }
             if (tracks.Count == 0) return;
             var selection = Selection;
             Flow.Get<RaceSettingsScreen>().Open(() =>
-                SceneFlow.StartSession(selection.BuildSession(tracks, selection.ChampionshipOpponents)), customName, tracks[0].Picture);
+                SceneFlow.StartSession(selection.BuildSession(tracks, selection.ChampionshipOpponents, raceSetups)), customName, tracks[0].Picture);
         }
     }
 }

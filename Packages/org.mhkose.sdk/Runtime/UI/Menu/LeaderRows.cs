@@ -23,7 +23,7 @@ namespace MHK.UI
         /// <summary>
         /// Texts, pictures and state classes of <paramref name="row"/>: rank (medals for the top three), driver and kart
         /// pictures, name (and You when it is the logged-in account's), country, <paramref name="sub"/> (null hides the
-        /// line), flags (moderators only), setup mismatch, hidden (its reason loaded on hover or focus), time and best lap.
+        /// line), flags (moderators only), hidden (its reason loaded on hover or focus), time and best lap.
         /// <paramref name="alt"/> shades every second row.
         /// </summary>
         public static void Fill(VisualElement row, RunEntry run, bool alt, string sub = null)
@@ -33,7 +33,6 @@ namespace MHK.UI
             row.EnableInClassList("alt", alt);
             row.EnableInClassList("mine", mine);
             row.EnableInClassList("flagged", run.flags > 0 && OnlineService.IsModerator);
-            row.EnableInClassList("mismatch", run.setupMismatch);
             row.EnableInClassList("hidden-run", run.hidden);
             if (run.hidden) HiddenReasons.Attach(row.Q("lb-hidden"), run.runId, HiddenTip, row);
             var rank = row.Q<Label>("lb-rank");

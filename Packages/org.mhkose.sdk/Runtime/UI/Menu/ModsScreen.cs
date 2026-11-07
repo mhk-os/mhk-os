@@ -12,10 +12,11 @@ namespace MHK.UI
     /// <summary>
     /// Mods and asset packs (Mods.uxml), one section each: a row per installed mod or asset pack in load order (the top
     /// one wins) with an Enabled / Disabled switch and a drag handle to reorder (<see cref="DragReorder"/>), then a row per
-    /// source (GitHub repository) not installed yet. Items from a source download and update here without reloading. Apply
-    /// (enabled once something changed since the last load) reloads content and
-    /// asset packs and restarts the menu, Reload does the same and comes back here (finds new mods and packs), Open Folder
-    /// shows the section's folder.
+    /// source (GitHub repository) not installed yet. Items from a source download and update here without reloading; while
+    /// a download or install runs and the page is open the game keeps running without the focus (<see cref="BackgroundRun"/>),
+    /// as the download advances only while frames run. Apply (enabled once something changed since the last load) reloads
+    /// content and asset packs and restarts the menu, Reload does the same and comes back here (finds new mods and packs),
+    /// Open Folder shows the section's folder.
     /// </summary>
     public partial class ModsScreen : MenuScreen
     {

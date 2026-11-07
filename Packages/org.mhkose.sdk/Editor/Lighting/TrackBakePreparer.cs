@@ -16,7 +16,6 @@ namespace MHK.Editor.Lighting
     /// <summary>Prepare step of <see cref="TrackLightBaker"/>: lights, static classification, lightmap UVs and scales, probes.</summary>
     internal static class TrackBakePreparer
     {
-        internal const string LightingObjectName = "Lighting";
         const string RendererUndo = "Prepare renderer";
         const string MaterialUndo = "Prepare material";
         const string RenderTypeTag = "RenderType";

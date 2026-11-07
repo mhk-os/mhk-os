@@ -14,8 +14,9 @@ using UnityEngine.SceneManagement;
 namespace MHK.Editor.Modding.Import
 {
     /// <summary>
-    /// Builds a track scene from an export track folder (work/EXPORT_CONTRACT.md: track.json plus .glb models) with the
-    /// standard groups of the built-in tracks, then writes its <see cref="MHK.Modding.TrackDefinition"/>.
+    /// Builds a track scene from an export track folder (work/EXPORT_CONTRACT.md: track.json plus .glb models) in the
+    /// <see cref="TrackSceneLayout"/> ('Shared' with 'Track' holding the standard groups of the built-in tracks and
+    /// 'Environment' with lighting and sky dome), then writes its <see cref="MHK.Modding.TrackDefinition"/>.
     /// </summary>
     public static class TrackImporter
     {
@@ -42,7 +43,9 @@ namespace MHK.Editor.Modding.Import
 
         static void BuildAndSave(TrackImportContext c, Scene scene)
         {
-            var root = new GameObject(c.BaseName).transform;
+            var shared = new GameObject(TrackSceneLayout.SharedName).transform;
+            var root = ImportHierarchy.CreateChild(shared, TrackSceneLayout.TrackName);
+            var environment = ImportHierarchy.CreateChild(shared, TrackSceneLayout.EnvironmentName);
             var runtime = root.gameObject.AddComponent<TrackRuntime>();
             var visual = BuildVisual(c, root);
             TrackCollisionBuilder.Build(c, root);
@@ -57,7 +60,7 @@ namespace MHK.Editor.Modding.Import
             var slots = BuildStartGrid(c, root, runtime);
             var items = BuildItemBoxes(c, root);
             ApplyKillHeight(c, runtime, visual);
-            TrackEnvironmentBuilder.Apply(c, runtime);
+            TrackEnvironmentBuilder.Apply(c, runtime, environment);
             foreach (var issue in TrackPathTools.Validate(runtime).Where(i => i.Severity != TrackIssueSeverity.Info))
                 Debug.LogWarning($"[Import] Track {c.Id}: {issue}");
 

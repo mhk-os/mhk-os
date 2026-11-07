@@ -29,6 +29,7 @@ namespace MHK.Karts
         KartSeeThrough seeThrough;
         KartWheelVisibility wheelVisibility;
         KartDriverAnimation driverAnimation;
+        KartHeadlights headlights;
         readonly KartBodyBob bodyBob = new();
         Transform body;
         float wheelRoll;
@@ -93,6 +94,9 @@ namespace MHK.Karts
             visibleScratch.Clear();
         }
 
+        /// <summary>Switches the headlights on or off (a kart's <see cref="Kart.SetHeadlights"/>, a ghost's recording).</summary>
+        public void SetHeadlights(bool on) => headlights.SetOn(on);
+
         /// <summary>Builds the visual of a live kart (child "Visual" of the kart).</summary>
         public static KartVisual Build(Kart kart, CharacterDefinition character, KartDefinition kartDef) =>
             Create(kart, kart, character, kartDef);
@@ -125,6 +129,9 @@ namespace MHK.Karts
             model = rig.model;
             animator = rig.driver;
             kartAnimator = rig.kart;
+            // Measured before anything else joins the body; switched off, so the effect tints below leave it out.
+            var profile = kartDef != null && kartDef.physics != null ? kartDef.physics : GameRoot.Instance.Config.defaultPhysics;
+            headlights = KartHeadlights.Build(this, view, body, model, animator != null ? animator.transform : null, profile);
             if (kart != null && Validation.UnknownContentGuard.IsPlaceholder(kart.Setup)) AddUnknownMarker();
 
             seeThrough = new KartSeeThrough(transform, view, GetComponentsInChildren<Renderer>());
@@ -136,8 +143,8 @@ namespace MHK.Karts
                 rearRest = KartRigBuilder.Rests(model.rearWheels);
                 pivotRest = KartRigBuilder.Rests(model.steeringPivots);
             }
-
             if (kart == null) return;
+            headlights.SetOn(kart.Headlights);
             kart.Effects.Started += OnEffectApplied;
             kart.Effects.Ended += OnEffectEnded;
             kart.Respawned += OnRespawned;

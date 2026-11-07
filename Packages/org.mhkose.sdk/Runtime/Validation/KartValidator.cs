@@ -18,7 +18,7 @@ namespace MHK.Validation
         Laps = 32,
         Data = 64,
         Divergence = 128,
-        /// <summary>Checks that need nothing but the samples themselves (any content version or content fingerprint).</summary>
+        /// <summary>Checks that need nothing but the samples themselves (any rules, track or kart version).</summary>
         Kinematic = Teleport | Data,
         All = Speed | Acceleration | Teleport | WallClip | Flying | Laps | Data | Divergence,
     }
@@ -172,11 +172,6 @@ namespace MHK.Validation
         /// <summary>Seconds of recorded time between two re-simulation windows (more ghosts, fewer windows each).</summary>
         public float ResimInterval { get; set; } = 3f;
         /// <summary>
-        /// Extra tolerance on the speed and acceleration limits (1 = none): a ghost recorded with other kart or class data
-        /// than the local definitions it is checked against (<see cref="GhostValidation"/>).
-        /// </summary>
-        public float Slack { get; set; } = 1f;
-        /// <summary>
         /// Samples come from a live online race (<see cref="LiveValidation"/>): every few ticks with occasional gaps, and
         /// items move karts in ways the validator does not model. Each detection is raised through <see cref="Found"/>
         /// again while it lasts (the caller counts strikes), one sample adds at most <see cref="LiveSustainStep"/> to the
@@ -323,7 +318,7 @@ namespace MHK.Validation
             var cap = spec.flatTopSpeed * fx.maxSpeed;
             if (Recent(lastBoost, now, BoostAllowanceSeconds)) cap = Mathf.Max(cap, spec.redlineSpeed * fx.maxSpeed);
             if (fx.unknown) cap *= UnknownEffectSpeed;
-            return cap * SpeedTolerance * Slack;
+            return cap * SpeedTolerance;
         }
 
         // Speed: above the top speed plus the energy of the height lost since (the excess fades like drag would).
@@ -360,7 +355,7 @@ namespace MHK.Validation
                 || lastMover >= start || lastMovesKart >= start) return;
             var seconds = (s.tick - from.tick) * tick;
             var gain = s.velocity.magnitude - from.velocity.magnitude;
-            var limit = (((spec.maxDriveAcceleration * fx.acceleration + g) * AccelFactor + AccelSlack) * seconds + AccelSlackSpeed) * Slack;
+            var limit = ((spec.maxDriveAcceleration * fx.acceleration + g) * AccelFactor + AccelSlack) * seconds + AccelSlackSpeed;
             if (gain > limit) Report(FlagReason.Acceleration, s.tick, $"gained {gain:0.0} m/s in {seconds:0.00} s, at most {limit:0.0} m/s possible");
             else margins.acceleration = Mathf.Max(margins.acceleration, gain / limit);
         }

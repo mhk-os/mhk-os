@@ -6,7 +6,7 @@ using UnityEngine.Rendering.Universal;
 namespace MHK.Core
 {
     /// <summary>Per-object graphics options on the loaded scenes: light shadow types and the base cameras' anti-aliasing and renderer.</summary>
-    static partial class SceneGraphics
+    public static partial class SceneGraphics
     {
         [AutoStaticsCleanup] static readonly Dictionary<Light, LightShadows> authoredShadows = new();
         [NoAutoStaticsCleanup] static readonly List<Light> deadLights = new();
@@ -33,6 +33,13 @@ namespace MHK.Core
                         level == ShadowLevel.High ? SoftShadowQuality.High : SoftShadowQuality.Low;
             }
         }
+
+        /// <summary>
+        /// The shadows <paramref name="light"/> was authored with, before the graphics settings turned them off or changed
+        /// their type (its current shadows for a light not seen yet).
+        /// </summary>
+        public static LightShadows AuthoredShadows(Light light) =>
+            authoredShadows.TryGetValue(light, out var authored) ? authored : light.shadows;
 
         /// <summary>FXAA (needs the camera's post-processing pass) and the renderer index on every base camera.</summary>
         public static void ApplyCameras(bool fxaa, int renderer)

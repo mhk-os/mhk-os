@@ -119,13 +119,14 @@ namespace MHK.UI
             if (IsEcho(pointerId)) return;
             // A joystick or wheel follows one finger.
             if (c.Analog && c.Pressed) return;
-            // Pause and camera act once per press of the control, not once per pointer on it.
+            // Pause, camera and headlights act once per press of the control, not once per pointer on it.
             var first = !c.Pressed;
             c.pointers.Add(pointerId);
             c.element.CapturePointer(pointerId);
             c.element.AddToClassList(TouchControlElement.PressedClass);
             if (first && c.Type == TouchControlType.Pause) Race.SetPaused(!Race.Paused);
             else if (first && c.Type == TouchControlType.Camera) VirtualKartInput.PressCamera(playerIndex);
+            else if (first && c.Type == TouchControlType.Headlights) VirtualKartInput.PressHeadlights(playerIndex);
             if (c.Analog)
             {
                 c.fingerAngleKnown = false;

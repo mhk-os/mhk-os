@@ -100,7 +100,6 @@ namespace MHK.Online
         // AI slots whose finish this client sent (as AI host) and whose finish the server announced.
         readonly HashSet<int> aiFinishSent = new(), aiFinished = new();
         int humans;
-        bool previousRunInBackground;
         float previousMaxDeltaTime;
         /// <summary>Physics time a frame may catch up online: the race ticks must keep pace with the server clock after hitches.</summary>
         const float OnlineMaxDeltaTime = 0.25f;
@@ -241,9 +240,8 @@ namespace MHK.Online
                 if (s.ai) race.aiSlots.Add(s.slot);
                 else race.humans++;
             Current = race;
-            race.previousRunInBackground = Application.runInBackground;
             // Every client simulates its own kart: the race must go on while the window has no focus.
-            Application.runInBackground = true;
+            BackgroundRun.Keep(race, true);
             race.previousMaxDeltaTime = Time.maximumDeltaTime;
             Time.maximumDeltaTime = Mathf.Max(Time.maximumDeltaTime, OnlineMaxDeltaTime);
             race.udp = new OnlineRaceUdp(OnlineService.EndpointHost, setup.udpPort, setup.udpToken, setup.udpKey);
@@ -332,7 +330,7 @@ namespace MHK.Online
             ReleaseSentKarts();
             udp?.Dispose();
             udp = null;
-            Application.runInBackground = previousRunInBackground;
+            BackgroundRun.Keep(this, false);
             Time.maximumDeltaTime = previousMaxDeltaTime;
             if (Current == this) Current = null;
         }
@@ -352,6 +350,7 @@ namespace MHK.Online
                 online = true,
             };
             session.trackIds.Add(s.trackId);
+            session.variants.Add(s.variant);
             foreach (var o in s.itemOdds) session.powerupOdds.Add(new PowerupOdds { id = o.powerupId, percent = o.percent });
             foreach (var slot in s.grid)
             {
@@ -411,7 +410,7 @@ namespace MHK.Online
             IndexEffects();
             Loaded = loaded;
             Notify(loaded);
-            Debug.Log($"[OnlineRace] Loaded: track hash {loaded.trackHash}, {loaded.laps} laps, {loaded.boxes.Count} boxes, " +
+            Debug.Log($"[OnlineRace] Loaded: track version {loaded.trackVersion}, variant '{loaded.variant}', {loaded.laps} laps, {loaded.boxes.Count} boxes, " +
                       $"{loaded.pool.Count} pool entries, {loaded.effects.Count} effects.");
         }
 

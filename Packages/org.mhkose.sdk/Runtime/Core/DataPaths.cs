@@ -10,6 +10,7 @@ namespace MHK.Core
         public const string GhostsFolder = "Ghosts";
         public const string ModsFolder = "Mods";
         public const string AssetPacksFolder = "AssetPacks";
+        public const string ScreenshotsFolder = "Screenshots";
 
         public static string Root => Application.persistentDataPath;
 
@@ -20,6 +21,8 @@ namespace MHK.Core
         public static string Mods => File(ModsFolder);
         /// <summary>The player's asset packs, next to <see cref="Mods"/>.</summary>
         public static string AssetPacks => File(AssetPacksFolder);
+        /// <summary>Photos taken in the pause menu's photo mode (PNG files).</summary>
+        public static string Screenshots => File(ScreenshotsFolder);
 
         /// <summary>
         /// Folder the game is installed in: the one holding the executable (Windows, Linux) or the .app (macOS, the

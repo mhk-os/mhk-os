@@ -426,7 +426,7 @@ namespace MHK.Online
             {
                 var hello = new HelloRequest
                 {
-                    gameCommit = BuildInfo.Commit, gameBuild = buildNumber, contentVersion = ContentVersion.Current,
+                    gameCommit = BuildInfo.Commit, gameBuild = buildNumber, rulesVersion = RulesVersion.Current,
                     modApi = ModSdk.ApiLevel, platform = Application.platform.ToString(),
                 };
                 var r = await c.RequestAsync(MessageType.Hello, hello.Write, RequestTimeout);

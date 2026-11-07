@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3912172524614309761}
   - component: {fileID: 5903368122623684345}
+  - component: {fileID: 3431541220728309954}
   m_Layer: 0
   m_Name: Snow
   m_TagString: Untagged
@@ -46,21 +47,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: MHK.Runtime::MHK.Effects.WeatherEffect
   targetCamera: {fileID: 0}
   material: {fileID: 2100000, guid: 9207514f75176465d9ff861cd9b32fec, type: 2}
-  count: 4000
+  count: 4500
   area: {x: 36, y: 14, z: 36}
   center: {x: 0, y: 3, z: 10}
   edgeFade: 0.35
-  nearFade: 1
-  fallSpeed: 1.1
-  speedVariation: 0.35
-  wind: {x: 0.5, y: 0, z: 0.2}
-  swayAmplitude: 0.35
-  swayFrequency: 0.4
-  color: {r: 1, g: 1, b: 1, a: 0.9}
-  size: {x: 0.11, y: 0.11}
-  sizeVariation: 0.4
+  nearFade: 1.5
+  nearShare: 0.35
+  nearDivisor: 2
+  fallSpeed: 1
+  speedVariation: 0.4
+  wind: {x: 0.6, y: 0, z: 0.25}
+  swayAmplitude: 0.4
+  swayFrequency: 0.35
+  color: {r: 1, g: 1, b: 1, a: 0.85}
+  size: {x: 0.1, y: 0.1}
+  sizeVariation: 0.5
   cameraMotionStretch: 0
+  splashCount: 0
+  splashArea: 24
+  splashAhead: 6
+  splashLifetime: 0.35
+  splashSize: {x: 0.4, y: 0.25}
+  splashOpacity: 1
   cover: []
+  coverTrackVisual: 1
   coverTexel: 1
   coverMaxResolution: 1024
   coverBias: 0.1
@@ -71,3 +81,27 @@ MonoBehaviour:
   - 0.6
   - 1
   - 1
+--- !u!114 &3431541220728309954
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2131961209308556702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87c62f089d6840648d4ebe75143a83cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Effects.WeatherAmbience
+  loop: {fileID: 8300000, guid: fd9265c74efd405093a1b0de10e31fef, type: 3}
+  loopVolume: 0.45
+  fadeIn: 3
+  fadeOut: 1.5
+  thunderClips: []
+  firstStrike: {x: 5, y: 15}
+  strikeInterval: {x: 10, y: 35}
+  thunderDelay: {x: 0.3, y: 3}
+  thunderVolume: {x: 0.45, y: 1}
+  thunderPitch: {x: 0.85, y: 1.1}
+  flashColor: {r: 0.82, g: 0.87, b: 1, a: 1}
+  flashIntensity: {x: 0.35, y: 1.2}

@@ -4,8 +4,11 @@ using UnityEngine;
 
 namespace MHK.Core
 {
-    /// <summary>What an on-screen touch control does: a button for one kart action, a virtual joystick or a virtual steering wheel.</summary>
-    public enum TouchControlType { Throttle, Brake, SteerLeft, SteerRight, Item, LookBack, Camera, Respawn, Pause, Horn, Joystick, Wheel }
+    /// <summary>
+    /// What an on-screen touch control does: a button for one kart action, a virtual joystick or a virtual steering wheel.
+    /// Stored as numbers in settings.json: only append new values.
+    /// </summary>
+    public enum TouchControlType { Throttle, Brake, SteerLeft, SteerRight, Item, LookBack, Camera, Respawn, Pause, Horn, Joystick, Wheel, Headlights }
 
     /// <summary>A race HUD element the UI Layout screen places. Stored as numbers in settings.json: only append new values.</summary>
     public enum HudElementType

@@ -1,8 +1,8 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:mhk="MHK.UI" editor-extension-mode="False">
     <!-- Race HUD (racing, single race). Code fills the item slot and the race position (top left), lap/time/best/health, speedometer (bottom left), minimap (bottom right, drawn from the track, no plate) and the messages.
-         The item slot is the empty MHK3 slot with the held powerup's icon (a sprite without background) drawn over it.
+         The item slot is the empty MHK3 slot with the held powerup's icon (a sprite without background) drawn over it. While a battle item loads, the icon is grayed (.cooling) under the item-loading pie timer.
          UI Layout: HudLayout moves, scales and hides the elements named in HudLayout.ElementName (item-slot, position, lap-row, time-row, best-slot, split-slot, health-slot, speedometer, minimap, replay-plate, countdown-slot, banner-slot, warn-slot, flash-slot). Their default places are the ones below, so code animations and the fly-in (hud-widget) sit on other elements.
-         Preview classes on hud: preview-messages (countdown, Final lap!, Wrong way!, flash), preview-battle (health bar, swords icon), preview-best-lap, preview-item (held item), preview-time-trial (no item slot or position, split time against the ghost, a ghost name tag), preview-replay (replay plate instead of the item slot). Touch controls on (both above the touch buttons): touch-mode="true" on minimap / speedometer. -->
+         Preview classes on hud: preview-messages (countdown, Final lap!, Wrong way!, flash), preview-battle (health bar, swords icon), preview-best-lap, preview-item (held item), preview-item-loading (with preview-item: the held battle item still loading, grayed under its pie timer), preview-time-trial (no item slot or position, split time against the ghost, a ghost name tag), preview-replay (replay plate instead of the item slot). Touch controls on (both above the touch buttons): touch-mode="true" on minimap / speedometer. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="hud" class="hud">
         <ui:VisualElement name="overlay" class="hud-overlay bleed" />
@@ -26,6 +26,7 @@
                     <ui:VisualElement name="item-burst" class="sunburst hud-item-burst" usage-hints="DynamicTransform" />
                     <ui:VisualElement name="item-frame" class="hud-item-frame" usage-hints="DynamicTransform">
                         <ui:VisualElement name="item-icon" class="hud-item-icon" />
+                        <mhk:HudItemLoading name="item-loading" progress="0.35" />
                     </ui:VisualElement>
                     <ui:VisualElement name="item-charges" class="hud-item-charges">
                         <ui:Label name="item-charges-label" text="x3" class="hud-item-charges-label" />

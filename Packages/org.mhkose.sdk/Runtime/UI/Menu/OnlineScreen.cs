@@ -35,7 +35,6 @@ namespace MHK.UI
         [SerializeField] string noLobbiesText = "No lobby yet";
         [SerializeField] string kickedByOwnerText = "The room owner removed you.", kickedByModText = "A moderator removed you.";
         [SerializeField] string closedText = "The lobby closed.";
-        [SerializeField] string strikeSuffix = " Anticheat lobbies with it are closed to you.";
 
         // Table width (px) below which the rows leave out the mod logos: the fixed columns, the set name and five logos.
         const float LogosMinWidth = 1180f;
@@ -172,7 +171,6 @@ namespace MHK.UI
             foreach (var row in rows) row.SetEnabled(on && Joinable(row.userData as LobbySummary));
         }
 
-        // Packs that differ from other players' stay visible: anticheat lobbies with them refuse the player.
         void ShowContentState()
         {
             switch (OnlineLobby.Content)
@@ -184,14 +182,7 @@ namespace MHK.UI
                     SetStatus(OnlineLobby.ContentError, false);
                     return;
             }
-            if (OnlineLobby.Strikes.Count == 0)
-            {
-                if (statusLabel.text == announcingText) SetStatus(null, false);
-                return;
-            }
-            var lines = new List<string>();
-            foreach (var s in OnlineLobby.Strikes) lines.Add(s.message);
-            SetStatus(string.Join("\n", lines) + strikeSuffix, false);
+            if (statusLabel.text == announcingText) SetStatus(null, false);
         }
 
         void ShowLeft()

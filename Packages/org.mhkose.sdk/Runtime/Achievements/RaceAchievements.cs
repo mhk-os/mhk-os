@@ -135,7 +135,9 @@ namespace MHK.Achievements
                 if (best.position == 1 && racers >= MinRacersForWin) AchievementStats.Add(AchievementStats.BattlesWon);
                 return;
             }
-            if (best.time > 0f && best.time < FastRaceSeconds) AchievementStats.Add(AchievementStats.RacesUnder2Min);
+            // A fast race needs the track's full lap count: a single-lap time trial or a shortened race does not count.
+            if (best.time > 0f && best.time < FastRaceSeconds && race.Laps >= race.Track.defaultLaps)
+                AchievementStats.Add(AchievementStats.RacesUnder2Min);
             if (session.mode == GameMode.TimeTrial) return;
             AchievementStats.Add(AchievementStats.RacesFinished);
             if (best.position <= 3 && racers >= MinRacersForTop3) AchievementStats.Add(AchievementStats.RacesTop3);

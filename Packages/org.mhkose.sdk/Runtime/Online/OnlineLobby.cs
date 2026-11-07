@@ -37,7 +37,6 @@ namespace MHK.Online
         [AutoStaticsCleanup] static LobbyLeftPush lastLeft;
         [AutoStaticsCleanup] static ContentAnnouncement content;
         [AutoStaticsCleanup] static string contentError;
-        [AutoStaticsCleanup] static List<ContentStrike> strikes = new();
         // Not generated: the cleanup would Dispose() the task, which throws while it still runs. ForgetRequests drops it.
         [NoAutoStaticsCleanup] static Task<OnlineResult> announcing;
         // What the last announcement (or failure) was for: account, content version and connection.
@@ -49,7 +48,6 @@ namespace MHK.Online
         [AutoStaticsCleanup] static long clockOffsetMs;
         [AutoStaticsCleanup] static float clockAt = -1f;
         [AutoStaticsCleanup] static bool clockPending;
-        [AutoStaticsCleanup] static bool? runInBackgroundBefore;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ForgetRequests() => announcing = null;
@@ -84,9 +82,6 @@ namespace MHK.Online
 
         /// <summary>Why the announcement failed, null otherwise.</summary>
         public static string ContentError => contentError;
-
-        /// <summary>Packs whose copy here differs from what most players have: they cannot be used in anticheat lobbies.</summary>
-        public static IReadOnlyList<ContentStrike> Strikes => strikes;
 
         /// <summary>A join link (<see cref="JoinLinks"/>) waits for the Online screen to log in and join, null when none.</summary>
         public static string PendingJoinCode
@@ -145,21 +140,19 @@ namespace MHK.Online
             {
                 var manifests = ContentManifests.Build(registry);
                 var version = registry.Version;
-                var hello = new ContentHelloRequest { contentVersion = ContentVersion.Current };
-                foreach (var m in manifests) hello.packs.Add(new PackRef { packId = m.packId, commit = m.commit, manifestHash = m.manifestHash });
+                var hello = new ContentHelloRequest { rulesVersion = RulesVersion.Current };
+                foreach (var m in manifests) hello.packs.Add(new PackRef { packId = m.packId, commit = m.commit });
                 var r = await OnlineService.Call(LobbyMessageType.ContentHello, hello.Write, ContentHelloAnswer.Read, true);
                 if (!r.Ok) return Fail(r.result, account, version, forConnection);
                 var owed = new List<PackManifest>();
                 foreach (var m in manifests)
-                    if (r.value.missing.Exists(h => string.Equals(h, m.manifestHash, StringComparison.OrdinalIgnoreCase))) owed.Add(m);
+                    if (r.value.missing.Exists(id => string.Equals(id, m.packId, StringComparison.OrdinalIgnoreCase))) owed.Add(m);
                 if (owed.Count > 0)
                 {
                     var sent = await OnlineService.Call(LobbyMessageType.ContentManifests, w => PackManifest.WriteList(w, owed), _ => true, true, ManifestTimeout);
                     if (!sent.Ok) return Fail(sent.result, account, version, forConnection);
                 }
-                strikes = r.value.strikes;
-                foreach (var s in strikes) Debug.LogWarning($"[Online] {s.message}");
-                Debug.Log($"[Online] Content announced: {manifests.Count} packs, {owed.Count} manifests sent, {strikes.Count} differ.");
+                Debug.Log($"[Online] Content announced: {manifests.Count} packs, {owed.Count} manifests sent.");
                 Remember(account, version, forConnection);
                 SetContent(ContentAnnouncement.Announced, null);
                 return OnlineResult.Success;
@@ -320,11 +313,20 @@ namespace MHK.Online
 
         public static Task<OnlineResult> SetReady(bool ready) => Request(LobbyMessageType.SetReady, w => w.Bool(ready));
 
-        /// <summary>Votes for the next track while voting is open, "" = Random.</summary>
-        public static Task<OnlineResult> Vote(string trackId) => Request(LobbyMessageType.Vote, w => w.String(trackId ?? "", LobbyLimits.ContentId));
+        /// <summary>Votes for the next track and its variant key while voting is open, "" = Random.</summary>
+        public static Task<OnlineResult> Vote(string trackId, string variant) => Request(LobbyMessageType.Vote, w => TrackChoice(w, trackId, variant));
 
-        /// <summary>Owner of a private room: starts the next race on <paramref name="trackId"/> (owner pick), or the voting ("").</summary>
-        public static Task<OnlineResult> StartRace(string trackId) => Request(LobbyMessageType.StartRace, w => w.String(trackId ?? "", LobbyLimits.ContentId));
+        /// <summary>
+        /// Owner of a private room: starts the next race on <paramref name="trackId"/> with the variant key
+        /// <paramref name="variant"/> (owner pick), or the voting ("").
+        /// </summary>
+        public static Task<OnlineResult> StartRace(string trackId, string variant) => Request(LobbyMessageType.StartRace, w => TrackChoice(w, trackId, variant));
+
+        static void TrackChoice(WireWriter w, string trackId, string variant)
+        {
+            w.String(trackId ?? "", LobbyLimits.ContentId);
+            w.String(variant ?? "", LobbyLimits.Variant);
+        }
 
         /// <summary>
         /// Owner of an owner-pick race room, between sets: starts <paramref name="cupId"/> as the next set, its
@@ -484,29 +486,11 @@ namespace MHK.Online
 
         // In a lobby the game keeps running without the focus: an unfocused client would miss RaceSetup and the race
         // start. The same while a room link waits to log in and join (a game started by a link may open behind other
-        // windows). The player's own setting comes back once out of the lobby and its race (OnlineRace keeps it during races).
-        static void KeepRunningInBackground()
-        {
-            var wanted = current != null || pendingJoinCode != null;
-            if (wanted && runInBackgroundBefore == null)
-            {
-                runInBackgroundBefore = Application.runInBackground;
-                Application.runInBackground = true;
-            }
-            else if (!wanted && runInBackgroundBefore != null && OnlineRace.Current == null)
-            {
-                Application.runInBackground = runInBackgroundBefore.Value;
-                runInBackgroundBefore = null;
-            }
-        }
+        // windows). BackgroundRun gives the player's own setting back once nothing else (the race, a mod download) needs it.
+        static void KeepRunningInBackground() => BackgroundRun.Keep(typeof(OnlineLobby), current != null || pendingJoinCode != null);
 
-        /// <summary>Gives the player's own run-in-background setting back (the game root shuts down; in the editor it is a project setting).</summary>
-        internal static void RestoreRunInBackground()
-        {
-            if (runInBackgroundBefore == null) return;
-            Application.runInBackground = runInBackgroundBefore.Value;
-            runInBackgroundBefore = null;
-        }
+        /// <summary>The lobby no longer keeps the game running in the background (the game root shuts down).</summary>
+        internal static void StopRunningInBackground() => BackgroundRun.Keep(typeof(OnlineLobby), false);
 
         static void LogFailure(this Task<OnlineResult> task, string what) => LogFailureAsync(task, what);
 

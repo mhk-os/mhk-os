@@ -13,7 +13,8 @@ namespace MHK.UI
     /// starts at once, the other modes open the race settings. For the online lobby it lists the lobby's tracks (arenas
     /// in battle lobbies): a Random card first and the remaining time while voting (<see cref="LobbyPick.Vote"/>), the
     /// next race's track for the room owner (<see cref="LobbyPick.OwnerPick"/>; between sets of a race room the footer's
-    /// Championships opens the Cup page with the lobby's cups, <see cref="LobbyScreen.CanStartCup"/>).
+    /// Championships opens the Cup page with the lobby's cups, <see cref="LobbyScreen.CanStartCup"/>). In the lobby modes
+    /// a track that offers variants asks for one (<see cref="TrackVariantPrompt"/>); Random takes the default.
     /// </summary>
     public class TrackScreen : CardGridScreen<TrackDefinition>
     {
@@ -21,8 +22,12 @@ namespace MHK.UI
         string battleTitle = "Choose an arena";
         [SerializeField, Tooltip("Tooltip of the swords badge on arena cards in battles.")]
         string arenaTip = "Arena, built for battles.";
-        [SerializeField, Tooltip("Appended to the game name when the track has a variant. {0} = variant.")]
-        string variantFormat = " | {0}";
+        [SerializeField, Tooltip("Setting row (Templates/SettingRow.uxml) of the variant question in the lobby modes.")]
+        VisualTreeAsset settingRowTemplate;
+        [SerializeField, Tooltip("Confirm button of the variant question while voting.")]
+        string voteConfirm = "Vote";
+        [SerializeField, Tooltip("Confirm button of the variant question when picking the next race's track.")]
+        string pickConfirm = "Race";
         [SerializeField, Tooltip("Length fact for one lap. {0} = laps.")]
         string lapFormat = "{0} lap";
         [SerializeField, Tooltip("Length fact for several laps. {0} = laps.")]
@@ -146,7 +151,7 @@ namespace MHK.UI
             ShowVotes();
         }
 
-        // Votes per card: their count, voters' names as tooltip.
+        // Votes per card (all variants of a track together): their count, voters' names (and the variant) as tooltip.
         void ShowVotes()
         {
             var lobby = Online.OnlineLobby.Current;
@@ -158,7 +163,7 @@ namespace MHK.UI
                 {
                     if (!string.Equals(v.trackId, pair.Key, System.StringComparison.OrdinalIgnoreCase)) continue;
                     var m = lobby.Member(v.accountId);
-                    names.Add(m != null ? m.username : "?");
+                    names.Add(VoterText(m != null ? m.username : "?", v));
                 }
                 pair.Value.Clear();
                 pair.Value.SetVisible(names.Count > 0);
@@ -166,6 +171,12 @@ namespace MHK.UI
                     InfoChips.Add(pair.Value, "how_to_vote", names.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), string.Join("\n", names), InfoChipState.On)
                         .AddToClassList("big");
             }
+        }
+
+        static string VoterText(string name, Online.LobbyVote vote)
+        {
+            var label = TrackVariants.Resolve(Content.Get<TrackDefinition>(vote.trackId), vote.variant)?.Label() ?? "";
+            return label.Length > 0 ? name + UiText.Separator + label : name;
         }
 
         VisualElement AddVoteBadge(Button card, string trackId)
@@ -205,7 +216,7 @@ namespace MHK.UI
             card.clicked += () =>
             {
                 Click();
-                Pick("");
+                Pick("", "");
             };
         }
 
@@ -214,9 +225,6 @@ namespace MHK.UI
         protected override string CardTag(TrackDefinition t) => GameName(t.SourceGame);
 
         protected override Texture2D CardImage(TrackDefinition t) => t.Picture;
-
-        protected override string InfoGame(TrackDefinition t) =>
-            string.IsNullOrEmpty(t.variant) ? GameName(t.SourceGame) : GameName(t.SourceGame) + string.Format(variantFormat, t.variant);
 
         // Arenas get the swords badge (the gold won-cup badge of cup cards) with a hover tooltip.
         protected override void OnCardSpawned(Button card, TrackDefinition t)
@@ -256,21 +264,31 @@ namespace MHK.UI
 
         protected override void Pick(TrackDefinition track)
         {
-            if (Lobby == LobbyPick.None) Continue(track);
-            else Pick(track.Id);
+            if (Lobby == LobbyPick.None)
+            {
+                Continue(track);
+                return;
+            }
+            if (!(TrackVariants.Of(track)?.HasChoices ?? false))
+            {
+                Pick(track.Id, "");
+                return;
+            }
+            var from = Root.focusController?.focusedElement as VisualElement ?? Root;
+            TrackVariantPrompt.Show(from, track, settingRowTemplate, Lobby == LobbyPick.Vote ? voteConfirm : pickConfirm, key => Pick(track.Id, key));
         }
 
-        // The lobby modes: a vote, the owner's next track or a race against AI ("" = random).
-        void Pick(string trackId)
+        // The lobby modes: a vote, the owner's next track or a race against AI ("" = random) with a variant key.
+        void Pick(string trackId, string variant)
         {
             switch (Lobby)
             {
                 case LobbyPick.Vote:
-                    LobbyScreen.Vote(Flow, trackId);
+                    LobbyScreen.Vote(Flow, trackId, variant);
                     return;
                 case LobbyPick.OwnerPick:
                 case LobbyPick.Solo:
-                    LobbyScreen.StartOn(Flow, trackId);
+                    LobbyScreen.StartOn(Flow, trackId, variant);
                     return;
             }
         }

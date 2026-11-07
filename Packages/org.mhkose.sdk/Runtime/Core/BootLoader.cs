@@ -3,7 +3,10 @@ using UnityEngine;
 
 namespace MHK.Core
 {
-    /// <summary>First scene: initialises <see cref="GameRoot"/>, then opens the menu or a command-line quick race (<c>-race</c>, <c>-mode</c>, <c>-opponents</c>).</summary>
+    /// <summary>
+    /// First scene: initialises <see cref="GameRoot"/>, then opens the menu or a command-line quick race (<c>-race</c>,
+    /// <c>-variant</c> (a variant key such as core.reverse+core.night), <c>-mode</c>, <c>-opponents</c>).
+    /// </summary>
     public class BootLoader : MonoBehaviour
     {
         [Tooltip("Scene opened after booting (unless the command line starts a race).")]
@@ -26,6 +29,7 @@ namespace MHK.Core
             if (trackId == null) return false;
             var opponents = CommandLine.TryInt("-opponents", out var n) ? n : GameSession.DefaultOpponents;
             var session = GameSession.CreateQuickRace(root.Content, trackId, opponents);
+            session.variants.Add(CommandLine.Value("-variant") ?? "");
             if (Enum.TryParse<GameMode>(CommandLine.Value("-mode"), true, out var mode)) session.mode = mode;
             SceneFlow.StartSession(session);
             return true;

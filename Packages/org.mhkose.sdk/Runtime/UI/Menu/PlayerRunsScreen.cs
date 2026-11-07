@@ -25,8 +25,10 @@ namespace MHK.UI
         int maxRuns = 500;
 
         [Header("Texts")]
-        [SerializeField, Tooltip("Row line ({0} = engine class, {1} = upload date).")]
+        [SerializeField, Tooltip("Row line ({0} = track variant, laps when not the track's, and engine class, {1} = upload date).")]
         string rowFormat = "{0} | {1}";
+        [SerializeField, Tooltip("Laps of a run that are not the track's ({0} = laps).")]
+        string lapsFormat = "{0} laps";
         [SerializeField, Tooltip("Date format of the rows (.NET custom format).")]
         string dateFormat = "d MMM yyyy";
         [SerializeField, Tooltip("Tooltip of a row: opens the track's records searched for the player.")]
@@ -212,7 +214,9 @@ namespace MHK.UI
             var row = UiTree.Spawn<VisualElement>(rowTemplate, list);
             if (row == null) return null;
             var uploaded = run.uploaded == default ? "-" : run.uploaded.ToLocalTime().ToString(dateFormat, Invariant);
-            LeaderRows.Fill(row, run, alt, string.Format(Invariant, rowFormat, ClassLabel(run.engineClass), uploaded));
+            var setup = UiText.VariantAndLaps(run.trackId, run.variant, run.laps, lapsFormat);
+            var what = setup.Length > 0 ? setup + " · " + ClassLabel(run.engineClass) : ClassLabel(run.engineClass);
+            LeaderRows.Fill(row, run, alt, string.Format(Invariant, rowFormat, what, uploaded));
             row.AddToClassList("pr-row");
             // The player is this page's: no card or account action per row.
             row.Q("lb-profile").SetVisible(false);
@@ -222,7 +226,7 @@ namespace MHK.UI
             main.clicked += () =>
             {
                 Click();
-                Flow.Get<TrackRecordsScreen>()?.OpenSearched(run.trackId, ClassOf(run.engineClass), username);
+                Flow.Get<TrackRecordsScreen>()?.OpenSearched(run.trackId, ClassOf(run.engineClass), run.variant, run.laps == 1, username);
             };
             var watch = row.Q<Button>("lb-watch");
             watch.SetEnabled(Content.Get<TrackDefinition>(run.trackId) != null);

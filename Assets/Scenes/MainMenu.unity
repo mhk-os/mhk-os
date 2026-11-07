@@ -347,7 +347,6 @@ MonoBehaviour:
   kickedByOwnerText: The room owner removed you.
   kickedByModText: A moderator removed you.
   closedText: The lobby closed.
-  strikeSuffix: ' Anticheat lobbies with it are closed to you.'
 --- !u!1 &439274510
 GameObject:
   m_ObjectHideFlags: 0
@@ -517,7 +516,6 @@ MonoBehaviour:
   currentVersionLabel: Current version
   olderVersionLabel: Version {0}
   versionPartSeparator: " \xB7 "
-  boardLapsLabel: '{0} laps'
   onePlayerText: 1 player
   playersFormat: '{0} players'
   localOnlyText: Only on this device
@@ -542,9 +540,12 @@ MonoBehaviour:
   chipTemplate: {fileID: 9197481963319205126, guid: 6cf0404e308204c6d89aacc48c73b945, type: 3}
   ghostRowTemplate: {fileID: 9197481963319205126, guid: ab9159000d994452badc9bd944a99ec7, type: 3}
   leaderRowTemplate: {fileID: 9197481963319205126, guid: f721e9d95e7eb44e1a8dd5f1047d5439, type: 3}
+  settingRowTemplate: {fileID: 9197481963319205126, guid: 22b5d9498c7f4fa0bc3d661550603c7b, type: 3}
   narrowWidth: 1560
   localTab: Your ghosts
   globalTab: Leaderboard
+  oneLapText: 1 lap
+  lapsFormat: '{0} laps'
   pickFormat: '{0} / {1}'
   pickTipFormat: Picked ghosts to race (up to {0})
   bestRaceTip: Your best race
@@ -720,7 +721,6 @@ MonoBehaviour:
     disabledText: Disabled
     disabledTipFormat: 'Disabled: {0}'
     cheatKicksTip: Kicked from races for cheating
-    contentStrikesTip: Content strikes (other game content in anticheat lobbies)
     hiddenRunsTip: Hidden runs
     flaggedRunsTip: Runs other players reported
     loadingText: Loading
@@ -1222,7 +1222,9 @@ MonoBehaviour:
   hoverRestoreMs: 120
   battleTitle: Choose an arena
   arenaTip: Arena, built for battles.
-  variantFormat: ' | {0}'
+  settingRowTemplate: {fileID: 9197481963319205126, guid: 22b5d9498c7f4fa0bc3d661550603c7b, type: 3}
+  voteConfirm: Vote
+  pickConfirm: Race
   lapFormat: '{0} lap'
   lapsFormat: '{0} laps'
   recordFormat: '{0} | {1}'
@@ -1790,6 +1792,7 @@ MonoBehaviour:
   customText: Custom
   offText: Off
   opponentsRangeFormat: '{0} to {1}'
+  settingRowTemplate: {fileID: 9197481963319205126, guid: 22b5d9498c7f4fa0bc3d661550603c7b, type: 3}
 --- !u!1931382934 &1164318084
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -2217,6 +2220,7 @@ MonoBehaviour:
   - Horn
   - Joystick
   - Steering Wheel
+  - Headlights
   hudNames:
   - Race Position
   - Item Slot
@@ -3461,6 +3465,9 @@ MonoBehaviour:
   - label: Camera
     action: Camera
     part: 
+  - label: Headlights
+    action: Headlights
+    part: 
   listeningText: "Press a key\u2026"
   emptyText: "\u2014"
   numpadPrefix: 'Num '
@@ -3684,6 +3691,7 @@ MonoBehaviour:
   showcaseVisible: 0
   allowBack: 1
   rowTemplate: {fileID: 9197481963319205126, guid: ff8fa9f90ebf7414ba3f80518882ec70, type: 3}
+  settingRowTemplate: {fileID: 9197481963319205126, guid: 22b5d9498c7f4fa0bc3d661550603c7b, type: 3}
   defaultTitle: Custom championship
   defaultConfirmText: Next
   countFormat: '{0} / {1} races'
@@ -3691,6 +3699,12 @@ MonoBehaviour:
   emptyTip: Add at least one track
   clearQuestion: Remove every race from the list?
   clearConfirm: Clear
+  raceFormat: "Race {0} \xB7 {1}"
+  randomText: Random
+  trackLapsFormat: Track default ({0})
+  lapsFormat: '{0} laps'
+  oneLapText: 1 lap
+  tipLineFormat: '{0}: {1}'
 --- !u!1931382934 &1908671763
 PanelRenderer:
   m_ObjectHideFlags: 0
@@ -4024,7 +4038,6 @@ MonoBehaviour:
   trackCardTemplate: {fileID: 9197481963319205126, guid: dcb35b2e85e904165b5d9e522259a0d6, type: 3}
   menuTitle: Main Menu
   tracksTitle: Tracks
-  variantFormat: ' | {0}'
   addTipFormat: Add to {0}
   alreadyAddedFormat: Already in {0}
   removePromptFormat: Remove {0} from {1}?

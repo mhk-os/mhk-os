@@ -14,8 +14,11 @@ namespace MHK.Modding
         /// (mod.json sdkApi). The game loads and installs only mods with its own level. Bump it when serialized content
         /// cannot load or changes meaning in another build, including prefabs that require new runtime types.
         /// 3: track-routed fireball and boiling prefabs require TrackFireball, KartMelt and the matching MHK/Lit shader.
+        /// 4: track variants (modifier, option and overlay definitions, overlay scenes with TrackOverlay, the shared track
+        /// scene layout), weather prefabs with WeatherAmbience and the wet and lightning MHK/Lit shader, effects that end
+        /// on respawn.
         /// </summary>
-        public const int ApiLevel = 3;
+        public const int ApiLevel = 4;
 
         // Level 1 is the API the level was introduced with, so a mod built before (stamp 0, mod.json without sdkApi) has it.
         const int FirstLevel = 1;

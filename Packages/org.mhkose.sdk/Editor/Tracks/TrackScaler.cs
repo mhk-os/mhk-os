@@ -53,7 +53,7 @@ namespace MHK.Editor.Tracks
             Undo.SetCurrentGroupName(UndoLabel);
             var group = Undo.GetCurrentGroup();
 
-            var roots = scene.GetRootGameObjects().Where(g => !g.TryGetComponent<FollowCameraPosition>(out _)).ToList();
+            var roots = TrackSceneLayout.ContentObjects(scene).Where(g => !g.TryGetComponent<FollowCameraPosition>(out _)).ToList();
             var boxes = MeasureBoxes(roots, runtime.ObstacleMask);
             foreach (var root in roots)
                 TrackPathUndo.Record(root.transform, UndoLabel, t =>
@@ -93,7 +93,7 @@ namespace MHK.Editor.Tracks
             TrackRuntime.MarkLinesEdited();
             Undo.CollapseUndoOperations(group);
             EditorSceneManager.MarkSceneDirty(scene);
-            return $"[Tracks] {scene.path}: scaled ×{factor:0.###} ({roots.Count} root objects, {paths.Count} racing lines, " +
+            return $"[Tracks] {scene.path}: scaled ×{factor:0.###} ({roots.Count} track and environment objects, {paths.Count} racing lines, " +
                    $"{boxes.Count} item boxes kept at their size, {boxes.Count(b => b.clearance == null)} of them without ground " +
                    $"below, fog {(scaleFog ? "scaled" : "kept")}). Bake its lighting again.";
         }

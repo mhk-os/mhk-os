@@ -36,8 +36,6 @@ namespace MHK.Ghosts
         public GhostPlayer Spectated { get; private set; }
         /// <summary>The ghost split times compare with (the personal best when raced), null without ghosts.</summary>
         public GhostPlayer Reference { get; private set; }
-        /// <summary>Fingerprint of the loaded track (<see cref="GhostFingerprint.TrackHash"/>).</summary>
-        public string TrackHash { get; private set; }
         /// <summary>The run recorded in this race (null until the race ended with the player past the line).</summary>
         public GhostData Run { get; private set; }
         /// <summary>How the run was stored, null when it was not.</summary>
@@ -54,14 +52,13 @@ namespace MHK.Ghosts
         static IGhostStore Store => GhostStores.Current;
 
         /// <summary>
-        /// While the race loads: fingerprint, recorder and the ghosts (replay: the watched ghost as the camera target).
+        /// While the race loads: recorder and the ghosts (replay: the watched ghost as the camera target).
         /// Raced ghosts load over the next frames: the race waits for <see cref="GhostsLoaded"/>.
         /// </summary>
         public void Load(RaceManager raceManager)
         {
             race = raceManager;
             IsReplay = race.Session.IsReplay;
-            ComputeTrackHash();
             var root = new GameObject("Ghosts").transform;
             root.SetParent(race.KartsRoot != null ? race.KartsRoot : transform, false);
             if (IsReplay)
@@ -79,18 +76,6 @@ namespace MHK.Ghosts
             LoadProgress = 1f;
             GhostsLoaded = true;
             GhostsReady?.Invoke();
-        }
-
-        void ComputeTrackHash()
-        {
-            try
-            {
-                TrackHash = GhostFingerprint.TrackHash(race.Track, race.TrackRuntime);
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[TimeTrial] Track fingerprint failed: {e.Message}");
-            }
         }
 
         void LoadReplay(Transform root)
@@ -111,16 +96,18 @@ namespace MHK.Ghosts
             camera.SnapToTarget();
         }
 
-        // Own best first, then the session's ghosts in the order picked; a downloaded one counts like a stored one.
+        // Own best first, then the session's ghosts in the order picked; a downloaded one counts like a stored one. Only
+        // ghosts of this track variant and lap count race.
         List<GhostEntry> PickGhosts()
         {
             var session = race.Session;
+            var variant = race.Variant.Key;
             var max = Mathf.Max(1, GameRoot.Instance.Config.maxGhosts);
             var picked = new List<GhostEntry>();
             var ids = new HashSet<string>();
             if (session.raceOwnBest)
             {
-                var best = Store.Best(race.Track.Id, session.difficulty);
+                var best = Store.Best(race.Track.Id, variant, race.Laps, session.difficulty);
                 if (best != null && ids.Add(best.Id)) picked.Add(best);
             }
             foreach (var id in session.ghostIds)
@@ -128,7 +115,8 @@ namespace MHK.Ghosts
                 if (picked.Count >= max) break;
                 if (string.IsNullOrEmpty(id) || ids.Contains(id)) continue;
                 var entry = Store.Find(id);
-                if (entry != null && entry.header.trackId == race.Track.Id && ids.Add(entry.Id)) picked.Add(entry);
+                if (entry != null && entry.header.trackId == race.Track.Id && GhostCompatibilityRules.Matches(entry.header, variant, race.Laps) && ids.Add(entry.Id))
+                    picked.Add(entry);
             }
             return picked;
         }
@@ -164,7 +152,7 @@ namespace MHK.Ghosts
                 }
             }
             Reference = ghosts.Count > 0 ? ghosts[0] : null;
-            Debug.Log($"[TimeTrial] {race.Track.Id}: {ghosts.Count} ghost(s) in {Time.realtimeSinceStartup - started:0.00} s, track hash {TrackHash}.");
+            Debug.Log($"[TimeTrial] {race.Variant}: {ghosts.Count} ghost(s) in {Time.realtimeSinceStartup - started:0.00} s.");
             MarkGhostsLoaded();
         }
 
@@ -279,7 +267,7 @@ namespace MHK.Ghosts
             {
                 id = Guid.NewGuid().ToString("N"),
                 gameBuild = BuildInfo.Commit,
-                contentVersion = ContentVersion.Current,
+                rulesVersion = RulesVersion.Current,
                 // The account name when there is one: the server lists runs under it, the file should not disagree.
                 playerName = settings.SignatureName,
                 playerId = settings.EnsurePlayerId(),
@@ -287,13 +275,14 @@ namespace MHK.Ghosts
                 trackId = track.Id,
                 trackPackId = track.OwnerPackId,
                 trackPackVersion = track.OwnerPackCommit,
-                trackHash = TrackHash,
+                trackVersion = race.Variant.ContentVersion,
+                variant = race.Variant.Key,
                 kartId = player.KartDef != null ? player.KartDef.Id : "",
+                kartVersion = player.KartDef != null ? player.KartDef.contentVersion : 0,
                 characterId = player.Character != null ? player.Character.Id : "",
                 engineClass = (int)session.difficulty,
                 engineClassLabel = root.Config.GetDifficulty(session.difficulty).label,
                 laps = race.Laps,
-                setupHash = GhostFingerprint.SetupHash(session.difficulty, player.KartDef, race.Laps),
                 tickSeconds = Time.fixedDeltaTime,
                 speedScale = player.Physics.SpeedScale,
                 finishTime = player.Progress.FinishTime,
@@ -316,17 +305,20 @@ namespace MHK.Ghosts
             }
         }
 
-        /// <summary>A session that replays <paramref name="entry"/> on its track and engine class.</summary>
+        /// <summary>A session that replays <paramref name="entry"/> on its track variant, lap count and engine class.</summary>
         public static GameSession ReplaySession(GhostEntry entry)
         {
             var s = new GameSession
             {
                 mode = GameMode.TimeTrial,
                 difficulty = (Difficulty)entry.header.engineClass,
+                laps = Mathf.Max(1, entry.header.laps),
+                lapsFromTrack = false,
                 powerupsEnabled = false,
                 replayGhostId = entry.Id,
             };
             s.trackIds.Add(entry.header.trackId);
+            s.variants.Add(entry.header.variant ?? "");
             return s;
         }
     }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MHK.Core;
+using MHK.Race;
 using MHK.Rendering;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
@@ -8,14 +9,17 @@ using UnityEngine.Rendering;
 namespace MHK.Effects
 {
     /// <summary>
-    /// Snow or rain around the race camera: one GPU-animated quad mesh in a camera-following box, hidden under roofs by
-    /// a top-down cover map rendered once at start.
+    /// Snow, rain or blown sand around the race camera: one GPU-animated quad mesh in a camera-following box (optionally
+    /// part of it in a smaller, denser box close to the camera), hidden under roofs by a top-down cover map rendered once at
+    /// start, and optionally drop splashes landing on the topmost surfaces of that map. The particles take the scene light,
+    /// a share of the point and spot lights (headlight beams) and the lightning flash (see the MHK/Weather shader). One
+    /// effect per object: a second particle kind (a sandstorm's dust puffs) goes on a child.
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(1000)] // after the camera has moved (ChaseCamera.LateUpdate)
     public class WeatherEffect : MonoBehaviour
     {
-        /// <summary>Most particles one effect can have (16-bit indices: four vertices each).</summary>
+        /// <summary>Most particles (or splashes) one effect can have (16-bit indices: four vertices each).</summary>
         public const int MaxParticles = 16000;
 
         [Tooltip("Camera the weather volume follows (culling bounds, camera motion), empty = the main camera (the race camera). No camera: hidden.")]
@@ -34,6 +38,11 @@ namespace MHK.Effects
         [Range(0.05f, 1f)] [SerializeField] float edgeFade = 0.35f;
         [Tooltip("Particles nearer to the camera than about this (m) fade out, so none blot the view.")]
         [Min(0.01f)] [SerializeField] float nearFade = 1f;
+        [Tooltip("Share of the particles in a smaller box close to the camera (the volume and its centre offset divided by " +
+                 "nearDivisor), so the weather is densest where it is seen best. 0 = one evenly filled box.")]
+        [Range(0f, 1f)] [SerializeField] float nearShare;
+        [Tooltip("The near box is the volume divided by this along each axis (a whole number keeps the motion seamless).")]
+        [Range(1, 8)] [SerializeField] int nearDivisor = 2;
 
         [Header("Motion")]
         [Tooltip("Falling speed (m/s).")]
@@ -57,9 +66,26 @@ namespace MHK.Effects
         [Tooltip("Streaks only: share of the camera's own motion in the streak direction (rain slants towards a moving camera).")]
         [Range(0f, 1f)] [SerializeField] float cameraMotionStretch = 0.3f;
 
+        [Header("Splashes (land on the cover's topmost surfaces: need cover)")]
+        [Tooltip("Drop splashes on the ground around the camera at full quality, 0 = none (snow).")]
+        [Range(0, MaxParticles)] [SerializeField] int splashCount;
+        [Tooltip("Side of the square around the camera the splashes land in (m).")]
+        [Min(1f)] [SerializeField] float splashArea = 24f;
+        [Tooltip("Centre of that square ahead of the camera along its heading (m).")]
+        [SerializeField] float splashAhead = 6f;
+        [Tooltip("Life of one splash (s); each splash lands somewhere else the next time.")]
+        [Min(0.05f)] [SerializeField] float splashLifetime = 0.35f;
+        [Tooltip("Splash quad width and height (m), varied by sizeVariation.")]
+        [SerializeField] Vector2 splashSize = new(0.4f, 0.25f);
+        [Tooltip("Splash opacity relative to the colour's.")]
+        [Range(0f, 2f)] [SerializeField] float splashOpacity = 1f;
+
         [Header("Cover (roofs, tunnels)")]
-        [Tooltip("Objects whose topmost opaque surfaces stop the particles (the track's Visual group). Empty = no cover: it falls everywhere.")]
+        [Tooltip("Objects whose topmost opaque surfaces stop the particles. Empty and no coverTrackVisual = no cover: it falls everywhere.")]
         [SerializeField] Transform[] cover;
+        [Tooltip("Also stop the particles under the loaded track's Visual group (TrackRuntime.Current), which an overlay scene " +
+                 "cannot reference.")]
+        [SerializeField] bool coverTrackVisual;
         [Tooltip("Cover map texel size (m) over the covered area's ground plan.")]
         [Min(0.1f)] [SerializeField] float coverTexel = 1f;
         [Tooltip("Largest cover map side (texels), larger tracks get coarser texels. 1024² = 2 MB.")]
@@ -74,9 +100,11 @@ namespace MHK.Effects
         [SerializeField] bool coverIncludesTransparent = true;
 
         [Header("Quality")]
-        [Tooltip("Share of count drawn per graphics render-resolution tier: [0] 720p or lower (Low preset), [1] 1080p (Medium), " +
-                 "[2] native (High). 0 = off at that tier.")]
+        [Tooltip("Share of count (and splashCount) drawn per graphics render-resolution tier: [0] 720p or lower (Low preset), " +
+                 "[1] 1080p (Medium), [2] native (High). 0 = off at that tier.")]
         [SerializeField] float[] qualityScale = { 0.5f, 1f, 1f };
+
+        const string SplashKeyword = "_WEATHER_SPLASH";
 
         static readonly int AreaId = Shader.PropertyToID("_WeatherArea");
         static readonly int CenterId = Shader.PropertyToID("_WeatherCenter");
@@ -84,6 +112,9 @@ namespace MHK.Effects
         static readonly int VelocityId = Shader.PropertyToID("_WeatherVelocity");
         static readonly int CameraVelocityId = Shader.PropertyToID("_WeatherCameraVelocity");
         static readonly int SizeId = Shader.PropertyToID("_WeatherSize");
+        static readonly int NearId = Shader.PropertyToID("_WeatherNear");
+        static readonly int SplashId = Shader.PropertyToID("_WeatherSplash");
+        static readonly int SplashSizeId = Shader.PropertyToID("_WeatherSplashSize");
         static readonly int CoverMapId = Shader.PropertyToID("_MHKWeatherCover");
         static readonly int CoverRectId = Shader.PropertyToID("_WeatherCoverRect");
         static readonly int CoverHeightId = Shader.PropertyToID("_WeatherCoverHeight");
@@ -91,69 +122,89 @@ namespace MHK.Effects
         static readonly int CoverEncodeId = Shader.PropertyToID("_WeatherCoverEncode");
 
         // Shader coupling: speed multipliers are multiples of 1/SpeedSteps (the displacement wraps at that many boxes
-        // without a jump) and sway frequencies multiples of 1/8 (the sway phase wraps at 8 turns).
+        // without a jump, also in a near box of a whole fraction of the size), sway frequencies multiples of 1/8 (the sway
+        // phase wraps at 8 turns) and a splash's landing spots repeat after SplashCycles lives (its clock wraps there).
         const int SpeedSteps = 64;
         const float SwayPeriod = Mathf.PI * 2f * 8f;
+        const int SplashCycles = 4096;
         const float CameraCutSpeed = 120f;
         const float CameraVelocitySharpness = 10f;
         const float BoundsPadding = 1f;
         const int CoverMinResolution = 16;
         const float CoverDepthPadding = 1f;
 
-        Mesh mesh;
-        MeshFilter meshFilter;
-        MeshRenderer meshRenderer;
-        int drawn = -1;
+        Mesh mesh, splashMesh;
+        MeshFilter meshFilter, splashFilter;
+        MeshRenderer meshRenderer, splashRenderer;
+        Material splashMaterial;
+        int drawn = -1, splashDrawn = -1;
         MaterialPropertyBlock block;
         Vector3 offset;
-        float swayPhase;
+        float swayPhase, splashClock;
         Camera lastCamera;
         Vector3 lastCameraPos;
         Vector3 cameraVelocity;
         RenderTexture coverMap;
         Vector4 coverRect, coverHeight;
+        // The track whose Visual group the cover map holds (coverTrackVisual).
+        TrackRuntime coverTrack;
 
         void Awake()
         {
             block = new MaterialPropertyBlock();
-            BuildMesh();
-            CreateRenderer();
+            meshRenderer = CreateRenderer("Weather particles", out meshFilter);
+            splashRenderer = CreateRenderer("Weather splashes", out splashFilter);
+            BuildMeshes();
         }
 
-        // A plain renderer (not Graphics.RenderMesh), so manual Camera.Render calls (screenshots) include it too.
-        void CreateRenderer()
+        // Plain renderers (not Graphics.RenderMesh), so manual Camera.Render calls (screenshots) include them too.
+        MeshRenderer CreateRenderer(string childName, out MeshFilter filter)
         {
-            var child = new GameObject("Weather particles") { hideFlags = HideFlags.DontSave, layer = gameObject.layer };
+            var child = new GameObject(childName) { hideFlags = HideFlags.DontSave, layer = gameObject.layer };
             child.transform.SetParent(transform, false);
-            meshFilter = child.AddComponent<MeshFilter>();
-            meshFilter.sharedMesh = mesh;
-            meshRenderer = child.AddComponent<MeshRenderer>();
-            meshRenderer.sharedMaterial = material;
-            meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
-            meshRenderer.receiveShadows = false;
-            meshRenderer.lightProbeUsage = LightProbeUsage.Off;
-            meshRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
-            meshRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
-            meshRenderer.allowOcclusionWhenDynamic = false;
-            meshRenderer.enabled = false;
+            filter = child.AddComponent<MeshFilter>();
+            var r = child.AddComponent<MeshRenderer>();
+            r.shadowCastingMode = ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.lightProbeUsage = LightProbeUsage.Off;
+            r.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            r.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+            r.allowOcclusionWhenDynamic = false;
+            r.enabled = false;
+            return r;
         }
 
         void Start() => BuildCover();
 
         void OnDisable()
         {
-            if (meshRenderer != null) meshRenderer.enabled = false;
+            if (meshRenderer != null) Hide();
         }
 
         void OnDestroy()
         {
-            if (mesh != null) Destroy(mesh);
+            DestroyMeshes();
+            if (splashMaterial != null) Destroy(splashMaterial);
             ReleaseCover();
         }
 
-        void BuildMesh()
+        void BuildMeshes()
         {
-            var n = Mathf.Clamp(count, 1, MaxParticles);
+            mesh = BuildQuads(Mathf.Clamp(count, 1, MaxParticles), " particles");
+            meshFilter.sharedMesh = mesh;
+            splashMesh = splashCount > 0 ? BuildQuads(splashCount, " splashes") : null;
+            splashFilter.sharedMesh = splashMesh;
+            drawn = splashDrawn = -1;
+        }
+
+        void DestroyMeshes()
+        {
+            if (mesh != null) Destroy(mesh);
+            if (splashMesh != null) Destroy(splashMesh);
+        }
+
+        Mesh BuildQuads(int n, string suffix)
+        {
             var rng = new System.Random(n);
             var positions = new Vector3[n * 4];
             var uvs = new Vector4[n * 4];
@@ -171,15 +222,15 @@ namespace MHK.Effects
                 }
                 WriteQuadIndices(indices, i);
             }
-            mesh = new Mesh { name = name + " particles", hideFlags = HideFlags.DontSave };
-            mesh.vertices = positions;
-            mesh.SetUVs(0, uvs);
-            mesh.SetIndexBufferParams(indices.Length, IndexFormat.UInt16);
-            mesh.SetIndexBufferData(indices, 0, 0, indices.Length, MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontRecalculateBounds);
-            mesh.subMeshCount = 1;
-            mesh.SetSubMesh(0, new SubMeshDescriptor(0, indices.Length), MeshUpdateFlags.DontRecalculateBounds);
-            mesh.bounds = new Bounds(Vector3.one * 0.5f, Vector3.one);
-            drawn = -1;
+            var quads = new Mesh { name = name + suffix, hideFlags = HideFlags.DontSave };
+            quads.vertices = positions;
+            quads.SetUVs(0, uvs);
+            quads.SetIndexBufferParams(indices.Length, IndexFormat.UInt16);
+            quads.SetIndexBufferData(indices, 0, 0, indices.Length, MeshUpdateFlags.DontValidateIndices | MeshUpdateFlags.DontRecalculateBounds);
+            quads.subMeshCount = 1;
+            quads.SetSubMesh(0, new SubMeshDescriptor(0, indices.Length), MeshUpdateFlags.DontRecalculateBounds);
+            quads.bounds = new Bounds(Vector3.one * 0.5f, Vector3.one);
+            return quads;
         }
 
         static void WriteQuadIndices(ushort[] indices, int quad)
@@ -193,11 +244,14 @@ namespace MHK.Effects
             indices[quad * 6 + 5] = (ushort)(v + 3);
         }
 
-        int WantedCount()
+        // How many of the built quads to draw for wanted (count or splashCount) at the current graphics tier.
+        int WantedCount(int wanted, Mesh quads)
         {
-            if (qualityScale == null || qualityScale.Length == 0) return count;
+            if (quads == null) return 0;
+            var built = quads.vertexCount / 4;
+            if (qualityScale == null || qualityScale.Length == 0) return Mathf.Min(wanted, built);
             var tier = Mathf.Min(GraphicsQuality.ResolutionTier, qualityScale.Length - 1);
-            return Mathf.Clamp(Mathf.RoundToInt(count * Mathf.Max(0f, qualityScale[tier])), 0, mesh.vertexCount / 4);
+            return Mathf.Clamp(Mathf.RoundToInt(wanted * Mathf.Max(0f, qualityScale[tier])), 0, built);
         }
 
         void LateUpdate()
@@ -207,9 +261,10 @@ namespace MHK.Effects
             if (cam == null || !cam.isActiveAndEnabled)
             {
                 lastCamera = null;
-                meshRenderer.enabled = false;
+                Hide();
                 return;
             }
+            if (coverTrackVisual && coverTrack != TrackRuntime.Current) BuildCover(); // the track loaded after Start
             SyncDrawnCount();
             var dt = Time.deltaTime;
             var velocity = AdvanceMotion(dt);
@@ -217,20 +272,32 @@ namespace MHK.Effects
             TrackCameraVelocity(cam, ct.position, dt);
             if (drawn <= 0)
             {
-                meshRenderer.enabled = false;
+                Hide();
                 return;
             }
             if (coverMap != null && !coverMap.IsCreated()) BuildCover(); // contents lost (mobile app switch)
             UploadParameters(velocity);
-            FitBounds(ct);
+            var heading = FitBounds(ct);
+            UpdateSplashes(ct.position, heading);
+        }
+
+        void Hide()
+        {
+            meshRenderer.enabled = false;
+            splashRenderer.enabled = false;
         }
 
         void SyncDrawnCount()
         {
-            var wanted = WantedCount();
-            if (wanted == drawn) return;
-            drawn = wanted;
-            if (drawn > 0) mesh.SetSubMesh(0, new SubMeshDescriptor(0, drawn * 6), MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+            drawn = SetDrawn(mesh, WantedCount(count, mesh), drawn);
+            splashDrawn = SetDrawn(splashMesh, WantedCount(splashCount, splashMesh), splashDrawn);
+        }
+
+        static int SetDrawn(Mesh quads, int wanted, int current)
+        {
+            if (wanted == current) return current;
+            if (wanted > 0) quads.SetSubMesh(0, new SubMeshDescriptor(0, wanted * 6), MeshUpdateFlags.DontRecalculateBounds | MeshUpdateFlags.DontValidateIndices);
+            return wanted;
         }
 
         Vector3 AdvanceMotion(float dt)
@@ -241,6 +308,7 @@ namespace MHK.Effects
             offset.y = Mathf.Repeat(offset.y, Mathf.Max(0.01f, area.y) * SpeedSteps);
             offset.z = Mathf.Repeat(offset.z, Mathf.Max(0.01f, area.z) * SpeedSteps);
             swayPhase = Mathf.Repeat(swayPhase + dt * swayFrequency * Mathf.PI * 2f, SwayPeriod);
+            splashClock = Mathf.Repeat(splashClock + dt, splashLifetime * SplashCycles);
             return velocity;
         }
 
@@ -266,6 +334,7 @@ namespace MHK.Effects
             block.SetVector(VelocityId, new Vector4(velocity.x, velocity.y, velocity.z, swayAmplitude));
             block.SetVector(CameraVelocityId, cameraVelocity * cameraMotionStretch);
             block.SetVector(SizeId, new Vector4(size.x, size.y, sizeVariation, streak ? 1f : 0f));
+            block.SetVector(NearId, new Vector4(nearShare, 1f / nearDivisor, 0f, 0f));
             block.SetColor(MHKLitIds.BaseColor, color);
             block.SetFloat(CoverOnId, coverMap != null ? 1f : 0f);
             if (coverMap == null) return;
@@ -274,17 +343,55 @@ namespace MHK.Effects
             block.SetVector(CoverHeightId, coverHeight);
         }
 
-        void FitBounds(Transform ct)
+        // Returns the camera's heading on the ground plane.
+        Vector3 FitBounds(Transform ct)
         {
             var f = ct.forward;
             var heading = new Vector3(f.x, 0f, f.z);
             heading = heading.sqrMagnitude > 1e-6f ? heading.normalized : Vector3.forward;
-            var boxCenter = ct.position + new Vector3(heading.z, 0f, -heading.x) * center.x + Vector3.up * center.y + heading * center.z;
-            var margin = Mathf.Max(size.x, size.y) * (1f + sizeVariation) + swayAmplitude + BoundsPadding;
+            var bounds = BoxBounds(ct.position, heading, 1f);
+            if (nearShare > 0f) bounds.Encapsulate(BoxBounds(ct.position, heading, 1f / nearDivisor));
+            bounds.Expand(2f * (Mathf.Max(size.x, size.y) * (1f + sizeVariation) + swayAmplitude + BoundsPadding));
             meshRenderer.sharedMaterial = material;
             meshRenderer.SetPropertyBlock(block);
-            meshRenderer.bounds = new Bounds(boxCenter, area + Vector3.one * (2f * margin));
+            meshRenderer.bounds = bounds;
             meshRenderer.enabled = true;
+            return heading;
+        }
+
+        // The particle box (the shader's WeatherBoxCenter): the volume, or the near box at a scale of 1 / nearDivisor.
+        Bounds BoxBounds(Vector3 camPos, Vector3 heading, float scale)
+        {
+            var c = center * scale;
+            return new Bounds(camPos + new Vector3(heading.z, 0f, -heading.x) * c.x + Vector3.up * c.y + heading * c.z, area * scale);
+        }
+
+        // Splashes stand on the cover map's surfaces, so they need one. They reuse the particles' block values (fades,
+        // size variation, cover) with their own colour and square.
+        void UpdateSplashes(Vector3 camPos, Vector3 heading)
+        {
+            if (splashDrawn <= 0 || coverMap == null)
+            {
+                splashRenderer.enabled = false;
+                return;
+            }
+            if (splashMaterial == null)
+            {
+                splashMaterial = new Material(material) { name = material.name + " splashes", hideFlags = HideFlags.DontSave };
+                splashMaterial.EnableKeyword(SplashKeyword);
+            }
+            var splashColor = color;
+            splashColor.a *= splashOpacity;
+            block.SetColor(MHKLitIds.BaseColor, splashColor);
+            block.SetVector(SplashId, new Vector4(splashArea, splashAhead, splashLifetime, splashClock));
+            block.SetVector(SplashSizeId, new Vector4(splashSize.x, splashSize.y, 0f, 0f));
+            var square = camPos + heading * splashAhead;
+            var margin = 2f * (Mathf.Max(splashSize.x, splashSize.y) * (1f + sizeVariation) + BoundsPadding);
+            splashRenderer.sharedMaterial = splashMaterial;
+            splashRenderer.SetPropertyBlock(block);
+            splashRenderer.bounds = new Bounds(new Vector3(square.x, coverHeight.x + coverHeight.y * 0.5f, square.z),
+                new Vector3(splashArea + margin, coverHeight.y + margin, splashArea + margin));
+            splashRenderer.enabled = true;
         }
 
         // Height of the topmost opaque surface of cover over its ground plan, seen from above with an orthographic
@@ -292,7 +399,8 @@ namespace MHK.Effects
         void BuildCover()
         {
             ReleaseCover();
-            if (cover == null || cover.Length == 0 || material == null) return;
+            coverTrack = coverTrackVisual ? TrackRuntime.Current : null;
+            if (material == null) return;
             var pass = material.FindPass("Cover");
             if (pass < 0) return;
             var parts = new List<(Renderer renderer, int submesh)>();
@@ -308,28 +416,35 @@ namespace MHK.Effects
             var materials = new List<Material>();
             bounds = new Bounds();
             var any = false;
-            foreach (var root in cover)
-            {
-                if (root == null) continue;
-                root.GetComponentsInChildren(false, renderers);
-                foreach (var r in renderers)
-                {
-                    if (!r.enabled || r.forceRenderingOff || !r.TryGetComponent<MeshFilter>(out var filter) || filter.sharedMesh == null) continue;
-                    r.GetSharedMaterials(materials);
-                    var added = false;
-                    for (var i = 0; i < materials.Count && i < filter.sharedMesh.subMeshCount; i++)
-                    {
-                        if (!IsCoverMaterial(materials[i])) continue;
-                        parts.Add((r, i));
-                        added = true;
-                    }
-                    if (!added) continue;
-                    if (any) bounds.Encapsulate(r.bounds);
-                    else bounds = r.bounds;
-                    any = true;
-                }
-            }
+            if (cover != null)
+                foreach (var root in cover)
+                    AddCoverParts(root, parts, renderers, materials, ref bounds, ref any);
+            if (coverTrack != null)
+                AddCoverParts(coverTrack.transform.Find(TrackRuntime.VisualGroup), parts, renderers, materials, ref bounds, ref any);
             return any;
+        }
+
+        void AddCoverParts(Transform root, List<(Renderer renderer, int submesh)> parts, List<MeshRenderer> renderers,
+            List<Material> materials, ref Bounds bounds, ref bool any)
+        {
+            if (root == null) return;
+            root.GetComponentsInChildren(false, renderers);
+            foreach (var r in renderers)
+            {
+                if (!r.enabled || r.forceRenderingOff || !r.TryGetComponent<MeshFilter>(out var filter) || filter.sharedMesh == null) continue;
+                r.GetSharedMaterials(materials);
+                var added = false;
+                for (var i = 0; i < materials.Count && i < filter.sharedMesh.subMeshCount; i++)
+                {
+                    if (!IsCoverMaterial(materials[i])) continue;
+                    parts.Add((r, i));
+                    added = true;
+                }
+                if (!added) continue;
+                if (any) bounds.Encapsulate(r.bounds);
+                else bounds = r.bounds;
+                any = true;
+            }
         }
 
         bool IsCoverMaterial(Material m)
@@ -390,10 +505,11 @@ namespace MHK.Effects
         void OnValidate()
         {
             area = Vector3.Max(area, Vector3.one);
-            if (!Application.isPlaying || mesh == null || mesh.vertexCount / 4 == Mathf.Clamp(count, 1, MaxParticles)) return;
-            Destroy(mesh);
-            BuildMesh();
-            if (meshFilter != null) meshFilter.sharedMesh = mesh;
+            if (!Application.isPlaying || mesh == null) return;
+            var splashes = splashMesh != null ? splashMesh.vertexCount / 4 : 0;
+            if (mesh.vertexCount / 4 == Mathf.Clamp(count, 1, MaxParticles) && splashes == splashCount) return;
+            DestroyMeshes();
+            BuildMeshes();
         }
     }
 }

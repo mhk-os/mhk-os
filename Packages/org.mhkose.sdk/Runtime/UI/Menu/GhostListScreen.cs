@@ -25,8 +25,10 @@ namespace MHK.UI
         protected string importedTip = "Imported";
         [SerializeField, Tooltip("Tooltip of the icon of a ghost downloaded from the leaderboards.")]
         protected string onlineTip = "Downloaded from the leaderboard";
-        [SerializeField, Tooltip("Tooltip of the icon of a ghost recorded with another content version or other track or kart data (the game version doesn't matter).")]
+        [SerializeField, Tooltip("Tooltip of the icon of a ghost recorded with another rules, track or kart version (the game version doesn't matter).")]
         protected string otherVersionTip = "Other version. It can be raced but never counts as a record.";
+        [SerializeField, Tooltip("Laps of a ghost that are not its track's, after its engine class ({0} = laps).")]
+        protected string ghostLapsFormat = "{0} laps";
 
         // Indexed by GhostKind.
         static readonly string[] KindClasses = { "best", "last", "saved", "imported", "online" };
@@ -37,7 +39,8 @@ namespace MHK.UI
 
         /// <summary>
         /// Fills a GhostRow.uxml row: time, player (a download shows its uploader's account, not the name in the file),
-        /// date, driver and kart pictures, engine class, kind and version icons.
+        /// date, driver and kart pictures, engine class with the track variant and laps when they are not the track's
+        /// usual race, kind and version icons.
         /// </summary>
         protected void FillGhostRow(VisualElement row, GhostEntry e)
         {
@@ -46,7 +49,8 @@ namespace MHK.UI
             row.SetText("ghost-time", UiText.Clock(h.finishTime));
             row.SetText("ghost-player", PlayerName(e));
             row.SetText("ghost-date", h.Date.ToLocalTime().ToString("d"));
-            row.SetText("ghost-class", h.engineClassLabel);
+            var setup = UiText.VariantAndLaps(h.trackId, h.variant, h.laps, ghostLapsFormat);
+            row.SetText("ghost-class", setup.Length > 0 ? h.engineClassLabel + " · " + setup : h.engineClassLabel);
             ContentDisplay.SetDriver(row, h.characterId, h.kartId);
             var kind = row.Q("ghost-kind");
             kind.SetExclusiveClass((int)e.kind, KindClasses);

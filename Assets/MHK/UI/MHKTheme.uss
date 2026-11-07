@@ -511,6 +511,7 @@ TemplateContainer.sample-gold .badge-label, TemplateContainer.sample-silver .bad
 .i-location_on { background-image: url("Icons/location_on.png"); }
 .i-search_hands_free { background-image: url("Icons/search_hands_free.png"); }
 .i-videocam { background-image: url("Icons/videocam.png"); }
+.i-highlight { background-image: url("Icons/highlight.png"); }
 .i-chat { background-image: url("Icons/chat.png"); }
 .i-compare_arrows { background-image: url("Icons/compare_arrows.png"); }
 .i-counter_3 { background-image: url("Icons/counter_3.png"); }
@@ -537,3 +538,5 @@ TemplateContainer.sample-gold .badge-label, TemplateContainer.sample-silver .bad
 .i-person_add { background-image: url("Icons/person_add.png"); }
 .i-shield_person { background-image: url("Icons/shield_person.png"); }
 .i-dns { background-image: url("Icons/dns.png"); }
+.i-photo_camera { background-image: url("Icons/photo_camera.png"); }
+.i-open_in_new { background-image: url("Icons/open_in_new.png"); }

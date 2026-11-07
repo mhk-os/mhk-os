@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using MHK.Editor.Tracks;
 using MHK.Modding;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
@@ -8,8 +9,8 @@ using UnityEngine;
 namespace MHK.Editor.Modding.Import
 {
     /// <summary>
-    /// Writes the <see cref="TrackDefinition"/> of an imported track scene (laps, layout, variant, music, physics,
-    /// gravity, the preview only while the track has none, so in-game captures stay) and adds it to the pack.
+    /// Writes the <see cref="TrackDefinition"/> of an imported track scene (laps, layout, music, physics, gravity, the
+    /// preview only while the track has none, so in-game captures stay) and adds it to the pack.
     /// Fields the import does not set are kept.
     /// </summary>
     public static class TrackDefinitionWriter
@@ -22,10 +23,9 @@ namespace MHK.Editor.Modding.Import
             var def = AssetPaths.LoadOrCreate<TrackDefinition>($"{c.Folder}/{c.BaseName}.asset");
             var (music, preview) = ImportMedia(c, def.previewImage == null);
             ImportAssets.SetIdentity(def, c.Id, ExportJson.DisplayName(json, c.ShortName), packId);
-            SetScene(def, c.ScenePath);
+            TrackScenes.AssignScene(def, "scene", c.ScenePath);
             def.defaultLaps = Mathf.Max(1, ExportJson.I(json["laps"], s.defaultLaps));
             def.layout = LayoutOf(json);
-            def.variant = ExportJson.Str(json["variant"]);
             if (music != null) def.music = music;
             if (preview != null) def.previewImage = preview;
             def.physics = JsonUtility.FromJson<TrackPhysicsSettings>(JsonUtility.ToJson(s.trackPhysics ?? new TrackPhysicsSettings()));
@@ -33,15 +33,6 @@ namespace MHK.Editor.Modding.Import
             EditorUtility.SetDirty(def);
             ImportAssets.AddToPack(s.pack, def);
             return def;
-        }
-
-        static void SetScene(TrackDefinition def, string scenePath)
-        {
-            var so = new SerializedObject(def);
-            var scene = so.FindProperty("scene");
-            scene.FindPropertyRelative("asset").objectReferenceValue = AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath);
-            scene.FindPropertyRelative("path").stringValue = scenePath;
-            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         static TrackLayout LayoutOf(JObject json)

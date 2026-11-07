@@ -13,7 +13,7 @@ namespace MHK.Race
     {
         [Tooltip("Karts entering use 'respawnPoint' for respawns until they are back on the racing line (MHK2 'respawn').")] RespawnPoint = 1,
         [Tooltip("Karts entering are respawned immediately.")] Kill = 2,
-        [Tooltip("Speed pad: turns the kart to the zone's forward axis, applies 'effectId' and raises its speed to its current top speed including that effect's multiplier (MHK3 SpeedUp), along the ground (horizontally for a kart in the air). An effect with gravityMultiplier = maxSpeedMultiplier² keeps the kart on the arcs it takes at its normal top speed over crests and jumps.")] Boost = 3,
+        [Tooltip("Speed pad: turns the kart to the zone's forward axis (in battles it keeps its heading and is boosted the way it faces), applies 'effectId' and raises its speed to its current top speed including that effect's multiplier (MHK3 SpeedUp), along the ground (horizontally for a kart in the air). An effect with gravityMultiplier = maxSpeedMultiplier² keeps the kart on the arcs it takes at its normal top speed over crests and jumps.")] Boost = 3,
         [Tooltip("Push: karts inside drift along the zone's forward axis at 'value' m/s on top of their own motion (conveyor belts, fans with 'pushFalloff').")] Push = 4,
         [Tooltip("Effect: karts inside have 'effectId' (re-applied whenever it has run out, so a short effect lasts while the kart stays inside: oil slicks).")] Effect = 5,
     }
@@ -129,6 +129,8 @@ namespace MHK.Race
             if (pushed.Count > 0) pushed.Clear();
         }
 
+        // Races: the pad turns the kart to its forward axis. Battles drive circuits both ways, so the pad boosts the kart the
+        // way it faces and leaves its heading alone.
         void Boost(Kart kart)
         {
             if (kart.Eliminated) return;
@@ -137,12 +139,17 @@ namespace MHK.Race
             // gets horizontal speed and keeps its pitch and roll, so the pad never launches it upwards.
             var grounded = kart.Physics.IsGrounded;
             var up = grounded ? kart.transform.up : Vector3.up;
-            var fwd = Vector3.ProjectOnPlane(transform.forward, up).normalized;
+            var race = RaceManager.Current;
+            var battle = race != null && race.IsBattle;
+            var fwd = Vector3.ProjectOnPlane(battle ? kart.transform.forward : transform.forward, up).normalized;
             if (fwd.sqrMagnitude < 0.5f) return;
-            rb.rotation = grounded
-                ? Quaternion.LookRotation(fwd, up)
-                : Quaternion.AngleAxis(Vector3.SignedAngle(Vector3.ProjectOnPlane(kart.transform.forward, up), fwd, up), up) * rb.rotation;
-            rb.angularVelocity = Vector3.zero;
+            if (!battle)
+            {
+                rb.rotation = grounded
+                    ? Quaternion.LookRotation(fwd, up)
+                    : Quaternion.AngleAxis(Vector3.SignedAngle(Vector3.ProjectOnPlane(kart.transform.forward, up), fwd, up), up) * rb.rotation;
+                rb.angularVelocity = Vector3.zero;
+            }
             // MHK3 SpeedUp: the pad effect (higher top speed) first, then straight to the resulting top speed.
             if (Effect != null) kart.Effects.Apply(Effect, kart);
             var speed = Mathf.Max(Vector3.Dot(rb.linearVelocity, fwd), kart.Physics.MaxSpeed());

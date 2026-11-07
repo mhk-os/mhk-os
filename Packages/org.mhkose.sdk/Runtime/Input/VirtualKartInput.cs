@@ -14,6 +14,7 @@ namespace MHK.Input
         [AutoStaticsCleanup] static float[] steerWishes = new float[MaxLocalPlayers];
         [AutoStaticsCleanup] static bool[] steerWishHeld = new bool[MaxLocalPlayers];
         [AutoStaticsCleanup] static bool[] cameraPresses = new bool[MaxLocalPlayers];
+        [AutoStaticsCleanup] static bool[] headlightPresses = new bool[MaxLocalPlayers];
 
         public static ref KartInput ForPlayer(int index) => ref players[Slot(index)];
 
@@ -48,6 +49,18 @@ namespace MHK.Input
             return pressed;
         }
 
+        /// <summary>The touch headlights button was pressed: the next <see cref="TakeHeadlightsPress"/> of the player reports it.</summary>
+        public static void PressHeadlights(int index) => headlightPresses[Slot(index)] = true;
+
+        /// <summary>Whether the touch headlights button was pressed since the last call, clearing the press.</summary>
+        public static bool TakeHeadlightsPress(int index)
+        {
+            var i = Slot(index);
+            var pressed = headlightPresses[i];
+            headlightPresses[i] = false;
+            return pressed;
+        }
+
         /// <summary>Releases every touch input of player <paramref name="index"/>.</summary>
         public static void Clear(int index)
         {
@@ -56,6 +69,7 @@ namespace MHK.Input
             steerWishHeld[i] = false;
             steerWishes[i] = 0f;
             cameraPresses[i] = false;
+            headlightPresses[i] = false;
         }
 
         static int Slot(int index) => Mathf.Clamp(index, 0, MaxLocalPlayers - 1);

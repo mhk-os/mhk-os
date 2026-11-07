@@ -13,12 +13,13 @@ namespace MHK.UI
 {
     /// <summary>
     /// One track's records (TrackRecords.uxml), opened from the Time Trials hub (Records page): engine class chips, the
-    /// player's stored ghosts of the class and version (Watch, Upload or the uploaded rank, Export, Delete: the stored
-    /// file only, an uploaded run stays on the leaderboard) and the online leaderboard (TrackRecordsScreen.Leaderboard.cs).
-    /// Ghosts of both lists can be picked, up to <see cref="GameConfig.maxGhosts"/>, the personal best is picked when the
-    /// page opens. Race downloads the picked online ones, then walks driver and kart with the track fixed straight into
-    /// the time trial (<see cref="MenuSelection.BuildTimeTrialSession"/>); after it the menu comes back here
-    /// (<see cref="ReturnAfterRace"/>).
+    /// track variant (<see cref="TrackVariantRows"/>) and laps (1 or the track's laps) to show and race, the player's
+    /// stored ghosts of that class, variant, laps and version (Watch, Upload or the uploaded rank, Export, Delete: the
+    /// stored file only, an uploaded run stays on the leaderboard) and the online leaderboard
+    /// (TrackRecordsScreen.Leaderboard.cs). Ghosts of both lists can be picked, up to <see cref="GameConfig.maxGhosts"/>,
+    /// the personal best is picked when the page opens. Race downloads the picked online ones, then walks driver and kart
+    /// with the track fixed straight into the time trial (<see cref="MenuSelection.BuildTimeTrialSession"/>); after it
+    /// the menu comes back here (<see cref="ReturnAfterRace"/>).
     /// On narrow screens (<see cref="narrowWidth"/>) the two sections show one at a time behind section chips.
     /// </summary>
     public partial class TrackRecordsScreen : GhostListScreen
@@ -29,12 +30,16 @@ namespace MHK.UI
         VisualTreeAsset ghostRowTemplate;
         [SerializeField, Tooltip("Leaderboard row (Templates/LeaderRow.uxml).")]
         VisualTreeAsset leaderRowTemplate;
+        [SerializeField, Tooltip("Setting row template (Templates/SettingRow.uxml) of the track variant rows.")]
+        VisualTreeAsset settingRowTemplate;
         [SerializeField, Tooltip("Page width (panel units) below which the two sections show one at a time.")]
         float narrowWidth = 1560f;
 
         [Header("Texts")]
         [SerializeField, Tooltip("Section chips on narrow screens.")]
         string localTab = "Your ghosts", globalTab = "Leaderboard";
+        [SerializeField, Tooltip("Laps values: a single lap, the track's laps ({0} = laps).")]
+        string oneLapText = "1 lap", lapsFormat = "{0} laps";
         [SerializeField, Tooltip("Pick pill ({0} = picked, {1} = most).")]
         string pickFormat = "{0} / {1}";
         [SerializeField, Tooltip("Tooltip of the pick pill ({0} = most).")]
@@ -80,6 +85,9 @@ namespace MHK.UI
 
         string trackId;
         Difficulty engineClass;
+        // The shown and raced track variant (its key) and lap count (a single lap, else the track's).
+        string variantKey = "";
+        bool singleLap;
         bool showGlobal, busy;
         VisualElement page, ghostList;
         Label status, pickCount;
@@ -93,18 +101,28 @@ namespace MHK.UI
         static int MaxGhosts => Mathf.Max(1, GameRoot.Instance.Config.maxGhosts);
         static SaveData Save => GameRoot.Instance.Save;
         TrackDefinition Track => Content.Get<TrackDefinition>(trackId);
+        // Laps of the shown records: 1, or the track's laps (0 while the track is not installed: any).
+        int Laps => singleLap ? 1 : Track != null ? Track.defaultLaps : 0;
 
         /// <summary>
-        /// Opens the records of <paramref name="id"/>, in <paramref name="engineClass"/> when given. Another track or class
-        /// than last time starts fresh with the personal best picked.
+        /// Opens the records of <paramref name="id"/>, in <paramref name="engineClass"/>, variant <paramref name="variant"/>
+        /// (a <see cref="TrackVariant.Key"/>) and with a single lap (<paramref name="singleLap"/>) when given. Another track,
+        /// class, variant or lap count than last time starts fresh with the personal best picked.
         /// </summary>
-        public void Open(string id, Difficulty? engineClass = null)
+        public void Open(string id, Difficulty? engineClass = null, string variant = null, bool? singleLap = null)
         {
-            var cls = engineClass ?? (id == trackId ? this.engineClass : BestClass(id));
-            if (id != trackId || cls != this.engineClass)
+            var same = id == trackId;
+            var track = Content.Get<TrackDefinition>(id);
+            var key = variant ?? (same ? variantKey : "");
+            if (track != null) key = TrackVariants.Resolve(track, key)?.Key ?? "";
+            var oneLap = (singleLap ?? (same && this.singleLap)) && (track == null || track.defaultLaps > 1);
+            var cls = engineClass ?? (same ? this.engineClass : BestClass(id, key, oneLap));
+            if (!same || cls != this.engineClass || key != variantKey || oneLap != this.singleLap)
             {
                 trackId = id;
                 this.engineClass = cls;
+                variantKey = key;
+                this.singleLap = oneLap;
                 ClearPicks();
                 PickOwnBest();
                 ResetLeaderboard();
@@ -130,21 +148,24 @@ namespace MHK.UI
             if (hub == null || page == null) return false;
             hub.FocusTrack(session.CurrentTrackId, session.difficulty);
             flow.Show(hub);
-            page.Open(session.CurrentTrackId, session.difficulty);
+            page.Open(session.CurrentTrackId, session.difficulty, session.CurrentVariantKey, !session.lapsFromTrack && session.laps == 1);
             return true;
         }
 
-        // The personal best of the shown track and class is picked by default (raced as the split reference).
+        // The personal best of the shown track, class, variant and laps is picked by default (raced as the split reference).
         void PickOwnBest()
         {
-            var best = Store.Best(trackId, engineClass);
+            var best = Store.Best(trackId, variantKey, Laps, engineClass);
             if (best != null && best.IsCurrent && !pickOrder.Contains(best.Id)) pickOrder.Add(best.Id);
         }
 
-        // The class of the fastest current personal best, else the time trial default.
-        Difficulty BestClass(string id)
+        // The class of the fastest current personal best of the variant and laps, else the time trial default.
+        Difficulty BestClass(string id, string key, bool oneLap)
         {
-            var best = Store.List(id).Where(e => e.kind == GhostKind.Best && e.IsCurrent).OrderBy(e => e.header.finishTime).FirstOrDefault();
+            var track = Content.Get<TrackDefinition>(id);
+            var laps = oneLap ? 1 : track != null ? track.defaultLaps : 0;
+            var best = Store.List(id).Where(e => e.kind == GhostKind.Best && e.IsCurrent && GhostCompatibilityRules.Matches(e.header, key, laps))
+                .OrderBy(e => e.header.finishTime).FirstOrDefault();
             return ClassOf(best != null ? best.header.engineClass : (int)MenuSelection.TimeTrialClass);
         }
 
@@ -165,6 +186,7 @@ namespace MHK.UI
             Q<VisualElement>("track-picture").SetImage(track != null ? track.Picture : null);
             LeaderRows.KeepFocusedRowInView(Q<ScrollView>("ghost-scroll"), ghostList);
             BindClasses();
+            BindBoardRows(track);
             BindSections();
             OnClick("pick-clear", () =>
             {
@@ -228,16 +250,46 @@ namespace MHK.UI
                 Click();
                 if ((Difficulty)index == engineClass) return;
                 engineClass = (Difficulty)index;
-                // Ghosts of another class are not raced together.
-                ClearPicks();
-                PickOwnBest();
-                SetStatus("");
-                ResetLeaderboard();
-                RefreshVersions();
-                FillLocal();
-                LoadBoards();
-                UpdatePickCount();
+                SlotChanged();
             });
+        }
+
+        // The variant rows of the track and Laps (a single lap or the track's laps; hidden for one-lap tracks).
+        void BindBoardRows(TrackDefinition track)
+        {
+            var container = Q<VisualElement>("variant-rows");
+            var variants = new TrackVariantRows(container, Root, settingRowTemplate, Click);
+            variants.Show(track, variantKey);
+            container.SetVisible(variants.HasRows);
+            variants.Changed += v =>
+            {
+                if (v.Key == variantKey) return;
+                variantKey = v.Key;
+                SlotChanged();
+            };
+            var lapChoice = track != null && track.defaultLaps > 1;
+            SetVisible("laps", lapChoice);
+            if (!lapChoice) return;
+            BindChoice("laps", () => 2, () => singleLap ? 0 : 1,
+                i => i == 0 ? oneLapText : string.Format(lapsFormat, track.defaultLaps), i =>
+                {
+                    if (singleLap == (i == 0)) return;
+                    singleLap = i == 0;
+                    SlotChanged();
+                });
+        }
+
+        // Another class, variant or lap count: ghosts of different ones are not raced together, records and boards differ.
+        void SlotChanged()
+        {
+            ClearPicks();
+            PickOwnBest();
+            SetStatus("");
+            ResetLeaderboard();
+            RefreshVersions();
+            FillLocal();
+            LoadBoards();
+            UpdatePickCount();
         }
 
         void BindSections()
@@ -280,8 +332,10 @@ namespace MHK.UI
             return first;
         }
 
-        // The stored ghosts of the shown track and class, every version.
-        IEnumerable<GhostEntry> LocalEntries() => Store.List(trackId).Where(e => e.header.engineClass == (int)engineClass);
+        // The stored ghosts of the shown track, class, variant and laps, every version (any variant and laps while the
+        // track is not installed).
+        IEnumerable<GhostEntry> LocalEntries() => Store.List(trackId).Where(e => e.header.engineClass == (int)engineClass
+            && (Track == null || GhostCompatibilityRules.Matches(e.header, variantKey, Laps)));
 
         // Best race and best lap among the listed ghosts, as chips next to the section title.
         void ShowLocalChips(List<GhostEntry> entries)
@@ -502,11 +556,13 @@ namespace MHK.UI
                 SetStatus("");
             }
             // The personal best races as such (the split reference), the other picks follow in pick order.
-            var best = Store.Best(track.Id, engineClass);
+            var best = Store.Best(track.Id, variantKey, Laps, engineClass);
             var selection = Selection;
             selection.mode = GameMode.TimeTrial;
             selection.lobbyPick = LobbyPick.None;
             selection.track = track;
+            selection.variantKey = variantKey;
+            selection.timeTrialLaps = singleLap ? 1 : 0;
             selection.difficulty = engineClass;
             selection.trackFixed = true;
             selection.raceOwnBest = best != null && pickOrder.Contains(best.Id);

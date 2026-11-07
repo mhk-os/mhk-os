@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using MHK.Editor.Tracks;
 using MHK.Race;
 using UnityEditor;
 using UnityEngine;
@@ -101,7 +102,7 @@ namespace MHK.Editor.Lighting
 
         static int SetProbes(Transform root, List<Vector3> positions)
         {
-            var lighting = FindOrCreateChild(root, TrackBakePreparer.LightingObjectName);
+            var lighting = FindOrCreateChild(root, TrackSceneLayout.LightingName);
             var groupTransform = FindOrCreateChild(lighting, ProbeGroupName);
             if (!groupTransform.TryGetComponent(out LightProbeGroup group)) group = groupTransform.gameObject.AddComponent<LightProbeGroup>();
             var local = positions.Select(p => groupTransform.InverseTransformPoint(p)).ToArray();

@@ -137,18 +137,29 @@ namespace MHK.UI
             Return(flow);
         }
 
-        /// <summary>Track page while voting: votes (<c>""</c> = Random) and returns to the lobby.</summary>
-        public static void Vote(MenuFlow flow, string trackId)
+        /// <summary>Track page while voting: votes (<c>""</c> = Random) with the variant key <paramref name="variant"/> and returns to the lobby.</summary>
+        public static void Vote(MenuFlow flow, string trackId, string variant)
         {
-            Report(flow, OnlineLobby.Vote(trackId));
+            Report(flow, OnlineLobby.Vote(trackId, variant));
             Return(flow);
         }
 
-        /// <summary>Track page of the room owner or of a player racing AI: starts the race there (<c>""</c> = random) and returns to the lobby.</summary>
-        public static void StartOn(MenuFlow flow, string trackId)
+        /// <summary>
+        /// Track page of the room owner or of a player racing AI: starts the race there (<c>""</c> = random) with the
+        /// variant key <paramref name="variant"/> and returns to the lobby.
+        /// </summary>
+        public static void StartOn(MenuFlow flow, string trackId, string variant)
         {
-            Report(flow, OnlineLobby.StartRace(trackId));
+            Report(flow, OnlineLobby.StartRace(trackId, variant));
             Return(flow);
+        }
+
+        /// <summary>The track's name, with the variant's options when <paramref name="variant"/> is not the track's default.</summary>
+        public static string TrackText(string trackId, string variant)
+        {
+            var name = ContentDisplay.TrackName(trackId);
+            var label = TrackVariants.Resolve(GameRoot.Instance.Content.Get<TrackDefinition>(trackId), variant)?.Label() ?? "";
+            return label.Length > 0 ? name + UiText.Separator + label : name;
         }
 
         /// <summary>Cup page of the room owner: starts <paramref name="cup"/> as the next set and returns to the lobby.</summary>
@@ -294,7 +305,7 @@ namespace MHK.UI
                 LobbyPhase.Waiting when alone && !lobby.IsPrivate => (aloneText, "hourglass_top"),
                 LobbyPhase.Waiting => (lobby.IsPrivate ? OnlineLobby.IsOwner ? waitingOwnerText : waitingOthersText : aloneText, "hourglass_top"),
                 LobbyPhase.Voting => (votingText, "how_to_vote"),
-                LobbyPhase.Loading => (string.Format(loadingFormat, ContentDisplay.TrackName(lobby.trackId)), "sync"),
+                LobbyPhase.Loading => (string.Format(loadingFormat, TrackText(lobby.trackId, lobby.variant)), "sync"),
                 LobbyPhase.Countdown => (countdownText, "counter_3"),
                 LobbyPhase.Racing => (me != null && !me.inRace ? sittingOutText : soloRace ? soloRacingText : racingText, "sports_score"),
                 LobbyPhase.Results => (resultsText, "emoji_events"),
@@ -306,7 +317,7 @@ namespace MHK.UI
             if (lobby.setRace > 0) parts.Add(string.Format(setRaceFormat, lobby.setRace, lobby.setSize));
             if (lobby.RunsCup) parts.Add(OnlineUi.CupName(lobby.cupId));
             if (!string.IsNullOrEmpty(lobby.trackId) && lobby.Phase is not (LobbyPhase.Loading or LobbyPhase.Waiting or LobbyPhase.Voting))
-                parts.Add(ContentDisplay.TrackName(lobby.trackId));
+                parts.Add(TrackText(lobby.trackId, lobby.variant));
             var sub = Q<Label>("phase-sub");
             sub.text = string.Join(UiText.Separator, parts);
             sub.SetVisible(parts.Count > 0);
@@ -673,7 +684,7 @@ namespace MHK.UI
             if (lobby == null) return;
             if (lobby.settings.mode == RoomMode.Championship || lobby.RunsCup)
             {
-                var r = await OnlineLobby.StartRace(NextChampionshipTrack(lobby));
+                var r = await OnlineLobby.StartRace(NextChampionshipTrack(lobby), "");
                 if (!r.Ok) SetStatus(r.message, false);
                 return;
             }
@@ -683,7 +694,7 @@ namespace MHK.UI
                 Flow.Show<TrackScreen>();
                 return;
             }
-            var vote = await OnlineLobby.StartRace("");
+            var vote = await OnlineLobby.StartRace("", "");
             if (!vote.Ok) SetStatus(vote.message, false);
         }
     }

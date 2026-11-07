@@ -177,6 +177,7 @@ namespace MHK.Ghosts
                 ShownTime = (float)seconds;
                 Data.Sample(seconds, out state);
                 transform.SetPositionAndRotation(state.position, state.rotation);
+                if (visual != null) visual.SetHeadlights(Headlights);
                 if (race != null && race.ClockRunning) PlayEvents();
                 if (!Spectated && ShownTime > Data.Duration + fadeDelay) FadeOut();
             }
@@ -346,6 +347,8 @@ namespace MHK.Ghosts
         public float VerticalScale => state.verticalScale;
         public float Opacity => Mathf.Min(state.opacity, baseOpacity) * fade;
         public bool Burned => state.Has(GhostFrameFlags.Burned);
+        /// <summary>The recorded kart's headlights were on.</summary>
+        public bool Headlights => state.Has(GhostFrameFlags.Headlights);
         /// <summary>Strongest tint of the replayed effects (<see cref="StatusEffectDefinition.modelTint"/>).</summary>
         public Color ModelTint
         {

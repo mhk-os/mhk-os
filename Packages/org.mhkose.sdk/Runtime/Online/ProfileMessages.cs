@@ -135,7 +135,6 @@ namespace MHK.Online
         public bool disabled;
         public string disabledReason = "";
         public int cheatKicks;
-        public int contentStrikes;
         public int hiddenRuns;
         /// <summary>Runs with at least one flag.</summary>
         public int flaggedRuns;
@@ -153,7 +152,6 @@ namespace MHK.Online
             w.Bool(disabled);
             w.String(disabledReason, ModAccountInfo.MaxReason);
             TimeTrialWire.U32(w, cheatKicks);
-            TimeTrialWire.U32(w, contentStrikes);
             TimeTrialWire.U32(w, hiddenRuns);
             TimeTrialWire.U32(w, flaggedRuns);
             PlayerSummary.WritePlaytimes(w, null, player);
@@ -166,7 +164,7 @@ namespace MHK.Online
                 player = PlayerSummary.Read(r), listed = r.Bool(), races = TimeTrialWire.U32(r), wins = TimeTrialWire.U32(r),
                 podiums = TimeTrialWire.U32(r), ttRuns = TimeTrialWire.U32(r), ttBoards = TimeTrialWire.U32(r), ttBestRank = TimeTrialWire.U32(r),
                 disabled = r.Bool(), disabledReason = r.String(ModAccountInfo.MaxReason), cheatKicks = TimeTrialWire.U32(r),
-                contentStrikes = TimeTrialWire.U32(r), hiddenRuns = TimeTrialWire.U32(r), flaggedRuns = TimeTrialWire.U32(r),
+                hiddenRuns = TimeTrialWire.U32(r), flaggedRuns = TimeTrialWire.U32(r),
             };
             PlayerSummary.ReadPlaytimes(r, null, p.player);
             return p;

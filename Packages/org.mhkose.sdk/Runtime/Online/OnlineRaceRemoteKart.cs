@@ -304,6 +304,7 @@ namespace MHK.Online
             // An AI kart counts its laps here: a teleport re-locates it on the track, as its respawn did on the host.
             else if (snap) kart.Progress.ResetProjection();
             kart.SetRemoteHealth(s.health);
+            kart.SetHeadlights(s.Has(KartStateFlags.Headlights));
             race.ApplyRemoteEffects(kart, s);
         }
 

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using MHK.Core;
-using MHK.Modding;
 using MHK.Online;
 using UnityEngine;
 
@@ -43,11 +42,10 @@ namespace MHK.Ghosts
                 UnindexFolder(dir, null);
                 return list;
             }
-            var setupHashes = new Dictionary<(int, string, int), string>();
             var seen = pathsById != null ? new HashSet<string>(StringComparer.Ordinal) : null;
             foreach (var path in Directory.EnumerateFiles(dir, GhostPaths.SearchPattern))
             {
-                var entry = ReadEntry(path, setupHashes);
+                var entry = ReadEntry(path);
                 if (entry == null) continue;
                 if (seen != null)
                 {
@@ -61,9 +59,9 @@ namespace MHK.Ghosts
             return list;
         }
 
-        public GhostEntry Best(string trackId, Difficulty engineClass)
+        public GhostEntry Best(string trackId, string variant, int laps, Difficulty engineClass)
         {
-            var path = Path.Combine(TrackFolder(trackId), GhostPaths.Best((int)engineClass));
+            var path = Path.Combine(TrackFolder(trackId), GhostPaths.Best((int)engineClass, laps, variant));
             return File.Exists(path) ? ReadEntry(path) : null;
         }
 
@@ -133,12 +131,12 @@ namespace MHK.Ghosts
         {
             var h = run.header;
             var dir = TrackFolder(h.trackId);
-            var bestPath = Path.Combine(dir, GhostPaths.Best(h.engineClass));
-            var lastPath = Path.Combine(dir, GhostPaths.Last(h.engineClass));
+            var bestPath = Path.Combine(dir, GhostPaths.Best(h.engineClass, h.laps, h.variant));
+            var lastPath = Path.Combine(dir, GhostPaths.Last(h.engineClass, h.laps, h.variant));
             var best = File.Exists(bestPath) ? ReadEntry(bestPath) : null;
             var result = new GhostSaveResult { newRecord = best == null || !best.IsCurrent || h.finishTime < best.header.finishTime };
             if (best != null && best.IsCurrent) result.previousBest = best.header.finishTime;
-            // A record needs a current best to compare with: a best of another content version or setup is kept aside.
+            // A record needs a current best to compare with: a best of another version is kept aside.
             if (result.newRecord && best != null && !best.IsCurrent)
             {
                 var savedPath = Path.Combine(dir, GhostPaths.Saved(best.Id));
@@ -269,25 +267,30 @@ namespace MHK.Ghosts
             foreach (var path in gone) Unindex(path);
         }
 
-        static GhostEntry ReadEntry(string path, Dictionary<(int, string, int), string> setupHashes = null)
+        static GhostEntry ReadEntry(string path)
         {
             var header = TryHeader(path);
-            return header != null ? NewEntry(path, header, GhostPaths.KindOf(path), setupHashes) : null;
+            return header != null ? NewEntry(path, header, GhostPaths.KindOf(path)) : null;
         }
 
-        static GhostEntry NewEntry(string path, GhostHeader header, GhostKind kind, Dictionary<(int, string, int), string> setupHashes = null) => new()
+        static GhostEntry NewEntry(string path, GhostHeader header, GhostKind kind) => new()
         {
             header = header,
             kind = kind,
             location = path,
-            compatibility = GhostCompatibilityRules.Evaluate(header, setupHashes),
+            compatibility = GhostCompatibilityRules.Evaluate(header),
         };
 
+        // Null when the file is unreadable; files of another format version (older games) are left alone without a warning.
         static GhostHeader TryHeader(string path)
         {
             try
             {
                 return GhostFile.LoadHeader(path);
+            }
+            catch (GhostFormatException)
+            {
+                return null;
             }
             catch (Exception e)
             {

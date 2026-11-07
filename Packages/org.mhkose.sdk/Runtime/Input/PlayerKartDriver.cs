@@ -17,7 +17,7 @@ namespace MHK.Input
     public sealed class PlayerKartDriver : IKartDriver, IDisposable
     {
         readonly InputActionAsset actions;
-        readonly InputAction steer, throttle, brake, fire, lookBack, horn, respawn;
+        readonly InputAction steer, throttle, brake, fire, lookBack, horn, respawn, headlights;
         readonly int playerIndex;
         // Fire pressed before GO as the auto-accelerate power start press: no item use until it is released.
         bool fireHeldSinceCountdown;
@@ -43,6 +43,7 @@ namespace MHK.Input
             respawn = map.FindAction("Respawn", true);
             Pause = map.FindAction("Pause", true);
             Camera = map.FindAction("Camera", true);
+            headlights = map.FindAction("Headlights", true);
             map.Enable();
         }
 
@@ -62,6 +63,12 @@ namespace MHK.Input
 
         /// <summary>The Camera key or the touch camera button was pressed (consumes the touch press).</summary>
         public bool CameraPressed() => VirtualKartInput.TakeCameraPress(playerIndex) | Camera.WasPressedThisFrame();
+
+        /// <summary>
+        /// The Headlights key or the touch headlights button was pressed (consumes the touch press). Polled once per frame
+        /// by the kart (<see cref="Kart.SetHeadlights"/>), not in <see cref="UpdateInput"/>, which also runs as a probe.
+        /// </summary>
+        public bool HeadlightsPressed() => VirtualKartInput.TakeHeadlightsPress(playerIndex) | headlights.WasPressedThisFrame();
 
         /// <summary>Reads this player's keys and touch controls. <paramref name="kart"/> is null for a viewer without a kart (replays).</summary>
         public void UpdateInput(Kart kart, ref KartInput input)
