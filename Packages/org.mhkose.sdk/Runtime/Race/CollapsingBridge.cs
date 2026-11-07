@@ -136,6 +136,9 @@ namespace MHK.Race
             centre = n > 0 ? sum / (2 * n) : transform.position;
         }
 
+        /// <summary>Measures the stretch of <see cref="route"/> the bridge covers again (a reverse variant turned the route round).</summary>
+        public void RebakeRoute() => BakeRoute();
+
         // Route distances of the gate midpoints: the stretch of the route the bridge covers.
         void BakeRoute()
         {

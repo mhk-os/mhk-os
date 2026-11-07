@@ -6,7 +6,7 @@ namespace MHK.Online
     public static class Protocol
     {
         /// <summary>Protocol revision this client speaks (Hello). Bumped for incompatible changes only.</summary>
-        public const ushort Version = 4;
+        public const ushort Version = 5;
         /// <summary>First field of Hello: the bytes "MHKO" read as a little-endian u32.</summary>
         public const uint Magic = 0x4F4B484D;
         public const int DefaultPort = 7350;

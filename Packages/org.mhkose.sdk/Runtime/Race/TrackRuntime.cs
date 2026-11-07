@@ -170,7 +170,7 @@ namespace MHK.Race
         }
 
         // The first closed path is the main line; open paths that cannot be routes are left out (logged in races).
-        // Inactive objects hold no racing lines.
+        // Inactive objects and disabled paths (routes a reverse variant cannot drive) hold no racing lines.
         void FindLines()
         {
 #if UNITY_EDITOR
@@ -187,14 +187,14 @@ namespace MHK.Race
             routes.Clear();
             GetComponentsInChildren(false, scratchPaths);
             foreach (var p in scratchPaths)
-                if (p.closed)
+                if (p.closed && p.enabled)
                 {
                     mainPath = p;
                     break;
                 }
             foreach (var p in scratchPaths)
             {
-                if (p.closed) continue;
+                if (p.closed || !p.enabled) continue;
                 var problem = RouteProblem(mainPath, p);
                 if (problem == null) routes.Add(p);
                 else if (Application.isPlaying) Debug.LogWarning($"[Track] '{p.name}' is not used as an alternative route: {problem}.", p);

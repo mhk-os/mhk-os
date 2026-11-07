@@ -26,6 +26,9 @@ namespace MHK.Race
             return samples[Mathf.Clamp(Mathf.FloorToInt(d / Step), 0, samples.Length - 1)];
         }
 
+        /// <summary>Drops the samples of <paramref name="line"/> (its nodes changed: a reverse variant turned it round).</summary>
+        public static void Forget(TrackPath line) => Cache.Remove(line);
+
         static bool[] Samples(TrackRuntime track, TrackPath line)
         {
             if (cacheTrack != track)

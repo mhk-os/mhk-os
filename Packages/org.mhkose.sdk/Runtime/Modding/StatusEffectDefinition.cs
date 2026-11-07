@@ -71,6 +71,9 @@ namespace MHK.Modding
         public bool respawnOnEnd;
         [Tooltip("Respawn this far behind the last safe point (m).")]
         public float respawnBackDistance = 15f;
+        [Tooltip("Any respawn of the kart ends this effect, also a hit that otherwise runs on with its time left after a " +
+                 "respawn (MHK3 shrunk: a squashed shrunk kart comes back at full size).")]
+        public bool endOnRespawn;
         [Tooltip("Gravity on the kart is multiplied by this while active (wings: 0.5 = floats longer through jumps).")]
         public float gravityMultiplier = 1f;
         [Tooltip("Applied when the kart lands after at least 0.3 s in the air while this effect is active (spring: the " +

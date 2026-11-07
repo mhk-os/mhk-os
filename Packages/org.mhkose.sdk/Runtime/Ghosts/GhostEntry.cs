@@ -3,11 +3,11 @@ namespace MHK.Ghosts
     /// <summary>Where a stored ghost came from.</summary>
     public enum GhostKind
     {
-        /// <summary>The personal best of its track and engine class (kept automatically).</summary>
+        /// <summary>The personal best of its track variant, lap count and engine class (kept automatically).</summary>
         Best,
-        /// <summary>The latest finished run of its track and engine class that was not a new best.</summary>
+        /// <summary>The latest finished run of its track variant, lap count and engine class that was not a new best.</summary>
         LastRun,
-        /// <summary>Kept aside: a best of another content version or content fingerprint that a run of this one replaced.</summary>
+        /// <summary>Kept aside: a best of another version (<see cref="GhostCompatibility.OtherVersion"/>) that a run of this one replaced.</summary>
         Saved,
         /// <summary>Imported from a file.</summary>
         Imported,

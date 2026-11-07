@@ -126,6 +126,20 @@ namespace MHK.Editor.Tracks
             }
         }
 
+        /// <summary>
+        /// Points the <see cref="SceneReference"/> field <paramref name="field"/> of <paramref name="owner"/> at the scene
+        /// <paramref name="scenePath"/> (its asset and path; empty clears it), without undo.
+        /// </summary>
+        public static void AssignScene(UnityEngine.Object owner, string field, string scenePath)
+        {
+            var so = new SerializedObject(owner);
+            var scene = so.FindProperty(field);
+            scene.FindPropertyRelative("asset").objectReferenceValue =
+                string.IsNullOrEmpty(scenePath) ? null : AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath);
+            scene.FindPropertyRelative("path").stringValue = scenePath ?? "";
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         static bool ShouldSave(Scene scene, SceneSave save, bool openedHere) => save switch
         {
             SceneSave.Always => true,

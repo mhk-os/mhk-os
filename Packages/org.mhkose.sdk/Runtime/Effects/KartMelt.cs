@@ -88,13 +88,14 @@ namespace MHK.Effects
                 Mathf.Abs(size.z) / Mathf.Max(0.001f, Mathf.Abs(parentScale.z)));
         }
 
+        // The kart's MHK/Lit renderers; effect attachments and the headlights' additive glows do not melt.
         void CacheRenderers()
         {
             var materials = new List<Material>();
             foreach (var r in body.GetComponentsInChildren<Renderer>(true))
             {
                 if (!BoundsUtil.ModelSpace(r, out var space) || r.transform.IsChildOf(transform)
-                    || kart.Effects.IsEffectAttachment(r.transform)) continue;
+                    || kart.Effects.IsEffectAttachment(r.transform) || r.GetComponentInParent<KartHeadlights>(true) != null) continue;
                 materials.Clear();
                 r.GetSharedMaterials(materials);
                 var supported = false;

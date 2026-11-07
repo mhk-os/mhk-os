@@ -35,9 +35,9 @@ namespace MHK.Online
         void OnDestroy()
         {
             JoinLinks.StopListening();
-            OnlineLobby.RestoreRunInBackground();
+            OnlineLobby.StopRunningInBackground();
         }
 
-        void OnApplicationQuit() => OnlineLobby.RestoreRunInBackground();
+        void OnApplicationQuit() => OnlineLobby.StopRunningInBackground();
     }
 }

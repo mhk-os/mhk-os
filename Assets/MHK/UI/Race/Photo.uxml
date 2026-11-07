@@ -1,0 +1,91 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Photo mode (PhotoMode), opened by the pause menu's Screenshot button. photo is kept in the safe area (surface, preview and flash bleed to the screen edges). surface takes the clicks, taps, drags and the wheel; chrome holds the close button and the hint bar. Code shows one hint group (hints-keys, hints-pad or hints-touch) by the input used last, fills speed, adds class touch on photo with touch controls on and flash-on to flash for a moment at each shot.
+         preview (hidden until a shot) shows the photo: code sets the image and its size, the file line, adds .shown to preview-column to scale it in, hides open and open-folder on mobile. Preview classes on photo: preview-photo (preview shown), preview-pad, preview-touch (other hint groups). -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Style src="/Assets/MHK/UI/Race/Photo.uss" />
+    <ui:VisualElement name="photo" class="photo-root">
+        <ui:VisualElement name="surface" class="photo-surface bleed" />
+        <ui:VisualElement name="chrome" picking-mode="Ignore" class="photo-chrome">
+            <ui:VisualElement picking-mode="Ignore" class="row photo-top">
+                <ui:Button name="close" tooltip="Back to the pause menu" focusable="false" class="mhk-button small icon-only photo-close">
+                    <ui:VisualElement picking-mode="Ignore" class="icon i-close" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement name="hints" picking-mode="Ignore" class="panel dark row photo-hints">
+                <ui:VisualElement picking-mode="Ignore" class="icon i-photo_camera photo-hints-icon" />
+                <ui:VisualElement name="hints-keys" picking-mode="Ignore" class="row photo-hint-group">
+                    <ui:Label text="WASD" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Move" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Q E" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Down / Up" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Shift" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Fast" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Drag" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Look" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Wheel" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Speed" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Click / Enter" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Photo" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Esc" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Back" picking-mode="Ignore" class="photo-hint" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hints-pad" picking-mode="Ignore" class="row photo-hint-group">
+                    <ui:Label text="L" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Move" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="R" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Look" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="LT RT" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Down / Up" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="L3" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Fast" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="LB RB" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Speed" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="A" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Photo" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="B" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Back" picking-mode="Ignore" class="photo-hint" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hints-touch" picking-mode="Ignore" class="row photo-hint-group">
+                    <ui:Label text="Drag" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Look" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Two fingers" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Slide" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Pinch" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Forward / Back" picking-mode="Ignore" class="photo-hint" />
+                    <ui:Label text="Tap" picking-mode="Ignore" class="photo-key" />
+                    <ui:Label text="Photo" picking-mode="Ignore" class="photo-hint" />
+                </ui:VisualElement>
+                <ui:Label name="speed" text="Speed 1x" picking-mode="Ignore" class="photo-speed" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="preview" class="screen hud-pause photo-preview bleed">
+            <ui:VisualElement class="vignette" />
+            <ui:VisualElement name="preview-column" class="hud-pause-column photo-preview-column shown">
+                <ui:Label text="Photo" class="page-title hud-pause-title" />
+                <ui:VisualElement class="panel photo-preview-panel">
+                    <ui:VisualElement name="preview-image" class="photo-preview-image" />
+                    <ui:Label name="preview-file" text="mhk2_winter_2026-11-07_17-11-05.png" class="photo-file" />
+                    <ui:VisualElement class="row photo-preview-buttons">
+                        <ui:Button name="back" class="mhk-button go">
+                            <ui:VisualElement class="icon i-arrow_back" />
+                            <ui:Label text="Back" class="button-label" />
+                        </ui:Button>
+                        <ui:Button name="open" tooltip="Open the photo" class="mhk-button">
+                            <ui:VisualElement class="icon i-open_in_new" />
+                            <ui:Label text="Open" class="button-label" />
+                        </ui:Button>
+                        <ui:Button name="open-folder" tooltip="Open the folder with your photos" class="mhk-button">
+                            <ui:VisualElement class="icon i-folder_open" />
+                            <ui:Label text="Open folder" class="button-label" />
+                        </ui:Button>
+                        <ui:Button name="delete" class="mhk-button danger">
+                            <ui:VisualElement class="icon i-delete" />
+                            <ui:Label text="Delete" class="button-label" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="flash" picking-mode="Ignore" class="photo-flash bleed" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -12,11 +12,11 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// The Version dropdown and the leaderboard of the track records page. Versions come from the track's boards in the
-    /// shown class and from the stored ghosts: one entry per content version, Current first, or one per board when a
-    /// version has several (other lap counts). The chosen one filters both lists. The leaderboard lists every uploaded
-    /// run best to worst with its submission date, in pages of <see cref="pageSize"/> rows with the player's best pinned;
-    /// it has filters, Watch and picking, rank tags and
+    /// The Version dropdown and the leaderboard of the track records page. Versions come from the track's boards of the
+    /// shown class, variant and laps and from the stored ghosts: one entry per rules and track version, Current (this
+    /// game's rules version and the variant's <see cref="TrackVariant.ContentVersion"/>) first. The chosen one filters both
+    /// lists. The leaderboard lists every uploaded run best to worst with its submission date, in pages of
+    /// <see cref="pageSize"/> rows with the player's best pinned; it has filters, Watch and picking, rank tags and
     /// player cards on the names, and for moderators a Hidden tab (the board's hidden runs with Unhide) and the row
     /// actions. Browsing needs no login; an unreachable server shows inline with Retry, and the board reloads when the
     /// connection or login changes.
@@ -26,10 +26,8 @@ namespace MHK.UI
         [Header("Leaderboard")]
         [SerializeField, Tooltip("Rows per leaderboard page (1-100).")]
         int pageSize = 25;
-        [SerializeField, Tooltip("Version entries: the current content version, an older one ({0} = version), the separator before extra parts.")]
+        [SerializeField, Tooltip("Version entries: the current version, an older one ({0} = rules and track version, e.g. 1.3), the separator before extra parts.")]
         string currentVersionLabel = "Current version", olderVersionLabel = "Version {0}", versionPartSeparator = " · ";
-        [SerializeField, Tooltip("Version entry part when a version has boards of several lap counts ({0} = laps).")]
-        string boardLapsLabel = "{0} laps";
         [SerializeField, Tooltip("Version entry tooltip parts: one player, players ({0}), ghosts stored on this device only.")]
         string onePlayerText = "1 player", playersFormat = "{0} players", localOnlyText = "Only on this device";
         [SerializeField, Tooltip("Tooltips of the board chips: players, last upload.")]
@@ -57,17 +55,15 @@ namespace MHK.UI
             ("AF", "Africa"), ("AN", "Antarctica"), ("AS", "Asia"), ("EU", "Europe"), ("NA", "North America"), ("OC", "Oceania"), ("SA", "South America"),
         };
 
-        /// <summary>One entry of the Version dropdown: a content version, or one board of it.</summary>
+        /// <summary>One entry of the Version dropdown: a rules and track version (one board of the shown class, variant and laps).</summary>
         sealed class VersionEntry
         {
-            public int contentVersion;
-            /// <summary>Laps of the board or ghosts, 0 = any.</summary>
-            public int laps;
+            public int rulesVersion, trackVersion;
             /// <summary>The leaderboard, null when nobody uploaded.</summary>
             public BoardInfo board;
             public DateTime last;
 
-            public bool Matches(int versionNumber, int lapCount) => contentVersion == versionNumber && laps == lapCount;
+            public bool Matches(int rules, int track) => rulesVersion == rules && trackVersion == track;
         }
 
         // Kept while the page is left for a race and back; reset per track and class.
@@ -102,12 +98,12 @@ namespace MHK.UI
         /// Opens the records of <paramref name="id"/> in <paramref name="engineClass"/> with the leaderboard searched for
         /// <paramref name="username"/> (the player runs page's Open track).
         /// </summary>
-        public void OpenSearched(string id, Difficulty engineClass, string username)
+        public void OpenSearched(string id, Difficulty engineClass, string variant, bool singleLap, string username)
         {
             search = OnlineTimeTrials.Clip(username?.Trim(), RunEntry.MaxUsername);
             showHidden = false;
             offset = 0;
-            Open(id, engineClass);
+            Open(id, engineClass, variant, singleLap);
         }
 
         void BindLeaderboard()
@@ -197,33 +193,35 @@ namespace MHK.UI
 
         // ---- Versions ----
 
-        // Rebuilds the entries from the boards (when loaded) and the stored ghosts; keeps the chosen entry, else picks
-        // the most active board of Current.
+        // Rebuilds the entries from the boards of the shown laps (when loaded) and the stored ghosts; keeps the chosen
+        // entry, else picks Current.
         void RefreshVersions()
         {
             var kept = version;
             versions.Clear();
+            var laps = Laps;
             if (boards != null)
                 foreach (var b in boards)
                 {
-                    var v = Entry(b.contentVersion, b.laps);
+                    if (b.variant != variantKey || (laps > 0 && b.laps != laps)) continue;
+                    var v = Entry(b.rulesVersion, b.trackVersion);
                     v.board = b;
                     if (b.lastUpload > v.last) v.last = b.lastUpload;
                 }
             foreach (var e in LocalEntries())
             {
-                var v = Entry(e.header.contentVersion, e.header.laps);
+                var v = Entry(e.header.rulesVersion, e.header.trackVersion);
                 if (e.header.Date > v.last) v.last = e.header.Date;
             }
-            if (!versions.Exists(v => v.contentVersion == ContentVersion.Current))
-                versions.Add(new VersionEntry { contentVersion = ContentVersion.Current });
+            var current = CurrentTrackVersion;
+            if (!versions.Exists(v => IsCurrent(v)))
+                versions.Add(new VersionEntry { rulesVersion = RulesVersion.Current, trackVersion = current });
             versions.Sort((a, b) =>
             {
-                if (a.contentVersion != b.contentVersion)
-                    return a.contentVersion == ContentVersion.Current ? -1 : b.contentVersion == ContentVersion.Current ? 1 : b.contentVersion.CompareTo(a.contentVersion);
-                return (b.board?.players ?? 0).CompareTo(a.board?.players ?? 0);
+                if (IsCurrent(a) != IsCurrent(b)) return IsCurrent(a) ? -1 : 1;
+                return a.rulesVersion != b.rulesVersion ? b.rulesVersion.CompareTo(a.rulesVersion) : b.trackVersion.CompareTo(a.trackVersion);
             });
-            version = versionPicked && kept != null ? versions.Find(v => v.Matches(kept.contentVersion, kept.laps)) : null;
+            version = versionPicked && kept != null ? versions.Find(v => v.Matches(kept.rulesVersion, kept.trackVersion)) : null;
             if (version == null)
             {
                 version = versions[0];
@@ -233,24 +231,28 @@ namespace MHK.UI
             ShowBoardChips();
         }
 
-        VersionEntry Entry(int contentVersion, int laps)
+        // Content version of the shown variant, 0 while the track is not installed.
+        int CurrentTrackVersion => Track is { } t && TrackVariants.Resolve(t, variantKey) is { } v ? v.ContentVersion : 0;
+
+        bool IsCurrent(VersionEntry v) => v.rulesVersion == RulesVersion.Current && v.trackVersion == CurrentTrackVersion;
+
+        VersionEntry Entry(int rulesVersion, int trackVersion)
         {
-            var v = versions.Find(x => x.Matches(contentVersion, laps));
+            var v = versions.Find(x => x.Matches(rulesVersion, trackVersion));
             if (v != null) return v;
-            v = new VersionEntry { contentVersion = contentVersion, laps = laps };
+            v = new VersionEntry { rulesVersion = rulesVersion, trackVersion = trackVersion };
             versions.Add(v);
             return v;
         }
 
-        // "Current version", "Current version · 5 laps", "Version 3 · Oct 2026".
+        // "Current version", "Version 1.3 · Oct 2026".
         string VersionText(int i)
         {
             if (i >= versions.Count) return currentVersionLabel;
             var v = versions[i];
-            var current = v.contentVersion == ContentVersion.Current;
-            var text = current ? currentVersionLabel : string.Format(Invariant, olderVersionLabel, v.contentVersion);
-            if (versions.Count(o => o.contentVersion == v.contentVersion) > 1) text += versionPartSeparator + string.Format(Invariant, boardLapsLabel, v.laps);
-            if (!current && v.last != default) text += versionPartSeparator + v.last.ToLocalTime().ToString("MMM yyyy", Invariant);
+            if (IsCurrent(v)) return currentVersionLabel;
+            var text = string.Format(Invariant, olderVersionLabel, $"{v.rulesVersion}.{v.trackVersion}");
+            if (v.last != default) text += versionPartSeparator + v.last.ToLocalTime().ToString("MMM yyyy", Invariant);
             return text;
         }
 
@@ -266,13 +268,8 @@ namespace MHK.UI
             return string.Join(versionPartSeparator, parts);
         }
 
-        // A stored ghost shows when it belongs to the chosen version (and board).
-        bool InSelectedVersion(GhostEntry e)
-        {
-            if (version == null) return true;
-            var h = e.header;
-            return h.contentVersion == version.contentVersion && (version.laps == 0 || h.laps == version.laps);
-        }
+        // A stored ghost shows when it belongs to the chosen version.
+        bool InSelectedVersion(GhostEntry e) => version == null || version.Matches(e.header.rulesVersion, e.header.trackVersion);
 
         void ShowBoardChips()
         {
@@ -416,7 +413,7 @@ namespace MHK.UI
         async Awaitable LoadBoardsAsync(int id)
         {
             ShowState("sync", stateLoading, false);
-            var r = await OnlineTimeTrials.ListBoards(trackId, (int)engineClass, 0);
+            var r = await OnlineTimeTrials.ListBoards(trackId, (int)engineClass, 0, variantKey);
             if (id != request || !IsBound) return;
             if (!r.Ok)
             {
@@ -427,7 +424,7 @@ namespace MHK.UI
             var before = version;
             RefreshVersions();
             // The default may move to a board that just arrived; the shown ghosts follow it.
-            if (before == null || !version.Matches(before.contentVersion, before.laps)) FillLocal();
+            if (before == null || !version.Matches(before.rulesVersion, before.trackVersion)) FillLocal();
             await LoadPageAsync(id);
         }
 

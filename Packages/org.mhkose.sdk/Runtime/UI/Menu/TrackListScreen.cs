@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using MHK.Core;
 using MHK.Modding;
 using UnityEngine;
@@ -14,7 +15,10 @@ namespace MHK.UI
     /// pack by game: a row or its + adds the track at the end (a track may race more than once). The list numbers the races:
     /// handles reorder (<see cref="DragReorder"/>), the red button removes a race, Clear empties the list after asking. At
     /// most <see cref="MaxTracks"/> races. The confirm button hands the list over, Back leaves without it.
-    /// Open it with <see cref="Open"/>.
+    /// Opened with <see cref="OpenWithSetups"/> every race has its own settings (<see cref="CustomRaceSetup"/>): focusing or
+    /// clicking a race selects it and the side panel edits its track options (each one or Random, <see cref="TrackVariantRows"/>)
+    /// and laps; the race rows sum them up. Cancel in the panel goes back to the selected race.
+    /// Open it with <see cref="Open"/> or <see cref="OpenWithSetups"/>.
     /// </summary>
     public class TrackListScreen : MenuScreen
     {
@@ -23,6 +27,8 @@ namespace MHK.UI
 
         [SerializeField, Tooltip("One track of the library and the list (Templates/TrackListRow.uxml).")]
         VisualTreeAsset rowTemplate;
+        [SerializeField, Tooltip("Setting row template (Templates/SettingRow.uxml) of the track option rows of a race's settings.")]
+        VisualTreeAsset settingRowTemplate;
         [SerializeField, Tooltip("Page title when the caller gives none.")]
         string defaultTitle = "Custom championship";
         [SerializeField, Tooltip("Confirm button text when the caller gives none.")]
@@ -38,17 +44,38 @@ namespace MHK.UI
         [SerializeField, Tooltip("Confirm button of the Clear question.")]
         string clearConfirm = "Clear";
 
+        [Header("Race settings")]
+        [SerializeField, Tooltip("Line above the selected race's settings ({0} = race number, {1} = track).")]
+        string raceFormat = "Race {0} · {1}";
+        [SerializeField, Tooltip("Track option value rolled when the championship starts, and the race row summary of such options.")]
+        string randomText = "Random";
+        [SerializeField, Tooltip("Laps value of the track's own lap count ({0} = its laps).")]
+        string trackLapsFormat = "Track default ({0})";
+        [SerializeField, Tooltip("Laps value and race row summary of several laps ({0} = laps).")]
+        string lapsFormat = "{0} laps";
+        [SerializeField, Tooltip("Laps value and race row summary of a single lap.")]
+        string oneLapText = "1 lap";
+        [SerializeField, Tooltip("One line of a race row summary's tooltip ({0} = track option, e.g. Weather, {1} = value).")]
+        string tipLineFormat = "{0}: {1}";
+
         const string WarnClass = "warn";
+        const string SetupsClass = "tl-setups";
+        const string SelectedClass = "selected";
         const long WarnMs = 1500;
 
         readonly List<TrackDefinition> races = new();
+        readonly List<CustomRaceSetup> setups = new();
         Func<TrackDefinition, bool> allowed;
-        Action<List<string>> onConfirm, onChanged;
+        Action<List<string>, List<CustomRaceSetup>> onConfirm, onChanged;
         string title, confirmText;
-        VisualElement libraryList, raceList;
+        bool editSetups;
+        CustomRaceSetup selected;
+        VisualElement libraryList, raceList, setupRows;
         ScrollView raceScroll;
         Label count;
         Button confirm, clear;
+        TrackVariantRows variantRows;
+        SettingChoice lapsChoice;
         IVisualElementScheduledItem warnTimer;
 
         /// <summary>
@@ -59,42 +86,73 @@ namespace MHK.UI
         /// and <paramref name="confirmText"/> replace the page title and the confirm button text.
         /// </summary>
         public void Open(IEnumerable<string> trackIds, Func<TrackDefinition, bool> allowed, Action<List<string>> onConfirm,
-            Action<List<string>> onChanged = null, string title = null, string confirmText = null)
+            Action<List<string>> onChanged = null, string title = null, string confirmText = null) =>
+            OpenEditor(trackIds, null, false, allowed, (ids, _) => onConfirm?.Invoke(ids),
+                onChanged != null ? (ids, _) => onChanged(ids) : null, title, confirmText);
+
+        /// <summary>
+        /// Opens the editor like <see cref="Open"/> with settings per race: <paramref name="raceSetups"/> are the settings of
+        /// <paramref name="trackIds"/> in the same order (copied; a race without one has every option random and the track's
+        /// laps, the setups of dropped ids are dropped too). The callbacks get the list and copies of its settings.
+        /// </summary>
+        public void OpenWithSetups(IEnumerable<string> trackIds, IReadOnlyList<CustomRaceSetup> raceSetups, Func<TrackDefinition, bool> allowed,
+            Action<List<string>, List<CustomRaceSetup>> onConfirm, Action<List<string>, List<CustomRaceSetup>> onChanged = null,
+            string title = null, string confirmText = null) =>
+            OpenEditor(trackIds, raceSetups, true, allowed, onConfirm, onChanged, title, confirmText);
+
+        void OpenEditor(IEnumerable<string> trackIds, IReadOnlyList<CustomRaceSetup> raceSetups, bool withSetups,
+            Func<TrackDefinition, bool> allowed, Action<List<string>, List<CustomRaceSetup>> onConfirm,
+            Action<List<string>, List<CustomRaceSetup>> onChanged, string title, string confirmText)
         {
             this.allowed = allowed ?? IsCircuit;
             this.onConfirm = onConfirm;
             this.onChanged = onChanged;
             this.title = string.IsNullOrEmpty(title) ? defaultTitle : title;
             this.confirmText = string.IsNullOrEmpty(confirmText) ? defaultConfirmText : confirmText;
+            editSetups = withSetups;
             races.Clear();
+            setups.Clear();
             if (trackIds != null)
+            {
+                var index = 0;
                 foreach (var id in trackIds)
                 {
                     var t = Content.Get<TrackDefinition>(id);
-                    if (t != null && this.allowed(t) && races.Count < MaxTracks) races.Add(t);
+                    var setup = raceSetups != null && index < raceSetups.Count ? raceSetups[index] : null;
+                    index++;
+                    if (t == null || !this.allowed(t) || races.Count >= MaxTracks) continue;
+                    races.Add(t);
+                    setups.Add(setup != null ? setup.Clone() : new CustomRaceSetup());
                 }
+            }
+            selected = setups.Count > 0 ? setups[0] : null;
             Flow.Show(this);
         }
 
         /// <summary>The list as track ids in race order.</summary>
         public List<string> TrackIds => races.Select(t => t.Id).ToList();
 
+        /// <summary>Copies of the races' settings in race order (every option random and the track's laps unless edited).</summary>
+        public List<CustomRaceSetup> Setups => setups.Select(s => s.Clone()).ToList();
+
         protected override void Bind()
         {
             Q<Label>("title").text = title;
             allowed ??= IsCircuit;
+            Q<VisualElement>("main").EnableInClassList(SetupsClass, editSetups);
             libraryList = Q<VisualElement>("library-list");
             raceList = Q<VisualElement>("race-list");
             raceScroll = Q<ScrollView>("race-scroll");
             count = Q<Label>("race-count");
             count.RemoveFromClassList(WarnClass);
             clear = OnClick("clear", AskClear, false);
-            confirm = OnClick("confirm", () => onConfirm?.Invoke(TrackIds));
+            confirm = OnClick("confirm", () => onConfirm?.Invoke(TrackIds, Setups));
             confirm.SetText("confirm-label", confirmText);
             OnlineUi.Spatial(Root);
             ScrollFocusedRowIntoView(Q<ScrollView>("library-scroll"), libraryList);
             ScrollFocusedRowIntoView(raceScroll, raceList);
             DragReorder.Attach(raceList, "tl-drag", Move, raceScroll);
+            if (editSetups) BindSetupPanel();
             var first = FillLibrary();
             FillRaces(-1, null);
             FocusTarget = first ?? confirm;
@@ -105,6 +163,8 @@ namespace MHK.UI
             base.Unbind();
             warnTimer?.Pause();
             warnTimer = null;
+            variantRows = null;
+            lapsChoice = null;
         }
 
         static bool IsCircuit(TrackDefinition t) => t.layout == TrackLayout.Circuit;
@@ -147,9 +207,18 @@ namespace MHK.UI
                 if (row == null) break;
                 row.SetText("tl-number", (i + 1).ToString(CultureInfo.InvariantCulture));
                 var main = row.Q<Button>("tl-main");
-                main.focusable = false;
-                main.pickingMode = PickingMode.Ignore;
                 var index = i;
+                if (editSetups)
+                {
+                    main.clicked += () => EditSetup(index);
+                    row.EnableInClassList(SelectedClass, setups[i] == selected);
+                    ShowSummary(row, i);
+                }
+                else
+                {
+                    main.focusable = false;
+                    main.pickingMode = PickingMode.Ignore;
+                }
                 var remove = row.Q<Button>("tl-remove");
                 remove.clicked += () => Remove(index);
                 row.Q("tl-drag").SetEnabled(races.Count > 1);
@@ -158,6 +227,7 @@ namespace MHK.UI
             raceScroll.SetVisible(races.Count > 0);
             SetVisible("race-empty", races.Count == 0);
             ShowState();
+            if (editSetups) ShowSetup();
             if (focus != null) FocusLater(focus as VisualElement);
         }
 
@@ -186,6 +256,7 @@ namespace MHK.UI
             confirm.tooltip = races.Count > 0 ? "" : emptyTip;
         }
 
+        // A new race is selected (its settings show) while the focus stays in the library.
         void Add(TrackDefinition t)
         {
             if (races.Count >= MaxTracks)
@@ -195,6 +266,8 @@ namespace MHK.UI
             }
             Click();
             races.Add(t);
+            setups.Add(new CustomRaceSetup());
+            selected = setups[^1];
             FillRaces(-1, null);
             raceScroll.schedule.Execute(() => raceScroll.scrollOffset = new Vector2(0f, float.MaxValue));
             Changed();
@@ -204,7 +277,10 @@ namespace MHK.UI
         {
             if (index < 0 || index >= races.Count) return;
             Click();
+            var wasSelected = setups[index] == selected;
             races.RemoveAt(index);
+            setups.RemoveAt(index);
+            if (wasSelected) selected = setups.Count > 0 ? setups[Mathf.Min(index, setups.Count - 1)] : null;
             // Focus stays in the list (the next race's remove button), or goes to the library when it is empty.
             FillRaces(index, "tl-remove");
             if (races.Count == 0) FocusLater(libraryList.Q<Button>("tl-main"));
@@ -216,6 +292,9 @@ namespace MHK.UI
             var t = races[from];
             races.RemoveAt(from);
             races.Insert(to, t);
+            var setup = setups[from];
+            setups.RemoveAt(from);
+            setups.Insert(to, setup);
             FillRaces(to, null);
             Changed();
         }
@@ -226,13 +305,15 @@ namespace MHK.UI
             ConfirmPrompt.Show(clear, clearQuestion, clearConfirm, () =>
             {
                 races.Clear();
+                setups.Clear();
+                selected = null;
                 FillRaces(-1, null);
                 FocusLater(libraryList.Q<Button>("tl-main"));
                 Changed();
             });
         }
 
-        void Changed() => onChanged?.Invoke(TrackIds);
+        void Changed() => onChanged?.Invoke(TrackIds, Setups);
 
         // The count line turns red for a moment: the list is full.
         void WarnCount()
@@ -247,9 +328,121 @@ namespace MHK.UI
         static void ScrollFocusedRowIntoView(ScrollView scroll, VisualElement list) =>
             list.RegisterCallback<FocusInEvent>(e =>
             {
-                var v = e.target as VisualElement;
-                while (v != null && v.parent != list) v = v.parent;
-                if (v != null) scroll.ScrollTo(v);
+                var row = RowOf(list, e.target as VisualElement);
+                if (row != null) scroll.ScrollTo(row);
             });
+
+        // The direct child of list holding v, null outside it.
+        static VisualElement RowOf(VisualElement list, VisualElement v)
+        {
+            while (v != null && v.parent != list) v = v.parent;
+            return v;
+        }
+
+        // The settings panel: the selected race's option rows (filled by ShowSetup) and its laps row. The focus entering a
+        // race row selects it; Cancel in the panel goes back to the selected race instead of leaving the page.
+        void BindSetupPanel()
+        {
+            setupRows = Q<VisualElement>("setup-rows");
+            setupRows.Clear();
+            variantRows = new TrackVariantRows(setupRows, Root, settingRowTemplate, Click);
+            variantRows.SetupChanged += _ => SetupEdited();
+            lapsChoice = BindChoice("setup-laps", () => CustomRaceSetup.MaxLaps + 1,
+                () => selected != null ? Mathf.Clamp(selected.laps, 0, CustomRaceSetup.MaxLaps) : 0, LapsValue, i =>
+                {
+                    if (selected == null) return;
+                    selected.laps = i;
+                    SetupEdited();
+                });
+            raceList.RegisterCallback<FocusInEvent>(e =>
+            {
+                var row = RowOf(raceList, e.target as VisualElement);
+                if (row != null) Select(raceList.IndexOf(row));
+            });
+            Q<VisualElement>("setup-panel").RegisterCallback<NavigationCancelEvent>(e =>
+            {
+                var index = setups.IndexOf(selected);
+                if (index < 0 || index >= raceList.childCount) return;
+                raceList[index].Q<Button>("tl-main")?.Focus();
+                e.StopPropagation();
+            });
+        }
+
+        // A race row was clicked (or submitted): its settings take the focus.
+        void EditSetup(int index)
+        {
+            Select(index);
+            FocusLater(variantRows.FirstButton ?? lapsChoice.Button);
+        }
+
+        void Select(int index)
+        {
+            if (index < 0 || index >= setups.Count || setups[index] == selected) return;
+            selected = setups[index];
+            for (var i = 0; i < raceList.childCount; i++) raceList[i].EnableInClassList(SelectedClass, i == index);
+            ShowSetup();
+        }
+
+        // Fills the panel with the selected race's settings, or its empty line without races.
+        void ShowSetup()
+        {
+            var index = setups.IndexOf(selected);
+            var has = index >= 0;
+            SetVisible("setup-race", has);
+            SetVisible("setup-scroll", has);
+            SetVisible("setup-empty", !has);
+            if (!has)
+            {
+                variantRows.Clear();
+                return;
+            }
+            Q<Label>("setup-race").text = string.Format(CultureInfo.InvariantCulture, raceFormat, index + 1, races[index].DisplayName);
+            variantRows.ShowSetup(races[index], selected, randomText);
+            lapsChoice.Refresh();
+        }
+
+        void SetupEdited()
+        {
+            var index = setups.IndexOf(selected);
+            if (index >= 0 && index < raceList.childCount) ShowSummary(raceList[index], index);
+            Changed();
+        }
+
+        string LapsValue(int value)
+        {
+            var index = setups.IndexOf(selected);
+            if (value > 0) return LapsText(value);
+            return string.Format(CultureInfo.InvariantCulture, trackLapsFormat, index >= 0 ? races[index].defaultLaps : 0);
+        }
+
+        string LapsText(int laps) => laps == 1 ? oneLapText : string.Format(CultureInfo.InvariantCulture, lapsFormat, laps);
+
+        // The race row's summary: the fixed options, Random when some option is rolled, and the laps; the tooltip lists
+        // every option row with its value.
+        void ShowSummary(VisualElement row, int index)
+        {
+            var setup = setups[index];
+            var track = races[index];
+            var parts = new List<string>();
+            var tip = new StringBuilder();
+            var random = false;
+            var set = TrackVariants.Of(track);
+            if (set != null)
+                foreach (var modifier in set.Modifiers)
+                {
+                    if (!modifier.IsChoice) continue;
+                    var pick = setup.PickOf(modifier);
+                    var value = pick >= 0 ? modifier.Options[pick].DisplayName : randomText;
+                    if (pick >= 0) parts.Add(value);
+                    else random = true;
+                    if (tip.Length > 0) tip.Append('\n');
+                    tip.AppendFormat(CultureInfo.InvariantCulture, tipLineFormat, modifier.DisplayName, value);
+                }
+            if (random) parts.Add(randomText);
+            parts.Add(LapsText(setup.laps > 0 ? setup.laps : track.defaultLaps));
+            row.SetText("tl-setup", string.Join(" · ", parts));
+            var main = row.Q("tl-main");
+            if (main != null) main.tooltip = tip.ToString();
+        }
     }
 }

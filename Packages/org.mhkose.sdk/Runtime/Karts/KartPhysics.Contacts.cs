@@ -8,6 +8,8 @@ namespace MHK.Karts
         const float ProbeAbove = 0.35f;
         const float ProbeSkin = 0.001f;
         const int ProbePasses = 3;
+        // Share of the weather's outdoor grip loss that also loosens braking and traction (all of it acts sideways).
+        const float WetRollGripShare = 0.5f;
 
         /// <summary>Contact sphere of one wheel. Fields, not properties: the step works on it through <c>ref wheels[i]</c>.</summary>
         struct Wheel
@@ -26,7 +28,11 @@ namespace MHK.Karts
             public Collider collider;
             /// <summary>Last wall collider the contact ray passed (cached surface lookup).</summary>
             public Collider wallCollider;
-            /// <summary>TrackSurface.SlipAngleScaleFor of the contact (MHK2 road without a surface).</summary>
+            /// <summary>Side friction of the contact: the surface's (1 without one) × the weather's outdoor grip there.</summary>
+            public float lateralFriction;
+            /// <summary>Roll friction of the contact: the surface's (1 without one) × part of the weather's outdoor grip.</summary>
+            public float rollFriction;
+            /// <summary>TrackSurface.SlipAngleScaleFor of <see cref="lateralFriction"/> (MHK2 road without a surface).</summary>
             public float slipScale;
             /// <summary>Normal load from the previous step.</summary>
             public float loadNewtons;
@@ -89,7 +95,6 @@ namespace MHK.Karts
             }
             wh.collider = hit.collider;
             wh.surface = surface;
-            wh.slipScale = TrackSurface.SlipAngleScaleFor(surface != null ? surface.lateralFriction : 1f);
             return false;
         }
 
@@ -100,8 +105,20 @@ namespace MHK.Karts
             wh.normal = hit.normal;
             wh.depth = ProbeAbove + wh.radius - (travelled + hit.distance);
             wh.touching = wh.depth >= 0f;
+            SetContactFriction(ref wh);
             // Last non-road wheel wins.
             if (wh.surface != null && wh.surface.kind != SurfaceKind.Road) Surface = wh.surface.kind;
+        }
+
+        // Wet weather loosens uncovered ground (TrackWeather: deterministic, from the baked cover map), once per contact.
+        static void SetContactFriction(ref Wheel wh)
+        {
+            var grip = TrackWeather.OutdoorGrip(wh.point);
+            var lateral = wh.surface != null ? wh.surface.lateralFriction : 1f;
+            var roll = wh.surface != null ? wh.surface.rollFriction : 1f;
+            wh.lateralFriction = lateral * grip;
+            wh.rollFriction = roll * Mathf.Lerp(1f, grip, WetRollGripShare);
+            wh.slipScale = TrackSurface.SlipAngleScaleFor(wh.lateralFriction);
         }
     }
 }

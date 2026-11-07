@@ -102,8 +102,7 @@ namespace MHK.Karts
                 totalLoad += wheels[i].loadNewtons;
                 s.groundNormal += wheels[i].normal;
                 if (wheels[i].surface != null && wheels[i].surface.offroad) s.resMax = Mathf.Max(s.resMax, OffroadResistance);
-                var matLat = wheels[i].surface != null ? wheels[i].surface.lateralFriction : 1f;
-                s.gripShare += Mathf.Min(1f, matLat * s.fx.grip) / WheelCount;
+                s.gripShare += Mathf.Min(1f, wheels[i].lateralFriction * s.fx.grip) / WheelCount;
             }
             s.avgLoad = totalLoad / 4f;
         }
@@ -180,9 +179,8 @@ namespace MHK.Karts
 
         void ComputeFrictionLimits(ref Wheel wh, KartPhysicsProfile p, float n, float grip, out float matRoll)
         {
-            var matLat = 1f;
-            matRoll = 1f;
-            if (wh.surface != null) { matLat = wh.surface.lateralFriction; matRoll = wh.surface.rollFriction; }
+            var matLat = wh.lateralFriction;
+            matRoll = wh.rollFriction;
             var muLat = wh.front ? p.lateralFrictionCoeffFront : p.lateralFrictionCoeffRear;
             var muRoll = wh.front ? p.rollFrictionCoeffFront : p.rollFrictionCoeffRear;
             var muLock = wh.front ? p.rollFrictionCoeffLockedFront : p.rollFrictionCoeffLockedRear;

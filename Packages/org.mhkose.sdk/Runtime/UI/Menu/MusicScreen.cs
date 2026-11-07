@@ -30,8 +30,6 @@ namespace MHK.UI
         string menuTitle = "Main Menu";
         [SerializeField, Tooltip("Tab of the track playlists.")]
         string tracksTitle = "Tracks";
-        [SerializeField, Tooltip("Appended to a track card's game when the track has a variant. {0} = variant.")]
-        string variantFormat = " | {0}";
         [SerializeField, Tooltip("Tooltip of a library song's add button. {0} = playlist title.")]
         string addTipFormat = "Add to {0}";
         [SerializeField, Tooltip("Tooltip of the add button of a song that is already in the playlist. {0} = playlist title.")]
@@ -236,7 +234,7 @@ namespace MHK.UI
                 if (card == null) break;
                 card.Q("card-image")?.SetImage(t.Picture);
                 card.SetText("card-title", t.DisplayName);
-                card.SetText("card-tag", UiText.GameWithVariant(t, variantFormat));
+                card.SetText("card-tag", UiText.GameName(t.SourceGame));
                 card.userData = t.Id;
                 card.EnableInClassList("selected", t.Id == trackId);
                 var id = t.Id;

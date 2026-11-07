@@ -9,9 +9,9 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// Race settings (RaceSettings.uxml) before a race or championship: difficulty, opponents, laps and powerups (rows
-    /// that do not apply to the mode are hidden, Powerups opens the <see cref="ItemOddsScreen"/>), the track or cup and
-    /// driver preview, and Start!.
+    /// Race settings (RaceSettings.uxml) before a race or championship: difficulty, opponents, the track's variant
+    /// (<see cref="TrackVariantRows"/>, single race and battle), laps and powerups (rows that do not apply to the mode are
+    /// hidden, Powerups opens the <see cref="ItemOddsScreen"/>), the track or cup and driver preview, and Start!.
     /// </summary>
     public class RaceSettingsScreen : MenuScreen
     {
@@ -25,6 +25,8 @@ namespace MHK.UI
         string offText = "Off";
         [SerializeField, Tooltip("Range hint of the Opponents input ({0} = fewest, {1} = most).")]
         string opponentsRangeFormat = "{0} to {1}";
+        [SerializeField, Tooltip("Setting row template (Templates/SettingRow.uxml) of the track variant rows.")]
+        VisualTreeAsset settingRowTemplate;
 
         const int MaxLaps = 9;
 
@@ -49,8 +51,21 @@ namespace MHK.UI
             Q<Label>("info-mode").text = s.ModeName;
             Q<VisualElement>("info-mode-icon").SetIcon(ModeIcon(s.mode));
             BindRaceRows(s, GameRoot.Instance.Config);
+            BindVariantRows(s);
             BindPreview(s);
             FocusTarget = OnClick("start", () => start());
+        }
+
+        // Single races and battles race the picked variant of their track; championships roll theirs per race when they
+        // start (MenuSelection.BuildSession), a custom championship's races are set on its track list page.
+        void BindVariantRows(MenuSelection s)
+        {
+            var container = Q<VisualElement>("variant-rows");
+            var rows = new TrackVariantRows(container, Root, settingRowTemplate, Click);
+            if ((s.mode == GameMode.SingleRace || s.mode == GameMode.Battle) && s.track != null) rows.Show(s.track, s.variantKey);
+            container.SetVisible(rows.HasRows);
+            s.variantKey = rows.Variant != null ? rows.Variant.Key : "";
+            rows.Changed += v => s.variantKey = v.Key;
         }
 
         void BindRaceRows(MenuSelection s, GameConfig config)

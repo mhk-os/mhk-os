@@ -4,8 +4,8 @@ using UnityEngine;
 namespace MHK.Ghosts
 {
     /// <summary>
-    /// Ghost metadata: who drove what where, the result, and the content version and content fingerprint it was
-    /// recorded with (ghosts of another version or content never count as records).
+    /// Ghost metadata: who drove what where, the result, and the versions of the rules, track variant and kart it was
+    /// recorded with (ghosts of other versions never count as records).
     /// </summary>
     [Serializable]
     public sealed class GhostHeader
@@ -14,8 +14,8 @@ namespace MHK.Ghosts
         public string id;
         /// <summary>Commit of the recording game (<see cref="Core.BuildInfo.Commit"/>, version plus commit or a build number in older ghosts): a label only.</summary>
         public string gameBuild;
-        /// <summary>Content version of the recording build (<see cref="Core.ContentVersion.Current"/>).</summary>
-        public int contentVersion;
+        /// <summary>Rules version of the recording build (<see cref="Core.RulesVersion.Current"/>).</summary>
+        public int rulesVersion;
         public string playerName;
         /// <summary>Stable id of the recording player (<see cref="Core.UserSettings.playerId"/>).</summary>
         public string playerId;
@@ -25,17 +25,19 @@ namespace MHK.Ghosts
         public string trackPackId;
         /// <summary>Commit of the track's pack (<see cref="Modding.ContentPack.version"/>, a version in older ghosts): a label only.</summary>
         public string trackPackVersion;
-        /// <summary>Hash of the track's driving-relevant data (<see cref="GhostFingerprint.TrackHash"/>).</summary>
-        public string trackHash;
+        /// <summary>Content version of the driven track variant (<see cref="Modding.TrackVariant.ContentVersion"/>).</summary>
+        public int trackVersion;
+        /// <summary>Key of the driven track variant (<see cref="Modding.TrackVariant.Key"/>, "" = the track's default).</summary>
+        public string variant = "";
         public string kartId;
+        /// <summary>Content version of the kart (<see cref="Modding.KartDefinition.contentVersion"/>).</summary>
+        public int kartVersion;
         public string characterId;
         /// <summary><see cref="Core.Difficulty"/> (engine class) index.</summary>
         public int engineClass;
         /// <summary>Its label at recording time (e.g. "100cc").</summary>
         public string engineClassLabel;
         public int laps;
-        /// <summary>Hash of the race rules, engine class and kart physics (<see cref="GhostFingerprint.SetupHash"/>).</summary>
-        public string setupHash;
         /// <summary>Physics tick of the recording (s).</summary>
         public float tickSeconds;
         /// <summary>The kart's speed scale (forward speed in original MHK2 units = forward speed ÷ this).</summary>

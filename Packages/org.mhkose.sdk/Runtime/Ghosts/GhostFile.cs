@@ -8,12 +8,13 @@ namespace MHK.Ghosts
 {
     /// <summary>
     /// Reads and writes the GZip-compressed <c>.mhkghost</c> format: magic, u16 format version, then a length-prefixed
-    /// header block (<see cref="GhostHeaderCodec"/>) and body block (<see cref="GhostBodyCodec"/>). The byte layout is frozen per <see cref="FormatVersion"/>.
+    /// header block (<see cref="GhostHeaderCodec"/>) and body block (<see cref="GhostBodyCodec"/>). Only
+    /// <see cref="FormatVersion"/> is read: files of other versions throw <see cref="GhostFormatException"/>.
     /// </summary>
     public static class GhostFile
     {
         public const string Extension = ".mhkghost";
-        public const ushort FormatVersion = 1;
+        public const ushort FormatVersion = 2;
         static readonly byte[] Magic = { (byte)'M', (byte)'H', (byte)'K', (byte)'G' };
 
         /// <summary>Writes <paramref name="data"/> to <paramref name="path"/> atomically (a complete temporary file replaces it).</summary>
@@ -48,22 +49,21 @@ namespace MHK.Ghosts
         {
             using var gz = new GZipStream(stream, CompressionMode.Decompress, true);
             using var r = new BinaryReader(gz, Encoding.UTF8, true);
-            var version = ReadVersion(r);
+            ReadVersion(r);
             var data = new GhostData();
-            using (var h = ReadBlock(r)) data.header = GhostHeaderCodec.Read(h, version);
+            using (var h = ReadBlock(r)) data.header = GhostHeaderCodec.Read(h);
             if (headerOnly) return data;
             using (var b = ReadBlock(r)) GhostBodyCodec.Read(b, data);
             return data;
         }
 
-        static ushort ReadVersion(BinaryReader r)
+        static void ReadVersion(BinaryReader r)
         {
             var magic = r.ReadBytes(Magic.Length);
             for (var i = 0; i < Magic.Length; i++)
                 if (magic.Length != Magic.Length || magic[i] != Magic[i]) throw new InvalidDataException("not a ghost file");
             var version = r.ReadUInt16();
-            if (version > FormatVersion) throw new InvalidDataException($"ghost format {version} is newer than this game ({FormatVersion})");
-            return version;
+            if (version != FormatVersion) throw new GhostFormatException(version);
         }
 
         static void WriteBlock(BinaryWriter w, Action<BinaryWriter> write)
@@ -81,6 +81,18 @@ namespace MHK.Ghosts
             var bytes = r.ReadBytes(length);
             if (bytes.Length != length) throw new EndOfStreamException("ghost file is truncated");
             return new BinaryReader(new MemoryStream(bytes), Encoding.UTF8);
+        }
+    }
+
+    /// <summary>A ghost file of another format version than <see cref="GhostFile.FormatVersion"/>: unreadable by this game.</summary>
+    public sealed class GhostFormatException : IOException
+    {
+        /// <summary>The file's format version.</summary>
+        public int Version { get; }
+
+        public GhostFormatException(int version) : base($"ghost format {version}, this game reads {GhostFile.FormatVersion}")
+        {
+            Version = version;
         }
     }
 }

@@ -7,12 +7,13 @@ using UnityEditor;
 namespace MHK.Editor.Tracks
 {
     /// <summary>
-    /// Keeps track scene references valid: refreshes every <see cref="TrackDefinition"/>'s scene path after scenes are
-    /// moved or renamed, and keeps track scenes out of the build's scene list (they ship in their mod's scene bundle).
+    /// Keeps track scene references valid: refreshes the scene path of every <see cref="TrackDefinition"/> and
+    /// <see cref="TrackOverlayDefinition"/> after scenes are moved or renamed, and keeps track and overlay scenes out of the
+    /// build's scene list (they ship in their mod's scene bundle).
     /// </summary>
     public class TrackSceneSync : AssetPostprocessor
     {
-        /// <summary>Refreshes the track scene paths and the build scene list. Runs after asset changes and before player builds.</summary>
+        /// <summary>Refreshes the track and overlay scene paths and the build scene list. Runs after asset changes and before player builds.</summary>
         [MenuItem("MHK/Tracks/Sync Track Scenes")]
         public static void Sync()
         {
@@ -24,7 +25,7 @@ namespace MHK.Editor.Tracks
                 EditorBuildSettings.scenes = scenes;
         }
 
-        /// <summary>Scene paths of every track in the project, after refreshing them.</summary>
+        /// <summary>Scene paths of every track and track overlay in the project, after refreshing them.</summary>
         public static HashSet<string> TrackScenePaths()
         {
             var paths = new HashSet<string>();
@@ -32,6 +33,11 @@ namespace MHK.Editor.Tracks
             {
                 if (track.scene.Sync()) EditorUtility.SetDirty(track);
                 if (track.scene.IsSet) paths.Add(track.scene.Path);
+            }
+            foreach (var overlay in EditorAssets.FindAll<TrackOverlayDefinition>())
+            {
+                if (overlay.scene.Sync()) EditorUtility.SetDirty(overlay);
+                if (overlay.scene.IsSet) paths.Add(overlay.scene.Path);
             }
             return paths;
         }
@@ -47,7 +53,7 @@ namespace MHK.Editor.Tracks
         {
             if (path.EndsWith(".unity", StringComparison.Ordinal)) return true;
             var type = AssetDatabase.GetMainAssetTypeAtPath(path);
-            return type == typeof(TrackDefinition) || (type != null && typeof(ContentPack).IsAssignableFrom(type));
+            return type == typeof(TrackDefinition) || type == typeof(TrackOverlayDefinition) || (type != null && typeof(ContentPack).IsAssignableFrom(type));
         }
     }
 }

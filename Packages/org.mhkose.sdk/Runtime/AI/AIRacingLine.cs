@@ -205,7 +205,10 @@ namespace MHK.AI
             return k > 1f / StraightRadius ? 1 : k < -1f / StraightRadius ? -1 : 0;
         }
 
-        /// <summary>Lateral friction of the ground under racing line 0 at <paramref name="distance"/> (1 = road).</summary>
+        /// <summary>
+        /// Lateral friction of the ground under racing line 0 at <paramref name="distance"/> (1 = dry road), times the
+        /// weather's outdoor grip where nothing covers it (<see cref="TrackWeather.OutdoorGrip"/>).
+        /// </summary>
         public float Friction(float distance) => Sample(friction, distance);
 
         /// <summary>
@@ -363,14 +366,16 @@ namespace MHK.AI
             road.Pin(main.WorldPoint(at, line), i, offset, low, high);
         }
 
+        // Wet weather loosens the uncovered road as well, so drivers take the bends out in the rain slower.
         static float[] Frictions(Vector2[] points, float[] height, int mask)
         {
             var result = new float[points.Length];
             for (var i = 0; i < points.Length; i++)
             {
-                var p = points[i];
-                var surface = AIRoadProbe.Ground(new Vector3(p.x, height[i], p.y), height[i], mask, out var hit) ? TrackSurface.Of(hit.collider) : null;
-                result[i] = surface != null ? surface.lateralFriction : 1f;
+                var p = new Vector3(points[i].x, height[i], points[i].y);
+                var ground = AIRoadProbe.Ground(p, height[i], mask, out var hit);
+                var surface = ground ? TrackSurface.Of(hit.collider) : null;
+                result[i] = (surface != null ? surface.lateralFriction : 1f) * TrackWeather.OutdoorGrip(ground ? hit.point : p);
             }
             return result;
         }

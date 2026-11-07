@@ -75,19 +75,24 @@ namespace MHK.Online
         }
     }
 
-    /// <summary>A leaderboard: runs of one track, engine class, lap count, content version and track hash.</summary>
+    /// <summary>A leaderboard: runs of one track version and variant, engine class, lap count and rules version.</summary>
     public sealed class BoardInfo
     {
-        public const int MaxTrackId = 96, MaxTrackHash = 32, MaxList = 200;
-        // u64 + 2 empty strings + u8 u8 i32 u32 i32 i64.
-        internal const int MinBytes = 8 + 1 + 1 + 1 + 4 + 1 + 4 + 4 + 8;
+        public const int MaxTrackId = 96, MaxVariant = 128, MaxList = 200;
+        /// <summary><see cref="ListBoardsRequest.variant"/> that matches every variant.</summary>
+        public const string AnyVariant = "*";
+        // u64, empty string, i32, empty string, u8 u8 i32 u32 i32 i64.
+        internal const int MinBytes = 8 + 1 + 4 + 1 + 1 + 1 + 4 + 4 + 4 + 8;
 
         public long boardId;
         public string trackId = "";
+        /// <summary><see cref="Modding.TrackVariant.ContentVersion"/> of the runs.</summary>
+        public int trackVersion;
+        /// <summary>Variant key (<see cref="Modding.TrackVariant.Key"/>), "" = the track's default.</summary>
+        public string variant = "";
         public int engineClass;
         public int laps;
-        public int contentVersion;
-        public string trackHash = "";
+        public int rulesVersion;
         /// <summary>Accounts with a visible run.</summary>
         public int players;
         /// <summary>Fastest visible finish, 0 when none.</summary>
@@ -99,10 +104,11 @@ namespace MHK.Online
         {
             w.I64(boardId);
             w.String(trackId, MaxTrackId);
+            w.I32(trackVersion);
+            w.String(variant, MaxVariant);
             TimeTrialWire.U8(w, engineClass);
             TimeTrialWire.U8(w, laps);
-            w.I32(contentVersion);
-            w.String(trackHash, MaxTrackHash);
+            w.I32(rulesVersion);
             TimeTrialWire.U32(w, players);
             w.I32(bestMs);
             TimeTrialWire.Time(w, lastUpload);
@@ -110,8 +116,8 @@ namespace MHK.Online
 
         public static BoardInfo Read(WireReader r) => new()
         {
-            boardId = r.I64(), trackId = r.String(MaxTrackId), engineClass = r.U8(), laps = r.U8(), contentVersion = r.I32(),
-            trackHash = r.String(MaxTrackHash), players = TimeTrialWire.U32(r), bestMs = r.I32(), lastUpload = TimeTrialWire.Time(r),
+            boardId = r.I64(), trackId = r.String(MaxTrackId), trackVersion = r.I32(), variant = r.String(MaxVariant), engineClass = r.U8(),
+            laps = r.U8(), rulesVersion = r.I32(), players = TimeTrialWire.U32(r), bestMs = r.I32(), lastUpload = TimeTrialWire.Time(r),
         };
     }
 
@@ -122,7 +128,7 @@ namespace MHK.Online
         /// <summary>The username of every run of a deleted account (reserved: no player can take it).</summary>
         public const string AnonymousName = "Anonymous";
         // Fixed fields with empty strings and lists.
-        internal const int MinBytes = 8 + 4 + 8 + 1 + 1 + 4 + 4 + 1 + 1 + 1 + 1 + 8 + 8 + 4 + 1 + 1 + 4 + 8 + 1 + 1;
+        internal const int MinBytes = 8 + 4 + 8 + 1 + 1 + 4 + 4 + 1 + 1 + 4 + 1 + 1 + 8 + 8 + 4 + 1 + 4 + 8 + 1 + 1 + 4 + 1 + 1 + 4;
 
         public long runId;
         /// <summary>Rank in the requested (filtered) list from 1, 0 when not ranked (hidden, or not the account's best).</summary>
@@ -134,6 +140,8 @@ namespace MHK.Online
         public int bestLapMs;
         public int[] lapMs = Array.Empty<int>();
         public string kartId = "";
+        /// <summary>Content version of the kart (<see cref="Modding.KartDefinition.contentVersion"/>).</summary>
+        public int kartVersion;
         public string characterId = "";
         /// <summary>The ghost file's header id.</summary>
         public string ghostId = "";
@@ -142,8 +150,6 @@ namespace MHK.Online
         public DateTime uploaded;
         /// <summary>Distinct accounts that reported the run.</summary>
         public int flags;
-        /// <summary>Kart physics, engine class or laps differ from what most accounts used (display only).</summary>
-        public bool setupMismatch;
         /// <summary>Hidden (by a moderator, the player's account deletion or a disabled account); only moderators and the owner see it set.</summary>
         public bool hidden;
         /// <summary>Compressed bytes of the ghost file.</summary>
@@ -153,6 +159,14 @@ namespace MHK.Online
         public string trackId = "";
         /// <summary>The board's engine class (0-2).</summary>
         public int engineClass;
+        /// <summary>The board's track version (<see cref="BoardInfo.trackVersion"/>).</summary>
+        public int trackVersion;
+        /// <summary>The board's variant key.</summary>
+        public string variant = "";
+        /// <summary>The board's lap count.</summary>
+        public int laps;
+        /// <summary>The board's rules version.</summary>
+        public int rulesVersion;
 
         /// <summary>The run's player deleted the account: it belongs to an anonymous account without a profile.</summary>
         public bool Anonymous => username == AnonymousName;
@@ -166,21 +180,25 @@ namespace MHK.Online
             w.String(country, MaxCountry);
             w.I32(finishMs);
             w.I32(bestLapMs);
-            var laps = lapMs ?? Array.Empty<int>();
-            w.ListCount(laps.Length, MaxLaps);
-            foreach (var l in laps) w.I32(l);
+            var lapTimes = lapMs ?? Array.Empty<int>();
+            w.ListCount(lapTimes.Length, MaxLaps);
+            foreach (var l in lapTimes) w.I32(l);
             w.String(kartId, MaxId);
+            w.I32(kartVersion);
             w.String(characterId, MaxId);
             w.String(ghostId, MaxGhostId);
             TimeTrialWire.Time(w, recorded);
             TimeTrialWire.Time(w, uploaded);
             TimeTrialWire.U32(w, flags);
-            w.Bool(setupMismatch);
             w.Bool(hidden);
             TimeTrialWire.U32(w, fileSize);
             w.I64(boardId);
             w.String(trackId, MaxId);
             TimeTrialWire.U8(w, engineClass);
+            w.I32(trackVersion);
+            w.String(variant, BoardInfo.MaxVariant);
+            TimeTrialWire.U8(w, laps);
+            w.I32(rulesVersion);
         }
 
         public static RunEntry Read(WireReader r)
@@ -194,17 +212,21 @@ namespace MHK.Online
             for (var i = 0; i < laps.Length; i++) laps[i] = r.I32();
             e.lapMs = laps;
             e.kartId = r.String(MaxId);
+            e.kartVersion = r.I32();
             e.characterId = r.String(MaxId);
             e.ghostId = r.String(MaxGhostId);
             e.recorded = TimeTrialWire.Time(r);
             e.uploaded = TimeTrialWire.Time(r);
             e.flags = TimeTrialWire.U32(r);
-            e.setupMismatch = r.Bool();
             e.hidden = r.Bool();
             e.fileSize = TimeTrialWire.U32(r);
             e.boardId = r.I64();
             e.trackId = r.String(MaxId);
             e.engineClass = r.U8();
+            e.trackVersion = r.I32();
+            e.variant = r.String(BoardInfo.MaxVariant);
+            e.laps = r.U8();
+            e.rulesVersion = r.I32();
             return e;
         }
     }
@@ -395,16 +417,22 @@ namespace MHK.Online
         public string trackId = "";
         public byte engineClass = AnyEngineClass;
         /// <summary>0 = any.</summary>
-        public int contentVersion;
+        public int rulesVersion;
+        /// <summary>Variant key, <see cref="BoardInfo.AnyVariant"/> = any.</summary>
+        public string variant = BoardInfo.AnyVariant;
 
         public void Write(WireWriter w)
         {
             w.String(trackId, BoardInfo.MaxTrackId);
             w.U8(engineClass);
-            w.I32(contentVersion);
+            w.I32(rulesVersion);
+            w.String(variant, BoardInfo.MaxVariant);
         }
 
-        public static ListBoardsRequest Read(WireReader r) => new() { trackId = r.String(BoardInfo.MaxTrackId), engineClass = r.U8(), contentVersion = r.I32() };
+        public static ListBoardsRequest Read(WireReader r) => new()
+        {
+            trackId = r.String(BoardInfo.MaxTrackId), engineClass = r.U8(), rulesVersion = r.I32(), variant = r.String(BoardInfo.MaxVariant),
+        };
 
         public static void WriteAnswer(WireWriter w, List<BoardInfo> boards)
         {

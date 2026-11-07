@@ -216,6 +216,13 @@
     opacity: 0.4;
     -unity-background-image-tint-color: var(--mhk-gray-400);
 }
+/* Battle item loading: a pie timer over the grayed (.cooling) icon, inside the slot's well. Code shows it while loading. */
+.hud-item-loading {
+    position: absolute; left: 34px; top: 34px; right: 34px; bottom: 34px;
+    display: none;
+    --item-load-fill: rgba(255, 255, 255, 0.5);
+    --item-load-track: rgba(23, 25, 29, 0.35);
+}
 .hud-item-charges {
     position: absolute; right: 18px; bottom: 18px;
     width: 46px; height: 46px;
@@ -244,6 +251,9 @@
 .preview-item .hud-item-charges, .preview-item .hud-item-name { display: flex; }
 .preview-item .hud-item-icon { background-image: url("/Assets/MHK/UI/Samples/homing_missile.png"); }
 .preview-item .sunburst.hud-item-burst { opacity: 0.9; }
+.preview-item.preview-item-loading .hud-item-icon { opacity: 0.4; -unity-background-image-tint-color: var(--mhk-gray-400); }
+.preview-item.preview-item-loading .hud-item-loading { display: flex; }
+.preview-item.preview-item-loading .sunburst.hud-item-burst { opacity: 0; }
 
 .hud-speedo {
     position: absolute; left: 22px; bottom: 14px;

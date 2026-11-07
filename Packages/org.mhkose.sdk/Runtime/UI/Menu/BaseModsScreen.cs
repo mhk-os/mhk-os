@@ -11,7 +11,8 @@ namespace MHK.UI
     /// <summary>
     /// Built-in mods download (BaseMods.uxml): after the graphics first run screen while built-in mods are missing, and
     /// from the title screen. Each row downloads (pauses, resumes) its mod, Download All downloads the missing ones at
-    /// once. Downloads never reload: Continue loads what was downloaded once.
+    /// once. Downloads never reload: Continue loads what was downloaded once. While the screen shows a download running
+    /// the game keeps running without the window's focus (<see cref="BackgroundRun"/>).
     /// </summary>
     public partial class BaseModsScreen : MenuScreen
     {
@@ -93,6 +94,7 @@ namespace MHK.UI
         {
             base.Unbind();
             ModSources.Changed -= Refresh;
+            BackgroundRun.Keep(this, false);
             rows.Clear();
             download = null;
         }
@@ -205,6 +207,7 @@ namespace MHK.UI
 
         void Refresh()
         {
+            BackgroundRun.Keep(this, download != null && ModSources.AnyDownloading);
             if (download == null) return;
             int needed = 0, unavailable = 0;
             long bytes = 0;

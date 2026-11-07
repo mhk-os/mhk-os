@@ -288,6 +288,7 @@ namespace MHK.Online
             if (k.Physics.Intangible) flags |= KartStateFlags.Intangible;
             if (k.Physics.ContactCount == 0) flags |= KartStateFlags.Airborne;
             if (input.lookBack) flags |= KartStateFlags.LookBack;
+            if (k.Headlights) flags |= KartStateFlags.Headlights;
             s.flags = flags;
             var max = k.Physics.Profile != null ? k.Physics.Profile.maxSteeringAngle : 0f;
             s.steer = max > 0f ? Mathf.Clamp(k.Physics.SteerAngle / max, -1f, 1f) : 0f;

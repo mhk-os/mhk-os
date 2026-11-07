@@ -45,6 +45,11 @@ namespace MHK.Karts
         /// (recorded by time-trial ghosts for a future re-simulation).
         /// </summary>
         public KartInput EffectiveInput { get; private set; }
+        /// <summary>
+        /// The headlights are on (<see cref="SetHeadlights"/>): off after spawning until the race switches them on, the
+        /// player toggles them with the Headlights key or touch button. Sent online and recorded by ghosts.
+        /// </summary>
+        public bool Headlights { get; private set; }
 
         /// <summary>
         /// Forward speed as a share of the kart's <see cref="NormalTopSpeed"/>: 0 standing, 1 at full throttle on flat
@@ -185,6 +190,23 @@ namespace MHK.Karts
             Physics.Step(effective, Time.fixedDeltaTime);
             if (ControlsEnabled) Inventory.HandleInput(effective);
             CheckRespawnTriggers(effective);
+        }
+
+        // The player's Headlights key or touch button toggles them at any time, except while the race is paused. Polled
+        // per frame like the camera key: the driver's UpdateInput also runs as a probe and would lose presses.
+        void Update()
+        {
+            if (IsRemote || Driver is not Input.PlayerKartDriver player || !player.HeadlightsPressed()) return;
+            var race = RaceManager.Current;
+            if (race == null || !race.Paused) SetHeadlights(!Headlights);
+        }
+
+        /// <summary>Switches the headlights on or off. Works from right after <see cref="Initialize"/>.</summary>
+        public void SetHeadlights(bool on)
+        {
+            if (on == Headlights) return;
+            Headlights = on;
+            if (Visual != null) Visual.SetHeadlights(on);
         }
 
         /// <summary>
@@ -361,7 +383,7 @@ namespace MHK.Karts
         /// <summary>
         /// Puts the kart back on the racing line, <paramref name="backDistance"/> metres behind the last point
         /// where it was safely on the track (MHK2: 15 units, +2 drop height, buffs cancelled, item kept). Running hits
-        /// keep their time left (<see cref="KartEffects.ClearForRespawn"/>).
+        /// keep their time left unless they end on respawn (<see cref="KartEffects.ClearForRespawn"/>).
         /// Like MHK3, the spot moves further back while another kart occupies it, so respawns never stack.
         /// </summary>
         public void RespawnBehind(float backDistance)

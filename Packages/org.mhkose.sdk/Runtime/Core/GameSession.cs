@@ -47,6 +47,16 @@ namespace MHK.Core
         public bool lapsFromTrack = true;
         public List<RacerSetup> racers = new();
         public List<string> trackIds = new();
+        /// <summary>
+        /// Variant key of each race (<see cref="Modding.TrackVariant.Key"/>), parallel to <see cref="trackIds"/>: "" or a
+        /// missing entry is the track's default variant. Offline championships pick them when the session is built.
+        /// </summary>
+        public List<string> variants = new();
+        /// <summary>
+        /// Laps of each race of a custom championship, parallel to <see cref="trackIds"/>: 0 or a missing entry races the
+        /// usual laps (<see cref="MHK.Race.RaceManager.LapsFor"/>).
+        /// </summary>
+        public List<int> raceLaps = new();
         /// <summary>Championship: the cup raced, empty for a custom championship (the player's own <see cref="trackIds"/>, duplicates allowed).</summary>
         public string cupId;
         public int raceIndex;
@@ -73,6 +83,10 @@ namespace MHK.Core
         public bool IsReplay => mode == GameMode.TimeTrial && !string.IsNullOrEmpty(replayGhostId);
 
         public string CurrentTrackId => raceIndex >= 0 && raceIndex < trackIds.Count ? trackIds[raceIndex] : null;
+        /// <summary>Variant key of the current race, "" for the track's default variant.</summary>
+        public string CurrentVariantKey => raceIndex >= 0 && raceIndex < variants.Count ? variants[raceIndex] ?? "" : "";
+        /// <summary>Laps set for the current race (<see cref="raceLaps"/>), 0 for the usual laps.</summary>
+        public int CurrentRaceLaps => raceIndex >= 0 && raceIndex < raceLaps.Count ? raceLaps[raceIndex] : 0;
         public bool HasNextRace => raceIndex + 1 < trackIds.Count;
 
         /// <summary>Championship standings: the racers by points, a tie in grid order. The first is the champion.</summary>

@@ -15,6 +15,8 @@ CBUFFER_START(UnityPerMaterial)
     half _Cutoff;
     float4 _Flipbook;
     half _Fog;
+    half _WetMask;
+    half _DstBlend;
     float4 _MeltOrigin;
     float4 _MeltUp;
     float4 _MeltRight;

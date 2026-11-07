@@ -77,6 +77,9 @@ namespace MHK.Core
         [Tooltip("The player's custom championship (Championship page): track ids in race order, duplicates allowed, at " +
                  "most GameSession.MaxCustomTracks. Tracks that are not loaded are skipped, and dropped when the list is edited.")]
         public List<string> customChampionship = new();
+        [Tooltip("Settings of each race of customChampionship (same order): fixed track options (the rest random) and laps. " +
+                 "Races without an entry have every option random and the track's default laps.")]
+        public List<CustomRaceSetup> customChampionshipSetups = new();
 
         /// <summary>
         /// The name ghosts are signed with: the account's username (logged in, else the stored session of the server in

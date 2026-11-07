@@ -157,8 +157,8 @@ namespace MHK.Editor.Modding
             return byPath.Values.OrderBy(e => e.path, StringComparer.Ordinal).ToList();
         }
 
-        // Definitions refer to their scenes (track scene references), which would make every scene asset shared: the walk
-        // stops at scene files, the scenes are walked on their own.
+        // Definitions refer to their scenes (track and track overlay scene references), which would make every scene asset
+        // shared: the walk stops at scene files, the scenes are walked on their own.
         static HashSet<string> WithoutScenes(IEnumerable<string> roots)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);

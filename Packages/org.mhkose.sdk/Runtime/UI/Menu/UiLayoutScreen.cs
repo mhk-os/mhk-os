@@ -26,7 +26,7 @@ namespace MHK.UI
         string[] controlNames =
         {
             "Throttle", "Brake", "Steer Left", "Steer Right", "Item", "Look Back", "Camera", "Respawn", "Pause", "Horn",
-            "Joystick", "Steering Wheel",
+            "Joystick", "Steering Wheel", "Headlights",
         };
         [SerializeField, Tooltip("HUD element names in HudElementType order (add list, picked element caption).")]
         string[] hudNames =

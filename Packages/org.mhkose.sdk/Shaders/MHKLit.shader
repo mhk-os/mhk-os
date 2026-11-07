@@ -1,5 +1,7 @@
-// Lambert lighting for all ported content: ambient plus N.L of the sun and additional lights, saturated, times texture,
-// colour and tint, plus glow. Of the bake only the shadowmask and probe occlusion are used.
+// Lambert lighting for all ported content: ambient plus N.L of the sun and additional lights (plus a lightning flash),
+// saturated, times texture, colour and tint, plus glow. Of the bake only the shadowmask and probe occlusion are used. Wet
+// weather adds the wet look of MHKWet.hlsl (darker, glossy, puddles) to uncovered surfaces of fogged materials that are
+// not water (see MHKWetMaterial).
 Shader "MHK/Lit"
 {
     Properties
@@ -26,6 +28,7 @@ Shader "MHK/Lit"
         [Toggle(_ALPHATEST_ON)] _AlphaClip ("Alpha clip", Float) = 0
         _Cutoff ("Alpha cutoff", Range(0, 1)) = 0.5
         _Fog ("Fog (0 = never fogged: sky domes)", Range(0, 1)) = 1
+        _WetMask ("Wet look in rain (0 = never wet: water, lava)", Range(0, 1)) = 1
         [ToggleOff(_RECEIVE_SHADOWS_OFF)] _ReceiveShadows ("Receive realtime shadows", Float) = 1
         [Toggle(_IGNORE_SUN_SHADOWS)] _IgnoreSunShadows ("Ignore sun shadows (realtime and baked)", Float) = 0
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src blend", Float) = 1

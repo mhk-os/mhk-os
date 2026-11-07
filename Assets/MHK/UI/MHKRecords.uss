@@ -82,11 +82,13 @@
 .tabs.trk-classes, .tabs.trk-sections, .tabs.fr-filter, .tabs.rec-classes-tabs { flex-wrap: nowrap; flex-shrink: 0; }
 .tabs.trk-sections { display: none; }
 .narrow .tabs.trk-sections, .preview-narrow .tabs.trk-sections { display: flex; }
-/* Compact dropdowns (version, region, kart, driver): the value button only, the name is the tooltip. */
-.setting-row.trk-filter { min-width: 0; min-height: 0; padding: 0; margin: 2px 6px 2px 0; flex-shrink: 1; }
-.trk-filter .setting-label { display: none; }
-.trk-filter .mhk-button { min-width: 0; min-height: 42px; flex-shrink: 1; margin: 0; font-size: 18px; }
-.trk-filter .button-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
+/* Compact dropdowns (track variant, laps, version, region, kart, driver): the value button only, the name is the tooltip. */
+.setting-row.trk-filter, .trk-variants > .setting-row { min-width: 0; min-height: 0; padding: 0; margin: 2px 6px 2px 0; flex-shrink: 1; }
+.trk-filter .setting-label, .trk-variants .setting-label { display: none; }
+.trk-filter .mhk-button, .trk-variants .mhk-button { min-width: 0; min-height: 42px; flex-shrink: 1; margin: 0; font-size: 18px; }
+.trk-filter .button-label, .trk-variants .button-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
+/* Track variant rows (one per modifier the track offers, TrackVariantRows) before the Laps row. */
+.trk-variants { flex-direction: row; align-items: center; flex-wrap: wrap; flex-shrink: 1; margin-left: 6px; }
 .setting-row.trk-version { margin: 0 6px; flex-shrink: 0; }
 .trk-version .mhk-button, .trk-version .button-label { flex-shrink: 0; }
 /* The version names its entry in full (text measuring ignores the buttons' letter spacing, so no ellipsis here). */
@@ -190,12 +192,9 @@ TemplateContainer.sample-uploaded > .ghost-row .ghost-upload { display: none; }
 .lb-badge-label { -unity-font-definition: var(--font-bold); font-size: 14px; color: var(--mhk-white); padding: 0 0 0 2px; margin: 0; }
 .lb-flags { background-color: var(--mhk-bad-ink); }
 .lb-flags .icon { -unity-background-image-tint-color: var(--mhk-white); }
-.lb-mismatch { background-color: var(--mhk-accent-soft); }
-.lb-mismatch .icon { -unity-background-image-tint-color: var(--mhk-accent-deep); }
 .lb-hidden { background-color: var(--mhk-gray-700); }
 .lb-hidden .icon { -unity-background-image-tint-color: var(--mhk-white); }
 .lb-row.flagged .lb-flags, TemplateContainer.sample-flagged > .lb-row .lb-flags { display: flex; }
-.lb-row.mismatch .lb-mismatch, TemplateContainer.sample-mismatch > .lb-row .lb-mismatch { display: flex; }
 .lb-row.hidden-run .lb-hidden, TemplateContainer.sample-hidden > .lb-row .lb-hidden { display: flex; }
 .lb-row.hidden-run .lb-main, TemplateContainer.sample-hidden > .lb-row .lb-main { opacity: 0.6; }
 .lb-row.mine .lb-you, TemplateContainer.sample-mine > .lb-row .lb-you { display: flex; }

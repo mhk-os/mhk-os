@@ -11,13 +11,14 @@ namespace MHK.UI
     {
         /// <summary>
         /// Item slot (top left): the held powerup's icon over the empty slot, its name and charges, the roulette while an
-        /// item box rolls. The roulette runs on scaled time, so it freezes with the pause.
+        /// item box rolls. The roulette runs on scaled time, so it freezes with the pause. A battle item that still loads
+        /// shows grayed under a pie timer: it pops in small when revealed and with the full pop and sunburst once usable.
         /// </summary>
         sealed class ItemSlot
         {
             const int Empty = 0, Rolling = 1, Held = 2;
-            const float FramePopScale = 1.5f, ChargesPopScale = 1.4f;
-            const int FramePopMs = 420, ChargesPopMs = 300, BurstMs = 750;
+            const float FramePopScale = 1.5f, RevealPopScale = 1.15f, ChargesPopScale = 1.4f;
+            const int FramePopMs = 420, RevealPopMs = 260, ChargesPopMs = 300, BurstMs = 750;
             const float RouletteIconsPerSecond = 12f;
             const float WobbleSpeed = 31f, WobbleDegrees = 7f, PulseSpeed = 19f, PulseAmount = 0.06f;
             const float BurstAlpha = 0.9f, BurstStartScale = 0.55f, BurstGrowth = 0.65f, BurstDegrees = 80f;
@@ -32,8 +33,9 @@ namespace MHK.UI
 
             readonly RaceHud hud;
             VisualElement frame, icon, burst, charges;
+            HudItemLoading loader;
             Label chargesText, itemName;
-            int shownState, shownCooling, shownCharges;
+            int shownState, shownCooling, shownLoading, shownCharges;
             bool iconValid, iconShown;
             Texture2D shownIcon;
             PowerupDefinition shownItem;
@@ -48,10 +50,12 @@ namespace MHK.UI
                 charges = hud.Q<VisualElement>("item-charges");
                 chargesText = hud.Q<Label>("item-charges-label");
                 itemName = hud.Q<Label>("item-name");
+                loader = hud.Q<HudItemLoading>("item-loading");
                 burst.style.opacity = 0f;
                 charges.SetVisible(false);
                 itemName.SetVisible(false);
-                shownState = shownCooling = shownCharges = -1;
+                loader.SetVisible(false);
+                shownState = shownCooling = shownLoading = shownCharges = -1;
                 iconValid = iconShown = false;
                 shownIcon = null;
                 shownItem = null;
@@ -62,7 +66,9 @@ namespace MHK.UI
                 var held = inventory.Held;
                 // Online the roulette spins before the server granted an item (nothing held yet).
                 var state = inventory.Rolling ? Rolling : held == null ? Empty : Held;
-                if (state != shownState) OnStateChanged(shownState, state);
+                var loading = state == Held && inventory.Loading ? 1 : 0;
+                if (state != shownState) OnStateChanged(shownState, state, loading == 1);
+                else if (loading < shownLoading && state == Held) Appear();
                 if (state == Empty)
                 {
                     SetIcon(false, null);
@@ -74,13 +80,20 @@ namespace MHK.UI
                     SetIcon(true, held.Icon != null ? held.Icon : hud.unknownItemIcon);
                     SetLabel(held, inventory.Charges);
                 }
-                var cooling = state == Held && inventory.CoolingDown ? 1 : 0;
+                if (loading == 1) loader.SetProgress(inventory.LoadProgress01);
+                var cooling = state == Held && (inventory.CoolingDown || loading == 1) ? 1 : 0;
+                if (loading != shownLoading)
+                {
+                    shownLoading = loading;
+                    loader.SetVisible(loading == 1);
+                }
                 if (cooling == shownCooling) return;
                 shownCooling = cooling;
                 icon.EnableInClassList("cooling", cooling == 1);
             }
 
-            void OnStateChanged(int previous, int state)
+            // A loading battle item only pops in small: the full pop and sunburst come when it can be used (Appear).
+            void OnStateChanged(int previous, int state, bool loading)
             {
                 shownState = state;
                 if (previous == Rolling)
@@ -89,6 +102,12 @@ namespace MHK.UI
                     frame.style.scale = StyleKeyword.Null;
                 }
                 if (state != Held || previous < 0) return;
+                if (loading) UiAnim.Pop(frame, RevealPopScale, RevealPopMs);
+                else Appear();
+            }
+
+            void Appear()
+            {
                 UiAnim.Pop(frame, FramePopScale, FramePopMs);
                 burst.experimental.animation.Start(0f, 1f, BurstMs, BurstFrame).Ease(Easing.OutCubic);
             }

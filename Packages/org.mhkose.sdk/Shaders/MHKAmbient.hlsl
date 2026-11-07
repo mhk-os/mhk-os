@@ -2,10 +2,12 @@
 #define MHK_AMBIENT_INCLUDED
 
 // Globals set by MHK.Lighting.AmbientCube (the scene's ambient probe as six axis colours, baked probes loaded) and
-// BakedIndirectLighting (x = on, y = intensity, z = minimum).
+// BakedIndirectLighting (x = on, y = intensity, z = minimum). _MHKFlash rgb (MHK.Effects.WeatherAmbience's lightning,
+// 0 = none) is light added to every lit surface, sky domes and weather particles.
 float4 _MHKAmbientCube[6];
 float _MHKProbeAmbient;
 float4 _MHKBakedIndirect;
+float4 _MHKFlash;
 
 #define MHK_ON(value) ((value) > 0.5)
 

@@ -5,8 +5,9 @@ using MHK.Modding;
 namespace MHK.Core
 {
     /// <summary>
-    /// Best lap and race time of one track, with the driver and kart that set them. Kart ids are empty in records set
-    /// before karts were stored.
+    /// Best lap and race time of one track, with the driver and kart that set them: races on the track's default variant
+    /// over its own lap count only (other variants and lap counts keep their records as time-trial ghosts). Kart ids are
+    /// empty in records set before karts were stored.
     /// </summary>
     [Serializable]
     public class TrackRecord

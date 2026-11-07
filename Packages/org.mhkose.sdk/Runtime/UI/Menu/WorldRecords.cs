@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using MHK.Core;
+using MHK.Modding;
 using MHK.Online;
 using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
@@ -8,9 +9,9 @@ using UnityEngine;
 namespace MHK.UI
 {
     /// <summary>
-    /// World records of the current content version per track and engine class for the Time Trials hub: one
-    /// ListBoards request for every track, kept for <see cref="MaxAgeSeconds"/> so visiting the hub does not ask again.
-    /// A track with several boards of this version (other lap counts) shows the most played.
+    /// World records per track and engine class for the Time Trials hub: the boards of the current rules version, each
+    /// installed track's default variant in its current content version and the track's laps. One ListBoards request for
+    /// every track, kept for <see cref="MaxAgeSeconds"/> so visiting the hub does not ask again.
     /// </summary>
     public static partial class WorldRecords
     {
@@ -50,19 +51,22 @@ namespace MHK.UI
 
         static async Task<bool> FetchAsync()
         {
-            var r = await OnlineTimeTrials.ListBoards("", ListBoardsRequest.AnyEngineClass, ContentVersion.Current);
+            var r = await OnlineTimeTrials.ListBoards("", ListBoardsRequest.AnyEngineClass, RulesVersion.Current, "");
             if (!r.Ok)
             {
                 Online = false;
                 LastError = r.result.message ?? "";
                 return false;
             }
+            var content = GameRoot.Instance.Content;
             var map = new Dictionary<(string, int), BoardInfo>();
             foreach (var b in r.value)
             {
-                if (b.bestMs <= 0 || string.IsNullOrEmpty(b.trackId)) continue;
-                var key = (b.trackId.ToLowerInvariant(), b.engineClass);
-                if (!map.TryGetValue(key, out var kept) || b.players > kept.players) map[key] = b;
+                if (b.bestMs <= 0 || string.IsNullOrEmpty(b.trackId) || !string.IsNullOrEmpty(b.variant)) continue;
+                var track = content.Get<TrackDefinition>(b.trackId);
+                var variant = track != null ? TrackVariants.Of(track)?.Default : null;
+                if (variant == null || b.laps != track.defaultLaps || b.trackVersion != variant.ContentVersion) continue;
+                map[(b.trackId.ToLowerInvariant(), b.engineClass)] = b;
             }
             boards = map;
             fetchedAt = Time.realtimeSinceStartup;

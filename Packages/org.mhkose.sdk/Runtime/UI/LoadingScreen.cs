@@ -13,7 +13,7 @@ namespace MHK.UI
     public class LoadingScreen : UiScreen
     {
         [Header("Race")]
-        [SerializeField, Tooltip("Appended to the game name when the track has a variant. {0} = variant.")]
+        [SerializeField, Tooltip("Appended to the game name when the race is not the track's default variant. {0} = the variant's options (e.g. \"Reverse · Night\").")]
         string variantFormat = " | {0}";
         [SerializeField, Tooltip("Chip text in battles.")]
         string battleText = "Battle";
@@ -150,7 +150,8 @@ namespace MHK.UI
         void FillRace()
         {
             Q<Label>("track").text = track.DisplayName;
-            Q<Label>("game").text = UiText.GameWithVariant(track, variantFormat);
+            var variant = TrackVariants.Resolve(track, session != null ? session.CurrentVariantKey : "");
+            Q<Label>("game").text = variant != null ? UiText.GameWithVariant(variant, variantFormat) : UiText.GameName(track.SourceGame);
             ShowTrackPicture(track.Picture);
             var battle = session != null && session.mode == GameMode.Battle;
             var laps = RaceManager.LapsFor(session, track);

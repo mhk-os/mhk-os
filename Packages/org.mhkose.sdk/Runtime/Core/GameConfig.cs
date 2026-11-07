@@ -121,6 +121,9 @@ namespace MHK.Core
         public bool usingItemCancelsBuffs = true;
         [Tooltip("Item roulette duration after pickup (MHK2: none).")]
         public float itemRouletteSeconds;
+        [Tooltip("Battles: a received item loads this many seconds after the roulette stops before it can be used (the HUD " +
+                 "shows it grayed with a pie timer). Races have no loading.")]
+        [Min(0f)] public float battleItemLoadSeconds = 2f;
         [Tooltip("Seconds after placing / throwing a hazard (trap, mine, x-field, black hole, glibber ball, charge...) during " +
                  "which it spares its owner, afterwards it hits the owner too (MHK2 traps do). Other karts are hit at once.")]
         [Min(0f)] public float ownerHazardImmunity = 1f;

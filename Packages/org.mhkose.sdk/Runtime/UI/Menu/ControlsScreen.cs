@@ -54,6 +54,7 @@ namespace MHK.UI
             new("Respawn", "Respawn"),
             new("Pause", "Pause"),
             new("Camera", "Camera"),
+            new("Headlights", "Headlights"),
         };
         [SerializeField, Tooltip("Key slot text while it waits for a key.")]
         string listeningText = "Press a key…";

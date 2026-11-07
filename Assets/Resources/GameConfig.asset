@@ -59,6 +59,7 @@ MonoBehaviour:
   itemBoxReplacesHeld: 1
   usingItemCancelsBuffs: 1
   itemRouletteSeconds: 0
+  battleItemLoadSeconds: 2
   ownerHazardImmunity: 1
   dropEffect: {fileID: 11400000, guid: 29603f9faf1214412a166240e686d82e, type: 2}
   respawnBackDistance: 15

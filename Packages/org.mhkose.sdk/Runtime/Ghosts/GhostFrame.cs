@@ -16,6 +16,8 @@ namespace MHK.Ghosts
         Burned = 8,
         /// <summary>The kart was teleported (respawn) at this tick: no interpolation from the tick before.</summary>
         Cut = 16,
+        /// <summary>The kart's headlights are on (<see cref="Karts.Kart.Headlights"/>).</summary>
+        Headlights = 32,
     }
 
     /// <summary>

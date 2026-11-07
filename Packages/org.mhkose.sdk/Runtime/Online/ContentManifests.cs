@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Text;
 using MHK.Core;
 using MHK.Modding;
@@ -12,8 +11,8 @@ namespace MHK.Online
     /// <summary>
     /// Pack manifests of the loaded content (docs/protocol.md, content agreement): per registered pack (the built-in
     /// <c>game</c> pack and every pack a mod includes) the effective definitions it owns after load-order overrides,
-    /// as (kind, id, <see cref="ContentFingerprints"/>) items, and the canonical manifest hash the server recomputes.
-    /// Also answers which definitions are content of a lobby and which lobby ids another mod overrides here.
+    /// as (kind, id, content version) items. Also answers which definitions are content of a lobby and which lobby ids
+    /// another mod overrides here.
     /// </summary>
     public static partial class ContentManifests
     {
@@ -45,17 +44,14 @@ namespace MHK.Online
                 }
                 if (!byPack.TryGetValue(pack.packId, out var manifest))
                 {
-                    manifest = new PackManifest { packId = pack.packId, commit = Commit(pack), contentVersion = ContentVersion.Current };
+                    manifest = new PackManifest { packId = pack.packId, commit = Commit(pack), rulesVersion = RulesVersion.Current };
                     byPack[pack.packId] = manifest;
                     list.Add(manifest);
                 }
                 AddItems(registry, pack, manifest);
             }
             foreach (var m in list)
-            {
                 if (m.items.Count > LobbyLimits.ManifestItems) m.items.RemoveRange(LobbyLimits.ManifestItems, m.items.Count - LobbyLimits.ManifestItems);
-                m.manifestHash = Hash(m.items);
-            }
             if (list.Count > LobbyLimits.AnnouncedPacks)
             {
                 Debug.LogWarning($"[Online] {list.Count} packs are loaded, only the first {LobbyLimits.AnnouncedPacks} are announced online.");
@@ -72,14 +68,14 @@ namespace MHK.Online
             foreach (var def in pack.content)
             {
                 if (def == null || registry.Get<ContentDefinition>(def.Id) != def) continue;
-                var kind = ContentFingerprints.KindOf(def);
+                var kind = KindOf(def);
                 if (kind == null) continue;
                 if (!IsContentId(def.Id))
                 {
                     Debug.LogWarning($"[Online] Content id '{def.Id}' of '{pack.packId}' is not 1-96 letters, digits, _ . or -: it cannot be used online.");
                     continue;
                 }
-                manifest.items.Add(new ManifestItem(kind.Value, def.Id, ContentFingerprints.Of(def)));
+                manifest.items.Add(new ManifestItem(kind.Value, def.Id, VersionOf(def)));
             }
         }
 
@@ -95,23 +91,25 @@ namespace MHK.Online
             return sb.Length > LobbyLimits.Commit ? sb.ToString(0, LobbyLimits.Commit) : sb.ToString();
         }
 
-        /// <summary>
-        /// The canonical manifest hash: items sorted by kind, then by the lowercased id (ordinal), each as the UTF-8 text
-        /// "kind\nid lowercase\nfingerprint\n"; SHA-256 over all of them, the first 16 bytes as lowercase hex.
-        /// </summary>
-        public static string Hash(IReadOnlyList<ManifestItem> items)
+        /// <summary>The manifest kind of <paramref name="d"/>, null for definitions that are not gameplay content (reactions of other kinds, ...).</summary>
+        public static ContentKind? KindOf(ContentDefinition d) => d switch
         {
-            var sorted = new List<(int kind, string id, string fingerprint)>(items.Count);
-            foreach (var item in items) sorted.Add(((int)item.kind, item.id.ToLowerInvariant(), item.fingerprint ?? ""));
-            sorted.Sort((a, b) => a.kind != b.kind ? a.kind.CompareTo(b.kind) : string.CompareOrdinal(a.id, b.id));
-            using var sha = SHA256.Create();
-            var sb = new StringBuilder();
-            foreach (var (kind, id, fingerprint) in sorted) sb.Append(kind).Append('\n').Append(id).Append('\n').Append(fingerprint).Append('\n');
-            var digest = sha.ComputeHash(Encoding.UTF8.GetBytes(sb.ToString()));
-            var hex = new StringBuilder(32);
-            for (var i = 0; i < 16; i++) hex.Append(digest[i].ToString("x2"));
-            return hex.ToString();
-        }
+            TrackDefinition t => t.layout == TrackLayout.Arena ? ContentKind.Arena : ContentKind.RaceTrack,
+            KartDefinition => ContentKind.Kart,
+            CharacterDefinition => ContentKind.Character,
+            PowerupDefinition => ContentKind.Powerup,
+            StatusEffectDefinition => ContentKind.StatusEffect,
+            CupDefinition => ContentKind.Cup,
+            _ => null,
+        };
+
+        /// <summary>The manifest version of <paramref name="d"/>: the content version of tracks, arenas and karts, 0 for the other kinds.</summary>
+        public static int VersionOf(ContentDefinition d) => d switch
+        {
+            TrackDefinition t => t.contentVersion,
+            KartDefinition k => k.contentVersion,
+            _ => 0,
+        };
 
         /// <summary>A content id the server accepts: 1-96 characters of A-Z a-z 0-9 _ . - (lowercasing stays ASCII).</summary>
         public static bool IsContentId(string id)
@@ -170,7 +168,8 @@ namespace MHK.Online
 
         /// <summary>
         /// Definitions of the lobby packs <paramref name="lobbyPacks"/> (and the game's own pack) that a mod replaces here:
-        /// the id of each with the pack that replaces it. Such a mod must be disabled to play in the lobby.
+        /// the id of each with the pack that replaces it, also overlays replaced by another pack's overlay for the same track
+        /// and option (<see cref="TrackVariants.ReplacedOverlays"/>). Such a mod must be disabled to play in the lobby.
         /// </summary>
         public static List<(string id, string by)> Overrides(ContentRegistry registry, IReadOnlyList<string> lobbyPacks)
         {
@@ -187,6 +186,11 @@ namespace MHK.Online
                     if (effective == null || effective == def || string.Equals(effective.OwnerPackId, pack.packId, StringComparison.OrdinalIgnoreCase)) continue;
                     list.Add((def.Id, RootTitle(registry, effective.OwnerPack)));
                 }
+            }
+            foreach (var (replaced, by) in TrackVariants.ReplacedOverlays(registry))
+            {
+                var lobbyPack = string.Equals(replaced.OwnerPackId, GamePackId, StringComparison.OrdinalIgnoreCase) || Contains(lobbyPacks, replaced.OwnerPackId);
+                if (lobbyPack) list.Add((replaced.Id, RootTitle(registry, by.OwnerPack)));
             }
             return list;
         }

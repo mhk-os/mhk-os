@@ -35,6 +35,8 @@ namespace MHK.Race
         [Header("Debug")]
         [Tooltip("Track id used when the Race scene is played without a session.")]
         [SerializeField] string debugTrackId;
+        [Tooltip("Variant key used when the Race scene is played without a session (e.g. core.reverse+core.night), empty = the track's default.")]
+        [SerializeField] string debugVariant;
         [Tooltip("Computer opponents when the Race scene is played without a session.")]
         [SerializeField] int debugOpponents = 5;
 
@@ -73,6 +75,13 @@ namespace MHK.Race
         public bool IsAttract { get; private set; }
         /// <summary>The loaded track scene, invalid until it loaded.</summary>
         public UnityEngine.SceneManagement.Scene TrackScene { get; private set; }
+        /// <summary>The overlay scenes of <see cref="Variant"/> loaded on top of <see cref="TrackScene"/> (modifier order).</summary>
+        public IReadOnlyList<UnityEngine.SceneManagement.Scene> OverlayScenes => overlayScenes;
+        /// <summary>
+        /// The variant of <see cref="Track"/> this race runs (the session's key resolved when the race starts): its options,
+        /// overlays and rules (reverse, headlights, wet grip). Null before then.
+        /// </summary>
+        public TrackVariant Variant { get; private set; }
 
         /// <summary>Camera the race is seen through: the chase camera's, else the main camera.</summary>
         public Camera RaceCamera
@@ -131,6 +140,8 @@ namespace MHK.Race
         Vector3 defaultGravity;
         Camera raceCamera;
         float playbackSpeed = 1f;
+        TrackEnvironment.State environment;
+        readonly List<UnityEngine.SceneManagement.Scene> overlayScenes = new();
 
         DifficultySettings Difficulty => GameRoot.Instance.Config.GetDifficulty(Session.difficulty);
 
@@ -146,6 +157,8 @@ namespace MHK.Race
             Physics.gravity = defaultGravity;
             foreach (var d in humanDrivers) d.Dispose();
             Time.timeScale = 1f;
+            environment?.Release();
+            TrackWeather.End();
         }
 
         IEnumerator Start()
@@ -163,6 +176,12 @@ namespace MHK.Race
             if (Track == null || !Track.scene.IsSet)
             {
                 FailLoad($"[Race] Track '{Session.CurrentTrackId}' not found or has no scene.");
+                yield break;
+            }
+            Variant = TrackVariants.Resolve(Track, Session.CurrentVariantKey);
+            if (Variant == null)
+            {
+                FailLoad($"[Race] Track '{Track.Id}' has no variant '{Session.CurrentVariantKey}' (a mod with its options is missing).");
                 yield break;
             }
             Laps = LapsFor(Session, Track);
@@ -218,6 +237,7 @@ namespace MHK.Race
             Session = root.Session;
             if (Session != null && (Session.racers.Count > 0 || Session.IsReplay) && Session.CurrentTrackId != null) return;
             Session = GameSession.CreateQuickRace(root.Content, string.IsNullOrEmpty(debugTrackId) ? null : debugTrackId, debugOpponents);
+            Session.variants.Add(debugVariant ?? "");
             root.Session = Session;
         }
 
@@ -247,17 +267,53 @@ namespace MHK.Race
             UI.MenuFlow.OpenOnStart = MHK.Online.OnlineLobby.InLobby ? typeof(UI.LobbyScreen) : typeof(UI.OnlineScreen);
         }
 
+        // The track scene, then the overlay scenes of the variant's options (modifier order). The variant changes the track
+        // before anything measures it: reverse turns its lines round, the overlays' environment applies before the sky domes
+        // copy their materials, the weather before karts touch the ground.
         IEnumerator LoadTrack()
         {
             Physics.gravity = Vector3.down * (Track.gravity > 0f ? Track.gravity : GameRoot.Instance.Config.gravity);
+            var overlayDefs = new List<(TrackOverlayDefinition def, TrackOptionDefinition option)>();
+            for (var i = 0; i < Variant.Selected.Count; i++)
+                if (Variant.Selected[i].scene.IsSet) overlayDefs.Add((Variant.Selected[i], Variant.OptionOf(i)));
+            var steps = 1 + overlayDefs.Count;
             UnityEngine.SceneManagement.Scene scene = default;
-            yield return TrackSceneLoader.Load(Track.scene.Path, s => scene = s, p => LoadProgress = p * TrackLoadShare);
+            yield return TrackSceneLoader.Load(Track.scene.Path, s => scene = s, p => LoadProgress = p / steps * TrackLoadShare);
             TrackScene = scene;
             PropMass.Apply(scene, GameRoot.Instance.Config);
             TrackRuntime = TrackSceneLoader.Find(scene);
             if (TrackRuntime == null) yield break;
+            var overlays = new List<(TrackOverlay overlay, TrackOptionDefinition option)>(overlayDefs.Count);
+            for (var i = 0; i < overlayDefs.Count; i++)
+            {
+                var step = i + 1;
+                UnityEngine.SceneManagement.Scene overlayScene = default;
+                yield return TrackSceneLoader.Load(overlayDefs[i].def.scene.Path, s => overlayScene = s,
+                    p => LoadProgress = (step + p) / steps * TrackLoadShare, false);
+                if (!overlayScene.IsValid())
+                {
+                    Debug.LogError($"[Race] Overlay '{overlayDefs[i].def.Id}' of '{Track.Id}' did not load: the variant runs without it.");
+                    continue;
+                }
+                overlayScenes.Add(overlayScene);
+                PropMass.Apply(overlayScene, GameRoot.Instance.Config);
+                overlays.Add((FindOverlay(overlayScene), overlayDefs[i].option));
+            }
+            if (Variant.Reverse) TrackReverse.Apply(TrackRuntime);
+            environment = TrackEnvironment.Apply(scene, TrackRuntime, overlays, Variant);
+            TrackWeather.Begin(Variant, environment.Cover);
             WorldSkyDome.Apply(scene, Track, TrackRuntime, GameRoot.Instance.Config);
             SetUpCamera(RaceCamera);
+        }
+
+        static TrackOverlay FindOverlay(UnityEngine.SceneManagement.Scene scene)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var overlay = root.GetComponentInChildren<TrackOverlay>(true);
+                if (overlay != null) return overlay;
+            }
+            return null;
         }
 
         void SetUpCamera(Camera cam)
@@ -284,8 +340,9 @@ namespace MHK.Race
         }
 
         /// <summary>
-        /// Laps of a race on <paramref name="track"/>: the track's or the session's count, or the cup's override,
-        /// int.MaxValue in battles (no finish line).
+        /// Laps of the current race of <paramref name="session"/> on <paramref name="track"/>: the cup's override, else the
+        /// race's own count (<see cref="GameSession.raceLaps"/>), else the track's or the session's count; int.MaxValue in
+        /// battles (no finish line).
         /// </summary>
         public static int LapsFor(GameSession session, TrackDefinition track)
         {
@@ -293,6 +350,8 @@ namespace MHK.Race
             if (session.mode == GameMode.Battle) return int.MaxValue;
             var cup = GameRoot.Instance.Content.Get<CupDefinition>(session.cupId);
             if (cup != null && cup.lapsOverride > 0) return cup.lapsOverride;
+            var own = session.CurrentRaceLaps;
+            if (own > 0) return own;
             return session.lapsFromTrack ? track.defaultLaps : session.laps;
         }
 

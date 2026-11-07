@@ -29,8 +29,6 @@ namespace MHK.Validation
         const float LeadSeconds = 4f;
         const float BaseResimInterval = 3f;
         const int GhostsPerResimInterval = 8;
-        /// <summary>Speed and acceleration tolerance for ghosts whose setup hash differs: honest tuning differences between pack commits.</summary>
-        const float OtherSetupSlack = 1.35f;
         /// <summary>Relative difference of a ghost's recorded speed scale from the local one that is a broken (or edited) recording.</summary>
         const float SpeedScaleTolerance = 1e-4f;
 
@@ -55,7 +53,6 @@ namespace MHK.Validation
         Resimulator resim;
         EffectSet effects;
         readonly List<Entry> entries = new();
-        readonly Dictionary<(int, string, int), string> setupHashes = new();
         readonly Stopwatch watch = new();
         double costTotal, costMax;
         int costFrames;
@@ -114,19 +111,14 @@ namespace MHK.Validation
             var root = GameRoot.Instance;
             var kart = root.Content.Get<KartDefinition>(h.kartId);
             var (checks, basis) = ChecksFor(h, kart);
-            var setupMatches = (checks & ValidationChecks.Divergence) != 0;
-            var slack = (checks & ValidationChecks.Speed) != 0 && !setupMatches ? OtherSetupSlack : 1f;
+            var sameContent = checks == ValidationChecks.All;
             if (!Mathf.Approximately(h.tickSeconds, Time.fixedDeltaTime)) checks &= ~ValidationChecks.Divergence;
             // Never the file's speed scale: a speed hack would write its own into the header.
             var speedScale = root.Config.SpeedScale((Difficulty)h.engineClass);
             var profile = kart != null && kart.physics != null ? kart.physics : root.Config.defaultPhysics;
             var spec = KartSpec.ForEngineClass(profile, h.engineClass, speedScale);
             if ((checks & ValidationChecks.Divergence) != 0) track.Prepare(spec);
-            var validator = new KartValidator(track, spec, effects, h.laps, h.tickSeconds, checks, resim)
-            {
-                ResimInterval = resimInterval,
-                Slack = slack,
-            };
+            var validator = new KartValidator(track, spec, effects, h.laps, h.tickSeconds, checks, resim) { ResimInterval = resimInterval };
             if (h.lapTimes.Length == h.laps)
                 for (var lap = 0; lap <= h.laps; lap++) validator.ClaimLap(lap, h.LapEndTime(lap));
             var e = new Entry { ghost = ghost, data = data, validator = validator };
@@ -138,32 +130,28 @@ namespace MHK.Validation
             }
             validator.Found += v => OnFound(e, v);
             entries.Add(e);
-            Debug.Log($"[Validation] {h.playerName} ({h.id}, {h.kartId}): {checks}, speed/acceleration tolerance ×{slack:0.00} - {basis}.");
-            if (setupMatches && Mathf.Abs(h.speedScale - speedScale) > SpeedScaleTolerance * speedScale)
+            Debug.Log($"[Validation] {h.playerName} ({h.id}, {h.kartId}): {checks} - {basis}.");
+            if (sameContent && Mathf.Abs(h.speedScale - speedScale) > SpeedScaleTolerance * speedScale)
                 validator.Flag(FlagReason.Data, 0, $"recorded speed scale {h.speedScale:0.000000}, this class has {speedScale:0.000000}");
         }
 
         /// <summary>
-        /// Checks a ghost gets and why. Physics checks need the local track and kart to be what it drove: same content
-        /// version, this race's track from the same pack with the same track hash, the kart installed. The setup hash
-        /// (kart and class data, laps) then only decides re-simulation: a different one gets every other check against
-        /// the local kart with <see cref="OtherSetupSlack"/>, which also catches a client lying about its kart data.
+        /// Checks a ghost gets and why. Physics checks need the local race to be what it drove: same rules version, this
+        /// race's track variant in the same content version, the same lap count, the kart installed in the same content
+        /// version. Anything else only gets the checks that need nothing but the samples.
         /// </summary>
         (ValidationChecks checks, string basis) ChecksFor(GhostHeader h, KartDefinition kart)
         {
-            if (h.contentVersion != ContentVersion.Current)
-                return (ValidationChecks.Kinematic, $"content version {h.contentVersion}, this game runs {ContentVersion.Current}");
-            var trackDef = race.Track;
-            if (!string.Equals(h.trackId, trackDef.Id, StringComparison.Ordinal)) return (ValidationChecks.Kinematic, $"recorded on {h.trackId}");
-            var pack = trackDef.OwnerPack;
-            if (pack != null && pack.packId != h.trackPackId) return (ValidationChecks.Kinematic, $"track from pack {h.trackPackId}, here {pack.packId}");
-            if (string.IsNullOrEmpty(run.TrackHash) || !string.Equals(run.TrackHash, h.trackHash, StringComparison.OrdinalIgnoreCase))
-                return (ValidationChecks.Kinematic, "track hash differs");
+            if (h.rulesVersion != RulesVersion.Current)
+                return (ValidationChecks.Kinematic, $"rules version {h.rulesVersion}, this game runs {RulesVersion.Current}");
+            var variant = race.Variant;
+            if (!string.Equals(h.trackId, race.Track.Id, StringComparison.Ordinal)) return (ValidationChecks.Kinematic, $"recorded on {h.trackId}");
+            if (!string.Equals(h.variant ?? "", variant.Key, StringComparison.Ordinal)) return (ValidationChecks.Kinematic, $"recorded on variant '{h.variant}'");
+            if (h.trackVersion != variant.ContentVersion) return (ValidationChecks.Kinematic, $"track version {h.trackVersion}, here {variant.ContentVersion}");
+            if (h.laps != race.Laps) return (ValidationChecks.Kinematic, $"{h.laps} laps, this race has {race.Laps}");
             if (kart == null) return (ValidationChecks.Kinematic, $"kart {h.kartId} not installed");
-            var setup = GhostCompatibilityRules.SetupHash(h.engineClass, kart, trackDef.defaultLaps, setupHashes);
-            return setup == h.setupHash
-                ? (ValidationChecks.All, "setup matches")
-                : (ValidationChecks.All & ~ValidationChecks.Divergence, "setup differs (other kart, class or lap data)");
+            if (h.kartVersion != kart.contentVersion) return (ValidationChecks.Kinematic, $"kart version {h.kartVersion}, here {kart.contentVersion}");
+            return (ValidationChecks.All, "same rules, track variant, laps and kart");
         }
 
         // The player's own uploads are never reported.

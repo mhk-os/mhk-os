@@ -30,8 +30,10 @@ namespace MHK.UI
         [Header("Texts")]
         [SerializeField, Tooltip("Filter chips: visible runs only, also hidden ones.")]
         string visibleTab = "Visible", hiddenTab = "With hidden";
-        [SerializeField, Tooltip("Row line ({0} = track, {1} = engine class).")]
+        [SerializeField, Tooltip("Row line ({0} = track with its variant and laps when not the track's, {1} = engine class).")]
         string reportRowFormat = "{0} | {1}";
+        [SerializeField, Tooltip("Laps of a run that are not the track's ({0} = laps).")]
+        string lapsFormat = "{0} laps";
         [SerializeField, Tooltip("States: loading, nothing reported, not a moderator, offline (the reason is the tooltip).")]
         string stateLoading = "Loading", stateNone = "All quiet", stateNotModerator = "Moderators only", stateOffline = "Offline";
         [SerializeField, Tooltip("Pager text ({0} = first row, {1} = last row, {2} = all rows).")]
@@ -246,7 +248,7 @@ namespace MHK.UI
         {
             var row = UiTree.Spawn<VisualElement>(rowTemplate, list);
             if (row == null) return;
-            LeaderRows.Fill(row, run, alt, string.Format(reportRowFormat, ContentDisplay.TrackName(run.trackId), ClassLabel(run.engineClass)));
+            LeaderRows.Fill(row, run, alt, string.Format(reportRowFormat, TrackText(run), ClassLabel(run.engineClass)));
             rows.Add((run, row));
             LeaderRows.AttachPlayer(row, run, ranks, cardOptions);
             var main = row.Q<Button>("lb-main");
@@ -284,6 +286,14 @@ namespace MHK.UI
             return engineClass >= 0 && engineClass < classes.Length ? classes[engineClass].label : engineClass.ToString(Invariant);
         }
 
+        // The track's name, plus the run's variant and laps when they are not the track's usual race.
+        string TrackText(RunEntry run)
+        {
+            var setup = UiText.VariantAndLaps(run.trackId, run.variant, run.laps, lapsFormat);
+            var name = ContentDisplay.TrackName(run.trackId);
+            return setup.Length > 0 ? name + " · " + setup : name;
+        }
+
         void MarkShown()
         {
             foreach (var (run, row) in rows) row.EnableInClassList("selected", shown != null && run.runId == shown.runId);
@@ -301,7 +311,7 @@ namespace MHK.UI
             Q<Label>("fr-run-time").text = UiText.Clock(run.finishMs / 1000f);
             var chips = Q<VisualElement>("fr-run-chips");
             chips.Clear();
-            InfoChips.Add(chips, "map", ContentDisplay.TrackName(run.trackId), trackTip);
+            InfoChips.Add(chips, "map", TrackText(run), trackTip);
             InfoChips.Add(chips, "speed", ClassLabel(run.engineClass), classTip);
             InfoChips.Add(chips, "upload", Date(run.uploaded), uploadedTip);
             InfoChips.Add(chips, "flag", run.flags.ToString(Invariant), flagsTip, run.flags > 0 ? InfoChipState.Bad : InfoChipState.Normal);

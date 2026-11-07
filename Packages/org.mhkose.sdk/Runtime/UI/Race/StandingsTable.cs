@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using MHK.Core;
+using MHK.Modding;
 using MHK.Race;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -24,9 +25,9 @@ namespace MHK.UI
         [Header("Texts")]
         [SerializeField, Tooltip("Page title during the championship or set, and after its last race.")]
         string titleText = "Standings", finalTitleText = "Final standings";
-        [SerializeField, Tooltip("Info line after a cup race ({0} = race number, {1} = races in the cup). The cup name is appended.")]
+        [SerializeField, Tooltip("Info line after a cup race ({0} = race number, {1} = races in the cup). The cup name and the race's track with its variant are appended.")]
         string afterRaceFormat = "After race {0} of {1}";
-        [SerializeField, Tooltip("Info line in the pause menu ({0} = number of the race under way, {1} = races in the cup). The cup name is appended.")]
+        [SerializeField, Tooltip("Info line in the pause menu ({0} = number of the race under way, {1} = races in the cup). The cup name and the race's track with its variant are appended.")]
         string beforeRaceFormat = "Before race {0} of {1}";
         [SerializeField, Tooltip("Info line after an online set race ({0} = race number, {1} = races in the set).")]
         string afterSetRaceFormat = "Online set | After race {0} of {1}";
@@ -76,7 +77,7 @@ namespace MHK.UI
                 return line;
             }).ToList();
             var final = !session.HasNextRace;
-            Fill(page, context, UiText.RaceOfCup(session, afterRaceFormat), lines, true, session.raceIndex > 0, final);
+            Fill(page, context, WithTrack(UiText.RaceOfCup(session, afterRaceFormat), session), lines, true, session.raceIndex > 0, final);
             return final ? finalTitleText : titleText;
         }
 
@@ -84,7 +85,7 @@ namespace MHK.UI
         public string FillBeforeCupRace(VisualElement page, GameSession session, UnityEngine.Object context)
         {
             var lines = session.Standings().Select((s, i) => OfRacer(s, i + 1)).ToList();
-            Fill(page, context, UiText.RaceOfCup(session, beforeRaceFormat), lines, false, false, false);
+            Fill(page, context, WithTrack(UiText.RaceOfCup(session, beforeRaceFormat), session), lines, false, false, false);
             return titleText;
         }
 
@@ -126,6 +127,15 @@ namespace MHK.UI
         {
             var rows = page.Q<VisualElement>("standings-rows");
             if (rows != null) UiAnim.Stagger(rows, rowsStep, rowsFirstDelay, "from-left", staggeredRows);
+        }
+
+        // The info line plus the race's track and its variant label ("... | Island · Night · Rain").
+        static string WithTrack(string info, GameSession session)
+        {
+            var track = GameRoot.Instance.Content.Get<TrackDefinition>(session.CurrentTrackId);
+            if (track == null) return info;
+            var variant = UiText.VariantLabel(track.Id, session.CurrentVariantKey);
+            return info + UiText.Separator + (variant.Length > 0 ? track.DisplayName + " · " + variant : track.DisplayName);
         }
 
         /// <summary>

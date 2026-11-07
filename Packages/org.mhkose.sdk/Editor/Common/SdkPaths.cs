@@ -20,6 +20,12 @@ namespace MHK.Editor
         public const string CoreIndex = Root + "/CoreIndex/core-content.json";
         /// <summary>The shared item box: the look comes from the track's pack (ContentPack.itemBoxLook), else its default look.</summary>
         public const string ItemBoxPrefab = Root + "/Prefabs/ItemBox/ItemBox.prefab";
+        /// <summary>Rain around the race camera (a WeatherEffect), placed in the rain overlay scenes of tracks.</summary>
+        public const string RainPrefab = Root + "/Prefabs/Weather/Rain.prefab";
+        /// <summary>Snow around the race camera (a WeatherEffect), placed in the snow overlay scenes of tracks.</summary>
+        public const string SnowPrefab = Root + "/Prefabs/Weather/Snow.prefab";
+        /// <summary>Blown sand around the race camera (a WeatherEffect), placed in the sandstorm overlay scenes of tracks.</summary>
+        public const string SandstormPrefab = Root + "/Prefabs/Weather/Sandstorm.prefab";
         /// <summary>Folder (in <see cref="ResolvedRoot"/>, not imported) with the settings a mod project copies from the game.</summary>
         public const string ProjectSettingsKitFolder = "ProjectSettings~";
 

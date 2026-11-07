@@ -211,4 +211,4 @@ MonoBehaviour:
   dustLifetime: {x: 0.6, y: 1.1}
   maxDustParticles: 80
   dustCullDistance: 90
-  dustOpacity: 0.5
+  dustOpacity: 0.35

@@ -36,6 +36,7 @@ namespace MHK.Rendering
         public static readonly int AlphaClip = Shader.PropertyToID("_AlphaClip");
         public static readonly int Cutoff = Shader.PropertyToID("_Cutoff");
         public static readonly int Fog = Shader.PropertyToID("_Fog");
+        public static readonly int WetMask = Shader.PropertyToID("_WetMask");
         public static readonly int SrcBlend = Shader.PropertyToID("_SrcBlend");
         public static readonly int DstBlend = Shader.PropertyToID("_DstBlend");
         public static readonly int ZWrite = Shader.PropertyToID("_ZWrite");
@@ -47,5 +48,11 @@ namespace MHK.Rendering
         public static readonly int BakedIndirect = Shader.PropertyToID("_MHKBakedIndirect");
         public static readonly int AmbientCube = Shader.PropertyToID("_MHKAmbientCube");
         public static readonly int ProbeAmbient = Shader.PropertyToID("_MHKProbeAmbient");
+        public static readonly int Wet = Shader.PropertyToID("_MHKWet");
+        public static readonly int WetCover = Shader.PropertyToID("_MHKWetCover");
+        public static readonly int WetCoverRect = Shader.PropertyToID("_MHKWetCoverRect");
+        public static readonly int WetCoverHeight = Shader.PropertyToID("_MHKWetCoverHeight");
+        /// <summary>Lightning flash: rgb added to the light of every MHK/Lit surface and weather particle, 0 = none.</summary>
+        public static readonly int Flash = Shader.PropertyToID("_MHKFlash");
     }
 }

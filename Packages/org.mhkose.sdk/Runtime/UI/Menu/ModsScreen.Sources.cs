@@ -79,11 +79,13 @@ namespace MHK.UI
             checkUpdates = OnClick("check-updates", CheckUpdates);
             ModSources.Changed += OnSourcesChanged;
             ModSources.RetryFailedChecks();
+            KeepRunningWhileDownloading();
         }
 
         void UnbindSources()
         {
             ModSources.Changed -= OnSourcesChanged;
+            BackgroundRun.Keep(this, false);
             sourceViews.Clear();
             shownSources = null;
             sourceInput = null;
@@ -348,6 +350,7 @@ namespace MHK.UI
 
         void OnSourcesChanged()
         {
+            KeepRunningWhileDownloading();
             if (list == null) return;
             if (SourcesKey() != shownSources)
             {
@@ -363,6 +366,10 @@ namespace MHK.UI
             }
             ShowTools();
         }
+
+        // Downloads and installs are requests the main thread advances every frame: an unfocused window would stop them
+        // until it is focused again, so the open page keeps the game running while one runs.
+        void KeepRunningWhileDownloading() => BackgroundRun.Keep(this, sourceInput != null && ModSources.AnyDownloading);
 
         // A source not installed yet only leaves the list, an installed item is deleted with its files.
         void AskRemove(Button remove, string repo)

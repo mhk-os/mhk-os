@@ -103,11 +103,41 @@ namespace MHK.UI
             return id;
         }
 
-        /// <summary>The track's game name, plus <paramref name="variantFormat"/> ({0} = variant) when it has a variant.</summary>
-        public static string GameWithVariant(TrackDefinition track, string variantFormat)
+        /// <summary>
+        /// The game name of <paramref name="variant"/>'s track, plus <paramref name="variantFormat"/> ({0} = the variant's
+        /// <see cref="TrackVariant.Label"/>) for a variant other than the track's default.
+        /// </summary>
+        public static string GameWithVariant(TrackVariant variant, string variantFormat)
         {
-            var game = GameName(track.SourceGame);
-            return string.IsNullOrEmpty(track.variant) ? game : game + string.Format(variantFormat, track.variant);
+            var game = GameName(variant.Track.SourceGame);
+            return variant.IsDefault ? game : game + string.Format(variantFormat, variant.Label());
+        }
+
+        /// <summary>
+        /// Label of variant <paramref name="variantKey"/> of track <paramref name="trackId"/> (a record's or ghost's): its
+        /// <see cref="TrackVariant.Label"/>, "" for the default variant, the key itself while the track or an option of it is
+        /// not installed.
+        /// </summary>
+        public static string VariantLabel(string trackId, string variantKey)
+        {
+            if (string.IsNullOrEmpty(variantKey)) return "";
+            var track = GameRoot.Instance != null ? GameRoot.Instance.Content.Get<TrackDefinition>(trackId) : null;
+            var variant = track != null ? TrackVariants.Resolve(track, variantKey) : null;
+            return variant != null ? variant.Label() : variantKey;
+        }
+
+        /// <summary>
+        /// The parts of a record's setup that are not the track's usual race, joined by <paramref name="separator"/>: the
+        /// variant (<see cref="VariantLabel"/>) and <paramref name="lapsFormat"/> ({0} = laps) when <paramref name="laps"/>
+        /// differs from the track's laps (always while the track is not installed). "" for the default variant and laps.
+        /// </summary>
+        public static string VariantAndLaps(string trackId, string variantKey, int laps, string lapsFormat, string separator = " · ")
+        {
+            var variant = VariantLabel(trackId, variantKey);
+            var track = GameRoot.Instance != null ? GameRoot.Instance.Content.Get<TrackDefinition>(trackId) : null;
+            var lapsText = track != null && track.defaultLaps == laps ? "" : string.Format(Invariant, lapsFormat, laps);
+            if (variant.Length == 0) return lapsText;
+            return lapsText.Length == 0 ? variant : variant + separator + lapsText;
         }
 
         /// <summary>Separator between parts of one line of UI text ("Race 2 of 4 | Cup name").</summary>

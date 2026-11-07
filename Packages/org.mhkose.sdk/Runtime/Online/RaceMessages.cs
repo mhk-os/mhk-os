@@ -25,7 +25,7 @@ namespace MHK.Online
         public const byte UdpPing = 1, UdpPong = 2, UdpState = 3, UdpWorld = 4, UdpAiStates = 5;
 
         public const int MaxRacers = 50, MaxItemBoxes = 512, MaxPool = 128, MaxEffects = 1024, MaxLaps = 99,
-            MaxContentId = 96, MaxUsername = 20, MaxCountry = 2, MaxHash = 32, MaxMessage = 256, MaxOdds = 64,
+            MaxContentId = 96, MaxUsername = 20, MaxCountry = 2, MaxVariant = 128, MaxMessage = 256, MaxOdds = 64,
             UdpKeySize = 32, PoolWeights = 11;
 
         /// <summary>Largest datagram either side sends or accepts.</summary>
@@ -176,6 +176,8 @@ namespace MHK.Online
         public long raceId;
         public long lobbyId;
         public string trackId = "";
+        /// <summary>Variant key of the track (<see cref="Modding.TrackVariant.Key"/>), "" = its default.</summary>
+        public string variant = "";
         /// <summary>0 race, 1 battle.</summary>
         public int mode;
         public int engineClass;
@@ -214,6 +216,7 @@ namespace MHK.Online
             w.I64(raceId);
             w.I64(lobbyId);
             w.String(trackId, RaceProtocol.MaxContentId);
+            w.String(variant, RaceProtocol.MaxVariant);
             RaceWire.U8(w, mode);
             RaceWire.U8(w, engineClass);
             RaceWire.U8(w, laps);
@@ -236,7 +239,8 @@ namespace MHK.Online
         {
             var m = new RaceSetup
             {
-                raceId = r.I64(), lobbyId = r.I64(), trackId = r.String(RaceProtocol.MaxContentId), mode = r.U8(), engineClass = r.U8(),
+                raceId = r.I64(), lobbyId = r.I64(), trackId = r.String(RaceProtocol.MaxContentId), variant = r.String(RaceProtocol.MaxVariant),
+                mode = r.U8(), engineClass = r.U8(),
                 laps = r.U8(), items = r.Bool(), itemOdds = RaceWire.Odds(r), anticheat = r.Bool(), aiHost = RaceWire.Slot(r),
                 seed = r.U64(),
             };
@@ -655,7 +659,10 @@ namespace MHK.Online
     public sealed class RaceLoaded : IRaceNotify
     {
         public long raceId;
-        public string trackHash = "";
+        /// <summary>Content version of the loaded variant (<see cref="Modding.TrackVariant.ContentVersion"/>).</summary>
+        public int trackVersion;
+        /// <summary>Variant key of the loaded track.</summary>
+        public string variant = "";
         /// <summary>Laps of this race (the track's default resolved).</summary>
         public int laps;
         public List<ItemBoxInfo> boxes = new();
@@ -670,7 +677,8 @@ namespace MHK.Online
         public void Write(WireWriter w)
         {
             w.I64(raceId);
-            w.String(trackHash, RaceProtocol.MaxHash);
+            w.I32(trackVersion);
+            w.String(variant, RaceProtocol.MaxVariant);
             RaceWire.U8(w, laps);
             w.ListCount(boxes.Count, RaceProtocol.MaxItemBoxes);
             foreach (var b in boxes) b.Write(w);
@@ -690,7 +698,7 @@ namespace MHK.Online
 
         public static RaceLoaded Read(WireReader r)
         {
-            var m = new RaceLoaded { raceId = r.I64(), trackHash = r.String(RaceProtocol.MaxHash), laps = r.U8() };
+            var m = new RaceLoaded { raceId = r.I64(), trackVersion = r.I32(), variant = r.String(RaceProtocol.MaxVariant), laps = r.U8() };
             var n = r.ListCount(RaceProtocol.MaxItemBoxes, 15);
             for (var i = 0; i < n; i++) m.boxes.Add(ItemBoxInfo.Read(r));
             n = r.ListCount(RaceProtocol.MaxPool, 3 + 4 * RaceProtocol.PoolWeights);
@@ -973,6 +981,8 @@ namespace MHK.Online
         Intangible = 1 << 4,
         Airborne = 1 << 5,
         LookBack = 1 << 6,
+        /// <summary>The kart's headlights are on (<see cref="Karts.Kart.Headlights"/>).</summary>
+        Headlights = 1 << 7,
     }
 
     /// <summary>

@@ -2,7 +2,7 @@ using System.IO;
 
 namespace MHK.Ghosts
 {
-    /// <summary>Header block of a ghost file. Fields in a fixed order, newer format versions only append.</summary>
+    /// <summary>Header block of a ghost file (format <see cref="GhostFile.FormatVersion"/>). Fields in a fixed order.</summary>
     static class GhostHeaderCodec
     {
         const int MaxLaps = 10000;
@@ -11,20 +11,21 @@ namespace MHK.Ghosts
         {
             w.Write(h.id ?? "");
             w.Write(h.gameBuild ?? "");
-            w.Write(h.contentVersion);
+            w.Write(h.rulesVersion);
             w.Write(h.playerName ?? "");
             w.Write(h.playerId ?? "");
             w.Write(h.dateUtcTicks);
             w.Write(h.trackId ?? "");
             w.Write(h.trackPackId ?? "");
             w.Write(h.trackPackVersion ?? "");
-            w.Write(h.trackHash ?? "");
+            w.Write(h.trackVersion);
+            w.Write(h.variant ?? "");
             w.Write(h.kartId ?? "");
+            w.Write(h.kartVersion);
             w.Write(h.characterId ?? "");
             w.Write(h.engineClass);
             w.Write(h.engineClassLabel ?? "");
             w.Write(h.laps);
-            w.Write(h.setupHash ?? "");
             w.Write(h.tickSeconds);
             w.Write(h.speedScale);
             w.Write(h.finishTime);
@@ -33,27 +34,27 @@ namespace MHK.Ghosts
             w.Write(h.frameCount);
         }
 
-        /// <summary>Reads a header written by format <paramref name="version"/> (fields appended later get their defaults).</summary>
-        public static GhostHeader Read(BinaryReader r, int version)
+        public static GhostHeader Read(BinaryReader r)
         {
             var h = new GhostHeader
             {
                 id = r.ReadString(),
                 gameBuild = r.ReadString(),
-                contentVersion = r.ReadInt32(),
+                rulesVersion = r.ReadInt32(),
                 playerName = r.ReadString(),
                 playerId = r.ReadString(),
                 dateUtcTicks = r.ReadInt64(),
                 trackId = r.ReadString(),
                 trackPackId = r.ReadString(),
                 trackPackVersion = r.ReadString(),
-                trackHash = r.ReadString(),
+                trackVersion = r.ReadInt32(),
+                variant = r.ReadString(),
                 kartId = r.ReadString(),
+                kartVersion = r.ReadInt32(),
                 characterId = r.ReadString(),
                 engineClass = r.ReadInt32(),
                 engineClassLabel = r.ReadString(),
                 laps = r.ReadInt32(),
-                setupHash = r.ReadString(),
                 tickSeconds = r.ReadSingle(),
                 speedScale = r.ReadSingle(),
                 finishTime = r.ReadSingle(),

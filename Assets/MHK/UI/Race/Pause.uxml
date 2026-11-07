@@ -1,6 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <!-- Pause menu (shown state: code removes .shown from panel and adds it back to scale it in). Options opens the menu's Options page over the scrim; code hides panel meanwhile.
-         Championships from the second race on: Standings (hidden otherwise) swaps panel for standings-column, the standings before this race (Race/Templates/Standings.uxml); Back, Cancel or the Pause key return. Preview class on pause: preview-standings (standings-column instead of panel). -->
+         Championships from the second race on: Standings (hidden otherwise) swaps panel for standings-column, the standings before this race (Race/Templates/Standings.uxml); Back, Cancel or the Pause key return. Screenshot (offline races, championships and battles; hidden otherwise) opens the photo mode (Photo.uxml), which hides this screen meanwhile. Preview class on pause: preview-standings (standings-column instead of panel). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="Standings" src="/Assets/MHK/UI/Race/Templates/Standings.uxml" />
     <ui:VisualElement name="pause" class="screen hud-pause">
@@ -15,6 +15,10 @@
                 <ui:Button name="standings" class="mhk-button">
                     <ui:VisualElement class="icon i-leaderboard" />
                     <ui:Label text="Standings" class="button-label" />
+                </ui:Button>
+                <ui:Button name="photo" class="mhk-button">
+                    <ui:VisualElement class="icon i-photo_camera" />
+                    <ui:Label text="Screenshot" class="button-label" />
                 </ui:Button>
                 <ui:Button name="restart" class="mhk-button">
                     <ui:VisualElement class="icon i-restart_alt" />

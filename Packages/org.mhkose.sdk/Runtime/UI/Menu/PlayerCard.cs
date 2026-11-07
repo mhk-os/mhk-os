@@ -38,8 +38,8 @@ namespace MHK.UI
         public string ttRunsTip = "Runs on the leaderboards", ttBoardsTip = "Leaderboards with a run", ttBestTip = "Best leaderboard rank";
         [Tooltip("Moderators: the disabled chip and its tooltip ({0} = reason).")]
         public string disabledText = "Disabled", disabledTipFormat = "Disabled: {0}";
-        [Tooltip("Moderators: tooltips of cheat kicks, content strikes, hidden runs, reported runs.")]
-        public string cheatKicksTip = "Kicked from races for cheating", contentStrikesTip = "Content strikes (other game content in anticheat lobbies)",
+        [Tooltip("Moderators: tooltips of cheat kicks, hidden runs, reported runs.")]
+        public string cheatKicksTip = "Kicked from races for cheating",
             hiddenRunsTip = "Hidden runs", flaggedRunsTip = "Runs other players reported";
         [Tooltip("While the profile loads.")]
         public string loadingText = "Loading";
@@ -421,7 +421,6 @@ namespace MHK.UI
                     var mod = Chips(s.panel);
                     if (p.disabled) InfoChips.Add(mod, "gavel", x.disabledText, string.Format(x.disabledTipFormat, p.disabledReason), InfoChipState.Bad);
                     InfoChips.Add(mod, "gavel", Count(p.cheatKicks), x.cheatKicksTip, p.cheatKicks > 0 ? InfoChipState.Bad : InfoChipState.Off);
-                    InfoChips.Add(mod, "extension", Count(p.contentStrikes), x.contentStrikesTip, p.contentStrikes > 0 ? InfoChipState.Bad : InfoChipState.Off);
                     InfoChips.Add(mod, "visibility_off", Count(p.hiddenRuns), x.hiddenRunsTip, p.hiddenRuns > 0 ? InfoChipState.Normal : InfoChipState.Off);
                     InfoChips.Add(mod, "flag", Count(p.flaggedRuns), x.flaggedRunsTip, p.flaggedRuns > 0 ? InfoChipState.Bad : InfoChipState.Off);
                     if (p.disabled && !string.IsNullOrEmpty(p.disabledReason)) s.panel.Add(Text(p.disabledReason, "pcard-note"));

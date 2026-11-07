@@ -227,12 +227,14 @@ namespace MHK.UI
             return row;
         }
 
-        // Your best ghost of the shown class per track (the personal best file: one header read per track).
+        // Your best ghost of the shown class per track: its default variant and laps (the personal best file: one header
+        // read per track).
         void ShowBests()
         {
             foreach (var (trackId, row) in rows)
             {
-                var best = Store.Best(trackId, hubClass);
+                var track = Content.Get<TrackDefinition>(trackId);
+                var best = track != null ? Store.Best(trackId, "", track.defaultLaps, hubClass) : null;
                 var cell = row.Q("rec-best-cell");
                 var has = best != null;
                 cell.EnableInClassList("empty", !has);
@@ -289,7 +291,8 @@ namespace MHK.UI
             ShowSummary();
         }
 
-        // The focused track's picture, the ghost count, and per engine class your best (time, driver and kart) and the world record.
+        // The focused track's picture, the ghost count, and per engine class your best (time, driver and kart) and the
+        // world record, both of the default variant and laps.
         void ShowSummary()
         {
             if (status == null || shownTrackId == null) return;
@@ -303,7 +306,8 @@ namespace MHK.UI
             var difficulties = GameRoot.Instance.Config.difficulties;
             for (var c = 0; c < difficulties.Length; c++)
             {
-                var best = entries.Where(e => e.header.engineClass == c && e.kind == GhostKind.Best && e.IsCurrent)
+                var best = entries.Where(e => e.header.engineClass == c && e.kind == GhostKind.Best && e.IsCurrent
+                                              && track != null && GhostCompatibilityRules.Matches(e.header, "", track.defaultLaps))
                     .OrderBy(e => e.header.finishTime).FirstOrDefault();
                 var line = new VisualElement();
                 line.AddToClassList("rec-class-line");

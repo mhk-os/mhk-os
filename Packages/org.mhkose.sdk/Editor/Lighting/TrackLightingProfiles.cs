@@ -116,17 +116,18 @@ namespace MHK.Editor.Lighting
             return result;
         }
 
+        // The sun's parent, else the environment's lighting object (created in 'Environment', or under the track in a scene
+        // that is not in the TrackSceneLayout yet).
         static Transform LightingObject(Scene scene, Transform root, List<Light> lights)
         {
             var sun = lights.FirstOrDefault(l => l.type == LightType.Directional && l.transform.parent != null);
             if (sun != null) return sun.transform.parent;
-            var lighting = root.Find(TrackBakePreparer.LightingObjectName);
+            var lighting = TrackSceneLayout.FindLighting(scene);
             if (lighting != null) return lighting;
-            var top = scene.GetRootGameObjects().FirstOrDefault(g => g.name == TrackBakePreparer.LightingObjectName);
-            if (top != null) return top.transform;
-            lighting = new GameObject(TrackBakePreparer.LightingObjectName).transform;
+            var environment = TrackSceneLayout.FindEnvironment(scene);
+            lighting = new GameObject(TrackSceneLayout.LightingName).transform;
             Undo.RegisterCreatedObjectUndo(lighting.gameObject, "Lighting");
-            lighting.SetParent(root, false);
+            lighting.SetParent(environment != null ? environment : root, false);
             return lighting;
         }
 

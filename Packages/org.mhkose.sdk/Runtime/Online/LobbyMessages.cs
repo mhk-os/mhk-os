@@ -25,9 +25,9 @@ namespace MHK.Online
         /// <summary>characterId, kartId → empty.</summary>
         public const ushort SetLoadout = 264;
         public const ushort SetReady = 265;
-        /// <summary>trackId ("" = Random) → empty.</summary>
+        /// <summary>trackId ("" = Random), variant (<see cref="Modding.TrackVariant.Key"/>) → empty.</summary>
         public const ushort Vote = 266;
-        /// <summary>trackId (owner pick; the next track of a running set list or cup; else "") → empty.</summary>
+        /// <summary>trackId, variant (owner pick; the next track of a running set list or cup; else "") → empty.</summary>
         public const ushort StartRace = 267;
         public const ushort EndRaceEarly = 268;
         /// <summary>accountId u64, reason string → empty.</summary>
@@ -52,7 +52,7 @@ namespace MHK.Online
     /// <summary>Kind of a pack manifest item (u8).</summary>
     public enum ContentKind : byte
     {
-        /// <summary>A track with the circuit layout (definition data; geometry is hashed at race load).</summary>
+        /// <summary>A track with the circuit layout.</summary>
         RaceTrack = 1,
         Kart = 2,
         Character = 3,
@@ -108,8 +108,8 @@ namespace MHK.Online
     /// <summary>Limits of the lobby structures (bytes for strings, items for lists).</summary>
     public static class LobbyLimits
     {
-        public const int PackId = 64, Commit = 40, Hash = 32, Fingerprint = 32, ContentId = 96, AnnouncedPacks = 64;
-        public const int ManifestItems = 4096, StrikeMessage = 256, RoomName = 32, LobbyName = 64, RoomPacks = 32;
+        public const int PackId = 64, Commit = 40, ContentId = 96, AnnouncedPacks = 64, Variant = 128;
+        public const int ManifestItems = 4096, RoomName = 32, LobbyName = 64, RoomPacks = 32;
         public const int Lobbies = 500, Members = 50, Code = 8, RaceRows = 50, KickReason = 256, Message = 256;
         public const int ItemOdds = 64, Username = 20, Country = 2, Laps = 99, AiDrivers = 49, TrackIds = 35;
         public const int MinPlayers = 2, MaxPlayers = 50, MaxRacesPerSet = 16;
@@ -192,72 +192,52 @@ namespace MHK.Online
         public string packId = "";
         /// <summary><c>ContentPack.version</c>.</summary>
         public string commit = "";
-        public string manifestHash = "";
 
         public void Write(WireWriter w)
         {
             w.String(packId, LobbyLimits.PackId);
             w.String(commit, LobbyLimits.Commit);
-            w.String(manifestHash, LobbyLimits.Hash);
         }
 
-        public static PackRef Read(WireReader r) => new()
-        {
-            packId = r.String(LobbyLimits.PackId), commit = r.String(LobbyLimits.Commit), manifestHash = r.String(LobbyLimits.Hash),
-        };
+        public static PackRef Read(WireReader r) => new() { packId = r.String(LobbyLimits.PackId), commit = r.String(LobbyLimits.Commit) };
     }
 
-    /// <summary>Request 256: the gameplay content of every enabled pack, as manifest hashes.</summary>
+    /// <summary>Request 256: every enabled pack by id and commit.</summary>
     public sealed class ContentHelloRequest
     {
-        public int contentVersion;
+        public int rulesVersion;
         public List<PackRef> packs = new();
 
         public void Write(WireWriter w)
         {
-            w.I32(contentVersion);
+            w.I32(rulesVersion);
             w.ListCount(packs.Count, LobbyLimits.AnnouncedPacks);
             foreach (var p in packs) p.Write(w);
         }
     }
 
-    /// <summary>A pack whose copy differs from the catalog majority (ContentHello answer).</summary>
-    public sealed class ContentStrike
-    {
-        public string packId = "";
-        /// <summary>For the player.</summary>
-        public string message = "";
-    }
-
     /// <summary>Answer of ContentHello.</summary>
     public sealed class ContentHelloAnswer
     {
-        /// <summary>Manifest hashes the server wants (ContentManifests).</summary>
+        /// <summary>Ids of the packs whose manifest the server wants (ContentManifests).</summary>
         public List<string> missing = new();
-        public List<ContentStrike> strikes = new();
 
-        public static ContentHelloAnswer Read(WireReader r)
-        {
-            var a = new ContentHelloAnswer { missing = LobbyWire.Strings(r, LobbyLimits.AnnouncedPacks, LobbyLimits.Hash) };
-            var count = r.ListCount(LobbyLimits.AnnouncedPacks, 2);
-            for (var i = 0; i < count; i++)
-                a.strikes.Add(new ContentStrike { packId = r.String(LobbyLimits.PackId), message = r.String(LobbyLimits.StrikeMessage) });
-            return a;
-        }
+        public static ContentHelloAnswer Read(WireReader r) => new() { missing = LobbyWire.Strings(r, LobbyLimits.AnnouncedPacks, LobbyLimits.PackId) };
     }
 
-    /// <summary>One item of a pack manifest: a content definition the pack registers and its gameplay fingerprint.</summary>
+    /// <summary>One item of a pack manifest: a content definition the pack registers and its content version.</summary>
     public readonly struct ManifestItem
     {
         public readonly ContentKind kind;
         public readonly string id;
-        public readonly string fingerprint;
+        /// <summary><c>contentVersion</c> of tracks, arenas and karts, 0 for the other kinds.</summary>
+        public readonly int version;
 
-        public ManifestItem(ContentKind kind, string id, string fingerprint)
+        public ManifestItem(ContentKind kind, string id, int version)
         {
             this.kind = kind;
             this.id = id;
-            this.fingerprint = fingerprint;
+            this.version = version;
         }
     }
 
@@ -266,22 +246,20 @@ namespace MHK.Online
     {
         public string packId = "";
         public string commit = "";
-        public int contentVersion;
-        public string manifestHash = "";
+        public int rulesVersion;
         public List<ManifestItem> items = new();
 
         public void Write(WireWriter w)
         {
             w.String(packId, LobbyLimits.PackId);
             w.String(commit, LobbyLimits.Commit);
-            w.I32(contentVersion);
-            w.String(manifestHash, LobbyLimits.Hash);
+            w.I32(rulesVersion);
             w.ListCount(items.Count, LobbyLimits.ManifestItems);
             foreach (var item in items)
             {
                 w.U8((byte)item.kind);
                 w.String(item.id, LobbyLimits.ContentId);
-                w.String(item.fingerprint, LobbyLimits.Fingerprint);
+                w.I32(item.version);
             }
         }
 
@@ -386,7 +364,7 @@ namespace MHK.Online
         public int players;
         public int maxPlayers;
         public LobbyPhase phase;
-        public int contentVersion;
+        public int rulesVersion;
         /// <summary>0-2 (<see cref="Difficulty"/>).</summary>
         public int engineClass;
         /// <summary>Race of the running set (1-based), 0 when no set runs.</summary>
@@ -409,7 +387,7 @@ namespace MHK.Online
             TimeTrialWire.U8(w, players);
             TimeTrialWire.U8(w, maxPlayers);
             w.U8((byte)phase);
-            w.I32(contentVersion);
+            w.I32(rulesVersion);
             TimeTrialWire.U8(w, engineClass);
             TimeTrialWire.U8(w, setRace);
             TimeTrialWire.U8(w, setSize);
@@ -420,7 +398,7 @@ namespace MHK.Online
         {
             lobbyId = r.I64(), isPublic = r.U8() == 0, category = r.U8(), instance = r.U16(), name = r.String(LobbyLimits.LobbyName),
             mode = (RoomMode)r.U8(), anticheat = r.Bool(), packs = LobbyWire.Strings(r, LobbyLimits.RoomPacks, LobbyLimits.PackId),
-            players = r.U8(), maxPlayers = r.U8(), phase = (LobbyPhase)r.U8(), contentVersion = r.I32(), engineClass = r.U8(), setRace = r.U8(),
+            players = r.U8(), maxPlayers = r.U8(), phase = (LobbyPhase)r.U8(), rulesVersion = r.I32(), engineClass = r.U8(), setRace = r.U8(),
             setSize = r.U8(), maxAi = r.U8(),
         };
 
@@ -528,16 +506,18 @@ namespace MHK.Online
         };
     }
 
-    /// <summary>A member's track vote ("" = Random).</summary>
+    /// <summary>A member's track vote ("" = Random) and its variant key.</summary>
     public readonly struct LobbyVote
     {
         public readonly long accountId;
         public readonly string trackId;
+        public readonly string variant;
 
-        public LobbyVote(long accountId, string trackId)
+        public LobbyVote(long accountId, string trackId, string variant)
         {
             this.accountId = accountId;
             this.trackId = trackId ?? "";
+            this.variant = variant ?? "";
         }
     }
 
@@ -575,6 +555,8 @@ namespace MHK.Online
         public List<LobbyVote> votes = new();
         /// <summary>Drawn or current track, "" before the draw.</summary>
         public string trackId = "";
+        /// <summary>Variant key of <see cref="trackId"/>.</summary>
+        public string variant = "";
         /// <summary>Current race, 0 = none.</summary>
         public long raceId;
         /// <summary>Of the previous race, for the results phases.</summary>
@@ -617,8 +599,10 @@ namespace MHK.Online
             {
                 w.I64(v.accountId);
                 w.String(v.trackId, LobbyLimits.ContentId);
+                w.String(v.variant, LobbyLimits.Variant);
             }
             w.String(trackId, LobbyLimits.ContentId);
+            w.String(variant, LobbyLimits.Variant);
             w.I64(raceId);
             LobbyWire.Rows(w, lastResults, LobbyLimits.RaceRows);
             w.ListCount(aiDrivers.Count, LobbyLimits.AiDrivers);
@@ -635,9 +619,10 @@ namespace MHK.Online
             s.phaseEnds = r.I64();
             s.setRace = r.U8();
             s.setSize = r.U8();
-            count = r.ListCount(LobbyLimits.Members, 8 + 1);
-            for (var i = 0; i < count; i++) s.votes.Add(new LobbyVote(r.I64(), r.String(LobbyLimits.ContentId)));
+            count = r.ListCount(LobbyLimits.Members, 8 + 1 + 1);
+            for (var i = 0; i < count; i++) s.votes.Add(new LobbyVote(r.I64(), r.String(LobbyLimits.ContentId), r.String(LobbyLimits.Variant)));
             s.trackId = r.String(LobbyLimits.ContentId);
+            s.variant = r.String(LobbyLimits.Variant);
             s.raceId = r.I64();
             s.lastResults = LobbyWire.Rows(r, LobbyLimits.RaceRows);
             count = r.ListCount(LobbyLimits.AiDrivers, 1 + 1 + 4);

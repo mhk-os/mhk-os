@@ -28,7 +28,7 @@ namespace MHK.AI
     /// of sight; then it races on the way it faces (running into karts costs them nothing). With fewer than
     /// <see cref="EndgameKarts"/> karts left an armed driver seeks out the others wherever they are. Once per
     /// battle, at a seeded time after GO, it reverses its direction, and it turns back at dead ends (a gap jumped the
-    /// other way, the end of an open line); a speed pad sets the direction to the pad's. Every change of direction is a
+    /// other way, the end of an open line); speed pads boost it the way it faces. Every change of direction is a
     /// turn on the road (<see cref="BattleMode.Turn"/>).
     /// </summary>
     internal sealed class AIBattlePlanner
@@ -112,7 +112,7 @@ namespace MHK.AI
             WatchEndgame();
             if (Mode == BattleMode.Hunt && !KeepHunting(kart, armed, dt)) EndHunt(kart, track);
             WatchReverse(kart, clock);
-            FollowSpeedPad(kart, track);
+            FollowSpeedPad(kart);
             if (!arena) WatchDirection(kart, track, line, cfg);
             if (decideTimer <= 0f || RoamGoalGone(kart))
             {
@@ -165,24 +165,15 @@ namespace MHK.AI
             decideTimer = 0f;
         }
 
-        // A speed pad turns the kart to the pad's direction: on circuits the kart races on that way along the track instead
-        // of turning back against the boost, in arenas it roams on to a new spot ahead (not when heading for a box). Not
-        // while hunting: the way is the target's.
-        void FollowSpeedPad(Kart kart, TrackRuntime track)
+        // Battle speed pads boost a kart the way it faces, so on circuits it races on in its direction. In arenas a pad sends
+        // the kart roaming on to a new spot ahead (not when heading for a box). Not while hunting: the way is the target's.
+        void FollowSpeedPad(Kart kart)
         {
             var pad = SpeedPadAt(kart.transform.position);
             var entered = pad != null && pad != lastPad;
             lastPad = pad;
-            if (!entered || Mode == BattleMode.Hunt) return;
-            if (arena)
-            {
-                if (box == null) roamTimer = 0f;
-                return;
-            }
-            var sign = Vector3.Dot(pad.transform.forward, LineTangent(kart, track)) >= 0f ? 1 : -1;
-            if (sign == Direction) return;
-            Direction = sign;
-            Mode = BattleMode.Race;
+            if (!entered || Mode == BattleMode.Hunt || !arena) return;
+            if (box == null) roamTimer = 0f;
         }
 
         static TrackZone SpeedPadAt(Vector3 position)

@@ -10,8 +10,10 @@ namespace MHK.Powerups
     /// <summary>
     /// Holds the kart's current powerup and fires it on input. Items with several charges wait
     /// <see cref="PowerupDefinition.useCooldown"/> between uses. Fire presses during the wait do nothing. Each use gets
-    /// its own <see cref="PowerupContext.usage"/> id. The roulette and the cooldown run in physics steps. Online the
-    /// server decides what a box gives: the roulette spins until its <see cref="Grant"/> (or <see cref="Deny"/>) arrives.
+    /// its own <see cref="PowerupContext.usage"/> id. In a battle a new item first loads for
+    /// <see cref="GameConfig.battleItemLoadSeconds"/> after the roulette stops (<see cref="Loading"/>), and a kart holding
+    /// an item drives through boxes. The roulette, the loading and the cooldown run in physics steps. Online the server
+    /// decides what a box gives: the roulette spins until its <see cref="Grant"/> (or <see cref="Deny"/>) arrives.
     /// </summary>
     [RequireComponent(typeof(Kart))]
     public partial class PowerupInventory : MonoBehaviour
@@ -26,8 +28,27 @@ namespace MHK.Powerups
         public bool HasItem => Held != null && !Rolling;
         /// <summary>The held item was just used and its next charge is not ready yet.</summary>
         public bool CoolingDown => Held != null && RaceClock.Ticks < cooldownUntilTick;
-        /// <summary>MHK2: a box always replaces the held item. Otherwise only empty karts collect. Never while a pickup waits for the server.</summary>
-        public bool CanReceive => pendingBox == NoBox && (Held == null || Config.itemBoxReplacesHeld);
+        /// <summary>Battles: the revealed item is still loading and cannot be used yet (<see cref="LoadProgress01"/>).</summary>
+        public bool Loading => HasItem && RaceClock.Ticks < loadUntilTick;
+        /// <summary>
+        /// How far the held item has loaded, 0 at the reveal to 1 when it can be used, at the race time of the picture
+        /// drawn now (smooth between physics steps). 1 when it is not loading.
+        /// </summary>
+        public float LoadProgress01
+        {
+            get
+            {
+                if (!Loading) return 1f;
+                var start = RaceClock.SecondsAt(loadFromTick);
+                var span = RaceClock.SecondsAt(loadUntilTick) - start;
+                return span > 0d ? Mathf.Clamp01((float)((RaceClock.RenderSeconds - start) / span)) : 1f;
+            }
+        }
+        /// <summary>
+        /// MHK2: a box always replaces the held item. Otherwise only empty karts collect, and in a battle a kart holding an
+        /// item (also one still rolling or loading) always drives through. Never while a pickup waits for the server.
+        /// </summary>
+        public bool CanReceive => pendingBox == NoBox && (Held == null || (Config.itemBoxReplacesHeld && !PowerupRoller.Battle));
         /// <summary>The held item's visual (<see cref="PowerupDefinition.heldPrefab"/>) while it is shown, else null.</summary>
         public Transform HeldVisual => heldVisual != null && heldVisual.activeInHierarchy ? heldVisual.transform : null;
         /// <summary>Items received so far: changes with every pickup, also when a box gives the item already held.</summary>
@@ -35,8 +56,11 @@ namespace MHK.Powerups
 
         Kart kart;
         bool lastFire;
-        // Race ticks (RaceClock.Ticks, counted before every kart and item steps) at which the roulette and the cooldown end.
+        // Race ticks (RaceClock.Ticks, counted before every kart and item steps) at which the roulette, the battle loading
+        // and the cooldown end, and at which the loading began (the reveal).
         int rollUntilTick;
+        int loadFromTick;
+        int loadUntilTick;
         int cooldownUntilTick;
         bool revealPending;
         GameObject heldVisual;
@@ -55,10 +79,12 @@ namespace MHK.Powerups
         public void Give(PowerupDefinition def)
         {
             if (def == null || !CanReceive) return;
-            Take(def, Mathf.Max(1, ChargesOf(def)), Config.itemRouletteSeconds);
+            Take(def, Mathf.Max(1, ChargesOf(def)), 0f);
         }
 
-        void Take(PowerupDefinition def, int charges, float roulette)
+        // elapsed: seconds since the pickup, already spent waiting for the server or on the AI host. The roulette and the
+        // battle loading run for the rest of their usual time.
+        void Take(PowerupDefinition def, int charges, float elapsed)
         {
             DestroyHeldVisual();
             Held = def;
@@ -66,7 +92,11 @@ namespace MHK.Powerups
             Charges = charges;
             cooldownUntilTick = 0;
             heldHiddenUntil = 0f;
-            rollUntilTick = RaceClock.Ticks + StepsOf(roulette);
+            var roulette = Config.itemRouletteSeconds;
+            var load = PowerupRoller.Battle ? Config.battleItemLoadSeconds : 0f;
+            rollUntilTick = RaceClock.Ticks + StepsOf(roulette - elapsed);
+            loadUntilTick = RaceClock.Ticks + StepsOf(roulette + load - elapsed);
+            loadFromTick = loadUntilTick - StepsOf(load);
             revealPending = true;
             if (!Rolling) Reveal();
         }
@@ -95,13 +125,14 @@ namespace MHK.Powerups
 
         /// <summary>
         /// Online: the server gave <paramref name="def"/> with <paramref name="charges"/> for box <paramref name="boxId"/>.
-        /// The roulette stops no earlier than <see cref="GameConfig.itemRouletteSeconds"/> after the pickup.
+        /// The roulette stops no earlier than <see cref="GameConfig.itemRouletteSeconds"/> after the pickup, and a battle's
+        /// loading counts from that moment too.
         /// </summary>
         public void Grant(int boxId, PowerupDefinition def, int charges)
         {
             if (boxId != pendingBox) return;
             pendingBox = NoBox;
-            if (def != null) Take(def, Mathf.Max(1, charges), Mathf.Max(0f, Config.itemRouletteSeconds - pendingTime));
+            if (def != null) Take(def, Mathf.Max(1, charges), pendingTime);
         }
 
         /// <summary>Online: the server refused box <paramref name="boxId"/>: the roulette stops empty.</summary>
@@ -115,11 +146,12 @@ namespace MHK.Powerups
 
         /// <summary>
         /// Online: a mirrored AI kart (<see cref="OnlineItems.IsMirror"/>) got <paramref name="def"/> from the server, its AI
-        /// host's pickup <paramref name="elapsed"/> seconds ago: its roulette runs for the rest of the usual time.
+        /// host's pickup <paramref name="elapsed"/> seconds ago: its roulette (and battle loading) runs for the rest of the
+        /// usual time.
         /// </summary>
         public void ReceiveShared(PowerupDefinition def, int charges, float elapsed)
         {
-            if (def != null) Take(def, Mathf.Max(1, charges), Mathf.Max(0f, Config.itemRouletteSeconds - elapsed));
+            if (def != null) Take(def, Mathf.Max(1, charges), elapsed);
         }
 
         /// <summary>Online: a mirrored AI kart's use came from the server (its use is replayed): one charge goes.</summary>
@@ -148,6 +180,7 @@ namespace MHK.Powerups
             Held = null;
             Charges = 0;
             rollUntilTick = 0;
+            loadUntilTick = 0;
             cooldownUntilTick = 0;
             revealPending = false;
             DestroyHeldVisual();
@@ -190,7 +223,7 @@ namespace MHK.Powerups
             if (heldVisual != null) heldVisual.SetActive(false);
         }
 
-        /// <summary>Edge-triggered use, aimed backwards while "look back" is held. A press while the item cools down is ignored.</summary>
+        /// <summary>Edge-triggered use, aimed backwards while "look back" is held. A press while the item loads or cools down is ignored.</summary>
         public void HandleInput(in KartInput input)
         {
             if (input.fire && !lastFire) TryUse(input.lookBack);
@@ -201,7 +234,7 @@ namespace MHK.Powerups
         // mirrored AI kart never uses items by itself: its uses come from its AI host (ItemUsed).
         void TryUse(bool backwards)
         {
-            if (!HasItem || CoolingDown || kart.IsRemote || OnlineItems.IsMirror(kart)) return;
+            if (!HasItem || Loading || CoolingDown || kart.IsRemote || OnlineItems.IsMirror(kart)) return;
             var def = Held;
             if (Config.usingItemCancelsBuffs) kart.Effects.EndExclusiveBuffs();
             var online = OnlineItems.IsReported(kart);

@@ -6,8 +6,9 @@ namespace MHK.Race
 {
     /// <summary>
     /// Loads a track scene next to the Race scene and makes it the active scene, so its lighting settings (ambient,
-    /// fog, skybox) apply. Players load from the build's scene list or a loaded mod scene bundle, the editor also loads
-    /// any project scene, so tracks work in play mode without a build list entry.
+    /// fog, skybox) apply; overlay scenes of the track's variant load the same way without becoming active. Players load
+    /// from the build's scene list or a loaded mod scene bundle, the editor also loads any project scene, so tracks work in
+    /// play mode without a build list entry.
     /// </summary>
     public static class TrackSceneLoader
     {
@@ -15,10 +16,11 @@ namespace MHK.Race
         const float ActivationProgress = 0.9f;
 
         /// <summary>
-        /// Loads <paramref name="path"/> additively. <paramref name="done"/> gets the loaded scene (invalid on failure),
-        /// <paramref name="progress"/> (optional) the load progress 0..1 every frame until then.
+        /// Loads <paramref name="path"/> additively, as the active scene when <paramref name="activate"/>.
+        /// <paramref name="done"/> gets the loaded scene (invalid on failure), <paramref name="progress"/> (optional) the
+        /// load progress 0..1 every frame until then.
         /// </summary>
-        public static IEnumerator Load(string path, System.Action<Scene> done, System.Action<float> progress = null)
+        public static IEnumerator Load(string path, System.Action<Scene> done, System.Action<float> progress = null, bool activate = true)
         {
             var prepare = MHK.Assets.GameAssets.PrepareSceneAsync(path, default);
             while (!prepare.IsCompleted) yield return null;
@@ -51,7 +53,7 @@ namespace MHK.Race
             }
             progress?.Invoke(1f);
             var scene = SceneManager.GetSceneByPath(path);
-            if (scene.IsValid()) SceneManager.SetActiveScene(scene);
+            if (activate && scene.IsValid()) SceneManager.SetActiveScene(scene);
             done(scene);
         }
 

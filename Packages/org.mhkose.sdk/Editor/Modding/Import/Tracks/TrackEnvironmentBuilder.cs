@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using MHK.Editor.Tracks;
 using MHK.Race;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
@@ -10,26 +11,27 @@ namespace MHK.Editor.Modding.Import
 {
     /// <summary>
     /// Scene lighting from track.json "environment": sun, fill lights, ambient, fog, camera far clip and SkyDome (in the
-    /// world for <see cref="WorldSkyDome.IsWorldSkyGame"/> packs, else centred on the camera).
+    /// world for <see cref="WorldSkyDome.IsWorldSkyGame"/> packs, else centred on the camera), the objects in the scene's
+    /// 'Environment' group (<see cref="TrackSceneLayout"/>).
     /// Ambient and light intensities are scaled by the settings because the originals lit in gamma space.
     /// </summary>
     public static class TrackEnvironmentBuilder
     {
         const float VerticalLimit = 0.99f;
 
-        /// <summary>Applies the environment to the active scene and <paramref name="runtime"/>.</summary>
-        public static void Apply(TrackImportContext c, TrackRuntime runtime)
+        /// <summary>Applies the environment to the active scene and <paramref name="runtime"/>, its objects under <paramref name="environment"/>.</summary>
+        public static void Apply(TrackImportContext c, TrackRuntime runtime, Transform environment)
         {
             var env = c.Json["environment"] as JObject ?? new JObject();
             ApplyAmbient(c.Settings, env);
-            var lighting = new GameObject("Lighting").transform;
+            var lighting = ImportHierarchy.CreateChild(environment, TrackSceneLayout.LightingName);
             CreateSun(c, env["sun"] as JObject, lighting);
             CreateFillLights(c.Settings, env, lighting);
             ApplyFog(c, env["fog"] as JObject);
             runtime.farClip = ExportJson.F(env["farClip"], c.Settings.defaultFarClip) * c.Scale;
             if (env["clearColor"] != null) runtime.backgroundColor = ExportJson.Col(env["clearColor"]);
             else if (RenderSettings.fog) runtime.backgroundColor = RenderSettings.fogColor;
-            CreateSkyDome(c, ExportJson.Str(env["skybox"]));
+            CreateSkyDome(c, ExportJson.Str(env["skybox"]), environment);
         }
 
         static void ApplyAmbient(ExportImportSettings s, JObject env)
@@ -96,11 +98,11 @@ namespace MHK.Editor.Modding.Import
             RenderSettings.fogEndDistance = ExportJson.F(fog["end"], s.defaultFogEnd) * c.Scale;
         }
 
-        static void CreateSkyDome(TrackImportContext c, string sky)
+        static void CreateSkyDome(TrackImportContext c, string sky, Transform environment)
         {
             var skyModel = sky != null ? c.Model(sky, GlbLightingStyle.Sky) : null;
             if (skyModel == null) return;
-            var dome = new GameObject("SkyDome");
+            var dome = ImportHierarchy.CreateChild(environment, "SkyDome").gameObject;
             var worldSky = WorldSkyDome.IsWorldSkyGame(c.Settings.pack.packId);
             if (worldSky) dome.AddComponent<WorldSkyDome>();
             else dome.AddComponent<FollowCameraPosition>();

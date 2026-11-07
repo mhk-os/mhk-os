@@ -267,6 +267,94 @@
             "guid": "177ccaf9aca44ea0b6dabb07d58d2936",
             "fileId": 11400000,
             "displayName": "Health pack"
+        },
+        {
+            "id": "core.direction",
+            "type": "MHK.Modding.TrackModifierDefinition",
+            "pack": "game",
+            "guid": "86163288920347e6a36739c9144da30d",
+            "fileId": 11400000,
+            "displayName": "Direction"
+        },
+        {
+            "id": "core.time",
+            "type": "MHK.Modding.TrackModifierDefinition",
+            "pack": "game",
+            "guid": "6bd36fb2d6f24ddda0e88ebab872cbf2",
+            "fileId": 11400000,
+            "displayName": "Time of day"
+        },
+        {
+            "id": "core.weather",
+            "type": "MHK.Modding.TrackModifierDefinition",
+            "pack": "game",
+            "guid": "b8682b543c724a5998b14e21dedb4089",
+            "fileId": 11400000,
+            "displayName": "Weather"
+        },
+        {
+            "id": "core.forward",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "dac0a6330c9749aeb62b257fddaa80e8",
+            "fileId": 11400000,
+            "displayName": "Forward"
+        },
+        {
+            "id": "core.reverse",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "34d4833e4e7549a1bdfa26c8ee7fe590",
+            "fileId": 11400000,
+            "displayName": "Reverse"
+        },
+        {
+            "id": "core.day",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "964093f6468b45a8915009a470cb979f",
+            "fileId": 11400000,
+            "displayName": "Day"
+        },
+        {
+            "id": "core.night",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "6b0fb1ab6ef4449ab6482f5a56b32409",
+            "fileId": 11400000,
+            "displayName": "Night"
+        },
+        {
+            "id": "core.clear",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "9b674332b8de4bb9b6cc3edaca44eafd",
+            "fileId": 11400000,
+            "displayName": "Clear"
+        },
+        {
+            "id": "core.rain",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "a5b3772591ab40bc96b7d6ef792fff62",
+            "fileId": 11400000,
+            "displayName": "Rain"
+        },
+        {
+            "id": "core.snow",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "b3a33f74bd754178981221b0ba320af2",
+            "fileId": 11400000,
+            "displayName": "Snow"
+        },
+        {
+            "id": "core.sandstorm",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "3458678307f849ccb46e6cc81aebee7d",
+            "fileId": 11400000,
+            "displayName": "Sandstorm"
         }
     ]
 }

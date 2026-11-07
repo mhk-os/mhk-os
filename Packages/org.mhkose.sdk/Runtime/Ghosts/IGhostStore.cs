@@ -10,10 +10,13 @@ namespace MHK.Ghosts
     /// </summary>
     public interface IGhostStore
     {
-        /// <summary>All ghosts of <paramref name="trackId"/> (every engine class), with their compatibility.</summary>
+        /// <summary>All ghosts of <paramref name="trackId"/> (every variant, lap count and engine class), with their compatibility.</summary>
         IReadOnlyList<GhostEntry> List(string trackId);
-        /// <summary>The personal best of a track and engine class, also when it is from another version, null if none.</summary>
-        GhostEntry Best(string trackId, Difficulty engineClass);
+        /// <summary>
+        /// The personal best of a track variant (<paramref name="variant"/> key), lap count and engine class, also when it
+        /// is from another version, null if none.
+        /// </summary>
+        GhostEntry Best(string trackId, string variant, int laps, Difficulty engineClass);
         /// <summary>
         /// The ghost with id <paramref name="id"/> (the best when several entries share it), also a downloaded one
         /// (<see cref="GhostKind.Online"/>), null if none.
@@ -21,7 +24,7 @@ namespace MHK.Ghosts
         GhostEntry Find(string id);
         /// <summary>The full ghost (frames and events), null when it can't be read. Thread-safe: races load ghosts in parallel.</summary>
         GhostData Load(GhostEntry entry);
-        /// <summary>Stores a finished run: the new personal best when it beats the current one, else the last run.</summary>
+        /// <summary>Stores a finished run: the new personal best of its variant, laps and class when it beats the current one, else the last run.</summary>
         GhostSaveResult SaveRun(GhostData run);
         void Delete(GhostEntry entry);
         /// <summary>Copies the ghost to the export location, returns where it went (a path or address).</summary>

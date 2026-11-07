@@ -9,8 +9,8 @@ using NUnit.Framework;
 namespace MHK.Tests
 {
     /// <summary>
-    /// The lobby protocol against the server: the manifest hash vectors of internal/content's tests and byte vectors the
-    /// Go codec (internal/proto, the pinned vectors of lobby_test.go) writes. Plus join links and the Android link filter.
+    /// The lobby protocol against the server: byte vectors the Go codec (internal/proto, the pinned vectors of
+    /// lobby_test.go) writes. Plus content ids, join links and the Android link filter.
     /// </summary>
     public class LobbyProtocolTests
     {
@@ -20,26 +20,11 @@ namespace MHK.Tests
         const string SummaryHex = "0100000000000000" + "01" + "00" + "0200" + "016e" + "01" + "01" + "010170" + "03" + "04" + "05" + "fbffffff"
                                   + "01" + "02" + "10" + "03";
         const string AiRowHex = "01" + "0000000000000000" + "00" + "03" + "04000000" + "05000000" + "06000000" + "01" + "01" + "0163";
-        const string HelloHex = "07000000020467616d6503616263026666046d686b3200023030";
-        const string ManifestHex = "046d686b3201630700000001680201096d686b322e726f6d65026631070a6d686b322e6172656e6100";
-
-        [Test]
-        public void ManifestHashMatchesServerVector()
-        {
-            var items = new List<ManifestItem>
-            {
-                new(ContentKind.RaceTrack, "mhk2.Rome", "ab"),
-                new(ContentKind.Kart, "mhk2.kart", "cd"),
-                new(ContentKind.RaceTrack, "mhk2.alps", "ef"),
-            };
-            Assert.AreEqual("0cf67de748fbeb1d772512d45c3b24af", ContentManifests.Hash(items));
-            items.Reverse();
-            Assert.AreEqual("0cf67de748fbeb1d772512d45c3b24af", ContentManifests.Hash(items));
-            Assert.AreEqual("e3b0c44298fc1c149afbf4c8996fb924", ContentManifests.Hash(new List<ManifestItem>()));
-            var upper = ContentManifests.Hash(new List<ManifestItem> { new(ContentKind.RaceTrack, "p.AC", ""), new(ContentKind.RaceTrack, "p.ab", "") });
-            var lower = ContentManifests.Hash(new List<ManifestItem> { new(ContentKind.RaceTrack, "p.ab", ""), new(ContentKind.RaceTrack, "p.ac", "") });
-            Assert.AreEqual(lower, upper);
-        }
+        const string HelloHex = "07000000" + "02" + "0467616d65" + "03616263" + "046d686b32" + "00";
+        const string ManifestHex = "046d686b32" + "0163" + "07000000" + "02" + "01" + "096d686b322e726f6d65" + "03000000"
+                                   + "07" + "0a6d686b322e6172656e61" + "01000000";
+        // Vote / StartRace body: trackId "t", variant "core.reverse".
+        const string TrackChoiceHex = "0174" + "0c636f72652e72657665727365";
 
         [Test]
         public void ContentIds()
@@ -76,7 +61,7 @@ namespace MHK.Tests
             var summary = new LobbySummary
             {
                 lobbyId = 1, isPublic = false, category = 0, instance = 2, name = "n", mode = RoomMode.BattleSet, anticheat = true,
-                packs = new List<string> { "p" }, players = 3, maxPlayers = 4, phase = LobbyPhase.Results, contentVersion = -5, engineClass = 1,
+                packs = new List<string> { "p" }, players = 3, maxPlayers = 4, phase = LobbyPhase.Results, rulesVersion = -5, engineClass = 1,
                 setRace = 2, setSize = 16, maxAi = 3,
             };
             Assert.AreEqual(SummaryHex, Hex(summary.Write));
@@ -95,13 +80,14 @@ namespace MHK.Tests
         [Test]
         public void ContentMessagesMatchGo()
         {
-            var hello = new ContentHelloRequest { contentVersion = 7 };
-            hello.packs.Add(new PackRef { packId = "game", commit = "abc", manifestHash = "ff" });
-            hello.packs.Add(new PackRef { packId = "mhk2", commit = "", manifestHash = "00" });
+            var hello = new ContentHelloRequest { rulesVersion = 7 };
+            hello.packs.Add(new PackRef { packId = "game", commit = "abc" });
+            hello.packs.Add(new PackRef { packId = "mhk2", commit = "" });
             Assert.AreEqual(HelloHex, Hex(hello.Write));
-            var manifest = new PackManifest { packId = "mhk2", commit = "c", contentVersion = 7, manifestHash = "h" };
-            manifest.items.Add(new ManifestItem(ContentKind.RaceTrack, "mhk2.rome", "f1"));
-            manifest.items.Add(new ManifestItem(ContentKind.Arena, "mhk2.arena", ""));
+            CollectionAssert.AreEqual(new[] { "mhk2" }, ContentHelloAnswer.Read(Reader("01" + "046d686b32")).missing);
+            var manifest = new PackManifest { packId = "mhk2", commit = "c", rulesVersion = 7 };
+            manifest.items.Add(new ManifestItem(ContentKind.RaceTrack, "mhk2.rome", 3));
+            manifest.items.Add(new ManifestItem(ContentKind.Arena, "mhk2.arena", 1));
             Assert.AreEqual(ManifestHex, Hex(manifest.Write));
         }
 
@@ -109,7 +95,7 @@ namespace MHK.Tests
         public void LobbyStateAndResultsMatchGo()
         {
             // The minimal state of lobby_test.go: everything empty or zero but one AI driver and the owner's cup.
-            var stateHex = new string('0', 2 * 27) + "00" + new string('0', 2 * 14) + "00" + new string('0', 2 * 8) + "00" + "00" + "00" + "00"
+            var stateHex = new string('0', 2 * 27) + "00" + new string('0', 2 * 14) + "00" + new string('0', 2 * 8) + "00" + "00" + "00" + "00" + "00"
                            + new string('0', 2 * 8) + "00" + "01" + "0163" + "016b" + "ffffffff" + "0163" + "01" + "0174";
             var state = LobbyState.Read(Reader(stateHex));
             Assert.AreEqual(stateHex, Hex(state.Write));
@@ -118,6 +104,17 @@ namespace MHK.Tests
             Assert.AreEqual(-1, state.aiDrivers[0].setPoints);
             Assert.IsTrue(state.RunsCup);
             CollectionAssert.AreEqual(new[] { "t" }, state.cupTrackIds);
+            // One vote (account 9 for "t" reversed) and the drawn track "t" reversed.
+            state.votes.Add(new LobbyVote(9, "t", "core.reverse"));
+            state.trackId = "t";
+            state.variant = "core.reverse";
+            var votedHex = new string('0', 2 * 27) + "00" + new string('0', 2 * 14) + "00" + new string('0', 2 * 8) + "00" + "00"
+                           + "01" + "0900000000000000" + TrackChoiceHex + TrackChoiceHex
+                           + new string('0', 2 * 8) + "00" + "01" + "0163" + "016b" + "ffffffff" + "0163" + "01" + "0174";
+            Assert.AreEqual(votedHex, Hex(state.Write));
+            var voted = LobbyState.Read(Reader(votedHex));
+            Assert.AreEqual("core.reverse", voted.votes[0].variant);
+            Assert.AreEqual("core.reverse", voted.variant);
             var results = new RaceResults { raceId = 8, setDone = true };
             for (var i = 0; i < LobbyLimits.RaceRows; i++)
                 results.rows.Add(new RaceResultRow { slot = i, position = i + 1, ai = i > 0, characterId = "c", username = i > 0 ? "" : "Kurt" });

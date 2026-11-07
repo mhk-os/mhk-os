@@ -1,51 +1,48 @@
-using System.Collections.Generic;
+using System;
 using MHK.Core;
 using MHK.Modding;
 
 namespace MHK.Ghosts
 {
     /// <summary>
-    /// Whether a ghost was driven with what this game runs now: decided by the content version and the content
-    /// fingerprint, never by the game or pack commit, so builds that change no lap times keep every ghost and record valid.
-    /// The track hash never decides it either: like the online boards, records only reset with the content version.
+    /// Whether a ghost was driven with what this game runs now: decided by the rules version and the content versions of
+    /// the track variant and kart, never by the game or pack commit, so builds that change no lap times keep every ghost
+    /// and record valid.
     /// </summary>
     public enum GhostCompatibility
     {
-        /// <summary>Same content version and the same track pack, rules, class and kart data: a fair rival and a valid record.</summary>
+        /// <summary>Same rules, track variant version and kart version: a fair rival and a valid record.</summary>
         Current,
-        /// <summary>Recorded with another content version (<see cref="ContentVersion"/>): shown and raced, never a record.</summary>
+        /// <summary>
+        /// Recorded with another rules version (<see cref="RulesVersion"/>) or another version of its track variant or
+        /// kart: shown and raced, never a record.
+        /// </summary>
         OtherVersion,
-        /// <summary>Same content version, but the track's pack, rules or kart data (or the lap count) differ, or its kart is not installed.</summary>
+        /// <summary>Its track, track variant or kart is not installed (or its lap count is invalid).</summary>
         OtherContent,
     }
 
-    /// <summary>Decides <see cref="GhostCompatibility"/>. Setup hashes are memoised per (engine class, kart, laps) in a caller-owned cache.</summary>
+    /// <summary>Decides <see cref="GhostCompatibility"/>.</summary>
     public static class GhostCompatibilityRules
     {
         /// <summary>
-        /// Compatibility of <paramref name="h"/>: content version, track pack id and the setup hash recomputed for its
-        /// class, kart and the track's current lap count.
+        /// Compatibility of <paramref name="h"/>: rules version, the installed track variant's content version and the
+        /// installed kart's content version against those it was recorded with.
         /// </summary>
-        public static GhostCompatibility Evaluate(GhostHeader h, Dictionary<(int, string, int), string> setupHashes = null)
+        public static GhostCompatibility Evaluate(GhostHeader h)
         {
-            if (h.contentVersion != ContentVersion.Current) return GhostCompatibility.OtherVersion;
             var content = GameRoot.Instance.Content;
             var track = content.Get<TrackDefinition>(h.trackId);
             var kart = content.Get<KartDefinition>(h.kartId);
-            if (track == null || kart == null) return GhostCompatibility.OtherContent;
-            var pack = track.OwnerPack;
-            if (pack != null && pack.packId != h.trackPackId) return GhostCompatibility.OtherContent;
-            if (SetupHash(h.engineClass, kart, track.defaultLaps, setupHashes) != h.setupHash) return GhostCompatibility.OtherContent;
-            return GhostCompatibility.Current;
+            var variant = track != null ? TrackVariants.Resolve(track, h.variant) : null;
+            if (variant == null || kart == null || h.laps < 1) return GhostCompatibility.OtherContent;
+            return h.rulesVersion == RulesVersion.Current && h.trackVersion == variant.ContentVersion && h.kartVersion == kart.contentVersion
+                ? GhostCompatibility.Current
+                : GhostCompatibility.OtherVersion;
         }
 
-        /// <summary><see cref="GhostFingerprint.SetupHash"/> of the local definitions, memoised in <paramref name="cache"/> when given.</summary>
-        public static string SetupHash(int engineClass, KartDefinition kart, int laps, Dictionary<(int, string, int), string> cache)
-        {
-            if (cache == null) return GhostFingerprint.SetupHash((Difficulty)engineClass, kart, laps);
-            var key = (engineClass, kart.Id, laps);
-            if (!cache.TryGetValue(key, out var hash)) cache[key] = hash = GhostFingerprint.SetupHash((Difficulty)engineClass, kart, laps);
-            return hash;
-        }
+        /// <summary>Whether <paramref name="h"/> was driven on variant <paramref name="variantKey"/> of its track over <paramref name="laps"/> laps.</summary>
+        public static bool Matches(GhostHeader h, string variantKey, int laps) =>
+            string.Equals(h.variant ?? "", variantKey ?? "", StringComparison.Ordinal) && h.laps == laps;
     }
 }
