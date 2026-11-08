@@ -107,7 +107,7 @@ void MHKAddLight(Light l, half3 n, MHKWetSurface wet, inout half3 light, inout h
 {
     light += MHKLambert(l, n);
     UNITY_BRANCH
-    if (wet.amount > 0.0) specular += MHKWetSpecular(l, n, wet);
+    if (wet.shine > 0.0) specular += MHKWetSpecular(l, n, wet);
 }
 
 // Lambert of the additional lights into light and, on a wet surface, their highlights into specular.
@@ -168,11 +168,22 @@ half2 MHKMeltBubbles(float3 p, float time)
     return half2(disc * 0.25 + rim * 0.75, glint) * alive;
 }
 
+// Shading normal: the vertex normal, or the face's own normal where the vertex normal is broken. Ground meshes of some
+// ported tracks (MHK Extra Docklands, MHK 2 Island) carry normals lying flat in the road or pointing down, the originals
+// never lit them; the sun, the headlights and the wet look then miss the road. The face normal is the one of the drawn
+// side (facing the camera). Normals within 60° of it keep their smooth shading, beyond 75° the face's replaces them.
+half3 MHKShadingNormal(float3 positionWS, half3 n)
+{
+    float3 face = cross(ddy(positionWS), ddx(positionWS));
+    face = SafeNormalize(face * sign(dot(face, GetWorldSpaceViewDir(positionWS))));
+    return normalize(lerp(half3(face), n, smoothstep(0.25, 0.5, dot(float3(n), face))));
+}
+
 half4 frag(Varyings i) : SV_Target
 {
     UNITY_SETUP_INSTANCE_ID(i);
     half4 tex = MHKSurface(i);
-    half3 n = normalize(i.normalWS);
+    half3 n = MHKShadingNormal(i.positionWS, normalize(i.normalWS));
     MHKWetSurface wet = MHKWetSurfaceAt(i.positionWS, n);
     half4 shadowMask = MHKShadowMask(i);
     Light mainLight = MHKMainLight(i, shadowMask);
@@ -191,7 +202,7 @@ half4 frag(Varyings i) : SV_Target
     light = lerp(saturate(light + flash), 1.0 + flash * (1.0 - _Fog), _Emission);
     half3 col = tex.rgb * MHKWetAlbedo(wet) * light * _Tint.rgb;
     UNITY_BRANCH
-    if (wet.amount > 0.0) col = MHKWetShine(col, n, wet, mainLight, specular);
+    if (wet.shine > 0.0) col = MHKWetShine(col, n, wet, mainLight, specular);
     #ifdef _GLOW
         col += MHKGlow(i.uv, tex.rgb) * _Tint.rgb;
     #endif

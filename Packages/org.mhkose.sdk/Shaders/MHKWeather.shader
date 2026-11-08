@@ -47,11 +47,10 @@ Shader "MHK/Weather"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
             #include "MHKAmbient.hlsl"
+            #include "MHKParticleLight.hlsl"
 
             #define WEATHER_SWAY_STEPS 8.0
             #define WEATHER_NEAR_FADE_START 0.5
-            #define WEATHER_SUN_LIGHT_SHARE 0.5
-            #define WEATHER_FLASH_SHARE 0.6
             #define WEATHER_MIN_ALPHA 0.002
             #define WEATHER_CULLED_POSITION float4(0, 0, -2, 1)
             #define WEATHER_GOLDEN_RATIO 0.6180339
@@ -123,49 +122,10 @@ Shader "MHK/Weather"
                 return camPos + float3(f2.y, 0, -f2.x) * c.x + float3(0, c.y, 0) + float3(f2.x, 0, f2.y) * c.z;
             }
 
-            half3 WeatherSceneLight()
-            {
-                half3 light = 1;
-                UNITY_BRANCH
-                if (_SceneLight > 0)
-                    light = lerp(half3(1, 1, 1), saturate(MHKAmbientAverage() + _MainLightColor.rgb * WEATHER_SUN_LIGHT_SHARE), _SceneLight);
-                return light;
-            }
-
-            // Normalized screen position of a clip-space vertex, as GetNormalizedScreenSpaceUV gives it in a fragment
-            // (clamped onto the screen: the cluster tiles of a vertex just outside it are its edge's).
-            float2 WeatherScreenUV(float4 positionCS)
-            {
-                float2 uv = float2(positionCS.x, positionCS.y * _ProjectionParams.x) / max(positionCS.w, 1e-4) * 0.5 + 0.5;
-                return clamp(uv, 0.0, 0.999);
-            }
-
-            // Point and spot lights at a particle (colour x distance and cone attenuation, no shadows, no normal). The
-            // directional fills stay out: the scene light holds the sun.
-            half3 WeatherLampLight(float3 world, float4 positionCS)
-            {
-                half3 light = 0;
-                #if defined(_ADDITIONAL_LIGHTS)
-                    InputData inputData = (InputData)0;
-                    inputData.positionWS = world;
-                    inputData.normalizedScreenSpaceUV = WeatherScreenUV(positionCS);
-                    uint lightCount = GetAdditionalLightsCount();
-                    LIGHT_LOOP_BEGIN(lightCount)
-                        Light l = GetAdditionalLight(lightIndex, world);
-                        light += l.color * l.distanceAttenuation;
-                    LIGHT_LOOP_END
-                #endif
-                return light;
-            }
-
-            // Light of a visible particle vertex: the scene light, the lamps' share (saturated: a particle in a beam
-            // glows, it does not burn white) and the lightning flash.
+            // Light of a visible particle vertex (MHKParticleLight.hlsl): scene light, lamps and the lightning flash.
             half3 WeatherLight(float3 world, float4 positionCS)
             {
-                half3 lamps = 0;
-                UNITY_BRANCH
-                if (_LampLight > 0) lamps = saturate(WeatherLampLight(world, positionCS) * _LampLight);
-                return WeatherSceneLight() + lamps + _MHKFlash.rgb * WEATHER_FLASH_SHARE;
+                return MHKParticleLight(world, positionCS, _SceneLight, _LampLight);
             }
 
             #if defined(_WEATHER_SPLASH)

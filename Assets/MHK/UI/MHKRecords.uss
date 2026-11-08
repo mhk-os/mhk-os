@@ -70,29 +70,44 @@
 .mhk-button.trk-reports { display: none; }
 .preview-mod .mhk-button.trk-reports { display: flex; }
 
-/* ---- One track's records: toolbar. ---- */
+/* ---- One track's records: toolbar (heading bar over the board filters). ---- */
 .trk-browser { flex-grow: 1; flex-shrink: 1; min-height: 0; }
-.panel.trk-toolbar { flex-direction: row; align-items: center; flex-wrap: wrap; padding: 8px 12px; margin-bottom: 12px; flex-shrink: 0; }
+.panel.trk-toolbar { flex-direction: column; align-items: stretch; padding: 8px 12px; margin-bottom: 12px; flex-shrink: 0; }
+.trk-head { flex-direction: row; align-items: center; }
 .trk-picture { width: 104px; height: 60px; border-radius: 10px; background-size: cover; background-color: var(--mhk-row); flex-shrink: 0; margin-right: 12px; }
 .trk-heading { flex-grow: 1; flex-shrink: 1; min-width: 150px; }
 .trk-name { -unity-font-definition: var(--font-display); font-size: 28px; color: var(--mhk-gray-900); padding: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .trk-game { font-size: 14px; color: var(--mhk-gray-500); padding: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs.trk-classes, .tabs.trk-sections, .tabs.fr-filter { margin: 0 6px; align-self: center; }
+.tabs.trk-classes { margin: 0; }
 /* Chip rows stay on one line at every aspect (the theme's tabs wrap). */
 .tabs.trk-classes, .tabs.trk-sections, .tabs.fr-filter, .tabs.rec-classes-tabs { flex-wrap: nowrap; flex-shrink: 0; }
 .tabs.trk-sections { display: none; }
 .narrow .tabs.trk-sections, .preview-narrow .tabs.trk-sections { display: flex; }
-/* Compact dropdowns (track variant, laps, version, region, kart, driver): the value button only, the name is the tooltip. */
-.setting-row.trk-filter, .trk-variants > .setting-row { min-width: 0; min-height: 0; padding: 0; margin: 2px 6px 2px 0; flex-shrink: 1; }
-.trk-filter .setting-label, .trk-variants .setting-label { display: none; }
-.trk-filter .mhk-button, .trk-variants .mhk-button { min-width: 0; min-height: 42px; flex-shrink: 1; margin: 0; font-size: 18px; }
-.trk-filter .button-label, .trk-variants .button-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
-/* Track variant rows (one per modifier the track offers, TrackVariantRows) before the Laps row. */
-.trk-variants { flex-direction: row; align-items: center; flex-wrap: wrap; flex-shrink: 1; margin-left: 6px; }
-.setting-row.trk-version { margin: 0 6px; flex-shrink: 0; }
-.trk-version .mhk-button, .trk-version .button-label { flex-shrink: 0; }
-/* The version names its entry in full (text measuring ignores the buttons' letter spacing, so no ellipsis here). */
+/* Board filters: which records both lists show and the race starts from (class, track variant, laps, version). Every
+   filter is a cell, its caption over its control: the cells share a line evenly up to a cap and wrap whole onto more
+   lines when the page is narrow, so captions and controls stay in line at every width. */
+.trk-filters { flex-direction: row; flex-wrap: wrap; align-items: flex-end; margin: 8px -5px 0 -5px; padding-top: 6px; border-top-width: 1px; border-top-color: rgba(23, 25, 29, 0.12); }
+.trk-filter-group, .trk-filters .setting-row { flex-direction: column; align-items: stretch; justify-content: flex-start; flex-grow: 1; flex-shrink: 1; flex-basis: 170px; max-width: 300px; min-width: 0; min-height: 0; padding: 0; margin: 2px 5px; border-radius: 0; }
+.trk-filters .setting-row:hover { background-color: transparent; }
+/* The class cell is as wide as its chips. */
+.trk-filter-group { flex-grow: 0; flex-basis: auto; }
+.trk-filter-group .tabs.trk-classes { align-self: flex-start; }
+.trk-filter-label, .trk-filters .setting-label { -unity-font-definition: var(--font-bold); font-size: 15px; color: var(--mhk-gray-600); padding: 0; margin: 0 0 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trk-filters .setting-row .mhk-button.setting-value { min-width: 0; min-height: 40px; margin: 0; font-size: 18px; }
+.trk-filters .button-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; }
+/* The version names its entry in full (text measuring ignores the buttons' letter spacing, so no ellipsis here): its
+   cell starts wider. */
+.trk-filters .setting-row.trk-version { flex-basis: 250px; max-width: 360px; }
 .trk-version .button-label { overflow: visible; text-overflow: clip; padding-right: 8px; }
+/* Leaderboard filters (region, kart, driver): compact dropdowns, the value button only, the name is the tooltip. They
+   share their group evenly, beside the search or, when the panel is narrow, together on the line below it. */
+.lb-dropdowns { flex-direction: row; flex-grow: 2; flex-shrink: 1; flex-basis: 560px; min-width: 0; }
+.setting-row.trk-filter { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; min-height: 0; padding: 0; margin: 2px 6px 2px 0; }
+.trk-filter .setting-label { display: none; }
+.setting-row.trk-filter .mhk-button.setting-value { min-width: 0; min-height: 42px; flex-grow: 1; flex-shrink: 1; margin: 0; font-size: 18px; }
+.setting-row.trk-filter.setting-dropdown .mhk-button.setting-value { padding-left: 14px; }
+.trk-filter .button-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
 /* Pick pill: how many ghosts are picked for the race, with clear. Accent once something is picked. */
 .trk-pick-pill { flex-direction: row; align-items: center; height: 42px; padding: 0 4px 0 12px; margin-left: 6px; border-radius: 21px; background-color: var(--mhk-accent); }
 .trk-pick-pill.empty { background-color: var(--mhk-row-hover); }
@@ -150,7 +165,8 @@ TemplateContainer.sample-uploaded > .ghost-row .ghost-upload { display: none; }
 .lb-state.trk-empty { flex-grow: 1; }
 
 /* ---- Leaderboard: filters, own row, rows, state and pager. ---- */
-.lb-filters { flex-direction: row; align-items: center; flex-wrap: wrap; margin-bottom: 6px; flex-shrink: 0; }
+.lb-filters { flex-direction: row; align-items: center; flex-wrap: wrap; margin: 0 -6px 6px 0; flex-shrink: 0; }
+.lb-filters .lb-search-box { flex-basis: 220px; min-width: 0; }
 .lb-search-box { flex-direction: row; align-items: center; flex-grow: 1; flex-shrink: 1; min-width: 170px; height: 42px; margin: 2px 6px 2px 0; padding: 0 4px 0 12px; border-radius: 21px; border-width: 2px; border-color: var(--mhk-gray-300); background-color: var(--mhk-white); }
 .icon.lb-search-icon { width: 22px; height: 22px; margin-right: 4px; -unity-background-image-tint-color: var(--mhk-gray-500); }
 .lb-search { flex-grow: 1; flex-shrink: 1; margin: 0; }

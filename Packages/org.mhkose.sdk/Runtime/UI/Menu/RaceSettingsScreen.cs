@@ -9,9 +9,10 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// Race settings (RaceSettings.uxml) before a race or championship: difficulty, opponents, the track's variant
-    /// (<see cref="TrackVariantRows"/>, single race and battle), laps and powerups (rows that do not apply to the mode are
-    /// hidden, Powerups opens the <see cref="ItemOddsScreen"/>), the track or cup and driver preview, and Start!.
+    /// Race settings (RaceSettings.uxml) before a race, championship or time trial: difficulty (a time trial's engine
+    /// class), opponents, the track's variant (<see cref="TrackVariantRows"/>, single race, battle and time trial), laps (a
+    /// time trial: one lap or the track's) and powerups (rows that do not apply to the mode are hidden, Powerups opens the
+    /// <see cref="ItemOddsScreen"/>), the track or cup and driver preview, and Start!.
     /// </summary>
     public class RaceSettingsScreen : MenuScreen
     {
@@ -23,6 +24,8 @@ namespace MHK.UI
         string customText = "Custom";
         [SerializeField, Tooltip("Powerups value when every item odd is 0 % (the race has no powerups).")]
         string offText = "Off";
+        [SerializeField, Tooltip("Time trial laps values: a single lap, the track's laps ({0} = laps).")]
+        string oneLapText = "1 lap", lapsFormat = "{0} laps";
         [SerializeField, Tooltip("Range hint of the Opponents input ({0} = fewest, {1} = most).")]
         string opponentsRangeFormat = "{0} to {1}";
         [SerializeField, Tooltip("Setting row template (Templates/SettingRow.uxml) of the track variant rows.")]
@@ -56,13 +59,13 @@ namespace MHK.UI
             FocusTarget = OnClick("start", () => start());
         }
 
-        // Single races and battles race the picked variant of their track; championships roll theirs per race when they
-        // start (MenuSelection.BuildSession), a custom championship's races are set on its track list page.
+        // Single races, battles and time trials race the picked variant of their track; championships roll theirs per race
+        // when they start (MenuSelection.BuildSession), a custom championship's races are set on its track list page.
         void BindVariantRows(MenuSelection s)
         {
             var container = Q<VisualElement>("variant-rows");
             var rows = new TrackVariantRows(container, Root, settingRowTemplate, Click);
-            if ((s.mode == GameMode.SingleRace || s.mode == GameMode.Battle) && s.track != null) rows.Show(s.track, s.variantKey);
+            if ((s.mode is GameMode.SingleRace or GameMode.Battle or GameMode.TimeTrial) && s.track != null) rows.Show(s.track, s.variantKey);
             container.SetVisible(rows.HasRows);
             s.variantKey = rows.Variant != null ? rows.Variant.Key : "";
             rows.Changed += v => s.variantKey = v.Key;
@@ -74,8 +77,9 @@ namespace MHK.UI
             var battle = s.mode == GameMode.Battle;
             var single = s.mode == GameMode.SingleRace;
             var champ = s.mode == GameMode.Championship;
+            var timeTrialLaps = s.mode == GameMode.TimeTrial && s.track != null && s.track.defaultLaps > 1;
             SetVisible("opponents", battle || single || champ);
-            SetVisible("laps", single);
+            SetVisible("laps", single || timeTrialLaps);
             SetVisible("powerups", battle || single);
             if (battle || single || champ) BindOpponents(s, battle ? 1 : 0, champ);
             if (battle || single)
@@ -83,6 +87,10 @@ namespace MHK.UI
             if (single)
                 BindChoice("laps", () => MaxLaps + 1, () => s.useTrackLaps ? 0 : Mathf.Clamp(s.laps, 1, MaxLaps),
                     i => i == 0 ? trackLapsText : Number(i), i => SelectLaps(s, i));
+            // Time trials race one lap or the track's laps (MenuSelection.timeTrialLaps 1 or 0).
+            if (timeTrialLaps)
+                BindChoice("laps", () => 2, () => s.timeTrialLaps == 1 ? 0 : 1,
+                    i => i == 0 ? oneLapText : string.Format(lapsFormat, s.track.defaultLaps), i => s.timeTrialLaps = i == 0 ? 1 : 0);
         }
 
         // Single races may have no opponents, battles need one. Championships start with every other driver until the

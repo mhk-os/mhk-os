@@ -10,8 +10,9 @@ namespace MHK.Race
     /// <summary>
     /// Weather of the running race, from its variant's rules: the outdoor tyre grip (<see cref="TrackVariant.OutdoorGrip"/>)
     /// for kart physics and computer drivers, and the wet look of MHK/Lit (<see cref="TrackVariant.Wetness"/>) through
-    /// shader globals. Both apply only where the track's <see cref="TrackCoverMap"/> shows nothing overhead. The grip reads
-    /// the baked map on the CPU, so every machine computes the same. Outside a race (menus, the editor) all is dry. Water
+    /// shader globals. Both apply only where the track's <see cref="TrackCoverMap"/> shows nothing overhead (the wet look
+    /// blends over the cover's edge along smooth lines). The grip reads the baked map on the CPU, so every machine
+    /// computes the same. Outside a race (menus, the editor) all is dry. Water
     /// and lava never look wet: MHK/Lit leaves out frame-animated, UV-scrolled and blended materials itself, and for a wet
     /// race the opaque still ones (named so: <see cref="IsWaterMaterial"/>) are swapped for copies with <c>_WetMask</c> 0.
     /// </summary>
@@ -89,9 +90,20 @@ namespace MHK.Race
             if (m.GetFloat(MHKLitIds.WetMask) <= 0f || m.GetFloat(MHKLitIds.DstBlend) != 0f || m.IsKeywordEnabled(MHKLitIds.FlipbookKeyword)) return false;
             var scroll = m.GetVector(MHKLitIds.UVScroll);
             if (scroll.x != 0f || scroll.y != 0f) return false;
+            return HasWaterName(m, out _);
+        }
+
+        /// <summary>
+        /// Whether <paramref name="m"/> shows water or lava by name: a word of the material's name is made of water and lava
+        /// words, or else (<paramref name="byTexture"/>) its texture's name consists of nothing else.
+        /// </summary>
+        internal static bool HasWaterName(Material m, out bool byTexture)
+        {
+            byTexture = false;
             if (WaterMaterialName.IsMatch(m.name)) return true;
             var texture = m.GetTexture(MHKLitIds.BaseMap);
-            return texture != null && WaterTextureName.IsMatch(texture.name);
+            byTexture = texture != null && WaterTextureName.IsMatch(texture.name);
+            return byTexture;
         }
 
         // Every loaded renderer showing water gets a copy of that material with _WetMask 0 (one copy per material).
@@ -153,6 +165,7 @@ namespace MHK.Race
             {
                 Shader.SetGlobalTexture(MHKLitIds.WetCover, cover.heights);
                 Shader.SetGlobalVector(MHKLitIds.WetCoverRect, new Vector4(cover.min.x, cover.min.y, 1f / cover.size.x, 1f / cover.size.y));
+                Shader.SetGlobalVector(MHKLitIds.WetCoverTexels, new Vector4(cover.heights.width, cover.heights.height, cover.size.x / cover.heights.width, 0f));
                 Shader.SetGlobalVector(MHKLitIds.WetCoverHeight, new Vector4(cover.minY, cover.range, CoverBias, 1f));
                 return;
             }
