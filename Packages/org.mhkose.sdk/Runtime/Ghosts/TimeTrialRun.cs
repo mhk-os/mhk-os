@@ -97,7 +97,7 @@ namespace MHK.Ghosts
         }
 
         // Own best first, then the session's ghosts in the order picked; a downloaded one counts like a stored one. Only
-        // ghosts of this track variant and lap count race.
+        // ghosts of this engine class, track variant and lap count race (the race settings may change them after picking).
         List<GhostEntry> PickGhosts()
         {
             var session = race.Session;
@@ -115,7 +115,8 @@ namespace MHK.Ghosts
                 if (picked.Count >= max) break;
                 if (string.IsNullOrEmpty(id) || ids.Contains(id)) continue;
                 var entry = Store.Find(id);
-                if (entry != null && entry.header.trackId == race.Track.Id && GhostCompatibilityRules.Matches(entry.header, variant, race.Laps) && ids.Add(entry.Id))
+                if (entry != null && entry.header.trackId == race.Track.Id && entry.header.engineClass == (int)session.difficulty
+                    && GhostCompatibilityRules.Matches(entry.header, variant, race.Laps) && ids.Add(entry.Id))
                     picked.Add(entry);
             }
             return picked;

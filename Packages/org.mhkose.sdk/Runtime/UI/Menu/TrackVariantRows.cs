@@ -11,14 +11,14 @@ namespace MHK.UI
     /// the track offers with two or more options (<see cref="TrackVariants"/>), titled with the modifier's name, valued with
     /// its options' names. <see cref="Show"/> picks one variant; <see cref="ShowSetup"/> edits a custom championship race
     /// (<see cref="CustomRaceSetup"/>) whose rows offer Random after the options. Rows are added to a container that may
-    /// hold other rows too; only the picker's own are removed.
+    /// hold other rows too, at its end or before a given child; only the picker's own are removed.
     /// </summary>
     public sealed class TrackVariantRows
     {
         const string RowClass = "setting-row";
         const string LabelName = "setting-label";
 
-        readonly VisualElement container, host;
+        readonly VisualElement container, host, before;
         readonly VisualTreeAsset rowTemplate;
         readonly Action click;
         readonly List<VisualElement> rows = new();
@@ -42,15 +42,18 @@ namespace MHK.UI
         public event Action<CustomRaceSetup> SetupChanged;
 
         /// <summary>
-        /// Rows go into <paramref name="container"/>, built from <paramref name="rowTemplate"/> (SettingRow.uxml);
-        /// <paramref name="host"/> (the screen root) holds their open lists, <paramref name="click"/> plays the click sound.
+        /// Rows go into <paramref name="container"/>, before its child <paramref name="before"/> when given (else at the
+        /// end), built from <paramref name="rowTemplate"/> (SettingRow.uxml); <paramref name="host"/> (the screen root)
+        /// holds their open lists, <paramref name="click"/> plays the click sound.
         /// </summary>
-        public TrackVariantRows(VisualElement container, VisualElement host, VisualTreeAsset rowTemplate, Action click)
+        public TrackVariantRows(VisualElement container, VisualElement host, VisualTreeAsset rowTemplate, Action click,
+                                VisualElement before = null)
         {
             this.container = container;
             this.host = host;
             this.rowTemplate = rowTemplate;
             this.click = click;
+            this.before = before;
         }
 
         /// <summary>Shows the rows of <paramref name="track"/> with variant <paramref name="key"/> picked (the track's default when it does not offer it).</summary>
@@ -101,7 +104,8 @@ namespace MHK.UI
             rowTemplate.CloneTree(row);
             row.SetText(LabelName, modifier.DisplayName);
             row.tooltip = modifier.DisplayName;
-            container.Add(row);
+            if (before != null && before.parent == container) container.Insert(container.IndexOf(before), row);
+            else container.Add(row);
             rows.Add(row);
             var options = modifier.Options.Count;
             if (setup == null)

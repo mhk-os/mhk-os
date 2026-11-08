@@ -28,12 +28,15 @@ namespace MHK.Karts
         // MHK/Lit is saturated Lambert with inverse-square falloff. The range only sets where the light is cut off, so
         // the beam fades out on its own and still reaches walls about 40 m ahead; brighter, the overlapping beams of a
         // pack saturate everything around it and night is gone.
-        const float LightIntensity = 300f;
-        // Slightly down: the core meets the road about 13 m ahead, the upper cone reaches the horizon.
-        const float LightPitchDegrees = 4f;
-        // The spot sits this high above the lamps and this far ahead of the model, so it lights the road at a steeper
-        // angle and never the kart's own front.
-        const float LightRaise = 0.6f, LightAhead = 0.1f;
+        const float LightIntensity = 350f;
+        // Down so that the cone's lower edge still meets the road just ahead of the nose; the road far ahead stays in the
+        // even inner cone and the upper cone reaches the horizon.
+        const float LightPitchDegrees = 15f;
+        // The spot sits this high above the lamps and this far ahead of the model. On the road the light falls with the
+        // cube of the distance (inverse square times the grazing angle), so its height decides how far ahead the road
+        // is lit: from about 3 m up it reaches about 20 m, where walls and karts ahead keep their brightness. It never
+        // lights the kart's own front.
+        const float LightRaise = 3f, LightAhead = 0.1f;
         // Lamps: a third of the half width either side of the centre line, raised from the front wheel centres towards
         // the model's middle and set back a little from its frontmost point, so they sit on the nose.
         const float LampHeightShare = 0.3f, LampRaiseShare = 0.3f, LampSpacingShare = 1f / 3f, LampBackShare = 0.02f;

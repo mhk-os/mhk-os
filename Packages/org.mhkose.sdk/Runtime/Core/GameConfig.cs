@@ -38,6 +38,11 @@ namespace MHK.Core
         [Tooltip("MHK/Lit as built with the game. World sky domes (WorldSkyDome) switch to it, so their fog can be turned " +
                  "off also when a mod bundle carries an older copy of the shader. Empty: they keep their own shader.")]
         public Shader litShader;
+        [Tooltip("MHK/Water: track water bodies switch to it at race start (TrackWater), with waves, sky reflection and " +
+                 "highlights. Empty: tracks keep their own water.")]
+        public Shader waterShader;
+        [Tooltip("Tiling wave normal map of the HD water (Prefabs/Water/WaterWaves).")]
+        public Texture2D waterWaves;
 
         [Header("Audio mix")]
         [Tooltip("Gain of every sound effect (engines, skids, surfaces, collisions, voices, items, hazards, ambience and " +
@@ -115,14 +120,15 @@ namespace MHK.Core
         public float itemBoxRespawnSeconds = 3f;
         [Tooltip("Battles: item boxes respawn after at least this many seconds, so nobody camps a box and spams its items.")]
         [Min(0f)] public float battleItemBoxRespawnSeconds = 30f;
-        [Tooltip("Picking up a box while holding an item replaces it (MHK2). Otherwise full karts skip boxes.")]
+        [Tooltip("Picking up a box while holding an item replaces it (MHK2; in battles once the item has loaded). Otherwise " +
+                 "full karts skip boxes.")]
         public bool itemBoxReplacesHeld = true;
         [Tooltip("Using any item ends the active exclusive buff (MHK2).")]
         public bool usingItemCancelsBuffs = true;
         [Tooltip("Item roulette duration after pickup (MHK2: none).")]
         public float itemRouletteSeconds;
         [Tooltip("Battles: a received item loads this many seconds after the roulette stops before it can be used (the HUD " +
-                 "shows it grayed with a pie timer). Races have no loading.")]
+                 "shows it grayed with a pie timer). Until then the kart drives through item boxes. Races have no loading.")]
         [Min(0f)] public float battleItemLoadSeconds = 2f;
         [Tooltip("Seconds after placing / throwing a hazard (trap, mine, x-field, black hole, glibber ball, charge...) during " +
                  "which it spares its owner, afterwards it hits the owner too (MHK2 traps do). Other karts are hit at once.")]

@@ -51,6 +51,7 @@ namespace MHK.Rendering
         public static readonly int Wet = Shader.PropertyToID("_MHKWet");
         public static readonly int WetCover = Shader.PropertyToID("_MHKWetCover");
         public static readonly int WetCoverRect = Shader.PropertyToID("_MHKWetCoverRect");
+        public static readonly int WetCoverTexels = Shader.PropertyToID("_MHKWetCoverTexels");
         public static readonly int WetCoverHeight = Shader.PropertyToID("_MHKWetCoverHeight");
         /// <summary>Lightning flash: rgb added to the light of every MHK/Lit surface and weather particle, 0 = none.</summary>
         public static readonly int Flash = Shader.PropertyToID("_MHKFlash");

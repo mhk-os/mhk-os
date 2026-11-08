@@ -11,8 +11,8 @@ namespace MHK.Powerups
     /// Holds the kart's current powerup and fires it on input. Items with several charges wait
     /// <see cref="PowerupDefinition.useCooldown"/> between uses. Fire presses during the wait do nothing. Each use gets
     /// its own <see cref="PowerupContext.usage"/> id. In a battle a new item first loads for
-    /// <see cref="GameConfig.battleItemLoadSeconds"/> after the roulette stops (<see cref="Loading"/>), and a kart holding
-    /// an item drives through boxes. The roulette, the loading and the cooldown run in physics steps. Online the server
+    /// <see cref="GameConfig.battleItemLoadSeconds"/> after the roulette stops (<see cref="Loading"/>), and the kart
+    /// drives through boxes until it has loaded. The roulette, the loading and the cooldown run in physics steps. Online the server
     /// decides what a box gives: the roulette spins until its <see cref="Grant"/> (or <see cref="Deny"/>) arrives.
     /// </summary>
     [RequireComponent(typeof(Kart))]
@@ -45,10 +45,11 @@ namespace MHK.Powerups
             }
         }
         /// <summary>
-        /// MHK2: a box always replaces the held item. Otherwise only empty karts collect, and in a battle a kart holding an
-        /// item (also one still rolling or loading) always drives through. Never while a pickup waits for the server.
+        /// MHK2: a box replaces the held item, in a battle only once the item has loaded (a kart whose item still rolls or
+        /// loads drives through). Otherwise only empty karts collect. Never while a pickup waits for the server.
         /// </summary>
-        public bool CanReceive => pendingBox == NoBox && (Held == null || (Config.itemBoxReplacesHeld && !PowerupRoller.Battle));
+        public bool CanReceive => pendingBox == NoBox &&
+                                  (Held == null || (Config.itemBoxReplacesHeld && !(PowerupRoller.Battle && (Rolling || Loading))));
         /// <summary>The held item's visual (<see cref="PowerupDefinition.heldPrefab"/>) while it is shown, else null.</summary>
         public Transform HeldVisual => heldVisual != null && heldVisual.activeInHierarchy ? heldVisual.transform : null;
         /// <summary>Items received so far: changes with every pickup, also when a box gives the item already held.</summary>

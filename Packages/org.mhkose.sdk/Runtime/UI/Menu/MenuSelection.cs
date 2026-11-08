@@ -65,7 +65,10 @@ namespace MHK.UI
         public bool trackFixed;
         /// <summary>Time trial: race the personal best of the track and class (picked on the records page, or nothing picked).</summary>
         public bool raceOwnBest = true;
-        /// <summary>Time trial: the other ghosts picked on the records page (stored or downloaded), in pick order.</summary>
+        /// <summary>
+        /// Time trial: the other ghosts picked on the records page (stored or downloaded), in pick order. They race only
+        /// when the race settings keep the engine class, variant and laps they were driven with.
+        /// </summary>
         public readonly List<string> ghostIds = new();
         /// <summary>
         /// The card pages work for the online lobby: they list the lobby's content only and hand the choice to the lobby

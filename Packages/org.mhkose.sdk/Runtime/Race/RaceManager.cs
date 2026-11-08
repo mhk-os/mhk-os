@@ -159,6 +159,7 @@ namespace MHK.Race
             Time.timeScale = 1f;
             environment?.Release();
             TrackWeather.End();
+            TrackWater.End();
         }
 
         IEnumerator Start()
@@ -301,6 +302,7 @@ namespace MHK.Race
             }
             if (Variant.Reverse) TrackReverse.Apply(TrackRuntime);
             environment = TrackEnvironment.Apply(scene, TrackRuntime, overlays, Variant);
+            TrackWater.Begin(GameRoot.Instance.Config);
             TrackWeather.Begin(Variant, environment.Cover);
             WorldSkyDome.Apply(scene, Track, TrackRuntime, GameRoot.Instance.Config);
             SetUpCamera(RaceCamera);

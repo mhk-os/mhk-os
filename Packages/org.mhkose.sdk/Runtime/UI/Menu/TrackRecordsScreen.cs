@@ -12,14 +12,15 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// One track's records (TrackRecords.uxml), opened from the Time Trials hub (Records page): engine class chips, the
-    /// track variant (<see cref="TrackVariantRows"/>) and laps (1 or the track's laps) to show and race, the player's
-    /// stored ghosts of that class, variant, laps and version (Watch, Upload or the uploaded rank, Export, Delete: the
-    /// stored file only, an uploaded run stays on the leaderboard) and the online leaderboard
-    /// (TrackRecordsScreen.Leaderboard.cs). Ghosts of both lists can be picked, up to <see cref="GameConfig.maxGhosts"/>,
-    /// the personal best is picked when the page opens. Race downloads the picked online ones, then walks driver and kart
-    /// with the track fixed straight into the time trial (<see cref="MenuSelection.BuildTimeTrialSession"/>); after it
-    /// the menu comes back here (<see cref="ReturnAfterRace"/>).
+    /// One track's records (TrackRecords.uxml), opened from the Time Trials hub (Records page): a heading bar (track,
+    /// picked ghosts) over the board filters, engine class chips, the track variant (<see cref="TrackVariantRows"/>), laps
+    /// (1 or the track's laps) and version, then the player's stored ghosts of that class, variant, laps and version
+    /// (Watch, Upload or the uploaded rank, Export, Delete: the stored file only, an uploaded run stays on the
+    /// leaderboard) and the online leaderboard (TrackRecordsScreen.Leaderboard.cs). Ghosts of both lists can be picked, up
+    /// to <see cref="GameConfig.maxGhosts"/>, the personal best is picked when the page opens. Race downloads the picked
+    /// online ones, then walks driver and kart with the track fixed into the race settings, which start from the shown
+    /// class, variant and laps and may change them (picked ghosts race only on the ones they were driven with,
+    /// <see cref="MenuSelection.BuildTimeTrialSession"/>); after the race the menu comes back here (<see cref="ReturnAfterRace"/>).
     /// On narrow screens (<see cref="narrowWidth"/>) the two sections show one at a time behind section chips.
     /// </summary>
     public partial class TrackRecordsScreen : GhostListScreen
@@ -254,13 +255,13 @@ namespace MHK.UI
             });
         }
 
-        // The variant rows of the track and Laps (a single lap or the track's laps; hidden for one-lap tracks).
+        // The variant rows of the track, between the class and Laps (a single lap or the track's laps; hidden for one-lap
+        // tracks), so every board filter is a cell of the same wrapping row.
         void BindBoardRows(TrackDefinition track)
         {
-            var container = Q<VisualElement>("variant-rows");
-            var variants = new TrackVariantRows(container, Root, settingRowTemplate, Click);
+            var variants = new TrackVariantRows(Q<VisualElement>("board-filters"), Root, settingRowTemplate, Click,
+                Q<VisualElement>("laps"));
             variants.Show(track, variantKey);
-            container.SetVisible(variants.HasRows);
             variants.Changed += v =>
             {
                 if (v.Key == variantKey) return;

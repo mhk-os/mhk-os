@@ -8,13 +8,14 @@ namespace MHK.Karts
     /// <summary>
     /// Tyre effects from KartPhysics wheel contacts: skid marks into the shared SkidMarks pool, the kart's skid intensity
     /// and sound surface, rear-tyre dust (MHK2 Car update rules) and, in wet weather, water spray instead of dust from tyres
-    /// rolling on uncovered ground (<see cref="TrackWeather"/>). The spray's particle system is made on the first wet frame,
-    /// so dry tracks never pay for it.
+    /// rolling on uncovered ground (<see cref="TrackWeather"/>): drops thrown off the tread in arcs (a rooster tail at speed)
+    /// and a mist cloud that hangs behind the kart, both lit by the scene and the headlights (MHK/Particle). The spray's
+    /// particle systems are made on the first wet frame, so dry tracks never pay for them.
     /// </summary>
     [RequireComponent(typeof(KartPhysics))]
     public class KartWheelFx : MonoBehaviour
     {
-        [Tooltip("Alpha-blended particle material for tyre dust (MHK2 rauch_partikel puff), also drawing the rain spray.")]
+        [Tooltip("Alpha-blended particle material for tyre dust (MHK2 rauch_partikel puff).")]
         [SerializeField] private Material dustMaterial;
         [Tooltip("Alpha-blended, vertex-coloured material for skid marks (its texture's middle row is the strip profile).")]
         [SerializeField] private Material skidMaterial;
@@ -48,18 +49,30 @@ namespace MHK.Karts
         [SerializeField] private float dustOpacity = 0.35f;
 
         [Header("Rain spray")]
-        [Tooltip("Colour and opacity of the water tyres throw up on wet uncovered ground.")]
-        [SerializeField] private Color sprayColor = new(0.62f, 0.66f, 0.72f, 0.16f);
+        [Tooltip("Lit particle material (MHK/Particle) of the spray mist: a 2 × 2 sheet of soft puffs.")]
+        [SerializeField] private Material sprayMistMaterial;
+        [Tooltip("Lit particle material (MHK/Particle) of the spray drops, drawn stretched along their flight.")]
+        [SerializeField] private Material sprayDropMaterial;
+        [Tooltip("Colour and opacity of the spray mist (lit by the scene).")]
+        [SerializeField] private Color mistColor = new(0.85f, 0.88f, 0.92f, 0.32f);
+        [Tooltip("Colour and opacity of the spray drops (lit by the scene).")]
+        [SerializeField] private Color dropColor = new(0.88f, 0.92f, 0.97f, 0.8f);
         [Tooltip("Ground speed (m/s) from which tyres throw spray, and the speed at which they throw the most.")]
         [SerializeField] private Vector2 spraySpeedRange = new(4f, 30f);
-        [Tooltip("Spray particles per second of a rear tyre at full speed (front tyres throw a share), on the high graphics tier.")]
-        [SerializeField] private float sprayRate = 60f;
-        [Tooltip("Random start size range of a spray particle (m).")]
-        [SerializeField] private Vector2 spraySize = new(0.1f, 0.22f);
-        [Tooltip("Random lifetime range of a spray particle (s).")]
-        [SerializeField] private Vector2 sprayLifetime = new(0.25f, 0.5f);
-        [Tooltip("Per-kart spray particle budget.")]
-        [SerializeField] private int maxSprayParticles = 120;
+        [Tooltip("Mist puffs per second of a rear tyre at full speed (front tyres throw a share), on the high graphics tier.")]
+        [SerializeField] private float mistRate = 28f;
+        [Tooltip("Drops per second of a rear tyre at full speed (front tyres throw a share), on the high graphics tier.")]
+        [SerializeField] private float dropRate = 70f;
+        [Tooltip("Random start size range of a mist puff (m), growing with speed and over its life.")]
+        [SerializeField] private Vector2 mistSize = new(0.5f, 0.9f);
+        [Tooltip("Random size range of a drop (m) across; its streak is longer.")]
+        [SerializeField] private Vector2 dropSize = new(0.03f, 0.06f);
+        [Tooltip("Random lifetime range of a mist puff (s).")]
+        [SerializeField] private Vector2 mistLifetime = new(0.4f, 0.75f);
+        [Tooltip("Random lifetime range of a drop (s).")]
+        [SerializeField] private Vector2 dropLifetime = new(0.2f, 0.4f);
+        [Tooltip("Per-kart mist and drop particle budgets.")]
+        [SerializeField] private int maxMistParticles = 80, maxDropParticles = 100;
 
         struct Trail
         {
@@ -83,29 +96,36 @@ namespace MHK.Karts
         const float DustFadeInEnd = 0.12f, DustHalfAlphaTime = 0.5f, DustHalfAlpha = 0.5f;
         // Rain spray: front tyres throw this share of the rear tyres' spray (they roll on ground the rear tyres reach
         // next); a slow tyre throws the low-speed share, a fast one the full rate, higher and bigger (rooster tail).
-        const float FrontSprayShare = 0.3f, LowSpeedSprayShare = 0.25f;
-        const int MaxSprayPerWheelPerFrame = 6;
-        // Spray leaves the back of the tyre up and backwards (deg above the kart's backward axis, slightly outward),
-        // keeping a share of the kart's velocity, ejected at a base speed plus a share of the ground speed.
-        const float SprayAngleLow = 12f, SprayAngleHigh = 28f, SprayOutward = 0.2f;
-        const float SprayVelocityKeep = 0.35f, SprayEjectBase = 1.5f, SprayEjectShare = 0.2f;
-        const float SprayOriginLift = 0.1f, SprayOriginBack = 0.15f, SprayPositionJitter = 0.08f, SprayDirectionJitter = 0.25f;
-        const float SpraySizeBase = 0.7f, SpraySizeSpeed = 0.6f;
-        const float SprayShadeMin = 0.92f, SprayShadeMax = 1.05f;
-        const float SprayGravity = 0.5f, SprayDrag = 2.5f;
-        const float SprayGrowStart = 1f, SprayGrowEnd = 1.8f;
-        // Spray drops are drawn stretched along their motion (streaks, not puffs): length per m/s and base length.
-        const float SprayStretchVelocity = 0.05f, SprayStretchLength = 1.2f;
-        const float SprayFadeInEnd = 0.08f, SprayHalfAlphaTime = 0.4f, SprayHalfAlpha = 0.6f;
+        const float FrontSprayShare = 0.3f, LowSpeedSprayShare = 0.2f;
+        const int MaxSprayPerWheelPerFrame = 8;
+        // Mist rises off the back of the tyre, a little up and outward, carried along with half the kart's velocity and
+        // braked hard by the air, so it hangs and spreads behind the kart; it grows to a cloud as it fades.
+        const float MistAngle = 12f, MistOutward = 0.35f, MistVelocityKeep = 0.55f, MistEjectBase = 1.5f, MistEjectShare = 0.1f;
+        const float MistOriginLift = 0.15f, MistOriginBack = 0.25f, MistPositionJitter = 0.15f, MistDirectionJitter = 0.9f;
+        const float MistSizeBase = 0.6f, MistSizeSpeed = 0.9f;
+        const float MistGravity = -0.03f, MistDrag = 2.2f, MistGrowStart = 1f, MistGrowEnd = 3.5f;
+        const float MistFadeInEnd = 0.12f, MistHalfAlphaTime = 0.45f, MistHalfAlpha = 0.6f;
+        // Drops leave the back of the tread up and backwards (deg above the kart's backward axis, slightly outward), faster
+        // and steeper the faster the kart goes, and fall in arcs under full gravity.
+        const float DropAngleLow = 25f, DropAngleHigh = 50f, DropOutward = 0.25f, DropVelocityKeep = 0.45f;
+        const float DropEjectBase = 1f, DropEjectShare = 0.22f, DropEjectMin = 0.6f, DropEjectMax = 1.1f;
+        const float DropOriginLift = 0.12f, DropOriginBack = 0.18f, DropPositionJitter = 0.06f, DropDirectionJitter = 0.3f;
+        const float DropGravity = 1f, DropDrag = 0.6f, DropGrowStart = 1f, DropGrowEnd = 0.7f;
+        const float DropFadeInEnd = 0.05f, DropHalfAlphaTime = 0.6f, DropHalfAlpha = 0.8f;
+        // Drops are drawn stretched along their motion (streaks): length in drop sizes plus per m/s.
+        const float DropStretchLength = 2f, DropStretchVelocity = 0.02f;
+        const float SprayShadeMin = 0.93f, SprayShadeMax = 1.05f;
+        const int MistSheetTiles = 2;
         const float MediumTierSpray = 0.6f, LowTierSpray = 0.35f;
         static readonly Color DefaultSkid = new(0f, 0f, 0f, 0.5f);
 
         KartPhysics phys;
         IKartView view;
-        ParticleSystem dust, spray;
+        ParticleSystem dust, mist, drops;
         readonly Trail[] trails = new Trail[WheelCount];
         readonly float[] dustDebt = new float[2];
-        readonly float[] sprayDebt = new float[WheelCount];
+        readonly float[] mistDebt = new float[WheelCount];
+        readonly float[] dropDebt = new float[WheelCount];
 
         /// <summary>
         /// Skid intensity of the last frame (0..1): the strongest wheel's skid mark opacity factor, also the volume of the
@@ -119,7 +139,7 @@ namespace MHK.Karts
         {
             phys = GetComponent<KartPhysics>();
             view = GetComponent<IKartView>();
-            if (dustMaterial != null) dust = CreateParticles("TyreDust", maxDustParticles, dustLifetime.y, DustGravity, DustDrag,
+            if (dustMaterial != null) dust = CreateParticles("TyreDust", dustMaterial, maxDustParticles, dustLifetime.y, DustGravity, DustDrag,
                 DustGrowStart, DustGrowEnd, DustFadeInEnd, DustHalfAlphaTime, DustHalfAlpha);
         }
 
@@ -141,8 +161,9 @@ namespace MHK.Karts
             return cam == null || (cam.transform.position - transform.position).sqrMagnitude <= dustCullDistance * dustCullDistance;
         }
 
-        // A world-space system of puffs emitted by hand: they grow, turn, fade in and out and slow down by drag.
-        ParticleSystem CreateParticles(string objectName, int maxParticles, float maxLifetime, float gravity, float drag,
+        // A world-space system of puffs drawn with material, emitted by hand: they grow, turn, fade in and out and slow
+        // down by drag.
+        ParticleSystem CreateParticles(string objectName, Material material, int maxParticles, float maxLifetime, float gravity, float drag,
             float growStart, float growEnd, float fadeInEnd, float halfAlphaTime, float halfAlpha)
         {
             var go = new GameObject(objectName);
@@ -179,7 +200,7 @@ namespace MHK.Karts
             col.color = fade;
             var r = go.GetComponent<ParticleSystemRenderer>();
             r.renderMode = ParticleSystemRenderMode.Billboard;
-            r.sharedMaterial = dustMaterial;
+            r.sharedMaterial = material;
             r.shadowCastingMode = ShadowCastingMode.Off;
             r.receiveShadows = false;
             r.sortMode = ParticleSystemSortMode.None;
@@ -323,13 +344,13 @@ namespace MHK.Karts
             dust.Emit(ep, 1);
         }
 
-        // Every tyre rolling on wet uncovered ground throws water, rear tyres most, more and higher the faster the kart
-        // goes. None on dry tracks, from hidden karts or far from the camera; less on lower graphics tiers.
+        // Every tyre rolling on wet uncovered ground throws drops and mist, rear tyres most, more, higher and bigger the
+        // faster the kart goes. None on dry tracks, from hidden karts or far from the camera; less on lower graphics tiers.
         void UpdateSpray(bool near, float dt)
         {
-            if (!TrackWeather.Wet || dustMaterial == null || !near || (view != null && view.Hidden))
+            if (!TrackWeather.Wet || sprayMistMaterial == null || sprayDropMaterial == null || !near || (view != null && view.Hidden))
             {
-                System.Array.Clear(sprayDebt, 0, WheelCount);
+                ClearSprayDebts();
                 return;
             }
             var vel = phys.Body.linearVelocity;
@@ -337,31 +358,61 @@ namespace MHK.Karts
             var speed = Vector3.ProjectOnPlane(vel, up).magnitude;
             if (speed < spraySpeedRange.x)
             {
-                System.Array.Clear(sprayDebt, 0, WheelCount);
+                ClearSprayDebts();
                 return;
             }
             var speedT = Mathf.Clamp01((speed - spraySpeedRange.x) / Mathf.Max(MinEnergyRange, spraySpeedRange.y - spraySpeedRange.x));
-            var rate = sprayRate * Mathf.Lerp(LowSpeedSprayShare, 1f, speedT) * SprayTierShare;
+            var share = Mathf.Lerp(LowSpeedSprayShare, 1f, speedT) * SprayTierShare * dt;
             for (var i = 0; i < WheelCount; i++)
             {
-                if (!phys.WheelOnGround(i) || !WetUnderWheel(i)) { sprayDebt[i] = 0f; continue; }
-                sprayDebt[i] += rate * (i < RearLeftWheel ? FrontSprayShare : 1f) * dt;
-                if (sprayDebt[i] < 1f) continue;
-                var n = Mathf.Min(MaxSprayPerWheelPerFrame, (int)sprayDebt[i]);
-                sprayDebt[i] -= n;
-                if (spray == null) CreateSpray();
-                EmitSpray(i, n, vel, speed, speedT);
+                if (!phys.WheelOnGround(i) || !WetUnderWheel(i))
+                {
+                    mistDebt[i] = dropDebt[i] = 0f;
+                    continue;
+                }
+                var wheelShare = share * (i < RearLeftWheel ? FrontSprayShare : 1f);
+                if (mist == null) CreateSpray();
+                var n = Due(ref dropDebt[i], dropRate * wheelShare);
+                if (n > 0) EmitDrops(i, n, vel, speed, speedT);
+                n = Due(ref mistDebt[i], mistRate * wheelShare);
+                if (n > 0) EmitMist(i, n, vel, speed, speedT);
             }
+        }
+
+        // Adds count to debt and takes the whole particles due now (at most MaxSprayPerWheelPerFrame).
+        static int Due(ref float debt, float count)
+        {
+            debt += count;
+            if (debt < 1f) return 0;
+            var n = Mathf.Min(MaxSprayPerWheelPerFrame, (int)debt);
+            debt -= n;
+            return n;
+        }
+
+        void ClearSprayDebts()
+        {
+            System.Array.Clear(mistDebt, 0, WheelCount);
+            System.Array.Clear(dropDebt, 0, WheelCount);
         }
 
         void CreateSpray()
         {
-            spray = CreateParticles("TyreSpray", maxSprayParticles, sprayLifetime.y, SprayGravity, SprayDrag,
-                SprayGrowStart, SprayGrowEnd, SprayFadeInEnd, SprayHalfAlphaTime, SprayHalfAlpha);
-            var r = spray.GetComponent<ParticleSystemRenderer>();
+            mist = CreateParticles("TyreSprayMist", sprayMistMaterial, maxMistParticles, mistLifetime.y, MistGravity, MistDrag,
+                MistGrowStart, MistGrowEnd, MistFadeInEnd, MistHalfAlphaTime, MistHalfAlpha);
+            // Each puff shows one of the sheet's puffs, picked at random, for its whole life.
+            var sheet = mist.textureSheetAnimation;
+            sheet.enabled = true;
+            sheet.numTilesX = MistSheetTiles;
+            sheet.numTilesY = MistSheetTiles;
+            sheet.frameOverTime = new ParticleSystem.MinMaxCurve(0f, 0.999f);
+            drops = CreateParticles("TyreSprayDrops", sprayDropMaterial, maxDropParticles, dropLifetime.y, DropGravity, DropDrag,
+                DropGrowStart, DropGrowEnd, DropFadeInEnd, DropHalfAlphaTime, DropHalfAlpha);
+            var rot = drops.rotationOverLifetime;
+            rot.enabled = false;
+            var r = drops.GetComponent<ParticleSystemRenderer>();
             r.renderMode = ParticleSystemRenderMode.Stretch;
-            r.velocityScale = SprayStretchVelocity;
-            r.lengthScale = SprayStretchLength;
+            r.lengthScale = DropStretchLength;
+            r.velocityScale = DropStretchVelocity;
         }
 
         static float SprayTierShare => GraphicsQuality.Tier switch
@@ -371,30 +422,57 @@ namespace MHK.Karts
             _ => LowTierSpray,
         };
 
-        void EmitSpray(int wheel, int count, Vector3 vel, float speed, float speedT)
+        // Spray direction of wheel: angle (deg) above the kart's backward axis, leaning outward by outwardShare.
+        Vector3 SprayDirection(int wheel, float angle, float outwardShare)
         {
-            var up = transform.up;
-            var back = -transform.forward;
             var outward = wheel % 2 == 0 ? -transform.right : transform.right;
-            var a = Mathf.Lerp(SprayAngleLow, SprayAngleHigh, speedT) * Mathf.Deg2Rad;
-            var dir = (back * Mathf.Cos(a) + up * Mathf.Sin(a) + outward * SprayOutward).normalized;
-            var eject = SprayEjectBase + SprayEjectShare * speed;
-            var origin = phys.WheelContactPoint(wheel) + up * SprayOriginLift + back * SprayOriginBack;
-            var sizeScale = SpraySizeBase + SpraySizeSpeed * speedT;
+            var a = angle * Mathf.Deg2Rad;
+            return (-transform.forward * Mathf.Cos(a) + transform.up * Mathf.Sin(a) + outward * outwardShare).normalized;
+        }
+
+        static Color Shaded(Color c)
+        {
+            var shade = Random.Range(SprayShadeMin, SprayShadeMax);
+            return new Color(Mathf.Clamp01(c.r * shade), Mathf.Clamp01(c.g * shade), Mathf.Clamp01(c.b * shade), c.a);
+        }
+
+        void EmitDrops(int wheel, int count, Vector3 vel, float speed, float speedT)
+        {
+            var dir = SprayDirection(wheel, Mathf.Lerp(DropAngleLow, DropAngleHigh, speedT), DropOutward);
+            var eject = DropEjectBase + DropEjectShare * speed;
+            var origin = phys.WheelContactPoint(wheel) + transform.up * DropOriginLift - transform.forward * DropOriginBack;
             for (var j = 0; j < count; j++)
             {
                 var jitter = Random.insideUnitSphere;
-                var shade = Random.Range(SprayShadeMin, SprayShadeMax);
-                var ep = new ParticleSystem.EmitParams
+                drops.Emit(new ParticleSystem.EmitParams
                 {
-                    position = origin + jitter * SprayPositionJitter,
-                    velocity = vel * SprayVelocityKeep + (dir + jitter * SprayDirectionJitter) * eject,
-                    startSize = Random.Range(spraySize.x, spraySize.y) * sizeScale,
-                    startLifetime = Random.Range(sprayLifetime.x, sprayLifetime.y),
-                    startColor = new Color(Mathf.Clamp01(sprayColor.r * shade), Mathf.Clamp01(sprayColor.g * shade), Mathf.Clamp01(sprayColor.b * shade), sprayColor.a),
+                    position = origin + jitter * DropPositionJitter,
+                    velocity = vel * DropVelocityKeep + (dir + jitter * DropDirectionJitter) * (eject * Random.Range(DropEjectMin, DropEjectMax)),
+                    startSize = Random.Range(dropSize.x, dropSize.y),
+                    startLifetime = Random.Range(dropLifetime.x, dropLifetime.y),
+                    startColor = Shaded(dropColor),
+                }, 1);
+            }
+        }
+
+        void EmitMist(int wheel, int count, Vector3 vel, float speed, float speedT)
+        {
+            var dir = SprayDirection(wheel, MistAngle, MistOutward);
+            var eject = MistEjectBase + MistEjectShare * speed;
+            var origin = phys.WheelContactPoint(wheel) + transform.up * MistOriginLift - transform.forward * MistOriginBack;
+            var sizeScale = MistSizeBase + MistSizeSpeed * speedT;
+            for (var j = 0; j < count; j++)
+            {
+                var jitter = Random.insideUnitSphere;
+                mist.Emit(new ParticleSystem.EmitParams
+                {
+                    position = origin + jitter * MistPositionJitter,
+                    velocity = vel * MistVelocityKeep + (dir + jitter * MistDirectionJitter) * eject,
+                    startSize = Random.Range(mistSize.x, mistSize.y) * sizeScale,
+                    startLifetime = Random.Range(mistLifetime.x, mistLifetime.y),
+                    startColor = Shaded(mistColor),
                     rotation = Random.Range(0f, 360f),
-                };
-                spray.Emit(ep, 1);
+                }, 1);
             }
         }
     }

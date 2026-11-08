@@ -19,6 +19,8 @@ MonoBehaviour:
   gameLogo: {fileID: 2800000, guid: 96864abf95ac46318d55c9468c014a2a, type: 3}
   uiGlassShader: {fileID: 4800000, guid: 937669cacd9e0409fb216d79508d1b9c, type: 3}
   litShader: {fileID: 4800000, guid: 168435bd04a614963bc0c3cf91cb4b34, type: 3}
+  waterShader: {fileID: 4800000, guid: 3a1ac371cbcf543d9aebb4fa3f46b61d, type: 3}
+  waterWaves: {fileID: 2800000, guid: 278b6edbfe3074ba183e45fccb747d41, type: 3}
   sfxMixGain: 0.55
   musicMixGain: 0.75
   physicsHz: 60

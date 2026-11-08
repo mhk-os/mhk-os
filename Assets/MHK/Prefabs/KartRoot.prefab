@@ -186,6 +186,19 @@ MonoBehaviour:
   skidVolume: 0.5
   surfaceVolume: 1
   surfaceFullSpeed: 30
+  engineMinDistance: 3
+  engineMaxDistance: 60
+  loopMaxDistance: 40
+  landingNormalY: 0.7
+  pitchRpmHeadroom: 1.3
+  fallbackPitchRpm: 5000
+  throttlePitch: 0.1
+  pitchFollowRate: 8
+  engineIdleVolumeShare: 0.6
+  engineThrottleVolumeShare: 0.4
+  landVolume: 0.7
+  hornCooldownSeconds: 1.2
+  loopMinIntensity: 0.05
 --- !u!114 &4408919408222979954
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -212,3 +225,16 @@ MonoBehaviour:
   maxDustParticles: 80
   dustCullDistance: 90
   dustOpacity: 0.35
+  sprayMistMaterial: {fileID: 2100000, guid: 87615655ce347450e8d8166fd39e0e60, type: 2}
+  sprayDropMaterial: {fileID: 2100000, guid: 1d7258c4c596b4990907986070033fe7, type: 2}
+  mistColor: {r: 0.85, g: 0.88, b: 0.92, a: 0.32}
+  dropColor: {r: 0.88, g: 0.92, b: 0.97, a: 0.8}
+  spraySpeedRange: {x: 4, y: 30}
+  mistRate: 28
+  dropRate: 70
+  mistSize: {x: 0.5, y: 0.9}
+  dropSize: {x: 0.03, y: 0.06}
+  mistLifetime: {x: 0.4, y: 0.75}
+  dropLifetime: {x: 0.2, y: 0.4}
+  maxMistParticles: 80
+  maxDropParticles: 100
