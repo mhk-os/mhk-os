@@ -76,8 +76,8 @@ namespace MHK.AI
         {
             FollowSpeed = float.PositiveInfinity;
             Engaged = false;
-            // A ghost or flattened kart drives through every other kart.
-            if (Kart.All.Count < 2 || self.Effects.Ghost || self.Effects.RunOverActive)
+            // A kart that other karts pass through (PassedThrough) drives through them too.
+            if (Kart.All.Count < 2 || PassedThrough(self))
             {
                 target = null;
                 return u;
@@ -123,7 +123,7 @@ namespace MHK.AI
             for (var i = 0; i < all.Count; i++)
             {
                 var o = all[i];
-                if (!CrushOnKartContact.IsCrushable(o) || o.Effects.Ghost || o.Effects.RunOverActive) continue;
+                if (!CrushOnKartContact.IsCrushable(o) || PassedThrough(o)) continue;
                 if (!Locate(o, out var otherU, out var along, out _, out var lengths) || along <= 0f) continue;
                 var gap = along - lengths;
                 var road = otherU + roadShift;
@@ -302,14 +302,17 @@ namespace MHK.AI
             return pl - w >= left && pl + w <= right;
         }
 
-        // Karts this one has to keep clear of: not ghosts, not flattened karts and not karts it flattens on contact (two
-        // crushable karts flatten each other, so a crushable kart keeps clear of those too).
+        // Karts this one has to keep clear of. Karts it passes through are left out (PassedThrough), and so are karts it
+        // flattens on contact (two crushable karts flatten each other, so a crushable kart keeps clear of those too).
         bool Measure(Kart o, out float otherU, out float along, out float half, out float lengths)
         {
             otherU = along = half = lengths = 0f;
-            if (o == null || o.Effects.Ghost || o.Effects.RunOverActive || (!selfCrushable && CrushOnKartContact.IsCrushable(o))) return false;
+            if (o == null || PassedThrough(o) || (!selfCrushable && CrushOnKartContact.IsCrushable(o))) return false;
             return Locate(o, out otherU, out along, out half, out lengths);
         }
+
+        // Other karts pass through k while it is a ghost, flattened (run over) or ploughing.
+        static bool PassedThrough(Kart k) => k.Effects.Ghost || k.Effects.RunOverActive || k.Effects.PloughActive;
 
         // Lane of o (from its track progress, else from where it is seen), centre distance ahead along the road, the lane
         // distance two karts keep with the side gap and their summed half lengths. False for karts not on the road here.

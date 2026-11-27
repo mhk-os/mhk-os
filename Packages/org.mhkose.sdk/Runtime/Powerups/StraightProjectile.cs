@@ -34,6 +34,8 @@ namespace MHK.Powerups
         [SerializeField] float collisionRadius = 0.15f;
         [Tooltip("Fly through walls, props and terrain, ended only by its lifetime or a kart hit (MHK3 soap bubbles).")]
         public bool passThroughWorld;
+        [Tooltip("Explode on loose props it flies into (crates) instead of passing through them (TINcan rocket).")]
+        [SerializeField] bool explodeOnProps;
         [Tooltip("Smoothing (m) of the racing-line tangent used by TrackDirection aiming.")]
         public float trackTangentSmoothing = 3f;
 
@@ -106,6 +108,7 @@ namespace MHK.Powerups
         {
             if (!hitKarts.Add(victim) || piercing) return;
             PowerupFx.Spawn(hitVfx, victim.transform.position + victim.transform.up * hitVfxHeight, hitSound, soundVolume);
+            BlastProps(transform.position);
             Remove();
         }
 
@@ -153,10 +156,17 @@ namespace MHK.Powerups
             var stepLength = speed * dt;
             var wall = default(RaycastHit);
             var blocked = !passThroughWorld && ItemPhysics.SphereCast(from, collisionRadius, direction, stepLength, out wall, worldMask);
+            if (explodeOnProps && !passThroughWorld && ItemPhysics.SphereCastProp(from, collisionRadius, direction, stepLength, out var prop, worldMask)
+                && (!blocked || prop.distance < wall.distance))
+            {
+                wall = prop;
+                blocked = true;
+            }
             var to = blocked ? from + direction * wall.distance : from + direction * stepLength;
             if (CheckHits(from, to)) return;
             if (blocked)
             {
+                BlastProps(wall.point);
                 Despawn(terrainVfx, wall.point, terrainSound);
                 return;
             }
@@ -182,6 +192,7 @@ namespace MHK.Powerups
                 PowerupFx.Spawn(hitVfx, p + k.transform.up * hitVfxHeight, hitSound, soundVolume);
                 if (!piercing)
                 {
+                    BlastProps(p);
                     Remove();
                     return true;
                 }

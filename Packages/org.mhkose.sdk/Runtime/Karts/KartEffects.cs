@@ -83,11 +83,14 @@ namespace MHK.Karts
         /// <summary>A star effect (<see cref="StatusEffectDefinition.starVisual"/>) is active, the kart flashes in rainbow colours.</summary>
         public bool Starred => Modifiers.starred;
         /// <summary>
-        /// An effect with <see cref="StatusEffectDefinition.ploughsThrough"/> is active. The kart is intangible like a ghost
-        /// and knocks movable props out of its way at <see cref="PropKnockSpeed"/>.
+        /// An effect with <see cref="StatusEffectDefinition.ploughsThrough"/> is active. Other karts pass through the kart
+        /// (<see cref="KartPhysics.RunOver"/>) and it knocks props out of its way. Items and hazards still hit it.
         /// </summary>
         public bool PloughActive => Modifiers.plough;
-        /// <summary>Speed (m/s) ploughed props fly off with (<see cref="StatusEffectDefinition.propKnockSpeed"/>).</summary>
+        /// <summary>
+        /// Speed (m/s) props in the kart's way fly off with (<see cref="StatusEffectDefinition.propKnockSpeed"/>), 0 when no
+        /// effect knocks props.
+        /// </summary>
         public float PropKnockSpeed => Modifiers.propKnockSpeed;
         /// <summary>Strongest body bob of the active effects (<see cref="StatusEffectDefinition.bodyBob"/>), null when none bobs.</summary>
         public BodyBob BodyBob

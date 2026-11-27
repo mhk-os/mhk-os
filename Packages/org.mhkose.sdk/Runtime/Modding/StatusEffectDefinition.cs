@@ -137,11 +137,13 @@ namespace MHK.Modding
         [Tooltip("Applied every tick to other karts within auraRadius (Thunder Kröt panzer ram).")]
         public StatusEffectDefinition auraEffect;
         public float auraRadius = 2f;
-        [Tooltip("Plough: the kart drives through other karts and movable props as a ghost does, and props in its way fly " +
-                 "off at propKnockSpeed instead of slowing it down. Like a ghost it is passed over by items and hazards " +
-                 "(TINcan ram and star).")]
+        [Tooltip("Plough: other karts pass through the kart and props in its way fly off (as knocksProps). Items and " +
+                 "hazards still hit it, so pair it with blocksHostileEffects to shrug them off (TINcan ram and star).")]
         public bool ploughsThrough;
-        [Tooltip("Speed (m/s) a ploughed prop flies off with, away from the kart and a little upwards, on top of the " +
+        [Tooltip("Props in the kart's way fly off at propKnockSpeed instead of slowing it down. Other karts still collide " +
+                 "with it (Thunder tank).")]
+        public bool knocksProps;
+        [Tooltip("Speed (m/s) a knocked prop flies off with, away from the kart and a little upwards, on top of the " +
                  "kart's own velocity.")]
         public float propKnockSpeed = 8f;
 

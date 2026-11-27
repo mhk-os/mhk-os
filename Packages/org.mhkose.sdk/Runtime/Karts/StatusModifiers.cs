@@ -14,9 +14,12 @@ namespace MHK.Karts
         public float acceleration, maxSpeed, steering, grip, scale, gravity, opacity, verticalScale, damageDealt, damageTaken;
         public bool controlsLocked, steeringInverted, shielded, burned, frozen, forceThrottle, throttleBlocked, itemUseBlocked;
         public bool ghost, runOver, hidden, wheelsHidden, glitched, starred;
-        /// <summary>An effect ploughs through karts and props (<see cref="StatusEffectDefinition.ploughsThrough"/>).</summary>
+        /// <summary>An effect ploughs through karts (<see cref="StatusEffectDefinition.ploughsThrough"/>).</summary>
         public bool plough;
-        /// <summary>Highest <see cref="StatusEffectDefinition.propKnockSpeed"/> of the ploughing effects (m/s).</summary>
+        /// <summary>
+        /// Highest <see cref="StatusEffectDefinition.propKnockSpeed"/> of the effects that knock props
+        /// (<see cref="StatusEffectDefinition.knocksProps"/> or ploughsThrough) in m/s, 0 when none does.
+        /// </summary>
         public float propKnockSpeed;
         public Color screenOverlay;
         /// <summary>Strongest <see cref="StatusEffectDefinition.modelTint"/> of the active effects, alpha 0 = none.</summary>
@@ -64,11 +67,8 @@ namespace MHK.Karts
             wheelsHidden |= d.hideWheels;
             glitched |= d.glitchVisual;
             starred |= d.starVisual;
-            if (d.ploughsThrough)
-            {
-                plough = true;
-                propKnockSpeed = Mathf.Max(propKnockSpeed, d.propKnockSpeed);
-            }
+            plough |= d.ploughsThrough;
+            if (d.ploughsThrough || d.knocksProps) propKnockSpeed = Mathf.Max(propKnockSpeed, d.propKnockSpeed);
             frozen |= d.HoldsKart;
             forceThrottle |= d.forceThrottle;
             throttleBlocked |= d.blockThrottle;

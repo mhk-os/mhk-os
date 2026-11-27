@@ -21,6 +21,13 @@ namespace MHK.Powerups
         [Tooltip("Karts whose origin comes this close to the flight path are hit (m).")]
         public float hitRadius = 1.1f;
 
+        [Header("Props")]
+        [Tooltip("Loose props within this distance (m) of where the shot explodes (on a kart, a wall or a prop) fly off, " +
+                 "away from that point. 0 leaves props alone.")]
+        [SerializeField] protected float propBlastRadius;
+        [Tooltip("Speed (m/s) blasted props fly off with close to the explosion, half of it at the edge of propBlastRadius.")]
+        [SerializeField] protected float propBlastSpeed = 12f;
+
         [Header("Sounds")]
         [Tooltip("One-shot at the spawn point, for every shot (e.g. each bubble of a BurstPowerup).")]
         [SerializeField] protected AudioClip launchSound;
@@ -48,6 +55,9 @@ namespace MHK.Powerups
         {
             if (deceleration > 0f) speed = Mathf.Max(0f, speed - deceleration * dt);
         }
+
+        /// <summary>Blasts the loose props around <paramref name="at"/> away (<see cref="propBlastRadius"/>), where the shot explodes.</summary>
+        protected void BlastProps(Vector3 at) => Race.PropKnock.Blast(gameObject.scene.GetPhysicsScene(), at, propBlastRadius, propBlastSpeed);
 
         /// <summary>Advances <see cref="Age"/>. Once the lifetime is over the shot despawns with <paramref name="expireVfx"/> and this returns true.</summary>
         protected bool TickLifetime(float dt, GameObject expireVfx)

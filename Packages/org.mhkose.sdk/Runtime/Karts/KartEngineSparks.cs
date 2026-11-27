@@ -8,10 +8,11 @@ namespace MHK.Karts
     /// Electric sparks of a supercharged engine (<see cref="DifficultySettings.engineSparks"/>). Every 0.2 to 0.6 s,
     /// more often as the engine revs, a crackle of blue-white zaps jumps off the top and sides of the engine part,
     /// followed by a smaller echo, and one or two jagged arcs flicker across the engine or out into the air. On the high
-    /// graphics tier near the camera a faint light flickers with them. <see cref="KartEngine"/> adds it to racing karts
-    /// only. The sparks live in one small particle system per kart and the arcs in a few line renderers, children of the
-    /// engine part, so they follow and scale with it and go when it goes. Karts far from the camera skip them, and so do
-    /// hidden or faded karts, so 50 idle karts cost next to nothing.
+    /// graphics tier near the camera a faint light flickers with them. <see cref="KartEngine"/> adds it to every
+    /// supercharged engine, in races and on the menu turntable. The sparks live in one small particle system per kart and
+    /// the arcs in a few line renderers, children of the engine part on its layer, so they follow and scale with it and go
+    /// when it goes. Racing karts far from the camera skip them, and so do hidden or faded karts, so 50 idle karts cost
+    /// next to nothing.
     /// </summary>
     public class KartEngineSparks : MonoBehaviour
     {
@@ -61,7 +62,10 @@ namespace MHK.Karts
         readonly Vector3[] arcPoints = new Vector3[ArcPoints];
         Material arcMaterial;
 
-        /// <summary>Starts the sparks of <paramref name="engine"/> on the kart <paramref name="view"/> shows.</summary>
+        /// <summary>
+        /// Starts the sparks of <paramref name="engine"/> on the kart <paramref name="view"/> shows, null for a kart
+        /// without a race view (the menu turntable), which always sparks at full strength.
+        /// </summary>
         public void Setup(KartEngine engine, IKartView view)
         {
             this.engine = engine;
@@ -183,7 +187,7 @@ namespace MHK.Karts
 
         LineRenderer CreateArc(string name, Material material, int order)
         {
-            var go = new GameObject(name);
+            var go = new GameObject(name) { layer = gameObject.layer };
             go.transform.SetParent(transform, false);
             var line = go.AddComponent<LineRenderer>();
             line.useWorldSpace = false;
@@ -208,10 +212,11 @@ namespace MHK.Karts
             _ => LowTierShare,
         };
 
-        // Drawn and close enough to the camera to be worth sparking.
+        // Drawn and close enough to the camera to be worth sparking. A kart without a view (the menu turntable) always is.
         bool Seen(out float distanceSq)
         {
             distanceSq = 0f;
+            if (view == null) return true;
             if (view.Hidden || view.Opacity < MinOpacity) return false;
             var cam = Camera.main;
             if (cam == null) return true;
@@ -222,7 +227,7 @@ namespace MHK.Karts
         // count sparks off the upper half of the shell around the engine (none down into the chassis), as see-through as the kart.
         void Burst(int count)
         {
-            var opacity = Mathf.Clamp01(view.Opacity);
+            var opacity = view != null ? Mathf.Clamp01(view.Opacity) : 1f;
             for (var i = 0; i < count; i++)
             {
                 var dir = Random.onUnitSphere;
@@ -245,7 +250,7 @@ namespace MHK.Karts
         {
             if (flash == null)
             {
-                var go = new GameObject("EngineSparkLight");
+                var go = new GameObject("EngineSparkLight") { layer = gameObject.layer };
                 go.transform.SetParent(transform, false);
                 go.transform.localPosition = bounds.center;
                 flash = go.AddComponent<Light>();
@@ -264,7 +269,7 @@ namespace MHK.Karts
         // fade over their short life.
         ParticleSystem CreateSystem(Material material)
         {
-            var go = new GameObject("EngineSparks");
+            var go = new GameObject("EngineSparks") { layer = gameObject.layer };
             go.transform.SetParent(transform, false);
             var ps = go.AddComponent<ParticleSystem>();
             ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
