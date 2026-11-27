@@ -92,12 +92,34 @@ namespace MHK.Modding
         public T Get<T>(string id) where T : ContentDefinition =>
             id != null && byId.TryGetValue(id, out var d) ? d as T : null;
 
-        /// <summary>The kart <paramref name="kartId"/>, else the default kart of <paramref name="character"/>, null if neither exists.</summary>
+        /// <summary>
+        /// The kart <paramref name="kartId"/>, else the default kart of <paramref name="character"/>
+        /// (<see cref="DefaultKart"/>), null if neither exists. The No kart counts only for a driver that races without a
+        /// kart, others get their default kart instead.
+        /// </summary>
         public KartDefinition ResolveKart(string kartId, CharacterDefinition character)
         {
             var kart = Get<KartDefinition>(kartId);
-            if (kart == null && character != null) kart = character.defaultKart;
-            return kart;
+            if (kart != null && kart.IsNoKart && (character == null || !character.racesWithoutKart)) kart = null;
+            return kart != null ? kart : DefaultKart(character);
+        }
+
+        /// <summary>
+        /// The kart <paramref name="character"/> races on when nothing else is picked. That is its default kart while a
+        /// loaded pack registers it, else the No kart for a driver that races without a kart, else the first kart of the
+        /// driver's own mod, else the first kart. Null when no kart is loaded.
+        /// </summary>
+        public KartDefinition DefaultKart(CharacterDefinition character)
+        {
+            if (character == null) return null;
+            var own = character.defaultKart;
+            if (own != null && Get<KartDefinition>(own.Id) == own) return own;
+            if (character.racesWithoutKart) return Get<KartDefinition>(KartDefinition.NoKartId);
+            var karts = All<KartDefinition>();
+            var mod = RootOf(character.OwnerPack);
+            foreach (var k in karts)
+                if (mod != null && RootOf(k.OwnerPack) == mod) return k;
+            return karts.Count > 0 ? karts[0] : null;
         }
 
         /// <summary>

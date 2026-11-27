@@ -55,7 +55,7 @@ namespace MHK.Karts
         void Pose(float w)
         {
             var angle = 2f * Mathf.PI * cycle;
-            Offset = w * new Vector3(shown.sway * Mathf.Sin(angle), shown.height * shown.Lift(cycle), 0f);
+            Offset = w * new Vector3(shown.sway * Mathf.Sin(angle), shown.raise + shown.height * shown.Lift(cycle), 0f);
             Rotation = Quaternion.Euler(w * shown.pitch * Mathf.Sin(angle), 0f, w * shown.roll * Mathf.Cos(angle));
         }
     }

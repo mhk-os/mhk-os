@@ -102,10 +102,11 @@ namespace MHK.UI
         }
 
         /// <summary>
-        /// Puts the menu camera on top of <paramref name="race"/> and fades from the neutral background to the race.
-        /// The race's lights (every light but the menu light) stop lighting the Menu layer.
+        /// Puts the menu camera on top of <paramref name="race"/> with the neutral background still covering it: the race
+        /// renders unseen (<see cref="Attract.RenderWarmUp"/>) until <see cref="ShowRace"/>. The race's lights (every light
+        /// but the menu light) stop lighting the Menu layer.
         /// </summary>
-        public void ShowRace(Camera race, float seconds)
+        public void CoverRace(Camera race)
         {
             ShowNeutral();
             Unstack();
@@ -117,6 +118,13 @@ namespace MHK.UI
             menuData.renderType = CameraRenderType.Overlay;
             picture = null;
             shown = 0f;
+            FadeTo(0f, 0f);
+        }
+
+        /// <summary>Fades from the neutral background to <paramref name="race"/>, covering it first unless <see cref="CoverRace"/> did.</summary>
+        public void ShowRace(Camera race, float seconds)
+        {
+            if (raceCamera != race) CoverRace(race);
             FadeTo(1f, seconds);
         }
 

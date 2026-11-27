@@ -75,11 +75,9 @@ namespace MHK.UI
             OnClick("single-race", () => StartMode(GameMode.SingleRace));
             // Time trials start from a track's page in the hub (records, leaderboard, ghosts to race).
             OnClick("time-trials", () => Flow.Show<RecordsScreen>());
-            OnClick("battle", () =>
-            {
-                Selection.opponents = Mathf.Max(1, Selection.opponents);
-                StartMode(GameMode.Battle);
-            });
+            // Battles and Last Man Standing need someone to beat.
+            OnClick("battle", () => StartModeWithOpponent(GameMode.Battle));
+            OnClick("last-man-standing", () => StartModeWithOpponent(GameMode.LastManStanding));
             OnClick("online", () => Flow.Show<OnlineScreen>());
             OnClick("mods", () => Flow.Show<ModsScreen>());
             OnClick("options", () => Flow.Show<OptionsScreen>());
@@ -133,6 +131,12 @@ namespace MHK.UI
             Selection.mode = mode;
             Selection.lobbyPick = LobbyPick.None;
             Flow.Show<CharacterScreen>();
+        }
+
+        void StartModeWithOpponent(GameMode mode)
+        {
+            Selection.opponents = Mathf.Max(1, Selection.opponents);
+            StartMode(mode);
         }
     }
 }

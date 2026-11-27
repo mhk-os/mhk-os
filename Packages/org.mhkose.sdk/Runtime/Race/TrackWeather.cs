@@ -71,6 +71,15 @@ namespace MHK.Race
         }
 
         /// <summary>
+        /// In a wet race, dries the water materials put back since <see cref="Begin"/> (<see cref="TrackWater"/> restoring
+        /// the track's own water on a graphics tier change); renderers already dried keep their copies.
+        /// </summary>
+        public static void RedryWater()
+        {
+            if (wetness > 0f) DryWater();
+        }
+
+        /// <summary>
         /// Tyre grip multiplier at <paramref name="worldPosition"/>: the variant's outdoor grip where nothing covers it, 1
         /// under cover and without grip-reducing options.
         /// </summary>

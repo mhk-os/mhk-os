@@ -20,6 +20,9 @@ namespace MHK.AI
         const float SlowAimInterval = 0.3f, FastAimInterval = 0.1f;
         const float OffensiveRange = 60f, OffensiveHalfWidth = 20f, OffensiveBlindChance = 0.2f, ProtectChance = 0.4f;
         const float DropBehind = 3f, BlindDropChance = 0.3f, LookAfterRearUse = 0.3f, ThrowHitMargin = 2f;
+        // Seconds a computer driver waits between the charges of an item on itself (Lesshuhn's three silver feathers), so
+        // boosts and shields follow one another instead of overlapping.
+        const float SelfChargeSpacing = 5f;
 
         readonly DifficultySettings difficulty;
         readonly AIBlackboard board;
@@ -37,6 +40,8 @@ namespace MHK.AI
         float useBy = float.PositiveInfinity, maxHold = float.PositiveInfinity;
         bool plantNarrow;
         bool firedLast;
+        int lastCharges;
+        float sinceUse = float.PositiveInfinity;
 
         public AIItemBrain(DifficultySettings difficulty, AIBlackboard board, System.Random rng)
         {
@@ -80,6 +85,7 @@ namespace MHK.AI
                 HealUse(kart, inv, item, ref input, cfg);
                 return;
             }
+            if (sinceUse < ChargeSpacing(item)) return;
             if (UseDue(kart, inv, cfg))
             {
                 BlindUse(kart, inv, item, ref input);
@@ -101,6 +107,8 @@ namespace MHK.AI
                 heldReceived = inv.Received;
                 held = def != null ? AIItemProfile.Of(def) : null;
                 givenCharges = def != null ? inv.Charges : 0;
+                lastCharges = givenCharges;
+                sinceUse = float.PositiveInfinity;
                 useBy = def != null ? UseBy(kart, cfg) : float.PositiveInfinity;
                 maxHold = def != null ? MaxHold(cfg) : float.PositiveInfinity;
                 heldTime = 0f;
@@ -110,6 +118,9 @@ namespace MHK.AI
                 return;
             }
             heldTime += dt;
+            sinceUse += dt;
+            if (inv.Charges < lastCharges) sinceUse = 0f;
+            lastCharges = inv.Charges;
             if (plantNarrow && heldTime > PlantTimeout) plantNarrow = false;
         }
 
@@ -131,9 +142,12 @@ namespace MHK.AI
         {
             if (heldTime >= maxHold) return true;
             if (float.IsPositiveInfinity(useBy)) return false;
-            var lead = cfg.aiItemUseBeforeBoxes + Mathf.Max(0f, kart.Physics.ForwardSpeed) * (inv.Charges - 1) * heldDef.useCooldown;
+            var spacing = Mathf.Max(heldDef.useCooldown, ChargeSpacing(held));
+            var lead = cfg.aiItemUseBeforeBoxes + Mathf.Max(0f, kart.Physics.ForwardSpeed) * (inv.Charges - 1) * spacing;
             return useBy - kart.Progress.RaceDistance < lead;
         }
+
+        static float ChargeSpacing(AIItemProfile item) => item.Kind == AIItemKind.Self ? SelfChargeSpacing : 0f;
 
         // Traps go behind, shots and throws ahead (behind for a leader when they can), the rest at once.
         // Leader hunters include their user: a leader keeps them rather than attacking itself.

@@ -92,14 +92,14 @@ namespace MHK.UI
             Root.RegisterCallback<NavigationCancelEvent>(OnCancel);
         }
 
-        // Offline single races, championships and battles: not online (the race goes on), time trials, replays or the menu
-        // background race.
+        // Offline single races, championships, battles and Last Man Standing: not online (the race goes on), time trials,
+        // replays or the menu background race.
         void BindPhoto()
         {
             photoButton = Q<Button>("photo");
             var session = Race.Session;
             var shown = photo != null && session != null && !Race.IsOnline && !Race.IsAttract && Race.RaceCamera != null &&
-                        session.mode is GameMode.SingleRace or GameMode.Championship or GameMode.Battle;
+                        session.mode is GameMode.SingleRace or GameMode.Championship or GameMode.Battle or GameMode.LastManStanding;
             photoButton.SetVisible(shown);
             if (!shown) return;
             photoButton.clicked += OpenPhoto;

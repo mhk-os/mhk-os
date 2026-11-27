@@ -5,8 +5,11 @@ using MHK.Modding;
 
 namespace MHK.Core
 {
-    /// <summary>Race kinds. Keep the numeric values when adding or renaming one.</summary>
-    public enum GameMode { SingleRace = 0, Championship = 1, TimeTrial = 2, Battle = 3 }
+    /// <summary>
+    /// Race kinds. Last Man Standing is a race of one lap less than there are karts in which the last kart of every lap
+    /// is knocked out (<see cref="Race.LastManStandingRules"/>). Keep the numeric values when adding or renaming one.
+    /// </summary>
+    public enum GameMode { SingleRace = 0, Championship = 1, TimeTrial = 2, Battle = 3, LastManStanding = 4 }
 
     /// <summary>Engine class (50cc, 100cc, 150cc) and computer driver skill.</summary>
     public enum Difficulty { Easy = 0, Medium = 1, Hard = 2 }
@@ -112,7 +115,7 @@ namespace MHK.Core
                 s.racers.Add(new RacerSetup
                 {
                     characterId = c.Id,
-                    kartId = c.defaultKart != null ? c.defaultKart.Id : null,
+                    kartId = registry.DefaultKart(c)?.Id,
                     isHuman = i == 0,
                     playerIndex = i == 0 ? 0 : -1,
                     displayName = c.DisplayName,

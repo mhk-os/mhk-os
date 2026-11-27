@@ -26,8 +26,8 @@ namespace MHK.Powerups
     }
 
     /// <summary>
-    /// Item odds: every item box powerup of every loaded pack has the same chance on every track. Single races and
-    /// battles use the player's own odds in percent (else <see cref="Defaults"/>), championships the defaults. Online
+    /// Item odds: every item box powerup of every loaded pack has the same chance on every track. Single races, battles
+    /// and Last Man Standing use the player's own odds in percent (else <see cref="Defaults"/>), championships the defaults. Online
     /// races give only the lobby's powerups. Battle-only powerups (<see cref="PowerupDefinition.battleOnly"/>, the
     /// health pack) are listed with the others but join only battle pools.
     /// </summary>

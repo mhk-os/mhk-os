@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using MHK.Core;
+using MHK.Modding;
 using MHK.Online;
 using MHK.Race;
 using UnityEngine;
@@ -62,6 +63,21 @@ namespace MHK.Powerups
                     loaded.specials.Add(new SpecialEntry { slot = slot, powerupId = special.Id });
                 }
             loaded.specials.Sort((a, b) => a.slot.CompareTo(b.slot));
+
+            // Every driver's special of the lobby's content, whoever races, for the server's draw of a random special.
+            loaded.specialPool.Clear();
+            loaded.randomSpecials.Clear();
+            var specials = new List<PowerupDefinition>();
+            RandomSpecialPowerup.CollectPool(content, packs, race.IsBattle, specials);
+            foreach (var s in specials) loaded.specialPool.Add(s.Id);
+            foreach (var c in content.All<CharacterDefinition>())
+            {
+                var special = c.specialPowerup;
+                if (!RandomSpecialPowerup.IsRandomSpecial(special) || loaded.randomSpecials.Contains(special.Id)) continue;
+                if (packs != null && !ContentManifests.IsLobbyContent(content, special, packs)) continue;
+                loaded.randomSpecials.Add(special.Id);
+            }
+            loaded.randomSpecials.Sort(string.CompareOrdinal);
 
             loaded.rules = new ItemRules
             {

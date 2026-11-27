@@ -9,7 +9,8 @@ namespace MHK.Powerups
     /// <summary>
     /// Field that acts on karts inside a radius: pulls them towards the centre and/or applies an effect inside it or its
     /// core (swallowed, frozen, x-field, electroshock...). Waits for an <see cref="ILandingPowerup"/> to land, or stays
-    /// centred on its user (<see cref="followOwner"/>). Ghost karts are not affected.
+    /// centred on its user (<see cref="followOwner"/>). A cone narrower than 360 degrees acts only ahead of the field
+    /// (flame jet). Ghost karts are not affected.
     /// </summary>
     public class AreaEffectPowerup : PowerupBehaviour, IPlantedHazard
     {
@@ -26,7 +27,7 @@ namespace MHK.Powerups
         [SerializeField] StatusEffectDefinition fieldEffect;
         [Tooltip("Off: the field effect is kept alive while the kart is inside and ends shortly after it leaves. On: a kart " +
                  "inside gets the effect with its full duration, renewed only once it has run out while the kart is still " +
-                 "inside (TINcan jamming signal, shocker, flame thrower).")]
+                 "inside (TINcan jamming signal, shocker, fire ring, flamethrower).")]
         [SerializeField] bool fieldEffectFullDuration;
         [SerializeField] float lifetime = 8f;
         [Tooltip("Seconds after landing before the field acts on anyone: a visible arming. 0 = at once, so a kart right " +
@@ -40,6 +41,10 @@ namespace MHK.Powerups
         [SerializeField] float growTime = 0.5f;
         [Tooltip("Stays centred on the user's kart (blasts released around the kart) instead of where it was spawned.")]
         [SerializeField] bool followOwner;
+        [Tooltip("Only karts within this angle (degrees, full width) of the field's forward direction are affected, 360 = " +
+                 "all around. A field that follows its user below 360 also turns with it, so it acts ahead of the kart " +
+                 "(TINcan Rudy's flame thrower).")]
+        [SerializeField, Range(1f, 360f)] float coneAngle = 360f;
 
         [Header("Sounds")]
         [Tooltip("Loop while the field is active (from landing / activation until it ends).")]
@@ -55,6 +60,8 @@ namespace MHK.Powerups
         Effects.EffectLoopSound loop;
 
         public Vector3 Position => transform.position;
+        /// <summary>Full width (degrees) of the cone ahead the field acts in, 360 = all around.</summary>
+        public float ConeAngle => coneAngle;
         /// <summary>
         /// The whole field with a field effect. With only a pull, half-way in, where it gets too strong to escape. None
         /// for a field carried by its user (nothing to steer around).
@@ -101,18 +108,35 @@ namespace MHK.Powerups
         void LateUpdate()
         {
             if (InFlight) return;
-            if (followOwner && Owner != null) transform.position = Owner.transform.position;
+            FollowOwner();
             transform.localScale = baseScale * Mathf.Clamp01(growTime > 0 ? active / growTime : 1f);
+        }
+
+        void FollowOwner()
+        {
+            if (!followOwner || Owner == null) return;
+            if (coneAngle < 360f) transform.SetPositionAndRotation(Owner.transform.position, Owner.transform.rotation);
+            else transform.position = Owner.transform.position;
+        }
+
+        // Inside the cone ahead of the field, measured flat, a kart at the very centre included.
+        bool InCone(Vector3 toKart)
+        {
+            if (coneAngle >= 360f) return true;
+            var flat = Vector3.ProjectOnPlane(toKart, transform.up);
+            return flat.sqrMagnitude < 0.25f || Vector3.Angle(transform.forward, flat) <= coneAngle * 0.5f;
         }
 
         protected override void Step(float dt)
         {
             if (InFlight) return;
-            if (followOwner && Owner != null) transform.position = Owner.transform.position;
+            FollowOwner();
             if (loop == null) loop = Effects.EffectLoopSound.Play(gameObject, idleLoop);
             active += dt;
             if (active > lifetime)
             {
+                // Flames and smoke of the field stop and die away on their own instead of vanishing with it.
+                PowerupFx.LetParticlesFinish(gameObject);
                 // A field carried by its user ends at the kart and its expire sound goes with it.
                 if (followOwner && Owner != null)
                 {
@@ -132,7 +156,7 @@ namespace MHK.Powerups
                 if (!Affects(k)) continue;
                 var to = center - k.transform.position;
                 var dist = to.magnitude;
-                if (dist > radius) continue;
+                if (dist > radius || !InCone(-to)) continue;
                 Pull(k, to, dist);
                 ApplyField(k);
                 if (TryCoreHit(k, dist)) return;

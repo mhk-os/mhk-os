@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 using MHK.Core;
 using MHK.Rendering;
@@ -9,11 +10,12 @@ using UnityEngine.Rendering;
 namespace MHK.Race
 {
     /// <summary>
-    /// HD water of the running race: at its start every MHK/Lit water material of the loaded track (by name, see
-    /// <see cref="IsWaterBody"/>) is swapped on its renderers for a copy drawn with <see cref="GameConfig.waterShader"/>
-    /// (MHK/Water: waves, sky reflection and highlights over the original's colour), keeping its texture, animation, colour
-    /// and blending. Sky domes keep theirs. The race's end puts the originals back and frees the copies. Without the shader
-    /// in the config the water stays as the track made it.
+    /// HD water of the running race on the Medium and High graphics tiers (<see cref="HdTier"/>): every MHK/Lit water
+    /// material of the loaded track (by name, see <see cref="IsWaterBody"/>) is swapped on its renderers for a copy drawn
+    /// with <see cref="GameConfig.waterShader"/> (MHK/Water: waves, sky reflection and highlights over the original's colour;
+    /// one wave layer on Medium), keeping its texture, animation, colour and blending. Sky domes keep theirs. Low keeps the
+    /// track's own water; a tier change during the race (<see cref="Refresh"/>) swaps or restores it. The race's end puts
+    /// the originals back and frees the copies. Without the shader in the config the water stays as the track made it.
     /// </summary>
     public static partial class TrackWater
     {
@@ -21,17 +23,55 @@ namespace MHK.Race
         // Lava and magma are not water, though the wet look leaves them out by the same names.
         static readonly Regex LavaName = new("lava|magma", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-        [AutoStaticsCleanup] static readonly List<(Renderer renderer, Material[] materials)> swapped = new();
+        // Config of the running race (null = none), whether its water is swapped, the renderers swapped with their
+        // materials before and the HD ones they got, and the copies.
+        [AutoStaticsCleanup] static GameConfig race;
+        [AutoStaticsCleanup] static bool shown;
+        [AutoStaticsCleanup] static readonly List<(Renderer renderer, Material[] materials, Material[] hd)> swapped = new();
         [AutoStaticsCleanup] static readonly List<Material> copies = new();
 
+        /// <summary>The graphics tier shows HD water: Medium and High.</summary>
+        public static bool HdTier => GraphicsQuality.Tier != GraphicsPreset.Low;
+
         /// <summary>
-        /// Swaps the water of the loaded track for HD water. Call after the variant's overlays loaded and before
+        /// Starts the race's water: HD water on the tiers that show it. Call after the variant's overlays loaded and before
         /// <see cref="TrackWeather.Begin"/> (which then leaves the HD water alone) and the sky domes are prepared.
         /// </summary>
         public static void Begin(GameConfig config)
         {
+            End();
+            race = config;
+            Refresh();
+        }
+
+        /// <summary>Ends the race's HD water: the track's own water materials are back, the copies freed.</summary>
+        public static void End()
+        {
+            race = null;
             Restore();
-            var shader = config != null ? config.waterShader : null;
+        }
+
+        /// <summary>
+        /// Matches the running race's water to the graphics tier (<see cref="GraphicsQuality.Apply"/> calls it on every
+        /// change): HD water when the tier shows it, else the track's own water, which <see cref="TrackWeather"/> dries
+        /// again in a wet race. Nothing outside a race.
+        /// </summary>
+        public static void Refresh()
+        {
+            if (race == null || shown == HdTier) return;
+            if (!shown)
+            {
+                Swap(race);
+                return;
+            }
+            Restore();
+            TrackWeather.RedryWater();
+        }
+
+        static void Swap(GameConfig config)
+        {
+            shown = true;
+            var shader = config.waterShader;
             if (shader == null || !shader.isSupported) return;
             var made = new Dictionary<Material, Material>();
             var materials = new List<Material>();
@@ -54,13 +94,10 @@ namespace MHK.Race
                     hd[i] = copy;
                 }
                 if (hd == null) continue;
-                swapped.Add((r, r.sharedMaterials));
+                swapped.Add((r, r.sharedMaterials, hd));
                 r.sharedMaterials = hd;
             }
         }
-
-        /// <summary>Ends the race's HD water: the track's own water materials are back, the copies freed.</summary>
-        public static void End() => Restore();
 
         /// <summary>
         /// A water body's material: MHK/Lit, fogged (not a sky) and not self-lit (not an effect), named water but not lava
@@ -102,10 +139,18 @@ namespace MHK.Race
             return hd;
         }
 
+        // Puts back the materials of the renderers still showing their HD water (TrackWeather's end may have put the
+        // track's own back already) and frees the copies.
         static void Restore()
         {
-            foreach (var (r, materials) in swapped)
-                if (r != null) r.sharedMaterials = materials;
+            shown = false;
+            var current = new List<Material>();
+            foreach (var (r, materials, hd) in swapped)
+            {
+                if (r == null) continue;
+                r.GetSharedMaterials(current);
+                if (current.SequenceEqual(hd)) r.sharedMaterials = materials;
+            }
             swapped.Clear();
             foreach (var m in copies)
             {

@@ -8,15 +8,25 @@ namespace MHK.UI
     /// <summary>
     /// Kart choice (Kart.uxml): a card per kart and the info panel with the three stat bars below the showcase. The
     /// hovered or focused kart carries the selected driver on the turntable, picking one goes on to the track or cup.
-    /// For the online lobby (<see cref="LobbyPick.Loadout"/>) it lists the lobby's karts and picking one sets the
-    /// player's loadout and returns to the lobby.
+    /// A driver that races without a kart gets the No kart first, shown with its portrait. For the online lobby
+    /// (<see cref="LobbyPick.Loadout"/>) it lists the lobby's karts and picking one sets the player's loadout and returns
+    /// to the lobby.
     /// </summary>
     public class KartScreen : CardGridScreen<KartDefinition>
     {
         VisualElement speed, acceleration, handling;
 
-        protected override IEnumerable<KartDefinition> Items =>
-            Selection.lobbyPick == LobbyPick.Loadout ? LobbyScreen.LobbyContent<KartDefinition>() : Content.All<KartDefinition>();
+        protected override IEnumerable<KartDefinition> Items
+        {
+            get
+            {
+                var character = Selection.character;
+                var noKart = character != null && character.racesWithoutKart ? Content.Get<KartDefinition>(KartDefinition.NoKartId) : null;
+                if (noKart != null) yield return noKart;
+                var karts = Selection.lobbyPick == LobbyPick.Loadout ? LobbyScreen.LobbyContent<KartDefinition>() : Content.All<KartDefinition>();
+                foreach (var k in karts) yield return k;
+            }
+        }
 
         protected override void BindPage()
         {
@@ -28,9 +38,13 @@ namespace MHK.UI
         protected override string GameName(string game) =>
             Selection.lobbyPick == LobbyPick.Loadout ? OnlineUi.PackName(game) : UiText.GameName(game);
 
-        protected override string CardTag(KartDefinition k) => GameName(k.SourceGame);
+        // The No kart belongs to no game. It carries the game of the driver that races without a kart.
+        protected override string CardTag(KartDefinition k) =>
+            GameName(k.IsNoKart && Selection.character != null ? Selection.character.SourceGame : k.SourceGame);
 
-        protected override Texture2D CardImage(KartDefinition k) => k.Icon;
+        protected override string InfoGame(KartDefinition k) => CardTag(k);
+
+        protected override Texture2D CardImage(KartDefinition k) => k.IsNoKart && Selection.character != null ? Selection.character.Portrait : k.Icon;
 
         protected override bool IsSelected(KartDefinition k) => k == Selection.kart;
 

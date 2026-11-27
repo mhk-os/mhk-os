@@ -19,6 +19,8 @@ namespace MHK.Karts
         // Opacity steps of the shared copies: an 8-bit render target shows no finer alpha anyway.
         const int OpacitySteps = 255;
         static readonly Color BurntTint = new(0.12f, 0.1f, 0.1f);
+        // The star look cycles the hue this many times per second at this saturation. Tints above 1 light the model up.
+        const float RainbowHz = 2.5f, RainbowSaturation = 0.7f, RainbowBrightness = 1.8f;
 
         struct FadedRenderer
         {
@@ -55,6 +57,7 @@ namespace MHK.Karts
         Color tintColour = Color.white;
         float tintAmount;
         bool hidden;
+        bool rainbowShown;
 
         /// <summary>Looks of the visual below <paramref name="root"/>. Tints apply to <paramref name="tinted"/>.</summary>
         public KartSeeThrough(Transform root, IKartView view, Renderer[] tinted)
@@ -70,17 +73,31 @@ namespace MHK.Karts
         /// <summary>
         /// Moves the shown tint towards the burnt look while <paramref name="burned"/>, else towards <paramref name="tint"/>
         /// (alpha = strength, 0 = none). A new colour shows at once, the strength fades. Back at 0 only the tint resets;
-        /// other effect properties on the renderer's property block stay intact.
+        /// other effect properties on the renderer's property block stay intact. While <paramref name="rainbow"/> is set the
+        /// model cycles through bright rainbow colours instead (star).
         /// </summary>
-        public void UpdateTint(bool burned, Color tint, float dt)
+        public void UpdateTint(bool burned, Color tint, bool rainbow, float dt)
         {
+            if (rainbow)
+            {
+                var c = Color.HSVToRGB(Mathf.Repeat(Time.time * RainbowHz, 1f), RainbowSaturation, 1f) * RainbowBrightness;
+                c.a = 1f;
+                ShowTint(c);
+                rainbowShown = true;
+                return;
+            }
             var goal = burned ? BurntTint : tint;
             var target = Mathf.Clamp01(goal.a);
             var colour = target > 0f ? new Color(goal.r, goal.g, goal.b) : tintColour;
-            if (Mathf.Approximately(tintAmount, target) && colour == tintColour) return;
+            if (Mathf.Approximately(tintAmount, target) && colour == tintColour && !rainbowShown) return;
+            rainbowShown = false;
             tintColour = colour;
             tintAmount = Mathf.MoveTowards(tintAmount, target, dt * (target > tintAmount ? TintInRate : TintOutRate));
-            var shown = Color.Lerp(Color.white, tintColour, tintAmount);
+            ShowTint(Color.Lerp(Color.white, tintColour, tintAmount));
+        }
+
+        void ShowTint(Color shown)
+        {
             foreach (var r in tinted)
             {
                 if (r == null) continue;

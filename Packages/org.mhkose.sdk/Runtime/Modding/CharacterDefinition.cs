@@ -9,7 +9,7 @@ namespace MHK.Modding
     {
         [Header("Visuals")]
         [Tooltip("Driver model without a kart. Its origin is the seat point: races and the menu place it on the kart's " +
-                 "KartModel.seat without any offset.")]
+                 "KartModel.seat, shifted by seatOffset.")]
         public GameObject driverPrefab;
         [Tooltip("Uniform scale of the driver model, about its seat point.")]
         public float modelScale = 1f;
@@ -19,6 +19,34 @@ namespace MHK.Modding
 
         /// <summary>The picture menus show for this driver: the portrait, else the icon.</summary>
         public Texture2D Portrait => portrait != null ? portrait : Icon;
+
+        [Header("Seat")]
+        [Tooltip("How far ahead of its seat point (metres, at modelScale) the driver's hands hold the steering wheel in " +
+                 "its driving pose. On every kart the driver slides along the seat so its hands reach the kart's wheel " +
+                 "(KartModel.SteeringWheel), within a short way. 0 = it stays on the seat point.")]
+        public float handReach;
+        [Tooltip("Shift of the seated driver in the kart's space (x right, y up, z forward, metres), on top of the slide to " +
+                 "the wheel, so it sits on the seat (a big driver whose feet would hang below the floor sits higher).")]
+        public Vector3 seatOffset;
+
+        [Header("Without a kart")]
+        [Tooltip("The driver is a vehicle itself (the TINcan racers). The kart page offers No kart for it, and No kart is " +
+                 "its default when defaultKart is empty.")]
+        public bool racesWithoutKart;
+        [Tooltip("Without a kart, where the driver's origin sits in the kart's space (metres), so the model stands on the " +
+                 "ground as the kart body.")]
+        public Vector3 noKartOffset;
+        [Tooltip("Without a kart, the uniform scale of the driver model instead of modelScale.")]
+        public float noKartScale = 1f;
+        [Tooltip("Without a kart, the box (kart space, metres) whose front, top and back carry held items and attached " +
+                 "effects, about the driver's body, so a hammer sits in its hands. Size 0 = the kart's chassis box.")]
+        public Bounds noKartMounts;
+
+        /// <summary>
+        /// Races as its own body on <paramref name="kart"/>: no kart model (No kart or none) and
+        /// <see cref="racesWithoutKart"/>, as <see cref="Karts.KartRigBuilder.Spawn"/> builds it.
+        /// </summary>
+        public bool RacesBareOn(KartDefinition kart) => racesWithoutKart && (kart == null || kart.kartPrefab == null);
 
         [Header("Gameplay")]
         [Tooltip("Kart used when the player does not pick one.")]

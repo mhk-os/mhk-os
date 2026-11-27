@@ -189,7 +189,7 @@ namespace MHK.Online
         {
             if (leaving) return;
             leaving = true;
-            kart.RemoteFade = 0f;
+            kart.LeaveFade = 0f;
             kart.Physics.Body.detectCollisions = false;
             leaveTimer = LeaveFadeSeconds;
         }

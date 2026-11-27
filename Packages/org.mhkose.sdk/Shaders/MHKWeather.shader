@@ -2,7 +2,7 @@
 // box that wraps around the camera, so no CPU simulation is needed and particles never pop. The cover map hides particles
 // under roofs. With _WEATHER_SPLASH (WeatherEffect's splash material) the quads are drop splashes landing on the cover
 // map's surfaces. Particles are lit per vertex (they are small): scene light, a share of the point and spot lights
-// (headlight beams, lamps; no shadows) and the lightning flash (_MHKFlash).
+// (headlight beams, lamps; no shadows; not on the Low graphics tier) and the lightning flash (_MHKFlash).
 Shader "MHK/Weather"
 {
     Properties

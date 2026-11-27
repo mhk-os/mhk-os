@@ -29,11 +29,13 @@ namespace MHK.UI
         string raceOfCupFormat = "Race {0} of {1}";
         [SerializeField, FormerlySerializedAs("battleSubtitle"), Tooltip("Info line in battles.")]
         string battleInfo = "Battle";
+        [SerializeField, Tooltip("Info line in Last Man Standing.")]
+        string lastManStandingInfo = "Last Man Standing";
         [SerializeField, Tooltip("Info line in single races.")]
         string raceInfo = "Single Race";
-        [SerializeField, Tooltip("Status of a battle racer still in the game at the end.")]
+        [SerializeField, Tooltip("Status of a racer still in the game at the end of a battle or Last Man Standing.")]
         string survivorText = "Survivor";
-        [SerializeField, Tooltip("Status of a knocked-out battle racer.")]
+        [SerializeField, Tooltip("Status of a racer knocked out of a battle or Last Man Standing.")]
         string outText = "Out";
 
         [Header("Time trial texts")]
@@ -151,13 +153,14 @@ namespace MHK.UI
             var champ = session.mode == GameMode.Championship;
             var online = race.IsOnline;
             var solo = online && race.Online != null && !race.Online.InSet;
-            var battle = race.Battle != null;
+            // Knockout modes (battle, Last Man Standing) show who survived instead of the best lap.
+            var knockout = race.Battle != null || race.LastManStanding != null;
             var screen = Q<VisualElement>("results");
             screen.EnableInClassList("online", online);
             screen.EnableInClassList("solo", solo);
-            BindHeader(race, session, champ, battle);
+            BindHeader(race, session, champ, knockout);
             var rows = Q<VisualElement>("rows");
-            var rowCount = FillResultRows(rows, race, champ || (online && !solo), battle);
+            var rowCount = FillResultRows(rows, race, champ || (online && !solo), knockout);
             var afterRows = RowDelay(rowCount);
             BindChampion(session, champ, afterRows);
             var laps = BindTimeTrial(race.TimeTrial);
@@ -287,7 +290,8 @@ namespace MHK.UI
             chips.SetVisible(race.IsOnline);
             info.SetVisible(!race.IsOnline);
             if (race.IsOnline) AddOnlineChips(chips, setup, session, battle);
-            else info.text = champ ? UiText.RaceOfCup(session, raceOfCupFormat) : battle ? battleInfo : raceInfo;
+            else info.text = champ ? UiText.RaceOfCup(session, raceOfCupFormat)
+                : race.LastManStanding != null ? lastManStandingInfo : battle ? battleInfo : raceInfo;
             Q<VisualElement>("head-best").SetVisible(!battle);
             Q<VisualElement>("head-status").SetVisible(battle);
             Q<VisualElement>("head-points").SetVisible(champ || (race.IsOnline && (setup == null || setup.setRace > 0)));

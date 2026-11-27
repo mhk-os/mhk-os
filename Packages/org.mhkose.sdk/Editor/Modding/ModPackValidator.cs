@@ -10,8 +10,9 @@ namespace MHK.Editor.Modding
 {
     /// <summary>
     /// Pre-build checks of a mod pack: pack id set and free, definition ids namespaced, track scenes present, track overlays
-    /// naming a known track and option with an overlay scene rooted in a TrackOverlay. The game's and the base content's ids
-    /// come from the project and from the SDK's <see cref="CoreIndex"/> (mod projects).
+    /// naming a known track and option with an overlay scene rooted in a TrackOverlay, cup variant keys made of known
+    /// options. The game's and the base content's ids come from the project and from the SDK's <see cref="CoreIndex"/>
+    /// (mod projects).
     /// </summary>
     public static class ModPackValidator
     {
@@ -74,6 +75,8 @@ namespace MHK.Editor.Modding
             {
                 TrackDefinition t => CheckTrack(t),
                 TrackOverlayDefinition o => CheckOverlay(o, known),
+                CupDefinition c => CheckCup(c, known),
+                StatusEffectDefinition e => CheckEffect(e),
                 _ => true,
             };
         }
@@ -83,6 +86,16 @@ namespace MHK.Editor.Modding
             if (t.scene.IsSet) return true;
             Debug.LogError($"[Mods] Track '{t.Id}' has no scene.", t);
             return false;
+        }
+
+        // A driver shown knocked out never drives on, so the game holds such a kart whatever freezeKart says.
+        static bool CheckEffect(StatusEffectDefinition e)
+        {
+            if (e.HoldsKart && !e.freezeKart)
+                Debug.LogWarning($"[Mods] Effect '{e.Id}' plays the knock-out animation {e.characterAnimation} without freezeKart. The game " +
+                                 "stops the kart while it runs. Base it on core.reaction.blast, flatten or fall, or pick a driving " +
+                                 "animation such as Shake or Dizzy for a kart that moves on.", e);
+            return true;
         }
 
         static bool CheckOverlay(TrackOverlayDefinition o, KnownIds known)
@@ -108,6 +121,34 @@ namespace MHK.Editor.Modding
             if (rooted) return ok;
             Debug.LogError($"[Mods] Track overlay '{o.Id}': the root of its scene {o.scene.Path} has no TrackOverlay.", o);
             return false;
+        }
+
+        // Each race's variant key: well-formed and made of known options. Whether its track offers them is checked in game
+        // (an unknown option races the default variant).
+        static bool CheckCup(CupDefinition c, KnownIds known)
+        {
+            var ok = true;
+            if (c.variants.Count > c.tracks.Count)
+                Debug.LogWarning($"[Mods] Cup '{c.Id}' has {c.variants.Count} variant keys for {c.tracks.Count} tracks: the extra ones are ignored.", c);
+            for (var i = 0; i < c.variants.Count; i++)
+            {
+                var key = c.VariantKeyAt(i);
+                if (!TrackVariants.IsValidKey(key))
+                {
+                    Debug.LogError($"[Mods] Cup '{c.Id}', race {i + 1}: variant key '{key}' must be lowercase option ids joined by " +
+                                   $"'{TrackVariants.Separator}' (e.g. core.clear).", c);
+                    ok = false;
+                    continue;
+                }
+                if (key.Length == 0) continue;
+                foreach (var option in key.Split(TrackVariants.Separator))
+                {
+                    if (known.Has<TrackOptionDefinition>(option)) continue;
+                    Debug.LogError($"[Mods] Cup '{c.Id}', race {i + 1}: no track option '{option}' in the project or the base content.", c);
+                    ok = false;
+                }
+            }
+            return ok;
         }
 
         // Ids of the project's definition assets and of the base content's definitions, by definition type.

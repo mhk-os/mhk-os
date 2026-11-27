@@ -79,6 +79,17 @@ namespace MHK.Karts
         public Color ModelTint => Modifiers.modelTint;
         /// <summary>An effect with <see cref="StatusEffectDefinition.hideWheels"/> is active: the model's wheels are not drawn.</summary>
         public bool WheelsHidden => Modifiers.wheelsHidden;
+        /// <summary>An effect with <see cref="StatusEffectDefinition.glitchVisual"/> is active, so the kart model glitches like a jammed TV picture.</summary>
+        public bool Glitched => Modifiers.glitched;
+        /// <summary>A star effect (<see cref="StatusEffectDefinition.starVisual"/>) is active, the kart flashes in rainbow colours.</summary>
+        public bool Starred => Modifiers.starred;
+        /// <summary>
+        /// An effect with <see cref="StatusEffectDefinition.ploughsThrough"/> is active. The kart is intangible like a ghost
+        /// and knocks movable props out of its way at <see cref="PropKnockSpeed"/>.
+        /// </summary>
+        public bool PloughActive => Modifiers.plough;
+        /// <summary>Speed (m/s) ploughed props fly off with (<see cref="StatusEffectDefinition.propKnockSpeed"/>).</summary>
+        public float PropKnockSpeed => Modifiers.propKnockSpeed;
         /// <summary>Strongest body bob of the active effects (<see cref="StatusEffectDefinition.bodyBob"/>), null when none bobs.</summary>
         public BodyBob BodyBob
         {
@@ -303,7 +314,7 @@ namespace MHK.Karts
             var rb = kart.Physics.Body;
             if (!Mathf.Approximately(def.velocityRetain, 1f))
                 rb.linearVelocity = Vector3.Scale(rb.linearVelocity, new Vector3(def.velocityRetain, 1f, def.velocityRetain));
-            if (def.freezeKart)
+            if (def.HoldsKart)
             {
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;

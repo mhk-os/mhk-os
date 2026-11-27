@@ -43,7 +43,7 @@ Varyings vert(Attributes v)
     Varyings o;
     UNITY_SETUP_INSTANCE_ID(v);
     UNITY_TRANSFER_INSTANCE_ID(v, o);
-    o.positionWS = MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz));
+    o.positionWS = MHKGlitchPosition(MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz)));
     o.positionCS = TransformWorldToHClip(o.positionWS);
     o.normalWS = MHKMeltNormal(TransformObjectToWorldNormal(v.normalOS));
     o.uv = MHKUV(v.uv);
@@ -103,27 +103,29 @@ Light MHKMainLight(Varyings i, half4 shadowMask)
     return light;
 }
 
-void MHKAddLight(Light l, half3 n, MHKWetSurface wet, inout half3 light, inout half3 specular)
+void MHKAddLight(Light l, half3 n, MHKWetSurface wet, bool highlights, inout half3 light, inout half3 specular)
 {
     light += MHKLambert(l, n);
     UNITY_BRANCH
-    if (wet.shine > 0.0) specular += MHKWetSpecular(l, n, wet);
+    if (highlights) specular += MHKWetSpecular(l, n, wet);
 }
 
-// Lambert of the additional lights into light and, on a wet surface, their highlights into specular.
+// Lambert of the additional lights into light and, on a wet surface, their highlights into specular (not on the Low
+// graphics tier: one pow per light and fragment).
 void MHKAddAdditionalLights(Varyings i, half3 n, half4 shadowMask, MHKWetSurface wet, inout half3 light, inout half3 specular)
 {
     #if defined(_ADDITIONAL_LIGHTS)
         InputData inputData = (InputData)0;
         inputData.positionWS = i.positionWS;
         inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(i.positionCS);
+        bool highlights = wet.shine > 0.0 && !MHK_DETAIL_LOW;
         uint lightCount = GetAdditionalLightsCount();
         #if USE_CLUSTER_LIGHT_LOOP
             [loop] for (uint lightIndex = 0; lightIndex < min(URP_FP_DIRECTIONAL_LIGHTS_COUNT, MAX_VISIBLE_LIGHTS); lightIndex++)
-                MHKAddLight(GetAdditionalLight(lightIndex, i.positionWS, shadowMask), n, wet, light, specular);
+                MHKAddLight(GetAdditionalLight(lightIndex, i.positionWS, shadowMask), n, wet, highlights, light, specular);
         #endif
         LIGHT_LOOP_BEGIN(lightCount)
-            MHKAddLight(GetAdditionalLight(lightIndex, i.positionWS, shadowMask), n, wet, light, specular);
+            MHKAddLight(GetAdditionalLight(lightIndex, i.positionWS, shadowMask), n, wet, highlights, light, specular);
         LIGHT_LOOP_END
     #endif
 }
@@ -191,13 +193,19 @@ half4 frag(Varyings i) : SV_Target
     half3 specular = 0;
     MHKAddAdditionalLights(i, n, shadowMask, wet, light, specular);
     // The lightning flash lights everything outdoors (under cover only a glimmer); self-illuminated surfaces only
-    // brighten with it when unfogged (sky domes).
+    // brighten with it when unfogged (sky domes). The wet look's cover share serves where it was taken.
     half3 flash = _MHKFlash.rgb;
     UNITY_BRANCH
     if (any(flash > 0.0))
     {
-        half ground;
-        flash *= lerp(MHK_FLASH_COVERED, 1.0, MHKWetUncovered(i.positionWS, ground));
+        half open = wet.uncovered;
+        UNITY_BRANCH
+        if (open < 0.0)
+        {
+            half ground;
+            open = MHKWetUncovered(i.positionWS, ground);
+        }
+        flash *= lerp(MHK_FLASH_COVERED, 1.0, open);
     }
     light = lerp(saturate(light + flash), 1.0 + flash * (1.0 - _Fog), _Emission);
     half3 col = tex.rgb * MHKWetAlbedo(wet) * light * _Tint.rgb;
@@ -223,6 +231,7 @@ half4 frag(Varyings i) : SV_Target
         half bubbleStrength = _MeltOrigin.w * saturate(_MeltWater.a * 2.0);
         col = lerp(col, _MeltWater.rgb, saturate(bubbles.x * bubbleStrength * 0.85)) + bubbles.y * bubbleStrength * 0.5;
     }
+    col = MHKGlitchColor(col, i.positionCS, i.positionWS);
     col = lerp(col, MixFog(col, i.fogFactor), _Fog);
     return half4(col, tex.a * _Tint.a);
 }

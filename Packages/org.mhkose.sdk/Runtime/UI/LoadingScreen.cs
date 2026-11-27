@@ -17,6 +17,8 @@ namespace MHK.UI
         string variantFormat = " | {0}";
         [SerializeField, Tooltip("Chip text in battles.")]
         string battleText = "Battle";
+        [SerializeField, Tooltip("Chip text in Last Man Standing.")]
+        string lastManStandingText = "Last Man Standing";
         [SerializeField, Tooltip("Chip text for a one-lap race.")]
         string oneLapText = "1 lap";
         [SerializeField, Tooltip("Chip text for several laps ({0} = lap count).")]
@@ -25,7 +27,7 @@ namespace MHK.UI
         string raceOfCupFormat = "Race {0} of {1}";
         [SerializeField, Tooltip("Chip text in time trials.")]
         string timeTrialText = "Time trial";
-        [SerializeField, Tooltip("Chip text in single races and battles ({0} = racer count).")]
+        [SerializeField, Tooltip("Chip text in single races, battles and Last Man Standing ({0} = racer count).")]
         string racersFormat = "{0} racers";
 
         [Header("Progress")]
@@ -153,9 +155,10 @@ namespace MHK.UI
             var variant = TrackVariants.Resolve(track, session != null ? session.CurrentVariantKey : "");
             Q<Label>("game").text = variant != null ? UiText.GameWithVariant(variant, variantFormat) : UiText.GameName(track.SourceGame);
             ShowTrackPicture(track.Picture);
-            var battle = session != null && session.mode == GameMode.Battle;
+            var mode = session != null ? session.mode : GameMode.SingleRace;
             var laps = RaceManager.LapsFor(session, track);
-            if (battle) SetChip("mode", "swords", battleText);
+            if (mode == GameMode.Battle) SetChip("mode", "swords", battleText);
+            else if (mode == GameMode.LastManStanding) SetChip("mode", "person", lastManStandingText);
             else SetChip("mode", "flag", laps == 1 ? oneLapText : string.Format(lapsFormat, laps));
             Q<VisualElement>("chip-session").SetVisible(session != null);
             if (session == null) return;

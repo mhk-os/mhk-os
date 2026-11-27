@@ -13,6 +13,9 @@ namespace MHK.Modding
         [Tooltip("Peak lift (m) of the kart body, wheels and driver above its normal ride height. 0 = no bob. MHK Extra " +
                  "flat tyres: 0.073.")]
         [Min(0f)] public float height;
+        [Tooltip("Constant lift (m) of the kart body, wheels and driver under the bob while it shows. The kart rides " +
+                 "this high above the road (TINcan drill: on top of a jackhammer). 0 = none.")]
+        [Min(0f)] public float raise;
         [Tooltip("Bob cycles per second, independent of the kart's speed. MHK Extra flat tyres: 6 (two hops per cycle).")]
         [Min(0f)] public float frequency = 6f;
         [Tooltip("Lift over one cycle (time 0 to 1) as a share of height. Start and end at 0 so the cycles join and the " +
@@ -30,13 +33,13 @@ namespace MHK.Modding
         [Min(0f)] public float fadeOut = 0.3f;
 
         /// <summary>Whether these settings move the body at all.</summary>
-        public bool Moves => frequency > 0f && (height > 0f || sway > 0f || pitch > 0f || roll > 0f);
+        public bool Moves => frequency > 0f && (height > 0f || raise > 0f || sway > 0f || pitch > 0f || roll > 0f);
 
-        /// <summary>The one of <paramref name="a"/> and <paramref name="b"/> that moves with the larger height (either may be null).</summary>
+        /// <summary>The one of <paramref name="a"/> and <paramref name="b"/> that lifts the body highest (either may be null).</summary>
         public static BodyBob Stronger(BodyBob a, BodyBob b)
         {
             if (b == null || !b.Moves) return a;
-            return a == null || b.height > a.height ? b : a;
+            return a == null || b.raise + b.height > a.raise + a.height ? b : a;
         }
 
         /// <summary>Lift at <paramref name="cycle"/> (0 to 1) of the cycle as a share of <see cref="height"/>.</summary>

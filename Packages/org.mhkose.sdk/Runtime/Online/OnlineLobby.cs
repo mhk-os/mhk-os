@@ -363,7 +363,7 @@ namespace MHK.Online
         }
 
         // The last online loadout when it is content here, else the last menu driver, else the first ones, each with
-        // the driver's default kart when that is content too.
+        // the driver's default kart when that is content too (the No kart always is).
         static void ChooseDefaultLoadout()
         {
             var me = Me;
@@ -376,7 +376,8 @@ namespace MHK.Online
             var settings = GameRoot.Instance.Settings;
             var character = Pick(characters, settings.lastOnlineCharacterId) ?? Pick(characters, settings.lastCharacterId) ?? characters[0];
             var kart = Pick(karts, settings.lastOnlineKartId);
-            if (kart == null && character.defaultKart != null) kart = Pick(karts, character.defaultKart.Id);
+            var fallback = registry.DefaultKart(character);
+            if (kart == null && fallback != null && (fallback.IsNoKart || karts.Contains(fallback))) kart = fallback;
             kart ??= karts[0];
             Request(LobbyMessageType.SetLoadout, w =>
             {

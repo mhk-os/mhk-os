@@ -1,7 +1,7 @@
 // Lambert lighting for all ported content: ambient plus N.L of the sun and additional lights (plus a lightning flash),
 // saturated, times texture, colour and tint, plus glow. Of the bake only the shadowmask and probe occlusion are used. Wet
 // weather adds the wet look of MHKWet.hlsl (darker, glossy, puddles) to uncovered surfaces of fogged materials that are
-// not water (see MHKWetMaterial).
+// not water (see MHKWetMaterial), in less detail on lower graphics tiers (MHKDetail.hlsl: uniform branches, no variants).
 Shader "MHK/Lit"
 {
     Properties
@@ -15,6 +15,8 @@ Shader "MHK/Lit"
         [HideInInspector] _MeltForward ("Melt forward / wobble", Vector) = (0,0,1,0)
         [HideInInspector] _MeltHeat ("Melt warmth / elapsed", Vector) = (0,0,0,0)
         [HideInInspector] _MeltWater ("Melt water colour / opacity", Vector) = (1,1,1,0)
+        [HideInInspector] _Glitch ("Glitch strength / seed / bands per metre / widest tear", Vector) = (0,0,12,0.2)
+        [HideInInspector] _GlitchOrigin ("Glitch origin", Vector) = (0,0,0,0)
         _Emission ("Emission (self illumination)", Range(0, 1)) = 0
         [Toggle(_GLOW)] _GlowOn ("Glow (lamps / windows painted in the texture)", Float) = 0
         [NoScaleOffset] _GlowMap ("Glow mask (RGB, times texture: white = glows)", 2D) = "white" {}
@@ -147,7 +149,7 @@ Shader "MHK/Lit"
             {
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(v);
-                o.positionCS = TransformWorldToHClip(MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz)));
+                o.positionCS = TransformWorldToHClip(MHKGlitchPosition(MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz))));
                 o.uv = MHKUV(v.uv);
                 return o;
             }

@@ -306,13 +306,14 @@ namespace MHK.UI
             logo.EnableInClassList(FallbackLogoClass, fallback);
         }
 
-        // Only a loaded pack can tell: a disabled one is a metadata stand-in without content.
+        // Only a loaded pack can tell: a disabled one is a metadata stand-in without content. A driver whose default kart
+        // is missing takes another kart (ContentRegistry.DefaultKart), so only drivers with no kart loaded at all count.
         static int DriversWithoutKart(ContentPack pack)
         {
             if (Content.RootOf(pack) == null) return 0;
             var count = 0;
             foreach (var c in pack.GetAllIncluded<CharacterDefinition>())
-                if (!c.Hidden && (c.defaultKart == null || Content.Get<KartDefinition>(c.defaultKart.Id) == null)) count++;
+                if (!c.Hidden && Content.DefaultKart(c) == null) count++;
             return count;
         }
 

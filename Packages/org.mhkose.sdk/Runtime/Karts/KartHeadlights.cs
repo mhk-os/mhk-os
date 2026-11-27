@@ -46,6 +46,7 @@ namespace MHK.Karts
         // A kart keeps its spot light until another lit kart is this much nearer, so lights do not flicker between karts.
         const float KeepFactor = 1.2f;
         const int HighTierLights = 8, MediumTierLights = 6, LowTierLights = 4;
+        const float MinPartScaleSq = 1e-6f;
 
         static readonly Color LightColour = new(1f, 0.94f, 0.82f);
         static readonly Color GlowColour = new(1f, 0.95f, 0.85f);
@@ -75,14 +76,16 @@ namespace MHK.Karts
         /// <summary>
         /// Puts switched-off headlights (child "Headlights") on the nose of the kart model's mesh renderers below
         /// <paramref name="body"/> other than the driver's (<paramref name="driver"/>, may be null), measured in the
-        /// model's pose as instantiated. Without such renderers the chassis box of <paramref name="profile"/> places them.
+        /// model's pose as instantiated. Without a kart model the driver is the kart body (No kart), so its own renderers
+        /// place them and they ride its torso. Without either the chassis box of <paramref name="profile"/> places them.
         /// Lamp height follows the front wheels of <paramref name="model"/> when it has some. They hang on the node
         /// carrying the chassis (see <see cref="Chassis"/>), keeping that placement as it moves.
         /// </summary>
         internal static KartHeadlights Build(KartVisual visual, IKartView view, Transform body, KartModel model, Transform driver,
             KartPhysicsProfile profile)
         {
-            var renderers = ModelRenderers(body, driver);
+            var standIn = model == null && driver != null;
+            var renderers = ModelRenderers(body, standIn ? null : driver);
             var bounds = Measure(body, renderers, profile);
             var largest = Largest(renderers);
             var go = new GameObject("Headlights");
@@ -96,8 +99,40 @@ namespace MHK.Karts
             var lampY = LampHeight(body, model, bounds);
             h.Assemble(bounds, lampY);
             var nose = new Vector3(bounds.center.x, lampY, bounds.max.z);
-            go.transform.SetParent(Chassis(body, model, largest, nose), true);
+            go.transform.SetParent(standIn ? Torso(driver, largest) : Chassis(body, model, largest, nose), true);
             return h;
+        }
+
+        // A driver standing in for the kart carries the lamps on its torso, so they lean and bob with its body but not
+        // with its hands. The torso is the bone most limb chains branch off (arms and neck, not the leaf bones of a head),
+        // the deeper one of a tie (the chest rather than the hips). A plain mesh carries them on its own transform.
+        static Transform Torso(Transform driver, Renderer largest)
+        {
+            if (largest is not SkinnedMeshRenderer skinned) return largest != null ? largest.transform : driver;
+            var bones = skinned.bones;
+            Transform best = null;
+            int bestBranches = -1, bestDepth = -1;
+            foreach (var bone in bones)
+            {
+                if (bone == null) continue;
+                var branches = 0;
+                foreach (Transform child in bone)
+                    if (System.Array.IndexOf(bones, child) >= 0 && HasChildBone(child, bones)) branches++;
+                var depth = 0;
+                for (var p = bone.parent; p != null && p != driver; p = p.parent) depth++;
+                if (branches < bestBranches || (branches == bestBranches && depth <= bestDepth)) continue;
+                best = bone;
+                bestBranches = branches;
+                bestDepth = depth;
+            }
+            return best != null ? best : skinned.rootBone != null ? skinned.rootBone : skinned.transform;
+        }
+
+        static bool HasChildBone(Transform bone, Transform[] bones)
+        {
+            foreach (Transform child in bone)
+                if (System.Array.IndexOf(bones, child) >= 0) return true;
+            return false;
         }
 
         /// <summary>Switches the headlights on or off.</summary>
@@ -237,12 +272,13 @@ namespace MHK.Karts
             for (var i = 0; i < glows.Length; i++) glows[i].SetPropertyBlock(block);
         }
 
+        // Drawn mesh renderers of the model. Parts scaled to nothing (hidden item props in a TINcan model) do not count.
         static List<Renderer> ModelRenderers(Transform body, Transform driver)
         {
             var found = new List<Renderer>();
             body.GetComponentsInChildren(found);
             found.RemoveAll(r => r is not (MeshRenderer or SkinnedMeshRenderer) || !r.enabled || r.shadowCastingMode == ShadowCastingMode.ShadowsOnly
-                                 || (driver != null && r.transform.IsChildOf(driver)));
+                                 || r.transform.lossyScale.sqrMagnitude < MinPartScaleSq || (driver != null && r.transform.IsChildOf(driver)));
             return found;
         }
 

@@ -63,7 +63,10 @@ namespace MHK.AI
             AIItemKind.HomingShot => HomingShotWorth(kart, item),
             AIItemKind.StraightShot or AIItemKind.GroundShot or AIItemKind.Ball => AimShot(kart, item, heldTime),
             AIItemKind.Lob => LobWillLand(kart, item, board.direction),
-            AIItemKind.Melee or AIItemKind.Area => AIKartQueries.CountAround(kart, item.Reach * MeleeReachShare) > 0,
+            AIItemKind.Melee => AIKartQueries.CountAround(kart, item.Reach * MeleeReachShare) > 0,
+            AIItemKind.Area => item.ConeAngle < 360f
+                ? AIKartQueries.CountAhead(kart, item.Reach * MeleeReachShare, item.Reach * Mathf.Tan(item.ConeAngle * 0.5f * Mathf.Deg2Rad)) > 0
+                : AIKartQueries.CountAround(kart, item.Reach * MeleeReachShare) > 0,
             AIItemKind.Targeted => TargetedWorth(kart, item),
             // Dropped behind after a look back. Throwable traps also go in front of a kart ahead.
             AIItemKind.Trap => item.ForwardThrowRange > 0f && ThrowLandsBeforeKart(kart, item),

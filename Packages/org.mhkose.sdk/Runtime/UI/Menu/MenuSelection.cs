@@ -34,13 +34,13 @@ namespace MHK.UI
         /// <summary>Source-game filter of the card browsers (null = all).</summary>
         public string gameFilter;
         public Difficulty difficulty = Difficulty.Medium;
-        /// <summary>Computer opponents of a single race or battle.</summary>
+        /// <summary>Computer opponents of a single race, battle or Last Man Standing.</summary>
         public int opponents = GameSession.DefaultOpponents;
         /// <summary>Computer opponents of a championship, below 0 = <see cref="DefaultChampionshipOpponents"/>.</summary>
         public int championshipOpponents = -1;
         public int laps = 3;
         public bool useTrackLaps = true;
-        /// <summary>Single race, battle or time trial: the picked track. Picking another one resets <see cref="variantKey"/>.</summary>
+        /// <summary>Single race, battle, Last Man Standing or time trial: the picked track. Picking another one resets <see cref="variantKey"/>.</summary>
         public TrackDefinition track
         {
             get => pickedTrack;
@@ -81,6 +81,7 @@ namespace MHK.UI
             GameMode.Championship => "Championship",
             GameMode.TimeTrial => "Time Trial",
             GameMode.Battle => "Battle",
+            GameMode.LastManStanding => "Last Man Standing",
             _ => "Single Race",
         };
 
@@ -94,16 +95,6 @@ namespace MHK.UI
         /// <summary>The championship's opponents: the player's number, else <see cref="DefaultChampionshipOpponents"/>.</summary>
         public int ChampionshipOpponents => championshipOpponents >= 0 ? Math.Min(championshipOpponents, MaxOpponents) : DefaultChampionshipOpponents;
 
-        /// <summary>
-        /// <paramref name="c"/>'s default kart while a loaded pack registers it, else null (the base pack with the
-        /// usual default karts may be disabled while a mod's drivers still point at them).
-        /// </summary>
-        public static KartDefinition LoadedDefaultKart(CharacterDefinition c)
-        {
-            if (c == null || c.defaultKart == null) return null;
-            return GameRoot.Instance.Content.Get<KartDefinition>(c.defaultKart.Id) == c.defaultKart ? c.defaultKart : null;
-        }
-
         /// <summary>The picked variant of <paramref name="t"/>: <see cref="variantKey"/> when the track offers it, else its default.</summary>
         public TrackVariant VariantOf(TrackDefinition t)
         {
@@ -116,10 +107,10 @@ namespace MHK.UI
 
         /// <summary>
         /// Session for <paramref name="tracks"/>: the player plus <paramref name="opponentCount"/> computer drivers. Single
-        /// races and battles get the player's item odds (<see cref="ItemOdds.PlayerOdds"/>) and the picked variant
-        /// (<see cref="VariantOf"/>). Championships race a variant of every track rolled now (one random generator per
-        /// championship): without <paramref name="setups"/> (cups) a random one, with them (a custom championship, same order
-        /// as the tracks) each race's fixed options and laps (<see cref="CustomRaceSetup"/>, a missing setup = all random).
+        /// races, battles and Last Man Standing get the player's item odds (<see cref="ItemOdds.PlayerOdds"/>) and the picked variant
+        /// (<see cref="VariantOf"/>). A custom championship (<paramref name="setups"/>, same order as the tracks) races each
+        /// track with its fixed options and laps (<see cref="CustomRaceSetup"/>, a missing setup = all random), the random
+        /// ones rolled now with one generator for the whole championship. Cups use <see cref="BuildCupSession"/>.
         /// </summary>
         public GameSession BuildSession(IEnumerable<TrackDefinition> tracks, int opponentCount, IReadOnlyList<CustomRaceSetup> setups = null)
         {
@@ -132,28 +123,53 @@ namespace MHK.UI
                 lapsFromTrack = useTrackLaps || mode != GameMode.SingleRace,
             };
             session.trackIds.AddRange(list.Select(t => t.Id));
-            if (mode == GameMode.SingleRace || mode == GameMode.Battle)
+            if (mode is GameMode.SingleRace or GameMode.Battle or GameMode.LastManStanding)
             {
                 ApplyItemOdds(session);
                 session.variants.AddRange(list.Select(t => VariantOf(t)?.Key ?? ""));
             }
-            else if (mode == GameMode.Championship) RollChampionship(session, list, setups);
+            else if (mode == GameMode.Championship && setups != null) RollCustomChampionship(session, list, setups);
             session.racers.Add(PlayerSetup());
             AddOpponents(session, opponentCount);
             session.ResetStandings();
             return session;
         }
 
-        // Each race's variant (and with setups its laps), rolled with one generator for the whole championship.
-        static void RollChampionship(GameSession session, List<TrackDefinition> tracks, IReadOnlyList<CustomRaceSetup> setups)
+        /// <summary>
+        /// Championship session of <paramref name="cup"/>: its tracks in order, each in the variant the cup sets for it
+        /// (<see cref="CupDefinition.VariantAt"/>, the track's default unless the cup says otherwise), with the cup's laps.
+        /// </summary>
+        public GameSession BuildCupSession(CupDefinition cup, int opponentCount)
+        {
+            var tracks = new List<TrackDefinition>(cup.tracks.Count);
+            var keys = new List<string>(cup.tracks.Count);
+            for (var i = 0; i < cup.tracks.Count; i++)
+            {
+                if (cup.tracks[i] == null) continue;
+                tracks.Add(cup.tracks[i]);
+                keys.Add(cup.VariantAt(i)?.Key ?? "");
+            }
+            var session = BuildSession(tracks, opponentCount);
+            session.variants.AddRange(keys);
+            session.cupId = cup.Id;
+            if (cup.lapsOverride > 0)
+            {
+                session.lapsFromTrack = false;
+                session.laps = cup.lapsOverride;
+            }
+            return session;
+        }
+
+        // Each race's variant and laps, the random options rolled with one generator for the whole championship.
+        static void RollCustomChampionship(GameSession session, List<TrackDefinition> tracks, IReadOnlyList<CustomRaceSetup> setups)
         {
             var rng = new System.Random();
             for (var i = 0; i < tracks.Count; i++)
             {
-                var setup = setups != null && i < setups.Count ? setups[i] : null;
+                var setup = i < setups.Count ? setups[i] : null;
                 var variant = setup != null ? setup.Roll(tracks[i], rng) : TrackVariants.Of(tracks[i])?.Random(rng);
                 session.variants.Add(variant?.Key ?? "");
-                if (setups != null) session.raceLaps.Add(setup != null ? Math.Clamp(setup.laps, 0, CustomRaceSetup.MaxLaps) : 0);
+                session.raceLaps.Add(setup != null ? Math.Clamp(setup.laps, 0, CustomRaceSetup.MaxLaps) : 0);
             }
         }
 
@@ -186,14 +202,15 @@ namespace MHK.UI
         RacerSetup PlayerSetup() => new()
         {
             characterId = character.Id,
-            kartId = KartId(kart != null ? kart : LoadedDefaultKart(character)),
+            kartId = KartId(kart != null ? kart : GameRoot.Instance.Content.DefaultKart(character)),
             isHuman = true,
             playerIndex = 0,
             displayName = character.DisplayName,
         };
 
         // Random drivers of every loaded pack, each once per round of a new random order (the player's driver only when
-        // there is no other), on random karts of every pack: core games and mods mix on every track.
+        // there is no other), on random karts of every pack: core games and mods mix on every track. Drivers that race
+        // without a kart keep racing without one.
         void AddOpponents(GameSession session, int count)
         {
             var content = GameRoot.Instance.Content;
@@ -212,7 +229,7 @@ namespace MHK.UI
                 session.racers.Add(new RacerSetup
                 {
                     characterId = c.Id,
-                    kartId = KartId(AiRoster.RandomKart(karts)),
+                    kartId = KartId(AiRoster.KartFor(content, c, karts)),
                     isHuman = false,
                     displayName = c.DisplayName,
                 });

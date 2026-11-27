@@ -1,7 +1,8 @@
 // Alpha-blended particles of Particle Systems (billboards, stretched billboards) lit like the weather (MHKParticleLight.hlsl:
-// scene light, a share of the point and spot lights such as headlight beams, the lightning flash), so they dim at night
-// and glow in a beam instead of shining in their unlit colour. Vertex colour x texture; fogged; particles closer to the
-// camera than _NearFade fade out, so a cloud drifting over the camera does not fill the screen.
+// scene light, a share of the point and spot lights such as headlight beams except on the Low graphics tier, the lightning
+// flash), so they dim at night and glow in a beam instead of shining in their unlit colour. Vertex colour x texture;
+// fogged; particles closer to the camera than _NearFade fade out, so a cloud drifting over the camera does not fill the
+// screen.
 Shader "MHK/Particle"
 {
     Properties

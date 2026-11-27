@@ -11,7 +11,7 @@ Changelogs are posted in Discord, one message per release, written for players. 
 
 1. Find the previous announced build. Releases are tagged `build-<sha7>` on GitHub (`https://github.com/mhk-os/mhk-os/releases`) and titled "Build N".
 2. Commits on `main` are snapshots of `dev`, not merges, so `git log main..dev` is useless. Find the `dev` commit with the same tree as the previous release: compare `git rev-parse <release-commit>^{tree}` with the trees of recent `dev` commits, then read `git log --format='%h %s%n%b' <that-commit>..dev`.
-3. Do the same for every repository that shipped something since: the official mods (`mhk2-mod`, `mhk3-mod`, `mhke-mod`, `mhkt-mod`, `tincan-mod`), the asset packs (`music-asset-pack`) and the server (`server`) in the `mhk-os` GitHub organisation. A mod change reaches players only after that mod is released, so leave out mod changes whose release is not out or planned with this build.
+3. Do the same for every repository that shipped something since: the official mods (`mhk2-mod`, `mhk3-mod`, `mhke-mod`, `mhkt-mod`, `tincan-mod`), the asset packs (`music-asset-pack`, `hd-textures-asset-pack`) and the server (`server`) in the `mhk-os` GitHub organisation. A mod change reaches players only after that mod is released, so leave out mod changes whose release is not out or planned with this build.
 4. Read the bodies of the commits, not only the subjects: a subject lists many changes in compressed form. When a commit is unclear, read the diff.
 
 ## What goes in

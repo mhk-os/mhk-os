@@ -15,12 +15,14 @@ MonoBehaviour:
   kartRootPrefab: {fileID: 3922444753320765893, guid: 9dc7191fb2c1e4dc3909843dd5b6ceb9, type: 3}
   defaultPhysics: {fileID: 11400000, guid: 5d501916702ec4fa98f816f91e6e3f6b, type: 2}
   unknownContentMarker: {fileID: 642536975896760597, guid: 4c45bb7d957304e62a7592ddfe826337, type: 3}
+  dizzyStars: {fileID: 7690150718874698553, guid: bfdf40fe91d5242c1856fa7d2ed2b44c, type: 3}
   loadingScreen: {fileID: 8342420392690212854, guid: 54405faa6180e4a089f6a24e54ef17d0, type: 3}
   gameLogo: {fileID: 2800000, guid: 96864abf95ac46318d55c9468c014a2a, type: 3}
   uiGlassShader: {fileID: 4800000, guid: 937669cacd9e0409fb216d79508d1b9c, type: 3}
   litShader: {fileID: 4800000, guid: 168435bd04a614963bc0c3cf91cb4b34, type: 3}
   waterShader: {fileID: 4800000, guid: 3a1ac371cbcf543d9aebb4fa3f46b61d, type: 3}
   waterWaves: {fileID: 2800000, guid: 278b6edbfe3074ba183e45fccb747d41, type: 3}
+  glitchStaticShader: {fileID: 4800000, guid: d160346f2c5864098a283caf05057998, type: 3}
   sfxMixGain: 0.55
   musicMixGain: 0.75
   physicsHz: 60
@@ -89,6 +91,7 @@ MonoBehaviour:
     aiPrecision: 0.55
     aiItemReactionTime: 1.5
     topSpeedKmh: 85
+    engineModelScale: 0.56
     aiAvoidTrapChance: 0
     aiAvoidFakeBoxChance: 0
     aiNarrowPlantChance: 0
@@ -103,6 +106,7 @@ MonoBehaviour:
     aiPrecision: 0.75
     aiItemReactionTime: 1.5
     topSpeedKmh: 95
+    engineModelScale: 0.75
     aiAvoidTrapChance: 0.5
     aiAvoidFakeBoxChance: 0.5
     aiNarrowPlantChance: 0.5
@@ -117,6 +121,7 @@ MonoBehaviour:
     aiPrecision: 0.95
     aiItemReactionTime: 1.5
     topSpeedKmh: 105
+    engineModelScale: 1
     aiAvoidTrapChance: 0.8
     aiAvoidFakeBoxChance: 0.8
     aiNarrowPlantChance: 1

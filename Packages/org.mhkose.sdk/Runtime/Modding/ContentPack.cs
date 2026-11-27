@@ -52,6 +52,10 @@ namespace MHK.Modding
         public AudioClip scratchSound;
         [Tooltip("Loop while driving on offroad ground without its own surface sound, louder with speed (MHK2 UGSAND).")]
         public AudioClip offroadLoop;
+        [Tooltip("Crowd cheer when a human player crosses the finish line in the top three (MHK2 RACE_finish, 2D, once).")]
+        public AudioClip finishCheerSound;
+        [Tooltip("Crowd boos when a human player finishes fourth or worse or is knocked out (MHK2 RACE_failure, 2D, once).")]
+        public AudioClip finishBooSound;
 
         public List<ContentDefinition> content = new();
 

@@ -39,6 +39,9 @@ namespace MHK.Online
 
         /// <summary>A slot field's "none" (u8 255 on the wire, -1 here).</summary>
         public const int NoSlot = -1;
+
+        /// <summary>Box id of an ItemGranted or ItemDenied that answers a random special use instead of a box pickup.</summary>
+        public const int UseGrantBox = 0xFFFF;
     }
 
     /// <summary>A server-to-client race push (TCP): every one names its race.</summary>
@@ -671,6 +674,10 @@ namespace MHK.Online
         public ItemRules rules;
         /// <summary>Sorted status effect ids: the index table of <see cref="KartState.effects"/>.</summary>
         public List<string> effects = new();
+        /// <summary>Sorted ids of the specials a random special may turn into, those of every driver of the lobby's content.</summary>
+        public List<string> specialPool = new();
+        /// <summary>Sorted ids of the powerups whose use grants a random entry of <see cref="specialPool"/>.</summary>
+        public List<string> randomSpecials = new();
 
         public ushort Type => RaceProtocol.RaceLoaded;
 
@@ -694,6 +701,10 @@ namespace MHK.Online
             w.U16((ushort)Mathf.Clamp(rules.rouletteMs, 0, ushort.MaxValue));
             w.ListCount(effects.Count, RaceProtocol.MaxEffects);
             foreach (var e in effects) w.String(e, RaceProtocol.MaxContentId);
+            w.ListCount(specialPool.Count, RaceProtocol.MaxPool);
+            foreach (var id in specialPool) w.String(id, RaceProtocol.MaxContentId);
+            w.ListCount(randomSpecials.Count, RaceProtocol.MaxPool);
+            foreach (var id in randomSpecials) w.String(id, RaceProtocol.MaxContentId);
         }
 
         public static RaceLoaded Read(WireReader r)
@@ -708,6 +719,10 @@ namespace MHK.Online
             m.rules = new ItemRules { replacesHeld = r.Bool(), rouletteMs = r.U16() };
             n = r.ListCount(RaceProtocol.MaxEffects, 1);
             for (var i = 0; i < n; i++) m.effects.Add(r.String(RaceProtocol.MaxContentId));
+            n = r.ListCount(RaceProtocol.MaxPool, 1);
+            for (var i = 0; i < n; i++) m.specialPool.Add(r.String(RaceProtocol.MaxContentId));
+            n = r.ListCount(RaceProtocol.MaxPool, 1);
+            for (var i = 0; i < n; i++) m.randomSpecials.Add(r.String(RaceProtocol.MaxContentId));
             return m;
         }
     }

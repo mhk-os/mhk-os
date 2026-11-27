@@ -1,4 +1,6 @@
 using MHK.Lighting;
+using MHK.Race;
+using MHK.Rendering;
 using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 using Application = UnityEngine.Device.Application;
@@ -11,7 +13,9 @@ namespace MHK.Core
 
     /// <summary>
     /// Applies <see cref="GraphicsOptions"/>: the Quality level and URP asset of the preset, frame pacing, texture
-    /// quality and the lights and cameras of loaded scenes. Never writes project assets.
+    /// quality, the shader detail of its tier (<see cref="MHKLitIds.DetailCut"/>: rain, water and lit particle shaders
+    /// take cheaper uniform branches on Medium and Low), the lights and cameras of loaded scenes and the HD water of a
+    /// running race (<see cref="TrackWater"/>, off on Low). Never writes project assets.
     /// </summary>
     public static partial class GraphicsQuality
     {
@@ -55,17 +59,24 @@ namespace MHK.Core
             _ => 0,
         };
 
-        /// <summary>Preset tier of the applied options (Custom by its shadow quality), High when none were applied (editor scenes).</summary>
+        /// <summary>
+        /// Preset tier of the applied options (Custom by its shadow quality), High when none were applied (editor scenes).
+        /// Besides the Quality level it sets the shader detail (<see cref="MHKLitIds.DetailCut"/>), HD water
+        /// (<see cref="TrackWater"/>), tyre spray, headlight spot lights, the speed effect and the menu glass blur.
+        /// </summary>
         public static GraphicsPreset Tier => current == null ? GraphicsPreset.High : TierOf(current);
 
         /// <summary>Applies <paramref name="o"/> (startup and every change). A Custom setup renders with the level of its shadow quality.</summary>
         public static void Apply(GraphicsOptions o)
         {
             current = o;
-            QualityLevels.Select(TierOf(o), RenderScale(o), MsaaSamples(o.antiAliasing));
+            var tier = TierOf(o);
+            QualityLevels.Select(tier, RenderScale(o), MsaaSamples(o.antiAliasing));
             ApplyFramePacing(o);
             ApplyTextures(o.textures);
+            Shader.SetGlobalFloat(MHKLitIds.DetailCut, (int)GraphicsPreset.High - (int)tier);
             ApplyToScene();
+            TrackWater.Refresh();
         }
 
         /// <summary>Applies the per-object settings (light shadows, camera anti-aliasing and renderer) to all loaded scenes.</summary>

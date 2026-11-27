@@ -42,11 +42,12 @@ namespace MHK.UI
 
         protected override void OnShown(CharacterDefinition c) => Flow.ShowOnTurntable(c, DefaultKart(c));
 
-        // In the lobby the driver's default kart counts only when it is lobby content.
+        // In the lobby the driver's default kart counts only when it is lobby content (the No kart always is).
         KartDefinition DefaultKart(CharacterDefinition c)
         {
-            var kart = MenuSelection.LoadedDefaultKart(c);
-            return Selection.lobbyPick != LobbyPick.Loadout || LobbyScreen.LobbyContent<KartDefinition>().Contains(kart) ? kart : null;
+            var kart = Content.DefaultKart(c);
+            return Selection.lobbyPick != LobbyPick.Loadout || (kart != null && kart.IsNoKart)
+                   || LobbyScreen.LobbyContent<KartDefinition>().Contains(kart) ? kart : null;
         }
 
         protected override void Describe(CharacterDefinition c)

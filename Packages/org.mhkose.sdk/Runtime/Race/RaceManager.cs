@@ -54,6 +54,8 @@ namespace MHK.Race
         /// <summary>Battle rules, null in circuit races.</summary>
         public BattleRules Battle { get; private set; }
         public bool IsBattle => Session != null && Session.mode == GameMode.Battle;
+        /// <summary>Last Man Standing rules (a kart knocked out every lap), null in the other modes.</summary>
+        public LastManStandingRules LastManStanding { get; private set; }
         /// <summary>Loading progress 0..1 during <see cref="RacePhase.Loading"/>: the track scene, then the karts.</summary>
         public float LoadProgress { get; private set; }
         /// <summary>The race could not be built (track missing or broken), it stays in <see cref="RacePhase.Loading"/>.</summary>
@@ -336,6 +338,11 @@ namespace MHK.Race
                 TimeTrial.Load(this);
                 gameObject.AddComponent<Validation.GhostValidation>();
             }
+            if (Session.mode == GameMode.LastManStanding)
+            {
+                LastManStanding = gameObject.AddComponent<LastManStandingRules>();
+                LastManStanding.Begin(this);
+            }
             if (!IsBattle) return;
             Battle = gameObject.AddComponent<BattleRules>();
             Battle.Begin(this);
@@ -344,12 +351,13 @@ namespace MHK.Race
         /// <summary>
         /// Laps of the current race of <paramref name="session"/> on <paramref name="track"/>: the cup's override, else the
         /// race's own count (<see cref="GameSession.raceLaps"/>), else the track's or the session's count; int.MaxValue in
-        /// battles (no finish line).
+        /// battles (no finish line), one per knockout in Last Man Standing (<see cref="LastManStandingRules.LapsFor"/>).
         /// </summary>
         public static int LapsFor(GameSession session, TrackDefinition track)
         {
             if (session == null) return track.defaultLaps;
             if (session.mode == GameMode.Battle) return int.MaxValue;
+            if (session.mode == GameMode.LastManStanding) return LastManStandingRules.LapsFor(session.racers.Count);
             var cup = GameRoot.Instance.Content.Get<CupDefinition>(session.cupId);
             if (cup != null && cup.lapsOverride > 0) return cup.lapsOverride;
             var own = session.CurrentRaceLaps;
@@ -433,15 +441,24 @@ namespace MHK.Race
         void OnRacerFinished(RacerProgress p)
         {
             var kart = p.GetComponent<Kart>();
-            finishCounter++;
+            // Places on the line: a knockout (battle, Last Man Standing) also "finishes" a kart but takes no place.
+            if (!kart.Eliminated) finishCounter++;
             // Races only (in battles an elimination also "finishes" a kart): the local racer's and, as AI host, the AI
             // karts' finishes go to the server.
             if (Online != null && Battle == null) Online.OnKartFinished(kart, p);
             KartFinished?.Invoke(kart);
             if (Battle != null || !kart.IsHuman) return;
-            HandToAi(kart, kart.RacerIndex + 100);
-            kart.Celebrate(finishCounter <= 3);
             if (kart == LocalPlayer && chaseCamera != null) chaseCamera.CurrentMode = ChaseCamera.Mode.Finished;
+            // Knocked out of Last Man Standing: parked with its losing reaction, booed, the rules end the race.
+            if (kart.Eliminated)
+            {
+                PlayFinishCrowd(kart, false);
+                return;
+            }
+            HandToAi(kart, kart.RacerIndex + 100);
+            var podium = finishCounter <= 3;
+            kart.Celebrate(podium);
+            PlayFinishCrowd(kart, podium);
             // Online races end with the server's result, shown once the finish had its moment.
             if (IsOnline)
             {
@@ -449,6 +466,16 @@ namespace MHK.Race
             }
             else if (karts.Where(k => k.IsHuman).All(k => k.Progress.Finished))
                 finishTimer = GameRoot.Instance.Config.finishGraceSeconds;
+        }
+
+        // MHK2: the crowd cheers a human crossing the line in the top three and boos the others, once, as a 2D sound at
+        // full volume (RACE_finish / RACE_failure), from the track's game or the reference game.
+        void PlayFinishCrowd(Kart kart, bool podium)
+        {
+            if (kart != LocalPlayer || Phase != RacePhase.Racing || IsAttract) return;
+            var packs = GameRoot.Instance.Content.Packs;
+            var owner = Track != null ? Track.OwnerPack : null;
+            AudioManager.PlayUi(podium ? ContentPack.Find(packs, p => p.finishCheerSound, owner) : ContentPack.Find(packs, p => p.finishBooSound, owner));
         }
 
         void Update()
@@ -486,6 +513,7 @@ namespace MHK.Race
         {
             if (TimeTrial != null && TimeTrial.IsReplay) return TimeTrial.ReplayOver;
             if (Battle != null) return Battle.TickRoundEnd(Time.deltaTime);
+            if (LastManStanding != null) return LastManStanding.TickRaceEnd(Time.deltaTime);
             // A time trial runs on for the finish grace after the line (the ghost records its run-out).
             if (AllFinished() && TimeTrial == null) return true;
             if (finishTimer < 0f) return false;
@@ -559,7 +587,7 @@ namespace MHK.Race
             if (Session.IsReplay && ClockRunning) RaceTicks = Mathf.Max(0, ticks);
         }
 
-        void UpdateRanking() => ranking.Update(karts, Battle);
+        void UpdateRanking() => ranking.Update(karts, Battle != null ? Battle : (IComparer<Kart>)LastManStanding);
 
         /// <summary>Takes a kart out of the race (an online racer that left): no longer ranked or shown.</summary>
         internal void RemoveKart(Kart kart)
@@ -573,7 +601,7 @@ namespace MHK.Race
             // Online the race can end while the menu covers it: the results take over (keys and focus go to them).
             if (IsOnline) SetPaused(false);
             Phase = RacePhase.Finished;
-            if (Battle == null && Online == null)
+            if (Battle == null && LastManStanding == null && Online == null)
                 RaceResultsBuilder.EstimateUnfinished(karts, ranking.Order, TrackRuntime.MainPath.Length, Laps);
             UpdateRanking();
             foreach (var k in karts) k.Progress.StopClock();

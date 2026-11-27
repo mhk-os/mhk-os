@@ -1,6 +1,8 @@
 #ifndef MHK_RAIN_INCLUDED
 #define MHK_RAIN_INCLUDED
 
+#include "MHKDetail.hlsl"
+
 // Rain of the running race, from globals set by MHK.Race.TrackWeather (unset = dry), for any shader: where rain falls
 // (the cover map) and the rings its drops spread on standing water. MHKWet.hlsl builds MHK/Lit's wet look on it,
 // MHK/Water its rain rings.
@@ -8,7 +10,8 @@
 // _MHKWetCoverRect (minX, minZ, 1 / sizeX, 1 / sizeZ), _MHKWetCoverTexels (width, height, metres per texel) of the map,
 // _MHKWetCoverHeight (minY, range, bias, on): a texel covers a point when the point's height + bias lies below the cover
 // height there (0 = nothing there), as the physics decides it at the point's own texel. The rain blends over the cover's
-// edge instead of stopping at it (MHKWetUncovered).
+// edge instead of stopping at it (MHKWetUncovered). Lower graphics tiers (MHKDetail.hlsl) take cheaper paths: Medium one
+// noise octave of the ragged edge and one ripple layer, Low a plain bilinear edge and no ripples.
 float4 _MHKWet;
 float4 _MHKWetCoverRect;
 float4 _MHKWetCoverTexels;
@@ -75,10 +78,23 @@ float3 MHKShelterWeights(float f, float r)
     return float3(left, 1.0 - left - right, right);
 }
 
+// Low tier cover share: the cover tests of the four texels around the point (t: texel space, centres on whole numbers)
+// blended bilinearly, a soft edge along the map's texels without noise. ground as in MHKWetUncovered.
+half MHKWetUncoveredBilinear(float2 t, float y, out half ground)
+{
+    int2 c = int2(floor(t));
+    half2 f = half2(t - c);
+    half2 open = lerp(lerp(MHKWetCoverTexel(c, y), MHKWetCoverTexel(c + int2(1, 0), y), f.x),
+        lerp(MHKWetCoverTexel(c + int2(0, 1), y), MHKWetCoverTexel(c + int2(1, 1), y), f.x), f.y);
+    ground = smoothstep(0.0, MHK_PUDDLE_REACH, open.y);
+    return open.x;
+}
+
 // Share of the rain reaching positionWS: the cover tests of the texels around it, tent filtered over MHK_SHELTER_FADE at
 // a noise-warped spot, then cut at a noise threshold, so the cover's edge breaks into ragged bays, wet islands under it
 // and dry ones beside it instead of following the map's texels. ground: the share of puddle ground filtered the same way
-// (1 on the open ground or without a map, 0 on karts), saturating early so the puddles reach under the edge.
+// (1 on the open ground or without a map, 0 on karts), saturating early so the puddles reach under the edge. Medium
+// warps and cuts by one noise octave each instead of two, Low blends the four nearest texels (MHKWetUncoveredBilinear).
 half MHKWetUncovered(float3 positionWS, out half ground)
 {
     ground = 1;
@@ -88,8 +104,13 @@ half MHKWetUncovered(float3 positionWS, out half ground)
     float2 xz = positionWS.xz;
     // Texel space with the texel centres on whole numbers.
     float2 t = (xz - _MHKWetCoverRect.xy) * _MHKWetCoverRect.zw * _MHKWetCoverTexels.xy - 0.5;
+    UNITY_BRANCH
+    if (MHK_DETAIL_LOW) return MHKWetUncoveredBilinear(t, positionWS.y, ground);
+    bool full = !MHK_DETAIL_REDUCED;
     float reach = clamp(texel * MHK_SHELTER_REACH.x, MHK_SHELTER_REACH.y, MHK_SHELTER_REACH.z);
-    float2 warp = MHKWetNoise2(xz / MHK_SHELTER_BAY) + MHKWetNoise2(xz / MHK_SHELTER_PATCH + 5.1) * 1.1;
+    float2 warp = MHKWetNoise2(xz / MHK_SHELTER_BAY);
+    UNITY_BRANCH
+    if (full) warp += MHKWetNoise2(xz / MHK_SHELTER_PATCH + 5.1) * 1.1;
     t += warp * (2.0 * reach / texel);
     int2 c = int2(round(t));
     float r = min(MHK_SHELTER_FADE / texel, 1.0);
@@ -102,7 +123,9 @@ half MHKWetUncovered(float3 positionWS, out half ground)
             open += MHKWetCoverTexel(c + int2(x - 1, z - 1), positionWS.y) * half(wx[x] * wz[z]);
     }
     // The threshold keeps clear of 0 and 1, so the open ground stays wet and the deep cover dry.
-    float patch = MHKWetNoise(xz / 3.0 + float2(7.7, 3.1)) * 0.65 + MHKWetNoise(xz / 1.05 + float2(1.9, 11.3)) * 0.35;
+    float patch = MHKWetNoise(xz / 3.0 + float2(7.7, 3.1));
+    UNITY_BRANCH
+    if (full) patch = patch * 0.65 + MHKWetNoise(xz / 1.05 + float2(1.9, 11.3)) * 0.35;
     float cut = lerp(MHK_SHELTER_CUT.x, MHK_SHELTER_CUT.y, smoothstep(0.25, 0.75, patch));
     ground = smoothstep(0.0, MHK_PUDDLE_REACH * lerp(0.6, 1.4, patch), open.y);
     return smoothstep(cut - MHK_SHELTER_CUT.z, cut + MHK_SHELTER_CUT.z, open.x);
@@ -123,13 +146,19 @@ half3 MHKRippleLayer(float2 p, float time)
     return half3(dir * (sin(x * 45.0) * band), band);
 }
 
-// Two ripple layers at world xz, faded out where the rings get finer than the pixels (rippleWidth: fwidth of
-// xz * MHK_RIPPLE_SCALE, taken before any per-fragment branch). xy = slope, z = crest.
+// Rain ripples at world xz, faded out where the rings get finer than the pixels (rippleWidth: fwidth of
+// xz * MHK_RIPPLE_SCALE, taken before any per-fragment branch): two layers, one on the Medium tier, none on Low.
+// xy = slope, z = crest.
 half3 MHKRipples(float2 xz, float rippleWidth)
 {
+    half3 rings = 0;
+    UNITY_BRANCH
+    if (MHK_DETAIL_LOW) return rings;
     float2 rp = xz * MHK_RIPPLE_SCALE;
-    return (MHKRippleLayer(rp, _Time.y) + MHKRippleLayer(rp * 1.37 + 0.5, _Time.y * 1.13 + 0.37))
-        * (1.0 - smoothstep(0.03, 0.09, rippleWidth));
+    rings = MHKRippleLayer(rp, _Time.y);
+    UNITY_BRANCH
+    if (!MHK_DETAIL_REDUCED) rings += MHKRippleLayer(rp * 1.37 + 0.5, _Time.y * 1.13 + 0.37);
+    return rings * (1.0 - smoothstep(0.03, 0.09, rippleWidth));
 }
 
 #endif

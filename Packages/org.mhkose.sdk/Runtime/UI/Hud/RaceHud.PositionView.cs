@@ -4,7 +4,7 @@ namespace MHK.UI
 {
     public partial class RaceHud
     {
-        /// <summary>Race position (top left): number, ordinal suffix, kart count and the podium colour.</summary>
+        /// <summary>Race position (top left): number, ordinal suffix, kart count, the podium colour and the danger colour.</summary>
         sealed class PositionView
         {
             const float PopScale = 1.45f;
@@ -15,6 +15,7 @@ namespace MHK.UI
             VisualElement row;
             Label number, suffix, total;
             int shownPosition, shownKartCount;
+            bool shownDanger;
 
             public PositionView(RaceHud hud) => this.hud = hud;
 
@@ -28,6 +29,8 @@ namespace MHK.UI
                 suffix.text = "";
                 total.text = "";
                 row.SetExclusiveClass(-1, PodiumClasses);
+                row.RemoveFromClassList("danger");
+                shownDanger = false;
                 shownPosition = int.MinValue;
                 shownKartCount = -1;
             }
@@ -46,6 +49,14 @@ namespace MHK.UI
                 if (kartCount == shownKartCount) return;
                 shownKartCount = kartCount;
                 total.SetPrefixedNumber('/', kartCount);
+            }
+
+            /// <summary>Shows the position in the danger colour (Last Man Standing: the player is the one going out).</summary>
+            public void SetDanger(bool danger)
+            {
+                if (danger == shownDanger) return;
+                shownDanger = danger;
+                row.EnableInClassList("danger", danger);
             }
         }
     }

@@ -24,11 +24,14 @@ namespace MHK.Powerups
         /// </summary>
         public readonly Kart target;
         public readonly bool targetGiven;
+        /// <summary>Number of this shot within a burst of one use (<see cref="BurstPowerup"/>), 0 for the first or only one.</summary>
+        public readonly int shot;
 
         public PowerupContext(Kart owner, PowerupDefinition definition, bool backwards, int usage)
             : this(owner, definition, backwards, usage, RaceClock.Ticks, null, false) { }
 
-        public PowerupContext(Kart owner, PowerupDefinition definition, bool backwards, int usage, int tick, Kart target, bool targetGiven)
+        public PowerupContext(Kart owner, PowerupDefinition definition, bool backwards, int usage, int tick, Kart target, bool targetGiven,
+                              int shot = 0)
         {
             this.owner = owner;
             this.definition = definition;
@@ -37,7 +40,11 @@ namespace MHK.Powerups
             this.tick = tick;
             this.target = target;
             this.targetGiven = targetGiven;
+            this.shot = shot;
         }
+
+        /// <summary>This context for shot number <paramref name="n"/> of a burst.</summary>
+        public PowerupContext WithShot(int n) => new(owner, definition, backwards, usage, tick, target, targetGiven, n);
     }
 
     /// <summary>A behaviour that carries its object to where it comes to rest (thrown, dropped or lobbed).</summary>
