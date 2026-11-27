@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace MHK.Tests
 {
-    /// <summary>ListBoards (128), its boards and the run rows of protocol 5 against the bytes the Go codec writes (internal/proto timetrial_test.go) and round trips.</summary>
+    /// <summary>ListBoards (128), its boards and the run rows of protocol 7 against the bytes the Go codec writes (internal/proto timetrial_test.go) and round trips.</summary>
     public class TimeTrialProtocolTests
     {
         // Track "t", any engine class, rules version 1, any variant.
@@ -53,6 +53,17 @@ namespace MHK.Tests
             Assert.AreEqual(8, back.trackVersion);
             Assert.AreEqual("", back.variant);
             Assert.AreEqual(RunHex, Hex(back.Write));
+        }
+
+        [Test]
+        public void RunHoldsAHundredLapTimes()
+        {
+            var laps = new int[RunEntry.MaxLaps];
+            for (var i = 0; i < laps.Length; i++) laps[i] = 1000 + i;
+            var run = new RunEntry { runId = 1, username = "u", trackId = "t", lapMs = laps };
+            var back = RunEntry.Read(Reader(Hex(run.Write)));
+            Assert.AreEqual(100, back.lapMs.Length);
+            Assert.AreEqual(1099, back.lapMs[99]);
         }
 
         static string Hex(Action<WireWriter> write)

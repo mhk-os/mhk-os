@@ -16,9 +16,13 @@ namespace MHK.Karts
         /// <summary>
         /// The chassis passes through other karts, dropped items, movable (non-kinematic) props, track hazards and the
         /// bodies animated props move (stomper walls), and no wheel rests on them. Static track geometry still collides.
-        /// Set while a ghost effect is active and until the kart is clear of what it passed through.
+        /// Set while a ghost effect is active or the kart is a ghost kart (<see cref="Kart.IsGhost"/>), and until the kart
+        /// is clear of what it passed through.
         /// </summary>
         public bool Intangible { get; private set; }
+
+        // An eliminated kart driving on as a ghost stays intangible for as long as it is one.
+        bool GhostKart => kart != null && kart.IsGhost;
 
         /// <summary>
         /// Run over: other karts drive through this one and their wheels do not rest on it (flattened), set while a

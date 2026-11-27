@@ -53,6 +53,18 @@ namespace MHK.Modding
         public static TrackVariant Resolve(TrackDefinition track, string key) => Of(track)?.Resolve(key);
 
         /// <summary>
+        /// The variant <paramref name="key"/> of <paramref name="track"/> with the course its mode needs
+        /// (<see cref="TrackVariantSet.ForMode"/>), so every race and record of an arena names its circuit option. Null when
+        /// the key is malformed or names an option the track does not offer. Races, sessions and records resolve their
+        /// variant through it.
+        /// </summary>
+        public static TrackVariant ForMode(TrackDefinition track, string key, bool battle)
+        {
+            var set = Of(track);
+            return set?.ForMode(set.Resolve(key), battle);
+        }
+
+        /// <summary>
         /// Overlays of <paramref name="registry"/> that another pack's overlay for the same track and option replaces
         /// through the load order (whatever their ids): each with the overlay that wins instead. Online play and uploads
         /// treat such a variant as modified content, as an id replaced by another pack.
@@ -126,9 +138,18 @@ namespace MHK.Modding
         public IReadOnlyList<TrackOptionDefinition> Options { get; }
         /// <summary>Index into <see cref="Overlays"/> of the track's default option.</summary>
         public int DefaultIndex { get; }
+        /// <summary>
+        /// The course of an arena. One of its options is raced as a circuit (<see cref="TrackOptionRules.circuit"/>), and
+        /// the game mode picks the option (<see cref="TrackVariantSet.ForMode"/>), never the player.
+        /// </summary>
+        public bool IsCourse => CircuitIndex >= 0;
 
-        /// <summary>The player can pick between options (two or more offered).</summary>
-        public bool IsChoice => Overlays.Count > 1;
+        /// <summary>The player can pick between options (two or more offered). The course is never a choice.</summary>
+        public bool IsChoice => Overlays.Count > 1 && !IsCourse;
+
+        // The first option raced as a circuit (-1 for none) and the first one that is not (battles), else the default.
+        internal int CircuitIndex { get; }
+        internal int ArenaIndex { get; }
 
         /// <summary>Menu name of the modifier.</summary>
         public string DisplayName => Modifier != null ? Modifier.DisplayName : ModifierId;
@@ -143,6 +164,14 @@ namespace MHK.Modding
             Overlays = overlays;
             Options = options;
             DefaultIndex = defaultIndex;
+            CircuitIndex = -1;
+            ArenaIndex = -1;
+            for (var i = 0; i < options.Count; i++)
+            {
+                if (options[i].rules.circuit) { if (CircuitIndex < 0) CircuitIndex = i; }
+                else if (ArenaIndex < 0) ArenaIndex = i;
+            }
+            if (ArenaIndex < 0) ArenaIndex = defaultIndex;
         }
 
         /// <summary>Index of the option <paramref name="optionId"/> in <see cref="Options"/>, -1 when not offered.</summary>
@@ -168,6 +197,11 @@ namespace MHK.Modding
         public IReadOnlyList<TrackModifierChoice> Modifiers { get; }
         /// <summary>The track's default variant (key "").</summary>
         public TrackVariant Default { get; }
+        /// <summary>
+        /// The track is an arena with a circuit course (<see cref="TrackModifierChoice.IsCourse"/>), so it hosts races on
+        /// its main path (<see cref="TrackDefinition.HostsRaces"/>).
+        /// </summary>
+        public bool OffersCircuit { get; }
 
         /// <summary>Some modifier offers the player a choice.</summary>
         public bool HasChoices
@@ -187,6 +221,20 @@ namespace MHK.Modding
             var defaults = new int[Modifiers.Count];
             for (var i = 0; i < defaults.Length; i++) defaults[i] = Modifiers[i].DefaultIndex;
             Default = Make(defaults);
+            foreach (var m in Modifiers) OffersCircuit |= m.IsCourse;
+        }
+
+        /// <summary>
+        /// <paramref name="variant"/> with the course its mode needs. A race, a time trial or a Last Man Standing on an
+        /// arena runs its circuit option, a battle its arena option. The course is never the player's choice, so this is
+        /// the one place that sets it. Tracks without a course and variants of another set come back unchanged.
+        /// </summary>
+        public TrackVariant ForMode(TrackVariant variant, bool battle)
+        {
+            if (variant == null || variant.Set != this) return variant;
+            for (var m = 0; m < Modifiers.Count; m++)
+                if (Modifiers[m].IsCourse) variant = With(variant, m, battle ? Modifiers[m].ArenaIndex : Modifiers[m].CircuitIndex);
+            return variant;
         }
 
         /// <summary>
@@ -345,6 +393,11 @@ namespace MHK.Modding
 
         /// <summary>The track's default variant.</summary>
         public bool IsDefault => Key.Length == 0;
+        /// <summary>
+        /// The track's default variant as its races run it (<see cref="TrackVariantSet.ForMode"/>). That is the default
+        /// itself, or for an arena the default with its circuit course.
+        /// </summary>
+        public bool IsRaceDefault => this == Set.ForMode(Set.Default, false);
         public bool Reverse => Rules.reverse;
         public bool Headlights => Rules.headlights;
         public float OutdoorGrip => Rules.outdoorGrip;
@@ -359,16 +412,19 @@ namespace MHK.Modding
             Rules = new TrackOptionRules();
             var key = new StringBuilder();
             var version = set.Track.contentVersion;
+            var lit = false;
             for (var i = 0; i < modifiers.Count; i++)
             {
                 var m = modifiers[i];
                 selected[i] = m.Overlays[picks[i]];
                 Rules.Combine(m.Options[picks[i]].rules);
+                lit |= selected[i].noHeadlights;
                 version += Mathf.Max(1, selected[i].contentVersion) - 1;
                 if (picks[i] == m.DefaultIndex) continue;
                 if (key.Length > 0) key.Append(TrackVariants.Separator);
                 key.Append(m.Options[picks[i]].Id.ToLowerInvariant());
             }
+            if (lit) Rules.headlights = false;
             Key = key.ToString();
             ContentVersion = version;
         }
@@ -389,13 +445,16 @@ namespace MHK.Modding
             return false;
         }
 
-        /// <summary>Menu names of the options that differ from the track's defaults, joined by <paramref name="separator"/>; "" for the default variant.</summary>
+        /// <summary>
+        /// Menu names of the options that differ from the track's defaults, joined by <paramref name="separator"/>. "" for
+        /// the default variant. The course is left out, the mode tells it.
+        /// </summary>
         public string Label(string separator = " · ")
         {
             var sb = new StringBuilder();
             for (var i = 0; i < picks.Length; i++)
             {
-                if (picks[i] == Set.Modifiers[i].DefaultIndex) continue;
+                if (picks[i] == Set.Modifiers[i].DefaultIndex || Set.Modifiers[i].IsCourse) continue;
                 if (sb.Length > 0) sb.Append(separator);
                 sb.Append(OptionOf(i).DisplayName);
             }

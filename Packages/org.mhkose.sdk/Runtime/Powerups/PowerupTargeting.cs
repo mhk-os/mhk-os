@@ -25,14 +25,15 @@ namespace MHK.Powerups
 
         /// <summary>
         /// Fills <paramref name="results"/> with the targets of <paramref name="owner"/> in selection order.
-        /// Ghosts are excluded unless <paramref name="includeGhosts"/> is set for a homing projectile.
+        /// Ghosts are excluded unless <paramref name="includeGhosts"/> is set for a homing projectile. Ghost karts
+        /// (<see cref="Kart.IsGhost"/>) are never targets.
         /// </summary>
         public static void Select(Kart owner, TargetSelection selection, float maxDistance, List<Kart> results, bool includeGhosts = false)
         {
             results.Clear();
             using var pooled = ListPool<Kart>.Get(out var others);
             foreach (var k in Kart.All)
-                if (k != owner && k.isActiveAndEnabled && (includeGhosts || !k.Effects.Ghost)) others.Add(k);
+                if (k != owner && k.isActiveAndEnabled && !k.IsGhost && (includeGhosts || !k.Effects.Ghost)) others.Add(k);
             if (others.Count == 0) return;
             var myPosition = owner.Progress.Position;
             switch (selection)

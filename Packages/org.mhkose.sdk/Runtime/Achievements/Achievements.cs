@@ -340,7 +340,7 @@ namespace MHK.Achievements
             }
             var arenas = collect == AchievementCollect.BattleArena;
             foreach (var track in content.All<TrackDefinition>())
-                if ((track.layout == TrackLayout.Arena) == arenas && OwnedBy(track, pack)) items.Add(track.Id);
+                if ((arenas ? track.HostsBattles : track.HostsRaces) && OwnedBy(track, pack)) items.Add(track.Id);
         }
 
         // A mod that replaces a pack's content keeps its id, so the content still counts for that pack.

@@ -228,7 +228,8 @@ namespace MHK.Powerups
                 var k = karts[i];
                 // Homing rockets contact ghosts/diggers logically even while their colliders pass through things.
                 // HitKart keeps their protection intact; the rocket is still consumed, just as against a shield.
-                if ((k == Owner && Age < ownerImmunity) || (!homing && k.Effects.Ghost)) continue;
+                // Ghost karts (Kart.IsGhost) are out of play, so shots pass through them, homing ones too.
+                if ((k == Owner && Age < ownerImmunity) || k.IsGhost || (!homing && k.Effects.Ghost)) continue;
                 if (GeometryUtil.DistanceSqToSegment(k.transform.position, from, to, SegmentEpsilon, 1f) >= hitRadius * hitRadius) continue;
                 HitKart(k, hitEffect);
                 Despawn(impactVfx, transform.position, hitSound);

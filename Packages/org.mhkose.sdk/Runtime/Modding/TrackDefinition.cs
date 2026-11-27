@@ -28,6 +28,15 @@ namespace MHK.Modding
 
         /// <summary>The picture menus show for this track: the preview, else the icon.</summary>
         public Texture2D Picture => previewImage != null ? previewImage : Icon;
+
+        /// <summary>
+        /// Races and time trials can be held here. True for circuits and for arenas that offer a circuit course in the
+        /// loaded content (<see cref="TrackVariantSet.OffersCircuit"/>), whose races always run that course.
+        /// </summary>
+        public bool HostsRaces => layout == TrackLayout.Circuit || (TrackVariants.Of(this)?.OffersCircuit ?? false);
+
+        /// <summary>Battles here roam the floor like an arena. True for the arena layout.</summary>
+        public bool HostsBattles => layout == TrackLayout.Arena;
 #if UNITY_EDITOR
         // Project assets only: a definition loaded from a mod bundle in the editor has no scene asset (the field is
         // editor-only), so syncing would clear the scene path it was built with.

@@ -24,7 +24,7 @@ namespace MHK.Online
         // UDP datagram types.
         public const byte UdpPing = 1, UdpPong = 2, UdpState = 3, UdpWorld = 4, UdpAiStates = 5;
 
-        public const int MaxRacers = 50, MaxItemBoxes = 512, MaxPool = 128, MaxEffects = 1024, MaxLaps = 99,
+        public const int MaxRacers = 50, MaxItemBoxes = 512, MaxPool = 128, MaxEffects = 1024, MaxLaps = 100,
             MaxContentId = 96, MaxUsername = 20, MaxCountry = 2, MaxVariant = 128, MaxMessage = 256, MaxOdds = 64,
             UdpKeySize = 32, PoolWeights = 11;
 
@@ -181,7 +181,7 @@ namespace MHK.Online
         public string trackId = "";
         /// <summary>Variant key of the track (<see cref="Modding.TrackVariant.Key"/>), "" = its default.</summary>
         public string variant = "";
-        /// <summary>0 race, 1 battle.</summary>
+        /// <summary>0 race, 1 battle, 2 Last Man Standing.</summary>
         public int mode;
         public int engineClass;
         /// <summary>0 = the track's default.</summary>
@@ -201,10 +201,18 @@ namespace MHK.Online
         /// <summary>Race number in the set, 0 = outside the set (a solo race).</summary>
         public int setRace;
         public int setSize;
+        /// <summary>Seconds the race goes on after the first kart finished.</summary>
+        public int finishWait = RoomSettings.DefaultFinishWait;
+        /// <summary>Once a kart finished, every other kart finishes the next time it crosses the line (with fewer laps).</summary>
+        public bool endAtLine;
+        /// <summary>Eliminated racers pick up light powerups (battles, Last Man Standing), else they drive through item boxes.</summary>
+        public bool ghostItems = true;
 
         public ushort Type => RaceProtocol.RaceSetup;
         public long RaceId => raceId;
         public bool Battle => mode == 1;
+        /// <summary>A Last Man Standing race. The server knocks out the kart furthest behind every lap.</summary>
+        public bool LastManStanding => mode == 2;
 
         /// <summary>The grid entry of <paramref name="slotNumber"/>, null when none.</summary>
         public RaceSlot Slot(int slotNumber)
@@ -236,6 +244,9 @@ namespace MHK.Online
             w.Bytes(udpKey, RaceProtocol.UdpKeySize);
             RaceWire.U8(w, setRace);
             RaceWire.U8(w, setSize);
+            w.U16((ushort)Mathf.Clamp(finishWait, 0, ushort.MaxValue));
+            w.Bool(endAtLine);
+            w.Bool(ghostItems);
         }
 
         public static RaceSetup Read(WireReader r)
@@ -255,6 +266,9 @@ namespace MHK.Online
             m.udpKey = r.Bytes(RaceProtocol.UdpKeySize);
             m.setRace = r.U8();
             m.setSize = r.U8();
+            m.finishWait = r.U16();
+            m.endAtLine = r.Bool();
+            m.ghostItems = r.Bool();
             return m;
         }
     }

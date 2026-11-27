@@ -15,7 +15,9 @@ namespace MHK.Powerups
     /// (<see cref="CharacterSpecialId"/>). Boxes that give powerups are removed from races without items, fixed pickups
     /// (<see cref="FixedPickup"/>) from battles, where random boxes give health instead. Online the server decides what a
     /// box gives and who got it (<see cref="OnlineItems"/>): only the local kart picks up here, status effect boxes stay
-    /// local.
+    /// local. A ghost kart (<see cref="Kart.IsGhost"/>) gets a light powerup from any powerup box
+    /// (<see cref="PowerupRoller.RollGhost"/>) and skips status effect boxes. Without <see cref="PowerupRoller.GhostItems"/>
+    /// it drives through every box and leaves it in place.
     /// </summary>
     public partial class ItemBox : MonoBehaviour
     {
@@ -55,8 +57,8 @@ namespace MHK.Powerups
         }
 
         /// <summary>
-        /// A fixed powerup or status effect, not a random roll or the character special (Thunder health, quad damage,
-        /// hammer). Battles have none: random boxes give health there.
+        /// A fixed powerup or status effect, not a random roll or the character special. Battles have none and random
+        /// boxes give health there.
         /// </summary>
         public bool FixedPickup => !string.IsNullOrEmpty(fixedPowerupId) && fixedPowerupId != CharacterSpecialId;
 
@@ -91,7 +93,9 @@ namespace MHK.Powerups
             {
                 var k = karts[i];
                 var d = k.transform.position - p;
-                if (d.sqrMagnitude > radius * radius || k.Eliminated || k.Effects.Hidden || k.IsRemote) continue;
+                if (d.sqrMagnitude > radius * radius || k.Effects.Hidden || k.IsRemote) continue;
+                // Eliminated karts take nothing, ghosts only when the race lets them.
+                if (k.Eliminated && !(k.IsGhost && PowerupRoller.GhostItems)) continue;
                 if (!TryGive(k)) continue;
                 Collect();
                 break;
@@ -121,6 +125,7 @@ namespace MHK.Powerups
         bool TryGive(Kart k)
         {
             var content = GameRoot.Instance.Content;
+            if (k.IsGhost) return TryGiveGhost(k);
             if (FixedPickup)
             {
                 var effect = content.Get<StatusEffectDefinition>(fixedPowerupId);
@@ -129,6 +134,18 @@ namespace MHK.Powerups
             if (!k.Inventory.CanReceive || !PowerupRoller.ItemsEnabled) return false;
             if (OnlineItems.Active) return OnlineItems.RequestPickup(this, k);
             var def = PowerupFor(k, content);
+            if (def == null) return false;
+            k.Inventory.Give(def);
+            return true;
+        }
+
+        // A ghost kart takes no status effect pickups and gets a light powerup instead of what the box holds. Online the
+        // server picks it.
+        bool TryGiveGhost(Kart k)
+        {
+            if (!GivesPowerups() || !PowerupRoller.GhostItems || !k.Inventory.CanReceive || !PowerupRoller.ItemsEnabled) return false;
+            if (OnlineItems.Active) return OnlineItems.RequestPickup(this, k);
+            var def = PowerupRoller.RollGhost();
             if (def == null) return false;
             k.Inventory.Give(def);
             return true;

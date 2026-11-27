@@ -3,13 +3,13 @@ using UnityEngine;
 
 namespace MHK.Core
 {
-    /// <summary>One engine class (50cc, 100cc, 150cc): kart speed and the computer drivers' skill.</summary>
+    /// <summary>One engine class (50cc up to 250cc) with its kart speed and the computer drivers' skill.</summary>
     [Serializable]
     public class DifficultySettings
     {
         public string label = "Medium";
         [Tooltip("Engine class factor applied to every kart: diff ÷ f, torque × f (MHK2 50/100/150cc = 0.9/1.1/1.3, the " +
-                 "remake's classes run one step up: 1.1/1.3/1.5).")]
+                 "remake's classes run one step up: 1.1/1.3/1.5, then 1.7/1.9 for 200/250cc).")]
         public float engineClassFactor = 1.1f;
         [Tooltip("How precisely AI follows the racing line (0 = sloppy, 1 = perfect).")]
         [Range(0, 1)] public float aiPrecision = 0.8f;
@@ -23,6 +23,8 @@ namespace MHK.Core
         public float topSpeedKmh = 90f;
         [Tooltip("Size of the kart engines (KartModel.engine) in this class, 1 = as modelled (150cc).")]
         [Min(0.05f)] public float engineModelScale = 1f;
+        [Tooltip("Supercharged engines. Racing karts throw small electric sparks around their engine (KartEngineSparks).")]
+        public bool engineSparks;
 
         [Header("AI behaviour (engine class)")]
         [Tooltip("Chance to steer around a planted trap (mine, black hole, x-field, puddle, ...) seen ahead, rolled per trap. " +

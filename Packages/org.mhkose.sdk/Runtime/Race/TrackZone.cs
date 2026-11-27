@@ -111,7 +111,8 @@ namespace MHK.Race
         {
             if (kind != TrackZoneKind.Push && kind != TrackZoneKind.Effect) return;
             var kart = Kart.FromCollider(other);
-            if (kart == null || kart.Eliminated || kart.IsRemote) return;
+            // Ghost karts (eliminated online karts that drive on) still get pushed and track effects.
+            if (kart == null || (kart.Eliminated && !kart.IsGhost) || kart.IsRemote) return;
             if (kind == TrackZoneKind.Effect)
             {
                 if (Effect != null && !kart.Effects.Has(Effect)) kart.Effects.Apply(Effect);
@@ -133,7 +134,7 @@ namespace MHK.Race
         // way it faces and leaves its heading alone.
         void Boost(Kart kart)
         {
-            if (kart.Eliminated) return;
+            if (kart.Eliminated && !kart.IsGhost) return;
             var rb = kart.Physics.Body;
             // On the ground the pad drives along the surface. A kart crossing it in the air (off a crest, nose up) only
             // gets horizontal speed and keeps its pitch and roll, so the pad never launches it upwards.

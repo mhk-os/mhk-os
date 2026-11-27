@@ -1,7 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Private room settings (create a room, or the owner changing them while the room waits). Code fills: the room name field, mode-tabs (Races / Battles / Championship), cup-row (championship: a SettingRow dropdown), mod-grid (one toggle card per loaded content pack: logo, title, tracks or arenas), rule-rows (anticheat, engine class, laps, items and odds, AI, players, track pick, races per set: switches, segmented chips, steppers) and summary (info chips of the result). room-status shows why the server refused. save creates the room (Create room) or saves. -->
+    <!-- Private room settings (create a room, or the owner changing them while the room waits). Code fills the room name field, mode-tabs (Races / Battles / Last Man Standing / Championship), mod-grid (one toggle card per loaded content pack with logo, title and its tracks or arenas), rule-rows and summary (info chips of the result). rule-rows holds the rules in the look of the race settings (RuleRows, .rule-row): code clears the samples below and builds the rows the mode uses (anticheat, engine class, laps, finish wait, end at the line, items, item odds, ghost powerups, players, AI, then track pick and races per set or the championship's tracks and cup). room-status shows why the server refused. save creates the room (Create room) or saves. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
-    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
             <ui:Label name="title" text="Create room" class="page-title" />
@@ -11,21 +10,72 @@
                 <ui:VisualElement class="room-body">
                     <ui:VisualElement class="panel room-left">
                         <ui:VisualElement class="room-name-row">
-                            <ui:VisualElement class="icon i-edit room-row-icon" />
+                            <ui:VisualElement class="icon i-edit rule-icon" />
                             <ui:TextField name="room-name" max-length="32" tooltip="Room name" class="acc-input room-name" />
                         </ui:VisualElement>
                         <ui:VisualElement name="mode-tabs" class="tabs room-tabs" />
-                        <ui:Instance template="SettingRow" name="cup-row" class="setting-row setting-dropdown room-cup">
-                            <ui:AttributeOverrides element-name="setting-label" text="Cup" />
-                            <ui:AttributeOverrides element-name="setting-value-label" text="Gold Cup" />
-                        </ui:Instance>
                         <ui:ScrollView name="mod-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="room-mod-scroll">
                             <ui:VisualElement name="mod-grid" class="card-grid room-mod-grid" />
                         </ui:ScrollView>
                     </ui:VisualElement>
                     <ui:VisualElement class="panel room-right">
                         <ui:ScrollView name="rule-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="room-rule-scroll">
-                            <ui:VisualElement name="rule-rows" class="room-rules" />
+                            <ui:VisualElement name="rule-rows" class="rule-rows">
+                                <ui:VisualElement class="setting-row rule-row">
+                                    <ui:VisualElement class="icon rule-icon i-shield" />
+                                    <ui:Label text="Anticheat" class="setting-label rule-label" />
+                                    <ui:Button class="mhk-switch on">
+                                        <ui:VisualElement class="switch-knob" />
+                                    </ui:Button>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="setting-row rule-row setting-dropdown">
+                                    <ui:VisualElement class="icon rule-icon i-speed" />
+                                    <ui:Label text="Engine class" class="setting-label rule-label" />
+                                    <ui:Button class="mhk-button small setting-value">
+                                        <ui:VisualElement class="setting-arrow setting-prev">
+                                            <ui:VisualElement class="icon i-chevron_left" />
+                                        </ui:VisualElement>
+                                        <ui:Label text="150cc" class="button-label" />
+                                        <ui:VisualElement class="setting-arrow setting-next">
+                                            <ui:VisualElement class="icon i-chevron_right" />
+                                        </ui:VisualElement>
+                                    </ui:Button>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="setting-row rule-row">
+                                    <ui:VisualElement class="icon rule-icon i-flag" />
+                                    <ui:Label text="Laps" class="setting-label rule-label" />
+                                    <ui:VisualElement class="number-input">
+                                        <ui:Label text="1 to 100" class="number-hint" />
+                                        <ui:Button class="mhk-button small secondary icon-only number-step">
+                                            <ui:VisualElement class="icon i-remove" />
+                                        </ui:Button>
+                                        <ui:TextField value="Track" class="acc-input number-field" />
+                                        <ui:Button class="mhk-button small secondary icon-only number-step">
+                                            <ui:VisualElement class="icon i-add" />
+                                        </ui:Button>
+                                    </ui:VisualElement>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="setting-row rule-row setting-dropdown">
+                                    <ui:VisualElement class="icon rule-icon i-hourglass_top" />
+                                    <ui:Label text="Finish wait" class="setting-label rule-label" />
+                                    <ui:Button class="mhk-button small setting-value">
+                                        <ui:VisualElement class="setting-arrow setting-prev">
+                                            <ui:VisualElement class="icon i-chevron_left" />
+                                        </ui:VisualElement>
+                                        <ui:Label text="30 s" class="button-label" />
+                                        <ui:VisualElement class="setting-arrow setting-next">
+                                            <ui:VisualElement class="icon i-chevron_right" />
+                                        </ui:VisualElement>
+                                    </ui:Button>
+                                </ui:VisualElement>
+                                <ui:VisualElement class="setting-row rule-row">
+                                    <ui:VisualElement class="icon rule-icon i-skip_next" />
+                                    <ui:Label text="End at the line" class="setting-label rule-label" />
+                                    <ui:Button class="mhk-switch">
+                                        <ui:VisualElement class="switch-knob" />
+                                    </ui:Button>
+                                </ui:VisualElement>
+                            </ui:VisualElement>
                         </ui:ScrollView>
                         <ui:VisualElement name="summary" class="info-chips room-summary" />
                         <ui:VisualElement name="room-status" class="onl-status">

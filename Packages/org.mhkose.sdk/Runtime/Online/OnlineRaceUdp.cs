@@ -93,6 +93,15 @@ namespace MHK.Online
             }
         }
 
+        /// <summary>Server clock minus <see cref="LocalNowMs"/> (ms), 0 until the first Pong.</summary>
+        public double ClockOffsetMs
+        {
+            get
+            {
+                lock (clockLock) return offsetMs;
+            }
+        }
+
         /// <summary>At least one Pong arrived: <see cref="ServerNowMs"/> follows the server.</summary>
         public bool Synced
         {
@@ -122,7 +131,7 @@ namespace MHK.Online
         public long DatagramsUp => Interlocked.Read(ref datagramsUp);
         public long DatagramsDown => Interlocked.Read(ref datagramsDown);
         public long Worlds => Interlocked.Read(ref worlds);
-        /// <summary>Datagrams dropped: bad MAC, other token, stale sequence, malformed.</summary>
+        /// <summary>Datagrams dropped (bad MAC, other token, nothing newer than already received, malformed).</summary>
         public long Dropped => Interlocked.Read(ref dropped);
 
         /// <summary>Next received state for the main thread; give it back with <see cref="Recycle"/>.</summary>
@@ -313,7 +322,6 @@ namespace MHK.Online
             }
             var type = data[0];
             var datagramToken = BitConverter.ToUInt64(data, 1);
-            var datagramSeq = BitConverter.ToUInt32(data, 9);
             var macAt = length - RaceProtocol.UdpMacSize;
             if (datagramToken != token || !mac.TryComputeHash(new ReadOnlySpan<byte>(data, 0, macAt), hash, out _) || !MacEquals(hash, data, macAt))
             {
@@ -324,7 +332,7 @@ namespace MHK.Online
             try
             {
                 if (type == RaceProtocol.UdpPong) Pong(r);
-                else if (type == RaceProtocol.UdpWorld) World(r, datagramSeq);
+                else if (type == RaceProtocol.UdpWorld) World(r);
             }
             catch (WireFormatException)
             {
@@ -363,21 +371,25 @@ namespace MHK.Online
             }
         }
 
-        uint newestWorldSeq;
-        bool worldSeen;
+        // Newest tick received per slot (receive thread), -1 before the first state. The server splits a World into
+        // several datagrams when it is large, so a datagram that arrives late still carries karts nothing newer came for.
+        readonly int[] newestTicks = NewTicks();
 
-        void World(WireReader r, uint datagramSeq)
+        static int[] NewTicks()
         {
-            if (worldSeen && unchecked((int)(datagramSeq - newestWorldSeq)) <= 0)
-            {
-                Interlocked.Increment(ref dropped);
-                return;
-            }
-            worldSeen = true;
-            newestWorldSeq = datagramSeq;
+            var ticks = new int[256];
+            for (var i = 0; i < ticks.Length; i++) ticks[i] = -1;
+            return ticks;
+        }
+
+        // Each kart's state counts when it is newer than the newest one received for that kart (states before GO are all
+        // tick 0 and always count). Datagram order does not matter.
+        void World(WireReader r)
+        {
             r.I64(); // serverTime: the race clock comes from the ticks
             var n = r.U8();
             var now = LocalNowMs;
+            var fresh = 0;
             for (var i = 0; i < n; i++)
             {
                 if (!pool.TryDequeue(out var e)) e = new Received();
@@ -392,8 +404,21 @@ namespace MHK.Online
                     pool.Enqueue(e);
                     throw;
                 }
+                var tick = e.state.tick;
+                if (tick != 0 && tick <= newestTicks[e.slot])
+                {
+                    pool.Enqueue(e);
+                    continue;
+                }
+                newestTicks[e.slot] = tick;
                 e.receivedMs = now;
                 incoming.Enqueue(e);
+                fresh++;
+            }
+            if (n > 0 && fresh == 0)
+            {
+                Interlocked.Increment(ref dropped);
+                return;
             }
             Interlocked.Increment(ref worlds);
             Interlocked.Exchange(ref lastWorldMs, now);

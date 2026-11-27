@@ -44,7 +44,7 @@ namespace MHK.UI
         [SerializeField, Tooltip("Tooltip of a loaded mod whose definitions are replaced by mods above it. {0} = number of definitions.")]
         string replacedTip = "{0} of its definitions are replaced by mods above it.";
         [SerializeField, Tooltip("Line of a mod built for an older game version (another mod API level), which is not loaded.")]
-        string needsModUpdateText = "Made for an older game version. Ask its author for an update.";
+        string needsModUpdateText = "Made for an older game version.";
         [SerializeField, Tooltip("Line of a mod built for a newer game version, which is not loaded.")]
         string needsNewerGameText = "Made for a newer game version. Update the game.";
         [SerializeField, Tooltip("Line of a mod that failed to load. {0} = one-line reason.")]

@@ -357,6 +357,30 @@
             "displayName": "Sandstorm"
         },
         {
+            "id": "core.course",
+            "type": "MHK.Modding.TrackModifierDefinition",
+            "pack": "game",
+            "guid": "1981a851be0940db8cb8427bbbf48bbe",
+            "fileId": 11400000,
+            "displayName": "Course"
+        },
+        {
+            "id": "core.arena",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "5be09c2be93f47d4b5062e7d66f98366",
+            "fileId": 11400000,
+            "displayName": "Arena"
+        },
+        {
+            "id": "core.circuit",
+            "type": "MHK.Modding.TrackOptionDefinition",
+            "pack": "game",
+            "guid": "f6b51361896f4235a1cbd2eae8e1325a",
+            "fileId": 11400000,
+            "displayName": "Circuit"
+        },
+        {
             "id": "game.kart.none",
             "type": "MHK.Modding.KartDefinition",
             "pack": "game",

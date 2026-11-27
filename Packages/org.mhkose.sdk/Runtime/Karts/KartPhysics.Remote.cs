@@ -8,13 +8,14 @@ namespace MHK.Karts
         /// One tick of a remote racer's kinematic stand-in (<see cref="Kart.IsRemote"/>): moves the body to the
         /// interpolated pose and sets the state the visuals, sounds, the camera and item targeting read, derived from the
         /// received state instead of simulated. <paramref name="intangible"/> is the sender's pass-through state, so local
-        /// karts drive through it exactly while it is a ghost there.
+        /// karts drive through it exactly while it is a ghost there. A ghost kart (<see cref="Kart.IsGhost"/>) stays
+        /// intangible whatever the state says.
         /// </summary>
         internal void StepRemote(Vector3 position, Quaternion rotation, Vector3 velocity, float steer01, bool throttle, bool brake, bool airborne,
             bool intangible, bool snap, float h)
         {
             physicsScene = gameObject.scene.GetPhysicsScene();
-            UpdateIntangible(intangible, h);
+            UpdateIntangible(intangible || GhostKart, h);
             UpdateRunOver(effects != null && effects.RunOverActive, h);
             if (snap)
             {

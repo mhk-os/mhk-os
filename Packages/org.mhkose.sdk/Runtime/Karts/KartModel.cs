@@ -23,7 +23,8 @@ namespace MHK.Karts
                  "it (CharacterDefinition.handReach). Empty = the first steering pivot.")]
         public Transform steeringWheel;
         [Tooltip("Optional engine part, pivot at its mount. It shakes while the kart runs and is drawn at the race's engine " +
-                 "class size (DifficultySettings.engineModelScale): full size is 150cc, smaller for 100cc and 50cc.")]
+                 "class size (DifficultySettings.engineModelScale). Full size is 150cc, smaller for 100cc and 50cc, bigger " +
+                 "for 200cc and 250cc, growing away from the seat.")]
         public Transform engine;
 
         /// <summary>Where drivers hold the steering wheel, null when the model marks none.</summary>

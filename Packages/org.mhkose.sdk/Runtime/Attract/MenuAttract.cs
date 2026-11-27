@@ -179,9 +179,9 @@ namespace MHK.Attract
             return scenes;
         }
 
-        static bool Raceable(TrackDefinition t) => t != null && t.layout == TrackLayout.Circuit && t.scene.IsSet;
+        static bool Raceable(TrackDefinition t) => t != null && t.HostsRaces && t.scene.IsSet;
 
-        // No mod with a circuit and a driver (the base content disabled): the title shows the empty background.
+        // With no mod that has a race track and a driver (the base content disabled) the title shows the empty background.
         bool CanRace()
         {
             if (Content.All<CharacterDefinition>().Count == 0) return false;

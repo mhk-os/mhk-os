@@ -17,14 +17,27 @@ namespace MHK.Editor.Tracks
     /// MHK ▸ Tracks ▸ Track Variants: the options a track offers (its <see cref="TrackOverlayDefinition"/>s by modifier),
     /// creating overlay definitions and overlay scenes, and editing an overlay scene on top of its track scene. While an
     /// overlay is edited its scene is the active one and the track scene is loaded behind it as a locked reference
-    /// (<see cref="TrackOverlayGhost"/>) that the window never saves. Preview applies the overlay's environment to the track
-    /// scene (<see cref="TrackEnvironment"/>) and puts it back, also before any scene is saved. Closing restores the scenes
-    /// that were open before.
+    /// (<see cref="TrackOverlayGhost"/>) that the window never saves. Clicks on the track can place a prefab into the
+    /// overlay (the SDK roadblock by default, for the side paths an arena's circuit course closes), and placed objects can
+    /// be dropped onto the track below them. Preview applies the overlay's environment to the track scene
+    /// (<see cref="TrackEnvironment"/>) and puts it back, also before any scene is saved. Closing restores the scenes that
+    /// were open before. Opening an overlay scene on its own starts editing it here (<see cref="TrackOverlaySceneOpener"/>).
     /// </summary>
     public sealed class TrackVariantsWindow : EditorWindow
     {
         const string MenuPath = "MHK/Tracks/Track Variants";
         const float OptionWidth = 150f, SceneWidth = 190f, ButtonWidth = 80f;
+        const string DefaultPlacePrefab = "Packages/org.mhkose.sdk/Prefabs/Track/Roadblock.prefab";
+        // While placing, Shift with the mouse wheel turns the prefab by YawStep degrees. Clicks reach the track up to
+        // MaxPlaceDistance m away. Dropping looks for ground from DropAbove m over an object down to DropDepth m under it.
+        const float YawStep = 15f, MaxPlaceDistance = 3000f, DropAbove = 5f, DropDepth = 100f, MarkerRadius = 0.4f;
+        static readonly Color MarkerColor = new(1f, 0.45f, 0.1f);
+
+        // The window is switching scenes itself (opening a session or putting the old scenes back).
+        static bool switching;
+
+        /// <summary>True while the window opens or closes a session's scenes, so scenes opened then are its own doing.</summary>
+        internal static bool Switching => switching;
 
         [Serializable]
         struct OpenScene
@@ -52,6 +65,9 @@ namespace MHK.Editor.Tracks
         [SerializeField] List<OpenScene> previousScenes = new();
         [SerializeField] bool xray, showLines = true, preview;
         [SerializeField] List<string> previewPicks = new();
+        [SerializeField] GameObject placePrefab;
+        [SerializeField] float placeYaw;
+        bool placing;
 
         readonly List<Row> rows = new();
         readonly List<TrackOptionDefinition> freeOptions = new();
@@ -268,6 +284,7 @@ namespace MHK.Editor.Tracks
                     RestorePreview();
                     if (preview) ApplyPreview();
                 }
+                DrawPlacing();
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     if (GUILayout.Button("Select overlay"))
@@ -285,6 +302,174 @@ namespace MHK.Editor.Tracks
             }
         }
 
+        void DrawPlacing()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Placing objects", EditorStyles.boldLabel);
+            placePrefab = (GameObject)EditorGUILayout.ObjectField(new GUIContent("Prefab",
+                "Prefab a click on the track places into the overlay. Empty uses the SDK roadblock."), PlacePrefab(), typeof(GameObject), false);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                using (new EditorGUI.DisabledScope(PlacePrefab() == null))
+                {
+                    var on = GUILayout.Toggle(placing, new GUIContent(placing ? "Stop placing (Esc)" : "Place by clicking",
+                        "Each click on the track in the Scene view places the prefab there, turned across your view."), "Button");
+                    if (on != placing) SetPlacing(on);
+                }
+                if (GUILayout.Button(new GUIContent("Drop selection onto track",
+                        "Moves the selected objects of the overlay up or down onto the ground right under them.")))
+                    DropSelection();
+            }
+            if (placing)
+                EditorGUILayout.HelpBox("Click the track in the Scene view to place the prefab facing the camera. Shift with the " +
+                                        "mouse wheel turns it and Esc stops. Placed objects go under '" + PlacedGroup() + "' in the overlay.",
+                    MessageType.None);
+        }
+
+        GameObject PlacePrefab()
+        {
+            if (placePrefab == null) placePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(DefaultPlacePrefab);
+            return placePrefab;
+        }
+
+        string PlacedGroup() => PlacePrefab() != null ? PlacePrefab().name + "s" : "Placed";
+
+        void SetPlacing(bool on)
+        {
+            placing = on;
+            SceneView.RepaintAll();
+            Repaint();
+        }
+
+        // The placing tool in the Scene view. A marker shows where a click would place the prefab, and a click places it.
+        void OnPlaceGui(SceneView view)
+        {
+            if (!placing || editing == null || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            var e = Event.current;
+            var id = GUIUtility.GetControlID(FocusType.Passive);
+            if (e.type == EventType.Layout) HandleUtility.AddDefaultControl(id);
+            if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape)
+            {
+                SetPlacing(false);
+                e.Use();
+                return;
+            }
+            if (e.type == EventType.ScrollWheel && e.shift)
+            {
+                // macOS turns Shift and the wheel into sideways scrolling.
+                var delta = Mathf.Abs(e.delta.y) > Mathf.Abs(e.delta.x) ? e.delta.y : e.delta.x;
+                placeYaw = Mathf.Repeat(placeYaw + Mathf.Sign(delta) * YawStep, 360f);
+                e.Use();
+                view.Repaint();
+                return;
+            }
+            if (!TryPlacePose(view, e.mousePosition, out var pose)) return;
+            switch (e.type)
+            {
+                case EventType.Repaint:
+                    DrawPlaceMarker(pose);
+                    break;
+                case EventType.MouseMove:
+                    view.Repaint();
+                    break;
+                case EventType.MouseDown when e.button == 0 && !e.alt:
+                    Place(pose);
+                    e.Use();
+                    break;
+            }
+        }
+
+        // Where the mouse points on the track, the prefab facing the camera (its width across the view) and turned by placeYaw.
+        bool TryPlacePose(SceneView view, Vector2 mouse, out Pose pose)
+        {
+            pose = default;
+            var ray = HandleUtility.GUIPointToWorldRay(mouse);
+            if (!Physics.Raycast(ray, out var hit, MaxPlaceDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)) return false;
+            var facing = Vector3.ProjectOnPlane(view.camera.transform.forward, Vector3.up);
+            if (facing.sqrMagnitude < 1e-4f) facing = Vector3.ProjectOnPlane(view.camera.transform.up, Vector3.up);
+            pose = new Pose(hit.point, Quaternion.LookRotation(facing.normalized) * Quaternion.Euler(0f, placeYaw, 0f));
+            return true;
+        }
+
+        void DrawPlaceMarker(Pose pose)
+        {
+            var half = PrefabHalfWidth();
+            var across = pose.rotation * Vector3.right * half;
+            using (new Handles.DrawingScope(MarkerColor))
+            {
+                Handles.DrawWireDisc(pose.position, Vector3.up, MarkerRadius);
+                Handles.DrawLine(pose.position - across, pose.position + across, 3f);
+                Handles.DrawLine(pose.position, pose.position + pose.rotation * Vector3.forward * MarkerRadius * 2f, 2f);
+            }
+        }
+
+        // Half the width of the prefab (its renderers' bounds across), at least the marker's radius.
+        float PrefabHalfWidth()
+        {
+            var prefab = PlacePrefab();
+            if (prefab == null) return MarkerRadius;
+            var renderers = prefab.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0) return MarkerRadius;
+            var bounds = renderers[0].bounds;
+            foreach (var r in renderers) bounds.Encapsulate(r.bounds);
+            return Mathf.Max(MarkerRadius, bounds.extents.x);
+        }
+
+        void Place(Pose pose)
+        {
+            var scene = SceneManager.GetSceneByPath(overlayScenePath);
+            var overlay = EditedOverlay();
+            var prefab = PlacePrefab();
+            if (!scene.isLoaded || overlay == null || prefab == null) return;
+            var groupName = PlacedGroup();
+            var group = overlay.transform.Find(groupName);
+            if (group == null)
+            {
+                group = new GameObject(groupName).transform;
+                Undo.RegisterCreatedObjectUndo(group.gameObject, "Place " + prefab.name);
+                Undo.SetTransformParent(group, overlay.transform, "Place " + prefab.name);
+            }
+            var placed = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+            placed.transform.SetParent(group, false);
+            placed.transform.SetPositionAndRotation(pose.position, pose.rotation);
+            Undo.RegisterCreatedObjectUndo(placed, "Place " + prefab.name);
+            Selection.activeGameObject = placed;
+            EditorSceneManager.MarkSceneDirty(scene);
+        }
+
+        // The selected objects of the overlay stand on the nearest ground under them (their own colliders aside).
+        void DropSelection()
+        {
+            var scene = SceneManager.GetSceneByPath(overlayScenePath);
+            if (!scene.isLoaded) return;
+            Physics.SyncTransforms();
+            var moved = false;
+            foreach (var t in Selection.transforms)
+            {
+                if (t.gameObject.scene != scene || !TryGroundUnder(t, out var y)) continue;
+                Undo.RecordObject(t, "Drop onto track");
+                var p = t.position;
+                p.y = y;
+                t.position = p;
+                moved = true;
+            }
+            if (moved) EditorSceneManager.MarkSceneDirty(scene);
+        }
+
+        static bool TryGroundUnder(Transform t, out float y)
+        {
+            y = 0f;
+            var best = float.PositiveInfinity;
+            foreach (var hit in Physics.RaycastAll(t.position + Vector3.up * DropAbove, Vector3.down, DropAbove + DropDepth,
+                         Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                if (hit.distance >= best || hit.collider.transform.IsChildOf(t)) continue;
+                best = hit.distance;
+                y = hit.point.y;
+            }
+            return !float.IsPositiveInfinity(best);
+        }
+
         // The options of the other modifiers the preview assumes (they decide sky textures that require an option).
         bool DrawPreviewPicks()
         {
@@ -292,7 +477,8 @@ namespace MHK.Editor.Tracks
             var changed = false;
             foreach (var choice in set.Modifiers)
             {
-                if (!choice.IsChoice || choice.IndexOf(editing.optionId) >= 0) continue;
+                // Every modifier with options, the course too (players never pick it, but overlays are made for each).
+                if (choice.Overlays.Count < 2 || choice.IndexOf(editing.optionId) >= 0) continue;
                 var current = PickedIndex(choice);
                 var picked = EditorGUILayout.Popup(new GUIContent("Preview with " + choice.DisplayName, "Option of this modifier the preview assumes."),
                     current, choice.Options.Select(o => new GUIContent(o.DisplayName)).ToArray());
@@ -352,15 +538,47 @@ namespace MHK.Editor.Tracks
             else EditorGUIUtility.PingObject(def);
         }
 
-        // Opens the track scene alone, then the overlay scene (created when missing) as the active scene.
-        void BeginEdit(TrackOverlayDefinition def)
+        /// <summary>
+        /// Starts editing <paramref name="def"/> on top of its track scene, as the window's Edit button does. Closing the
+        /// session afterwards leaves an empty scene. Does nothing while another overlay is being edited.
+        /// </summary>
+        public static void EditOverlay(TrackOverlayDefinition def)
+        {
+            if (def == null || EditorApplication.isPlayingOrWillChangePlaymode) return;
+            var track = TrackScenes.AllTracks().FirstOrDefault(t => string.Equals(t.Id, def.trackId, StringComparison.OrdinalIgnoreCase));
+            if (track == null || !track.scene.IsSet)
+            {
+                Debug.LogWarning($"[Variants] {def.Id}: no track definition with a scene for '{def.trackId}', the overlay opens on its own.");
+                return;
+            }
+            var window = GetWindow<TrackVariantsWindow>("Track Variants");
+            if (window.editing != null) return;
+            window.track = track;
+            window.TrackChanged();
+            window.BeginEdit(def, false);
+        }
+
+        // Opens the track scene alone, then the overlay scene (created when missing) as the active scene. Closing reopens
+        // the scenes open now when keepScenes is set.
+        void BeginEdit(TrackOverlayDefinition def, bool keepScenes = true)
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-            previousScenes = EditorSceneManager.GetSceneManagerSetup()
-                .Where(s => !string.IsNullOrEmpty(s.path))
-                .Select(s => new OpenScene { path = s.path, loaded = s.isLoaded, active = s.isActive }).ToList();
-            var trackScene = EditorSceneManager.OpenScene(track.scene.Path, OpenSceneMode.Single);
-            var overlayScene = TrackOverlayAssets.OpenOrCreateScene(def, trackScene);
+            previousScenes = keepScenes
+                ? EditorSceneManager.GetSceneManagerSetup()
+                    .Where(s => !string.IsNullOrEmpty(s.path))
+                    .Select(s => new OpenScene { path = s.path, loaded = s.isLoaded, active = s.isActive }).ToList()
+                : new List<OpenScene>();
+            Scene trackScene, overlayScene;
+            switching = true;
+            try
+            {
+                trackScene = EditorSceneManager.OpenScene(track.scene.Path, OpenSceneMode.Single);
+                overlayScene = TrackOverlayAssets.OpenOrCreateScene(def, trackScene);
+            }
+            finally
+            {
+                switching = false;
+            }
             AssetDatabase.SaveAssetIfDirty(def);
             SceneManager.SetActiveScene(overlayScene);
             editing = def;
@@ -389,6 +607,7 @@ namespace MHK.Editor.Tracks
             EditorSceneManager.sceneSaved += OnSceneSaved;
             EditorSceneManager.sceneClosing += OnSceneClosing;
             EditorApplication.playModeStateChanged += OnPlayModeChanged;
+            SceneView.duringSceneGui += OnPlaceGui;
             if (preview && !EditorApplication.isPlayingOrWillChangePlaymode) ApplyPreview();
         }
 
@@ -400,6 +619,8 @@ namespace MHK.Editor.Tracks
             EditorSceneManager.sceneSaved -= OnSceneSaved;
             EditorSceneManager.sceneClosing -= OnSceneClosing;
             EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+            SceneView.duringSceneGui -= OnPlaceGui;
+            placing = false;
             ghost?.Dispose();
             ghost = null;
         }
@@ -421,6 +642,7 @@ namespace MHK.Editor.Tracks
             if (overlayScene.isLoaded && overlayScene.isDirty && !EditorSceneManager.SaveModifiedScenesIfUserWantsTo(new[] { overlayScene })) return;
             StopSession();
             closing = true;
+            switching = true;
             try
             {
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -440,6 +662,7 @@ namespace MHK.Editor.Tracks
             finally
             {
                 closing = false;
+                switching = false;
             }
             ForgetSession();
             Refresh();

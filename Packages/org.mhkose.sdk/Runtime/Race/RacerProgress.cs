@@ -18,6 +18,13 @@ namespace MHK.Race
         public int Lap { get; private set; }
         public bool Finished { get; private set; }
         public float FinishTime { get; private set; }
+        /// <summary>
+        /// Laps the racer completed when it finished. That is the race's laps, fewer for a racer that finished at the line
+        /// behind the winner (<see cref="FinishAtNextLine"/>, online end at the line).
+        /// </summary>
+        public int FinishedLaps { get; private set; }
+        /// <summary>The racer finishes the next time a lap counts at the line, with fewer laps (<see cref="FinishAtNextLine"/>).</summary>
+        public bool FinishesAtLine { get; private set; }
         /// <summary>Race position, 1 = leading (written by the race ranking).</summary>
         public int Position { get; internal set; } = 1;
         public bool WrongWay { get; private set; }
@@ -73,6 +80,42 @@ namespace MHK.Race
             Lap = Mathf.Clamp(lap, 0, totalLaps);
             RaceDistance = raceDistance;
         }
+
+        /// <summary>
+        /// An online AI kart another client hosts (<see cref="ApplyMirror"/>). Its lap and race distance are the host's,
+        /// while the lap state is still counted here for a takeover. It never finishes by itself (the server's finish does).
+        /// </summary>
+        public bool Mirror { get; private set; }
+        int mirrorLap;
+        float mirrorDistance;
+
+        /// <summary>Takes the host's lap and race distance of a mirrored AI kart (ranking matches the host's and the server's).</summary>
+        public void ApplyMirror(int lap, float raceDistance)
+        {
+            Mirror = true;
+            mirrorLap = Mathf.Clamp(lap, 0, totalLaps);
+            mirrorDistance = raceDistance;
+            if (Finished) return;
+            Lap = mirrorLap;
+            RaceDistance = mirrorDistance;
+        }
+
+        /// <summary>
+        /// The mirrored AI kart is simulated here again (AI host takeover), and laps count from the lap state kept
+        /// meanwhile. A finish the old host never reported happens now, at the start of the lap it missed.
+        /// </summary>
+        public void StopMirror()
+        {
+            if (!Mirror) return;
+            Mirror = false;
+            if (!Finished && track != null && crossings - 1 >= totalLaps) Finish(lapStartTime, totalLaps);
+        }
+
+        /// <summary>
+        /// Online end at the line. Someone finished, so this racer finishes the next time a lap counts at the line, also
+        /// with fewer laps than the race has.
+        /// </summary>
+        public void FinishAtNextLine() => FinishesAtLine = true;
 
         /// <summary>Records lap times a remote racer reported with its finish (seconds).</summary>
         public void SetRemoteLapTimes(IReadOnlyList<float> laps)
@@ -166,6 +209,8 @@ namespace MHK.Race
             LastSafeDistance = PathDistance;
             Finished = false;
             FinishTime = 0f;
+            FinishedLaps = 0;
+            FinishesAtLine = false;
             WrongWay = false;
             wrongWayTimer = 0f;
             LapTimes.Clear();
@@ -200,6 +245,17 @@ namespace MHK.Race
         }
 
         public void StopClock() => running = false;
+
+        /// <summary>
+        /// Online the race ticks were corrected to the server clock by <paramref name="ticks"/>. This racer's clock moves
+        /// with them, so its lap and finish times stay on the server clock.
+        /// </summary>
+        public void ShiftClock(int ticks)
+        {
+            if (!running) return;
+            clockTicks = Mathf.Max(0, clockTicks + ticks);
+            raceClock = (float)(clockTicks * (double)Time.fixedDeltaTime);
+        }
 
         void FixedUpdate()
         {
@@ -388,6 +444,11 @@ namespace MHK.Race
             else if (near && prevSide >= 0f && lineSide < 0f) CrossBackward();
             else UpdateKeys(prevLap, lapDistance, len);
             if (!Finished) RaceDistance = (crossings - 1) * len + lapDistance;
+            if (Mirror && !Finished)
+            {
+                Lap = mirrorLap;
+                RaceDistance = mirrorDistance;
+            }
         }
 
         void UpdateKeys(float prevLap, float lap, float len)
@@ -420,7 +481,10 @@ namespace MHK.Race
                 return;
             }
             if (running) RecordLap(crossTime);
-            if (crossings - 1 >= totalLaps) Finish(crossTime);
+            // A mirrored AI kart finishes when the server says so (its host's crossing), never on this client's own count.
+            if (Mirror) return;
+            if (crossings - 1 >= totalLaps) Finish(crossTime, totalLaps);
+            else if (FinishesAtLine) Finish(crossTime, crossings - 1);
         }
 
         void RecordLap(float crossTime)
@@ -431,11 +495,12 @@ namespace MHK.Race
             lapStartTime = crossTime;
         }
 
-        void Finish(float crossTime)
+        void Finish(float crossTime, int laps)
         {
             Finished = true;
             FinishTime = crossTime;
-            RaceDistance = totalLaps * track.MainPath.Length;
+            FinishedLaps = laps;
+            RaceDistance = laps * track.MainPath.Length;
             FinishedRace?.Invoke(this);
         }
 
@@ -515,6 +580,26 @@ namespace MHK.Race
             if (Finished) return;
             Finished = true;
             FinishTime = estimatedTime;
+            FinishedLaps = totalLaps;
+            FinishedRace?.Invoke(this);
+        }
+
+        /// <summary>
+        /// The server's accepted finish of an online racer (<paramref name="time"/> s, <paramref name="laps"/> completed).
+        /// It replaces a finish this client saw itself (a mirrored or remote kart crossing the line here a little off), and
+        /// finishes the racer when it has not finished yet.
+        /// </summary>
+        public void ServerFinish(float time, int laps)
+        {
+            FinishedLaps = Mathf.Clamp(laps, 0, totalLaps);
+            if (Finished)
+            {
+                FinishTime = time;
+                return;
+            }
+            Finished = true;
+            FinishTime = time;
+            if (track != null && track.HasMainPath && laps > 0) RaceDistance = FinishedLaps * track.MainPath.Length;
             FinishedRace?.Invoke(this);
         }
     }

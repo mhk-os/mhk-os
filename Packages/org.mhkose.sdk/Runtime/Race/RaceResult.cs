@@ -13,6 +13,8 @@ namespace MHK.Race
         public string kartId;
         public bool isHuman;
         public float time;
+        /// <summary>Whole laps the racer was behind the winner when it finished at the line (online, end at the line), 0 otherwise.</summary>
+        public int lapsDown;
         public float bestLap;
         public int pointsGained;
         public int totalPoints;

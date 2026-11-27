@@ -117,7 +117,8 @@ namespace MHK.AI
                 board.direction = battle.Direction;
             }
             FollowLine(kart, track, speed, cfg);
-            if (kart.Progress.Finished)
+            // A ghost (eliminated online kart that drives on) keeps racing although its progress counts as finished.
+            if (kart.Progress.Finished && !kart.IsGhost)
             {
                 steering.Steer(kart, steering.Ahead(speed), lanes.Lane, cfg, dt, ref input);
                 input.brake = speed > CoastBrakeSpeed * s ? CoastBrake : 0f;
@@ -170,7 +171,7 @@ namespace MHK.AI
             if (battle != null) return;
             var race = RaceManager.Current;
             if (race == null || !race.IsBattle) return;
-            var arena = race.Track != null && race.Track.layout == TrackLayout.Arena;
+            var arena = race.Track != null && race.Track.HostsBattles;
             battle = new AIBattleDriving(difficulty, cfg.GetBattleAi(race.Session.difficulty), arena, board, rams, battleSeed);
         }
 

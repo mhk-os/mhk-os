@@ -10,10 +10,11 @@ namespace MHK.UI
 {
     /// <summary>
     /// Track browser (Track.uxml): a card per track and the info panel of the hovered or focused one (laps or arena,
-    /// records). Battles list arenas first, the other modes circuits only. Every mode then opens the race settings (a time
-    /// trial, its track fixed on its records page, right after the kart). For the online lobby it lists the lobby's tracks (arenas
-    /// in battle lobbies): a Random card first and the remaining time while voting (<see cref="LobbyPick.Vote"/>), the
-    /// next race's track for the room owner (<see cref="LobbyPick.OwnerPick"/>; between sets of a race room the footer's
+    /// records). Battles list arenas first, the other modes the tracks that host races (circuits and raceable arenas).
+    /// Every mode then opens the race settings (a time trial, its track fixed on its records page, right after the kart).
+    /// For the online lobby it lists the lobby's tracks (arenas in battle lobbies), with a Random card first and the
+    /// remaining time while voting (<see cref="LobbyPick.Vote"/>), or the next race's track for the room owner
+    /// (<see cref="LobbyPick.OwnerPick"/>; between sets of a race room the footer's
     /// Championships opens the Cup page with the lobby's cups, <see cref="LobbyScreen.CanStartCup"/>). In the lobby modes
     /// a track that offers variants asks for one (<see cref="TrackVariantPrompt"/>); Random takes the default.
     /// </summary>
@@ -80,13 +81,13 @@ namespace MHK.UI
             else if (lobby == LobbyPick.OwnerPick) Q<Label>("title").text = ownerPickTitle;
             else if (lobby == LobbyPick.Solo) Q<Label>("title").text = soloTitle;
             else if (battle) Q<Label>("title").text = battleTitle;
-            // Arenas only host battles, but battles may also be fought on any circuit (arenas listed first). Online
-            // battle lobbies use arenas only, race lobbies circuits only.
+            // Arenas host battles (raceable ones races too), and battles may also be fought on any circuit (arenas listed
+            // first). Online battle lobbies use arenas only, race lobbies the tracks that host races.
             tracks = lobby != LobbyPick.None
-                ? LobbyScreen.LobbyContent<TrackDefinition>().Where(t => t.layout == (battle ? TrackLayout.Arena : TrackLayout.Circuit)).ToList()
+                ? LobbyScreen.LobbyContent<TrackDefinition>().Where(t => battle ? t.HostsBattles : t.HostsRaces).ToList()
                 : battle
-                    ? Content.All<TrackDefinition>().OrderBy(t => t.layout == TrackLayout.Arena ? 0 : 1).ToList()
-                    : Content.All<TrackDefinition>().Where(t => t.layout == TrackLayout.Circuit).ToList();
+                    ? Content.All<TrackDefinition>().OrderBy(t => t.HostsBattles ? 0 : 1).ToList()
+                    : Content.All<TrackDefinition>().Where(t => t.HostsRaces).ToList();
             arenaLine = Q<VisualElement>("info-arena");
             lapsLine = Q<VisualElement>("info-laps");
             lapsText = Q<Label>("info-laps-text");
@@ -233,7 +234,7 @@ namespace MHK.UI
             if (Lobby == LobbyPick.Vote) AddVoteBadge(card, t.Id);
             var badge = card.Q("card-badge");
             if (badge == null) return;
-            var arena = battle && t.layout == TrackLayout.Arena;
+            var arena = battle && t.HostsBattles;
             badge.SetVisible(arena);
             if (!arena) return;
             badge.pickingMode = PickingMode.Position;
@@ -243,9 +244,10 @@ namespace MHK.UI
             icon?.AddToClassList("i-swords");
         }
 
+        // An arena that hosts no races says so instead of its length.
         protected override void Describe(TrackDefinition t)
         {
-            var arena = t.layout == TrackLayout.Arena;
+            var arena = !t.HostsRaces;
             arenaLine.SetVisible(arena);
             lapsLine.SetVisible(!arena);
             if (!arena) lapsText.text = string.Format(t.defaultLaps == 1 ? lapFormat : lapsFormat, t.defaultLaps);

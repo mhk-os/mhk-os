@@ -19,7 +19,7 @@
             <ui:Label name="mod-text" text="The base content pack required by the game." class="mod-text" />
             <ui:VisualElement name="mod-problem" class="src-state src-bad mod-problem" style="display: none;">
                 <ui:VisualElement class="icon i-error" />
-                <ui:Label name="mod-problem-label" text="Made for an older game version. Ask its author for an update." class="src-state-label" />
+                <ui:Label name="mod-problem-label" text="Made for an older game version." class="src-state-label" />
             </ui:VisualElement>
             <ui:VisualElement name="mod-status" class="src-status" style="display: none;">
                 <ui:VisualElement name="mod-source" class="src-state src-good">

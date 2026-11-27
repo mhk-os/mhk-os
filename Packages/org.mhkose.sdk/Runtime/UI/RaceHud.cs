@@ -68,6 +68,12 @@ namespace MHK.UI
         string endRaceText = "End race";
         [SerializeField, Tooltip("The join toast's button once the player chose to end the race.")]
         string endingRaceText = "Ending...";
+        [SerializeField, Tooltip("Chip counting down the rest of an online race after the first finish ({0} = seconds left).")]
+        string finishWaitFormat = "{0}";
+        [SerializeField, Tooltip("Tooltip of the finish countdown chip.")]
+        string finishWaitTip = "Someone finished. The race ends when this countdown runs out.";
+        [SerializeField, Tooltip("Tooltip of the finish countdown chip when karts finish at the line (end at the line).")]
+        string finishAtLineTip = "Someone finished. Every kart finishes at its next crossing of the line, or when this countdown runs out.";
 
         const float FinishFlashSeconds = 4f, KartOutFlashSeconds = 2f;
         const float SpeedoHeadroom = 1.4f, SpeedoStepKmh = 10f;

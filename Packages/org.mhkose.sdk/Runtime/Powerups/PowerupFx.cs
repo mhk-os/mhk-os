@@ -48,14 +48,14 @@ namespace MHK.Powerups
         }
 
         /// <summary>
-        /// Spawns <paramref name="prefab"/> (destroyed after 4 s) and plays <paramref name="sound"/> there (both optional),
-        /// carrying as far as <paramref name="range"/> says (null = the default one-shot range). Returns the spawned
-        /// object, null for none.
+        /// Spawns <paramref name="prefab"/> and plays <paramref name="sound"/> there (both optional), carrying as far as
+        /// <paramref name="range"/> says (null = the default one-shot range). The spawned object fades out after 4 s
+        /// (<see cref="Effects.FadeOut"/>). Returns the spawned object, null for none.
         /// </summary>
         public static GameObject Spawn(GameObject prefab, Vector3 position, AudioClip sound = null, float volume = 1f, Audio.SoundRange range = null)
         {
             var fx = prefab != null ? Instantiate(prefab, position, Quaternion.identity) : null;
-            if (fx != null) Object.Destroy(fx, FxLifetime);
+            if (fx != null) Effects.FadeOut.Begin(fx, Effects.FadeOut.DefaultSeconds, FxLifetime - Effects.FadeOut.DefaultSeconds);
             Audio.AudioManager.PlaySfx(sound, position, volume, 1f, range);
             return fx;
         }

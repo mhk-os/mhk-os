@@ -34,6 +34,10 @@ namespace MHK.AI
         // Flatten hunting: karts up to FlattenReach (m, nose to tail) ahead whose lane is at most FlattenSwerveShare of
         // their distance sideways, so the kart only leans towards targets on its way.
         const float FlattenReach = 30f, FlattenSwerveShare = 0.5f;
+        // On the run-up to a gap (a jump) within JumpApproachSeconds of driving (at least JumpApproachMin m), traffic never
+        // slows the kart below JumpSpeedShare of its speed without traffic. A kart that slowed on landing ahead would
+        // otherwise make the karts behind brake into the jump, too slow to clear it (MHK2 Winter).
+        const float JumpApproachSeconds = 1.5f, JumpApproachMin = 25f, JumpSpeedShare = 0.85f;
 
         readonly AIRouteFollower line;
         readonly AIFeelers feelers;
@@ -83,7 +87,16 @@ namespace MHK.AI
             u = KeepPass(u, dt, ref urgent);
             var blocker = FindBlocker(u, out var gap, out var closing, out var shadow);
             if (blocker != null && blocker != target) u = StartPass(blocker, u, gap, closing, shadow, ref urgent);
-            return GiveRoom(u, ref urgent);
+            u = GiveRoom(u, ref urgent);
+            KeepJumpSpeed();
+            return u;
+        }
+
+        void KeepJumpSpeed()
+        {
+            var floor = Mathf.Min(cap, kart.NormalTopSpeed) * JumpSpeedShare;
+            if (FollowSpeed >= floor || !line.GapWithin(Mathf.Max(JumpApproachMin, speed * JumpApproachSeconds))) return;
+            FollowSpeed = floor;
         }
 
         void Begin(Kart self, float kartSpeed, float capSpeed, float roadWidth, float shift, GameConfig config)

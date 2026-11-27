@@ -64,6 +64,8 @@ namespace MHK.Race
         void Eliminate(Kart k)
         {
             k.Eliminate();
+            // Online an eliminated racer drives on as a ghost until the battle ends.
+            if (race.IsOnline) k.IsGhost = true;
             k.Progress.ForceFinish(k.Progress.RaceClock);
             KartEliminated?.Invoke(k);
         }

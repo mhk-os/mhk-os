@@ -18,7 +18,7 @@ namespace MHK.Achievements
     /// <summary>The content a <see cref="AchievementGoalKind.Collection"/> achievement collects.</summary>
     public enum AchievementCollect
     {
-        [Tooltip("Circuit tracks.")]
+        [Tooltip("Tracks that host races, circuits and raceable arenas.")]
         RaceTrack,
         [Tooltip("Battle arenas.")]
         BattleArena,

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using MHK.Core;
 using MHK.Karts;
 using MHK.Online;
@@ -50,6 +51,10 @@ namespace MHK.UI
             bool shownTrouble, toastShown, toastEnding;
             string shownToast;
             float troublePulse;
+            // The finish countdown after the first finish of a race (RaceSetup.finishWait) and the seconds it shows.
+            VisualElement finishChip;
+            Label finishLabel;
+            int shownFinishSeconds;
 
             public OnlineView(RaceHud hud) => this.hud = hud;
 
@@ -96,6 +101,7 @@ namespace MHK.UI
                 UpdateChips(race, online);
                 UpdateTrouble(online, dt);
                 UpdateToast(online);
+                UpdateFinishWait(race, online);
             }
 
             void BindRace(OnlineRace online)
@@ -116,6 +122,7 @@ namespace MHK.UI
                 shownMode = ChipMode.None;
                 shownTrouble = toastShown = toastEnding = false;
                 shownToast = null;
+                shownFinishSeconds = -1;
             }
 
             // One chip per human racer of the grid (the player's own outlined), the state icon says loaded / finished.
@@ -141,6 +148,11 @@ namespace MHK.UI
                 }
                 chipRow.SetVisible(false);
                 column.Add(chipRow);
+                finishChip = InfoChips.Add(column, "timer", "0:00", online.Setup.endAtLine ? hud.finishAtLineTip : hud.finishWaitTip, InfoChipState.On);
+                finishChip.AddToClassList("dark");
+                finishChip.AddToClassList("hud-net-finish-wait");
+                finishLabel = finishChip.Q<Label>(className: "info-chip-label");
+                finishChip.SetVisible(false);
                 layer.Add(column);
             }
 
@@ -226,6 +238,19 @@ namespace MHK.UI
                     chip.EnableInClassList("off", !done);
                     chip.Q<VisualElement>(className: "info-chip-icon").SetIcon(!done ? "hourglass_top" : mode == ChipMode.Loading ? "check_circle" : "sports_score");
                 }
+            }
+
+            // After the first finish of a race the rest of the finish wait counts down (races only, not knockout modes).
+            void UpdateFinishWait(RaceManager race, OnlineRace online)
+            {
+                var left = race.Phase == RacePhase.Racing && online.AnyFinished ? online.FinishWaitSecondsLeft : double.PositiveInfinity;
+                var seconds = double.IsInfinity(left) ? -1 : Mathf.CeilToInt((float)left);
+                if (seconds == shownFinishSeconds) return;
+                shownFinishSeconds = seconds;
+                finishChip.SetVisible(seconds >= 0);
+                if (seconds < 0 || finishLabel == null) return;
+                var clock = (seconds / 60).ToString(CultureInfo.InvariantCulture) + ":" + (seconds % 60).ToString("00", CultureInfo.InvariantCulture);
+                finishLabel.text = string.Format(CultureInfo.InvariantCulture, hud.finishWaitFormat, clock);
             }
 
             void UpdateTrouble(OnlineRace online, float dt)

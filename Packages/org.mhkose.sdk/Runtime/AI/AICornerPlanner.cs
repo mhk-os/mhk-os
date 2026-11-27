@@ -33,7 +33,8 @@ namespace MHK.AI
         /// allows, to every bend of the followed racing line up to the braking horizon, reaching each bend's speed as long
         /// before it as the wheel needs to turn to full lock (braking while turning in pushes the kart wide). A lane
         /// <paramref name="laneU"/> inside a bend counts as that much tighter, as does the distance the kart is off its
-        /// lane. Infinity when nothing ahead needs braking.
+        /// lane. Metres over a gap give no braking (the kart flies there), so a bend right after a landing is braked for
+        /// before the take-off. Infinity when nothing ahead needs braking.
         /// </summary>
         public float CornerSpeed(Kart kart, float speed, float speedScale, float laneU)
         {
@@ -44,14 +45,18 @@ namespace MHK.AI
             var aside = (laneU - AILanes.Centre) * line.Width(0f);
             var miss = OffLane(kart, laneU);
             var best = float.PositiveInfinity;
+            var flown = 0f;
             for (var d = Step; d <= horizon; d += Step)
             {
+                // The line still bends over a gap (a jump into a curve has to be taken slow enough for the landing), but
+                // the kart cannot brake while it flies there.
+                if (line.GapAt(d)) flown += Step;
                 var radius = line.Radius(d, out var friction, out var side);
                 // Inside the racing line the arc is tighter; a lane outside it is not counted on (the lane may return).
                 var bend = turn.SpeedFor(Mathf.Max(MinBendRadius, radius - Mathf.Max(0f, aside * side) - miss), friction);
                 if (float.IsPositiveInfinity(bend)) continue;
                 bend = Mathf.Max(floor, bend);
-                best = Mathf.Min(best, turn.SpeedBefore(bend, d - Step - bend * turnIn));
+                best = Mathf.Min(best, turn.SpeedBefore(bend, d - Step - flown - bend * turnIn));
             }
             return best;
         }

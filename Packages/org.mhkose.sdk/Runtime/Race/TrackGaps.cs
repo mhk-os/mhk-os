@@ -5,14 +5,17 @@ using UnityEngine;
 namespace MHK.Race
 {
     /// <summary>
-    /// Gaps in the road along a track line: stretches where the ground under the centre line is a fall zone or
-    /// missing (jumps). Sampled once per line and metre on first use.
+    /// Gaps in the road along a track line. These are stretches where the ground under the centre line is a fall zone,
+    /// missing or far below the line (jumps, also those over lower road such as the MHK2 castle walls). Sampled once per
+    /// line and metre on first use.
     /// </summary>
     public static partial class TrackGaps
     {
         /// <summary>Sample spacing (m) along a line.</summary>
         public const float Step = 1f;
-        const float ProbeAbove = 3f, ProbeDepth = 20f;
+        // Ground more than JumpDepth (m) under the line is no road. The line runs that high only where karts fly, and
+        // computer drivers see no road there either (AIFeelers), so they would brake for the edge of a jump.
+        const float ProbeAbove = 3f, ProbeDepth = 20f, JumpDepth = 6f;
 
         [AutoStaticsCleanup] static readonly Dictionary<TrackPath, bool[]> Cache = new();
         [AutoStaticsCleanup] static TrackRuntime cacheTrack;
@@ -47,6 +50,7 @@ namespace MHK.Race
         static bool IsGapAt(TrackRuntime track, Vector3 point)
         {
             if (!GroundProbe.Down(point, ProbeAbove, ProbeDepth, track.groundMask, out var hit)) return true;
+            if (hit.distance - ProbeAbove > JumpDepth) return true;
             var surface = TrackSurface.Of(hit.collider);
             return surface != null && surface.kind.IsFall();
         }

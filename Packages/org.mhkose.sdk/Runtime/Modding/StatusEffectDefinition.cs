@@ -78,6 +78,12 @@ namespace MHK.Modding
         public bool respawnOnEnd;
         [Tooltip("Respawn this far behind the last safe point (m).")]
         public float respawnBackDistance = 15f;
+        /// <summary>
+        /// The fall reaction (<see cref="Karts.KartReactions.Fall"/>) or an effect based on it, such as the drop into a
+        /// hole (<see cref="Core.GameConfig.dropEffect"/>) or the black hole. Instead of <see cref="applySound"/> it plays
+        /// the fall sound of the driver's game (<see cref="ContentPack.fallSound"/>) when that game has one.
+        /// </summary>
+        public bool IsFall => Id == Karts.KartReactions.Fall || (reaction != null && reaction.Id == Karts.KartReactions.Fall);
         [Tooltip("Any respawn of the kart ends this effect, also a hit that otherwise runs on with its time left after a " +
                  "respawn (MHK3 shrunk: a squashed shrunk kart comes back at full size).")]
         public bool endOnRespawn;
@@ -155,7 +161,8 @@ namespace MHK.Modding
                  "Reaction roles such as Dizzy, Shocked, Burning fall back to Shake / ShotDown for characters without them.")]
         public CharacterAnimRole characterAnimation = CharacterAnimRole.ShotDown;
         [Tooltip("One-shot at the kart when the effect starts (MHK2 PPS_activate), not when a running effect is refreshed " +
-                 "(fields re-apply every frame). Active loops: an EffectLoopSound on attachedVfxPrefab.")]
+                 "(fields re-apply every frame). Active loops: an EffectLoopSound on attachedVfxPrefab. A fall effect plays " +
+                 "the fall sound of the driver's game instead and this only when that game has none.")]
         public AudioClip applySound;
         [Tooltip("One-shot at the kart expiringSoundLead seconds before the effect runs out on its own (MHK2 shield PPS_end, " +
                  "3 s before the end).")]

@@ -155,7 +155,7 @@ namespace MHK.Powerups
             }
         }
 
-        // Failed visuals hover on for failHoverTime, then speed up back to the drop height above their kart and vanish.
+        // Failed visuals hover on for failHoverTime, then speed up back to the drop height above their kart and fade away.
         void RiseFailed()
         {
             var u = Mathf.Clamp01((sinceApplied - failHoverTime) / Mathf.Max(riseTime, MinDelay));
@@ -165,7 +165,7 @@ namespace MHK.Powerups
                 if (!failed[i] || visual == null) continue;
                 if (u >= 1f)
                 {
-                    Destroy(visual);
+                    Effects.FadeOut.Begin(visual);
                     visuals[i] = null;
                     continue;
                 }
@@ -203,7 +203,7 @@ namespace MHK.Powerups
                     continue;
                 }
                 ImpactQuake.Strike(visual);
-                Destroy(visual, VisualLinger);
+                Effects.FadeOut.Begin(visual, Effects.FadeOut.DefaultSeconds, VisualLinger - Effects.FadeOut.DefaultSeconds);
                 visuals[i] = null;
             }
         }

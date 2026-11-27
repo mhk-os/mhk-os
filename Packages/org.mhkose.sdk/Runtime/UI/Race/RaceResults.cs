@@ -37,6 +37,10 @@ namespace MHK.UI
         string survivorText = "Survivor";
         [SerializeField, Tooltip("Status of a racer knocked out of a battle or Last Man Standing.")]
         string outText = "Out";
+        [SerializeField, Tooltip("Time column of a racer that finished one lap behind the winner (end at the line).")]
+        string lapDownText = "+1 lap";
+        [SerializeField, Tooltip("Time column of a racer that finished laps behind the winner ({0} = laps).")]
+        string lapsDownFormat = "+{0} laps";
 
         [Header("Time trial texts")]
         [SerializeField, Tooltip("Info line of a time trial ({0} = engine class, with the track variant and laps when not the track's usual race).")]
@@ -93,6 +97,8 @@ namespace MHK.UI
         [Header("Online texts")]
         [SerializeField, Tooltip("Mode chips of the online results: race and battle.")]
         string onlineRaceText = "Online race", onlineBattleText = "Online battle";
+        [SerializeField, Tooltip("Mode chip of an online Last Man Standing race.")]
+        string onlineLastManStandingText = "Online Last Man Standing";
         [SerializeField, Tooltip("Race chip of an online race in a set ({0} = race number, {1} = races in the set).")]
         string onlineSetFormat = "Race {0}/{1}";
         [SerializeField, Tooltip("Chip of an online race outside a set (no points).")]
@@ -289,7 +295,7 @@ namespace MHK.UI
             var setup = race.Online != null ? race.Online.Setup : null;
             chips.SetVisible(race.IsOnline);
             info.SetVisible(!race.IsOnline);
-            if (race.IsOnline) AddOnlineChips(chips, setup, session, battle);
+            if (race.IsOnline) AddOnlineChips(chips, setup, session, battle, race.LastManStanding != null);
             else info.text = champ ? UiText.RaceOfCup(session, raceOfCupFormat)
                 : race.LastManStanding != null ? lastManStandingInfo : battle ? battleInfo : raceInfo;
             Q<VisualElement>("head-best").SetVisible(!battle);
@@ -298,9 +304,10 @@ namespace MHK.UI
         }
 
         // The online race at a glance: mode, its place in the set, engine class, solo against AI.
-        void AddOnlineChips(VisualElement chips, RaceSetup setup, GameSession session, bool battle)
+        void AddOnlineChips(VisualElement chips, RaceSetup setup, GameSession session, bool knockout, bool lastManStanding)
         {
-            InfoChips.Add(chips, battle ? "swords" : "sports_score", battle ? onlineBattleText : onlineRaceText, null, InfoChipState.On);
+            var mode = lastManStanding ? onlineLastManStandingText : knockout ? onlineBattleText : onlineRaceText;
+            InfoChips.Add(chips, lastManStanding ? "person" : knockout ? "swords" : "sports_score", mode, null, InfoChipState.On);
             if (setup != null && setup.setRace > 0)
                 InfoChips.Add(chips, "flag", string.Format(onlineSetFormat, setup.setRace, setup.setSize));
             InfoChips.Add(chips, "speed", GameRoot.Instance.Config.GetDifficulty(session.difficulty).label);
@@ -335,7 +342,7 @@ namespace MHK.UI
             ContentDisplay.SetDriver(row, r.characterId, r.kartId);
             AddPlatform(row, r);
             var timeLabel = row.Q<Label>("time");
-            timeLabel.text = r.time > 0f || !r.online ? UiText.Clock(r.time) : "-";
+            timeLabel.text = r.lapsDown > 0 ? LapsDownText(r.lapsDown) : r.time > 0f || !r.online ? UiText.Clock(r.time) : "-";
             if (outcome.icon != null)
             {
                 // Not finished: the badge takes the time's place, its explanation is the tooltip.
@@ -356,6 +363,9 @@ namespace MHK.UI
             gain.text = r.online && r.pointsGained == 0 ? "" : "+" + r.pointsGained.ToString(CultureInfo.InvariantCulture);
             if (r.pointsGained > 0) gain.schedule.Execute(() => UiAnim.Pop(gain, GainPopScale, GainPopMs)).ExecuteLater(gainPopMs);
         }
+
+        // A racer that finished at the line laps behind the winner (end at the line) shows the laps instead of a time.
+        string LapsDownText(int laps) => laps == 1 ? lapDownText : string.Format(CultureInfo.InvariantCulture, lapsDownFormat, laps);
 
         // Online: the racer's device (desktop or phone) after the name, the computer icon for AI racers, nothing for
         // unknown devices.

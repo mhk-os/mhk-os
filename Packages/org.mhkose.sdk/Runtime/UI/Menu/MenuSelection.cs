@@ -95,11 +95,14 @@ namespace MHK.UI
         /// <summary>The championship's opponents: the player's number, else <see cref="DefaultChampionshipOpponents"/>.</summary>
         public int ChampionshipOpponents => championshipOpponents >= 0 ? Math.Min(championshipOpponents, MaxOpponents) : DefaultChampionshipOpponents;
 
-        /// <summary>The picked variant of <paramref name="t"/>: <see cref="variantKey"/> when the track offers it, else its default.</summary>
+        /// <summary>
+        /// The picked variant of <paramref name="t"/>: <see cref="variantKey"/> when the track offers it, else its default,
+        /// with the course the mode needs (<see cref="TrackVariantSet.ForMode"/>).
+        /// </summary>
         public TrackVariant VariantOf(TrackDefinition t)
         {
             var set = TrackVariants.Of(t);
-            return set?.Resolve(variantKey) ?? set?.Default;
+            return set?.ForMode(set.Resolve(variantKey) ?? set.Default, mode == GameMode.Battle);
         }
 
         /// <summary>Laps of a time trial on <paramref name="t"/>: 1 when <see cref="timeTrialLaps"/> asks for a single lap, else the track's default.</summary>
@@ -119,7 +122,7 @@ namespace MHK.UI
             {
                 mode = mode,
                 difficulty = difficulty,
-                laps = laps,
+                laps = Math.Clamp(laps, 1, CustomRaceSetup.MaxLaps),
                 lapsFromTrack = useTrackLaps || mode != GameMode.SingleRace,
             };
             session.trackIds.AddRange(list.Select(t => t.Id));
@@ -168,6 +171,7 @@ namespace MHK.UI
             {
                 var setup = i < setups.Count ? setups[i] : null;
                 var variant = setup != null ? setup.Roll(tracks[i], rng) : TrackVariants.Of(tracks[i])?.Random(rng);
+                variant = variant?.Set.ForMode(variant, false);
                 session.variants.Add(variant?.Key ?? "");
                 session.raceLaps.Add(setup != null ? Math.Clamp(setup.laps, 0, CustomRaceSetup.MaxLaps) : 0);
             }

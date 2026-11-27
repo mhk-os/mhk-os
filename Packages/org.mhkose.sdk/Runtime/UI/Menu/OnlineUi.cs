@@ -103,22 +103,47 @@ namespace MHK.UI
             return false;
         }
 
+        /// <summary>Name of engine class <paramref name="engineClass"/> (GameConfig.difficulties), empty outside them.</summary>
         public static string EngineClassName(int engineClass)
         {
             var classes = GameRoot.Instance.Config.difficulties;
             return engineClass >= 0 && engineClass < classes.Length ? classes[engineClass].label : "";
         }
 
+        /// <summary>Engine classes there are (GameConfig.difficulties), at least one.</summary>
+        public static int EngineClassCount => Math.Max(1, GameRoot.Instance.Config.difficulties.Length);
+
+        /// <summary>Races of the mode end at the finish line (race sets and championships), so laps and the finish rules apply.</summary>
+        public static bool RacesToLine(RoomMode mode) => mode is RoomMode.RaceSet or RoomMode.Championship;
+
+        /// <summary>Knocked out karts drive on as ghosts in the mode (battles and Last Man Standing).</summary>
+        public static bool HasGhosts(RoomMode mode) => mode is RoomMode.BattleSet or RoomMode.LastManStandingSet;
+
         /// <summary>Icon and name of a lobby mode (a championship's cup, or its own track count).</summary>
         public static (string icon, string text) Mode(RoomSettings s) => s.mode switch
         {
             RoomMode.BattleSet => ("swords", "Battles"),
+            RoomMode.LastManStandingSet => ("person", "Last Man Standing"),
             RoomMode.Championship when s.CustomTracks => ("emoji_events", TrackCount(s.trackIds.Count)),
             RoomMode.Championship => ("emoji_events", CupName(s.cupId)),
             _ => ("sports_score", "Races"),
         };
 
         static string TrackCount(int n) => n == 1 ? "1 track" : n.ToString(CultureInfo.InvariantCulture) + " tracks";
+
+        /// <summary>Laps of a room as a short text, "Track laps" for 0 (every track's own count).</summary>
+        public static string LapsText(int laps) =>
+            laps == 0 ? "Track laps" : laps == 1 ? "1 lap" : laps.ToString(CultureInfo.InvariantCulture) + " laps";
+
+        /// <summary>Seconds as a short duration, "45 s", "2 min" or "1 min 30 s".</summary>
+        public static string Duration(int seconds)
+        {
+            var minutes = seconds / 60;
+            var rest = seconds % 60;
+            if (minutes == 0) return rest.ToString(CultureInfo.InvariantCulture) + " s";
+            var text = minutes.ToString(CultureInfo.InvariantCulture) + " min";
+            return rest == 0 ? text : text + " " + rest.ToString(CultureInfo.InvariantCulture) + " s";
+        }
 
         /// <summary>Name of a lobby's cup, "Championship" when it is not loaded.</summary>
         public static string CupName(string cupId)
@@ -128,8 +153,9 @@ namespace MHK.UI
         }
 
         /// <summary>
-        /// The rules of a lobby as chips into <paramref name="row"/> (cleared first): mode, anticheat, engine class, laps,
-        /// items, AI and, for private rooms, track pick and races per set. <paramref name="detailed"/> adds the last two.
+        /// The rules of a lobby as chips into <paramref name="row"/> (cleared first). Every lobby shows mode, anticheat,
+        /// engine class, laps (races to the line only), items and AI. <paramref name="detailed"/> (private rooms) adds the
+        /// finish rules, the ghosts' items, the track pick and the races per set.
         /// </summary>
         public static void SettingsChips(VisualElement row, RoomSettings s, bool detailed)
         {
@@ -138,14 +164,24 @@ namespace MHK.UI
             InfoChips.Add(row, modeIcon, modeText, s.mode == RoomMode.Championship ? "Championship" : null);
             AnticheatChip(row, s.anticheat);
             InfoChips.Add(row, "speed", EngineClassName(s.engineClass), "Engine class");
-            if (s.mode != RoomMode.BattleSet)
-                InfoChips.Add(row, "flag", s.laps == 0 ? "Track laps" : s.laps == 1 ? "1 lap" : s.laps.ToString(CultureInfo.InvariantCulture) + " laps",
-                    s.laps == 0 ? "Every track's own lap count" : "Laps per race");
+            var toLine = RacesToLine(s.mode);
+            if (toLine) InfoChips.Add(row, "flag", LapsText(s.laps), s.laps == 0 ? "Every track's own lap count" : "Laps per race");
             InfoChips.Add(row, "redeem", s.items ? s.itemOdds.Count > 0 ? "Own odds" : "Items" : "No items",
                 s.items ? s.itemOdds.Count > 0 ? "Items with the room's own odds" : "Items with standard odds" : "No items",
                 s.items ? InfoChipState.Normal : InfoChipState.Off);
             AiChip(row, s.maxAi);
             if (!detailed) return;
+            if (toLine)
+            {
+                InfoChips.Add(row, "hourglass_top", "Wait " + Duration(s.finishWait), "The race goes on this long after the first kart finished.");
+                if (s.endAtLine)
+                    InfoChips.Add(row, "skip_next", "End at the line",
+                        "After the winner finishes, every kart finishes when it next crosses the line. Lapped karts show the laps they are down.");
+            }
+            if (HasGhosts(s.mode) && s.items)
+                InfoChips.Add(row, "visibility_off", s.ghostItems ? "Ghost items" : "No ghost items",
+                    s.ghostItems ? "Knocked out karts drive on as ghosts and pick up light powerups." : "Knocked out karts drive on as ghosts through the item boxes.",
+                    s.ghostItems ? InfoChipState.Normal : InfoChipState.Off);
             if (s.mode != RoomMode.Championship)
             {
                 InfoChips.Add(row, s.OwnerPicks ? "edit" : "how_to_vote", s.OwnerPicks ? "Owner picks" : "Vote", "How the next track is chosen");
@@ -156,13 +192,13 @@ namespace MHK.UI
         /// <summary>The AI chip of a lobby: how many computer drivers fill free slots at most (<see cref="RoomSettings.maxAi"/>).</summary>
         public static VisualElement AiChip(VisualElement row, int maxAi, bool iconOnly = false) =>
             InfoChips.Add(row, "smart_toy", iconOnly ? null : maxAi > 0 ? "AI " + maxAi.ToString(CultureInfo.InvariantCulture) : "No AI",
-                maxAi > 0 ? $"Computer drivers fill free places, up to {maxAi} per race." : "Humans only: no computer drivers.",
+                maxAi > 0 ? $"Computer drivers fill free places, up to {maxAi} per race." : "Humans only, no computer drivers.",
                 maxAi > 0 ? InfoChipState.Normal : InfoChipState.Off);
 
         public static VisualElement AnticheatChip(VisualElement row, bool on, bool iconOnly = false) =>
             InfoChips.Add(row, on ? "shield" : "remove_moderator", iconOnly ? null : on ? "Anticheat" : "No anticheat",
-                on ? "Anticheat: players' games check each other's karts, cheaters are removed from the race."
-                    : "No anticheat: nobody checks the karts.", on ? InfoChipState.Good : InfoChipState.Off);
+                on ? "Anticheat is on. Players' games check each other's karts, cheaters are removed from the race."
+                    : "No anticheat. Nobody checks the karts.", on ? InfoChipState.Good : InfoChipState.Off);
 
         /// <summary>Ping as signal bars: the icon name for <paramref name="ms"/> (0 = unknown).</summary>
         public static string PingIcon(int ms) => ms <= 0 ? "signal_cellular_alt_1_bar" : ms <= 80 ? "signal_cellular_alt" : ms <= 160 ? "signal_cellular_alt_2_bar" : "signal_cellular_alt_1_bar";
@@ -217,7 +253,8 @@ namespace MHK.UI
         /// whose centre lies beyond the focused element's edge, nearest row (or column) first, then the least sideways, without
         /// wrapping around. The default navigation only takes elements straight in line, wraps around, and is thrown off by
         /// grown (scaled) selected chips and cards. <paramref name="route"/> may decide first: it returns where to go, null for
-        /// the nearest, or the element itself to stay. Text fields keep Left / Right for the caret until it reaches their edge.
+        /// the nearest, or the element itself to stay. Text fields keep Left / Right for the caret until it reaches their edge,
+        /// the text field of a number input (<see cref="NumberInput"/>) leaves them to the input, which steps its value.
         /// </summary>
         public static void Spatial(VisualElement root, Func<VisualElement, NavigationMoveEvent.Direction, VisualElement> route = null)
         {
@@ -233,6 +270,9 @@ namespace MHK.UI
                     return;
                 var field = from as TextField ?? from.GetFirstAncestorOfType<TextField>();
                 if ((field != null) != fields) return;
+                if (field != null && e.direction is NavigationMoveEvent.Direction.Left or NavigationMoveEvent.Direction.Right
+                    && field.parent != null && field.parent.ClassListContains("number-input"))
+                    return;
                 var to = route?.Invoke(from, e.direction);
                 if (to == null)
                 {

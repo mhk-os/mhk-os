@@ -7,7 +7,8 @@ namespace MHK.Modding
     {
         [Tooltip("Closed racing circuit with a start/finish line.")]
         Circuit,
-        [Tooltip("Battle arena without a lap circuit (Thunder Last Man Standing). Only offered for battles.")]
+        [Tooltip("Battle arena (Thunder Last Man Standing). Offered for battles, and for races too when an overlay gives it a " +
+                 "circuit course (core.circuit, TrackOptionRules.circuit).")]
         Arena,
     }
 }

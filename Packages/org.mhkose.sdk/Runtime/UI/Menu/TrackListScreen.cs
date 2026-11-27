@@ -49,8 +49,12 @@ namespace MHK.UI
         string raceFormat = "Race {0} · {1}";
         [SerializeField, Tooltip("Track option value rolled when the championship starts, and the race row summary of such options.")]
         string randomText = "Random";
-        [SerializeField, Tooltip("Laps value of the track's own lap count ({0} = its laps).")]
-        string trackLapsFormat = "Track default ({0})";
+        [SerializeField, Tooltip("Laps value of the track's own lap count (it fits the number field).")]
+        string lapsTrackText = "Track";
+        [SerializeField, Tooltip("Range hint of the Laps input ({1} = most, 0 is the track's own count).")]
+        string lapsRangeFormat = "1 to {1}";
+        [SerializeField, Tooltip("Tooltip of the Laps row ({0} = the track's own laps).")]
+        string lapsTipFormat = "Track races the track's own {0} laps";
         [SerializeField, Tooltip("Laps value and race row summary of several laps ({0} = laps).")]
         string lapsFormat = "{0} laps";
         [SerializeField, Tooltip("Laps value and race row summary of a single lap.")]
@@ -75,13 +79,13 @@ namespace MHK.UI
         Label count;
         Button confirm, clear;
         TrackVariantRows variantRows;
-        SettingChoice lapsChoice;
+        NumberInput lapsInput;
         IVisualElementScheduledItem warnTimer;
 
         /// <summary>
         /// Opens the editor on <paramref name="trackIds"/> (ids that are not loaded or not <paramref name="allowed"/> are
         /// dropped, the rest is cut to <see cref="MaxTracks"/>). The library lists every loaded track <paramref name="allowed"/>
-        /// accepts (null = every circuit). <paramref name="onConfirm"/> gets the list when the confirm button is pressed (the
+        /// accepts (null = every race track). <paramref name="onConfirm"/> gets the list when the confirm button is pressed (the
         /// editor stays in the back history), <paramref name="onChanged"/> (optional) after every edit. <paramref name="title"/>
         /// and <paramref name="confirmText"/> replace the page title and the confirm button text.
         /// </summary>
@@ -104,7 +108,7 @@ namespace MHK.UI
             Func<TrackDefinition, bool> allowed, Action<List<string>, List<CustomRaceSetup>> onConfirm,
             Action<List<string>, List<CustomRaceSetup>> onChanged, string title, string confirmText)
         {
-            this.allowed = allowed ?? IsCircuit;
+            this.allowed = allowed ?? IsRaceTrack;
             this.onConfirm = onConfirm;
             this.onChanged = onChanged;
             this.title = string.IsNullOrEmpty(title) ? defaultTitle : title;
@@ -138,7 +142,7 @@ namespace MHK.UI
         protected override void Bind()
         {
             Q<Label>("title").text = title;
-            allowed ??= IsCircuit;
+            allowed ??= IsRaceTrack;
             Q<VisualElement>("main").EnableInClassList(SetupsClass, editSetups);
             libraryList = Q<VisualElement>("library-list");
             raceList = Q<VisualElement>("race-list");
@@ -164,10 +168,10 @@ namespace MHK.UI
             warnTimer?.Pause();
             warnTimer = null;
             variantRows = null;
-            lapsChoice = null;
+            lapsInput = null;
         }
 
-        static bool IsCircuit(TrackDefinition t) => t.layout == TrackLayout.Circuit;
+        static bool IsRaceTrack(TrackDefinition t) => t.HostsRaces;
 
         // Rows by game (a heading each); games keep the order in which their first track was registered.
         Button FillLibrary()
@@ -347,13 +351,13 @@ namespace MHK.UI
             setupRows.Clear();
             variantRows = new TrackVariantRows(setupRows, Root, settingRowTemplate, Click);
             variantRows.SetupChanged += _ => SetupEdited();
-            lapsChoice = BindChoice("setup-laps", () => CustomRaceSetup.MaxLaps + 1,
-                () => selected != null ? Mathf.Clamp(selected.laps, 0, CustomRaceSetup.MaxLaps) : 0, LapsValue, i =>
+            lapsInput = NumberInput.Bind(Q<VisualElement>("setup-laps"), 0, CustomRaceSetup.MaxLaps,
+                () => selected != null ? Mathf.Clamp(selected.laps, 0, CustomRaceSetup.MaxLaps) : 0, v =>
                 {
                     if (selected == null) return;
-                    selected.laps = i;
+                    selected.laps = v;
                     SetupEdited();
-                });
+                }, lapsRangeFormat, Click, lapsTrackText);
             raceList.RegisterCallback<FocusInEvent>(e =>
             {
                 var row = RowOf(raceList, e.target as VisualElement);
@@ -372,7 +376,7 @@ namespace MHK.UI
         void EditSetup(int index)
         {
             Select(index);
-            FocusLater(variantRows.FirstButton ?? lapsChoice.Button);
+            FocusLater((VisualElement)variantRows.FirstButton ?? lapsInput.Field);
         }
 
         void Select(int index)
@@ -398,7 +402,8 @@ namespace MHK.UI
             }
             Q<Label>("setup-race").text = string.Format(CultureInfo.InvariantCulture, raceFormat, index + 1, races[index].DisplayName);
             variantRows.ShowSetup(races[index], selected, randomText);
-            lapsChoice.Refresh();
+            lapsInput.Refresh();
+            Q<VisualElement>("setup-laps").tooltip = string.Format(CultureInfo.InvariantCulture, lapsTipFormat, races[index].defaultLaps);
         }
 
         void SetupEdited()
@@ -406,13 +411,6 @@ namespace MHK.UI
             var index = setups.IndexOf(selected);
             if (index >= 0 && index < raceList.childCount) ShowSummary(raceList[index], index);
             Changed();
-        }
-
-        string LapsValue(int value)
-        {
-            var index = setups.IndexOf(selected);
-            if (value > 0) return LapsText(value);
-            return string.Format(CultureInfo.InvariantCulture, trackLapsFormat, index >= 0 ? races[index].defaultLaps : 0);
         }
 
         string LapsText(int laps) => laps == 1 ? oneLapText : string.Format(CultureInfo.InvariantCulture, lapsFormat, laps);

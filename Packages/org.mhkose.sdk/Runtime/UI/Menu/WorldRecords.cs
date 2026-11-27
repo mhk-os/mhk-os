@@ -62,10 +62,12 @@ namespace MHK.UI
             var map = new Dictionary<(string, int), BoardInfo>();
             foreach (var b in r.value)
             {
-                if (b.bestMs <= 0 || string.IsNullOrEmpty(b.trackId) || !string.IsNullOrEmpty(b.variant)) continue;
+                if (b.bestMs <= 0 || string.IsNullOrEmpty(b.trackId)) continue;
                 var track = content.Get<TrackDefinition>(b.trackId);
-                var variant = track != null ? TrackVariants.Of(track)?.Default : null;
-                if (variant == null || b.laps != track.defaultLaps || b.trackVersion != variant.ContentVersion) continue;
+                // The track's default variant as raced, an arena's circuit course included.
+                var variant = track != null ? TrackVariants.ForMode(track, "", false) : null;
+                if (variant == null || (b.variant ?? "") != variant.Key || b.laps != track.defaultLaps
+                    || b.trackVersion != variant.ContentVersion) continue;
                 map[(b.trackId.ToLowerInvariant(), b.engineClass)] = b;
             }
             boards = map;

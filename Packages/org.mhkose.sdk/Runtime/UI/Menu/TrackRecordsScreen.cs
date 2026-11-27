@@ -115,7 +115,8 @@ namespace MHK.UI
             var same = id == trackId;
             var track = Content.Get<TrackDefinition>(id);
             var key = variant ?? (same ? variantKey : "");
-            if (track != null) key = TrackVariants.Resolve(track, key)?.Key ?? "";
+            // Records are races, so an arena's keys name its circuit course.
+            if (track != null) key = (TrackVariants.ForMode(track, key, false) ?? TrackVariants.ForMode(track, "", false))?.Key ?? "";
             var oneLap = (singleLap ?? (same && this.singleLap)) && (track == null || track.defaultLaps > 1);
             var cls = engineClass ?? (same ? this.engineClass : BestClass(id, key, oneLap));
             if (!same || cls != this.engineClass || key != variantKey || oneLap != this.singleLap)
@@ -521,9 +522,9 @@ namespace MHK.UI
         {
             if (race == null) return;
             var track = Track;
-            var circuit = track != null && track.layout == TrackLayout.Circuit;
-            race.SetEnabled(circuit && !busy);
-            race.tooltip = track == null ? ContentDisplay.MissingTrackText : circuit ? "" : arenaTip;
+            var hostsRaces = track != null && track.HostsRaces;
+            race.SetEnabled(hostsRaces && !busy);
+            race.tooltip = track == null ? ContentDisplay.MissingTrackText : hostsRaces ? "" : arenaTip;
         }
 
         // ---- Race ----
@@ -531,7 +532,7 @@ namespace MHK.UI
         void Race()
         {
             var track = Track;
-            if (track == null || track.layout != TrackLayout.Circuit || SceneFlow.Busy || busy) return;
+            if (track == null || !track.HostsRaces || SceneFlow.Busy || busy) return;
             Click();
             RaceAsync(track).LogExceptionsAndForget();
         }

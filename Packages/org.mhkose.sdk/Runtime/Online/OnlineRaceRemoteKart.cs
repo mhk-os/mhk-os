@@ -9,10 +9,11 @@ namespace MHK.Online
     /// <summary>
     /// Another online racer's kart, or an AI kart another client hosts: a real <see cref="Kart"/> (targeting, minimap,
     /// ranking and hits see it) whose kinematic body follows the received states about <see cref="DelayTicks"/> behind
-    /// the newest one. Positions are Hermite-interpolated with the sent velocities, rotations slerped; a short gap is
-    /// bridged by extrapolation, a cut (respawn, teleport) snaps. The render clock runs at the physics rate and is nudged
-    /// towards newest tick − delay, so packet jitter never reaches the picture. Rigidbody interpolation smooths the frames
-    /// between physics steps.
+    /// the newest one. Positions are Hermite-interpolated with the sent velocities, rotations slerped. A gap is bridged
+    /// by extrapolation that slows down the longer it runs, a cut (respawn, teleport) snaps, and a moderate jump of the
+    /// followed pose (resync, late states) is blended out over a few steps. The render clock runs at the physics rate and
+    /// is nudged towards newest tick minus delay, so packet jitter never reaches the picture. Rigidbody interpolation
+    /// smooths the frames between physics steps.
     /// </summary>
     [DefaultExecutionOrder(-80)]
     public sealed class RemoteKart : MonoBehaviour
@@ -20,7 +21,14 @@ namespace MHK.Online
         /// <summary>Render delay behind the newest received state (100 ms at 60 ticks/s: three 30 Hz states).</summary>
         public const double DelayTicks = 6;
         const int BufferSize = 32;
-        const double MaxExtrapolateTicks = 15;
+        // Extrapolation runs at full speed for ExtrapolateFullSeconds, then the velocity decays with ExtrapolateDamping
+        // (time constant, s) up to MaxExtrapolateTicks (750 ms), where the kart holds.
+        const double MaxExtrapolateTicks = 45;
+        const float ExtrapolateFullSeconds = 0.1f, ExtrapolateDamping = 0.25f;
+        // A jump of the followed pose between two steps is blended out with this time constant (s) when it is above the
+        // minimum and below the maximum (m, degrees). A larger one snaps.
+        const float BlendSeconds = 0.1f;
+        const float BlendMinError = 0.05f, BlendMaxError = 6f, BlendMinAngle = 15f, BlendMaxAngle = 120f;
         const double ResyncTicks = 30;
         const double ClockGain = 0.1, MaxClockSlew = 0.3;
         // Faster than any kart (m/s) between two states: a teleport whose cut flag was lost.
@@ -52,7 +60,11 @@ namespace MHK.Online
         double gapSum, gapMax, lastArrivalReal = -1;
         int lateGaps;
         double delaySum;
-        int delaySamples, extrapolatedSteps, snaps, resyncs;
+        int delaySamples, extrapolatedSteps, snaps, resyncs, blends;
+        // Correction blending. The drawn pose is the followed pose plus these offsets, which decay every step.
+        Vector3 blendOffset, lastTargetPos, lastTargetVel;
+        Quaternion blendRotation = Quaternion.identity, lastTargetRot = Quaternion.identity;
+        bool hasTarget;
         // Drawn motion: change of the per-frame velocity of the rendered pose (jitter shows as spikes).
         Vector3 lastDrawn, lastDrawnVelocity;
         bool drawnValid;
@@ -129,6 +141,7 @@ namespace MHK.Online
         /// </summary>
         public void Release()
         {
+            kart.Progress.StopMirror();
             kart.BecomeLocal(aiDriver, drawnVelocity);
             Destroy(this);
         }
@@ -286,12 +299,21 @@ namespace MHK.Online
         {
             var seconds = (float)(ticks / RaceProtocol.TickRate);
             var moving = !s.Has(KartStateFlags.Finished) || s.vel.sqrMagnitude > 0.01f;
-            var pos = moving ? s.pos + s.vel * seconds : s.pos;
-            Apply(s, pos, s.rot, s.vel, s.steer, s.raceDistance, snap || !applied, h);
+            var travel = seconds;
+            var speedShare = 1f;
+            if (seconds > ExtrapolateFullSeconds)
+            {
+                var decay = Mathf.Exp(-(seconds - ExtrapolateFullSeconds) / ExtrapolateDamping);
+                travel = ExtrapolateFullSeconds + ExtrapolateDamping * (1f - decay);
+                speedShare = decay;
+            }
+            var pos = moving ? s.pos + s.vel * travel : s.pos;
+            Apply(s, pos, s.rot, s.vel * speedShare, s.steer, s.raceDistance, snap || !applied, h);
         }
 
         void Apply(KartState s, Vector3 pos, Quaternion rot, Vector3 vel, float steer, float raceDistance, bool snap, float h)
         {
+            Blend(ref pos, ref rot, vel, ref snap, h);
             if (snap && applied) snaps++;
             applied = true;
             drawnVelocity = vel;
@@ -301,11 +323,54 @@ namespace MHK.Online
             kart.SetRemoteInput(input);
             kart.ControlsEnabled = s.Has(KartStateFlags.ControlsEnabled) && !leaving;
             if (!ai) kart.Progress.ApplyRemote(s.lap, raceDistance);
-            // An AI kart counts its laps here: a teleport re-locates it on the track, as its respawn did on the host.
-            else if (snap) kart.Progress.ResetProjection();
+            else
+            {
+                // An AI kart ranks by its host's lap and distance (as the server does) and still counts its laps here for
+                // a takeover. A teleport re-locates it on the track, as its respawn did on the host.
+                kart.Progress.ApplyMirror(s.lap, raceDistance);
+                if (snap) kart.Progress.ResetProjection();
+            }
             kart.SetRemoteHealth(s.health);
             kart.SetHeadlights(s.Has(KartStateFlags.Headlights));
             race.ApplyRemoteEffects(kart, s);
+        }
+
+        // Turns the followed pose into the drawn one. A step whose followed pose jumps away from where the previous one
+        // was heading (a clock resync, states arriving after a gap) keeps the drawn pose where it was and blends the
+        // difference out. A jump too large to blend snaps.
+        void Blend(ref Vector3 pos, ref Quaternion rot, Vector3 vel, ref bool snap, float h)
+        {
+            var target = pos;
+            var targetRot = rot;
+            if (!snap && hasTarget)
+            {
+                var jump = target - (lastTargetPos + lastTargetVel * h);
+                var turn = Quaternion.Angle(lastTargetRot, targetRot);
+                if (jump.magnitude > BlendMaxError || turn > BlendMaxAngle) snap = true;
+                else
+                {
+                    if (jump.magnitude > BlendMinError)
+                    {
+                        blendOffset -= jump;
+                        blends++;
+                    }
+                    if (turn > BlendMinAngle) blendRotation = blendRotation * lastTargetRot * Quaternion.Inverse(targetRot);
+                }
+            }
+            if (snap)
+            {
+                blendOffset = Vector3.zero;
+                blendRotation = Quaternion.identity;
+            }
+            hasTarget = true;
+            lastTargetPos = target;
+            lastTargetVel = vel;
+            lastTargetRot = targetRot;
+            var keep = Mathf.Exp(-h / BlendSeconds);
+            blendOffset *= keep;
+            blendRotation = Quaternion.Slerp(Quaternion.identity, blendRotation, keep);
+            pos = target + blendOffset;
+            rot = blendRotation * targetRot;
         }
 
         static KartInput InputOf(KartState s, float steer)
@@ -327,7 +392,7 @@ namespace MHK.Online
         public string StatsReport() =>
             $"slot {Slot}: {arrivals} states, gap mean {(arrivals > 0 ? gapSum / arrivals : 0):0.0} ms max {gapMax:0} ms, " +
             $"{lateGaps} gaps > 50 ms, render delay {(delaySamples > 0 ? delaySum / delaySamples / RaceProtocol.TickRate * 1000 : 0):0} ms, " +
-            $"{extrapolatedSteps} extrapolated steps, {snaps} snaps, {resyncs} clock resyncs; drawn {frames} frames, accel mean " +
+            $"{extrapolatedSteps} extrapolated steps, {snaps} snaps, {blends} blended corrections, {resyncs} clock resyncs; drawn {frames} frames, accel mean " +
             $"{(frames > 0 ? frameAccelSum / frames : 0):0.0} max {frameAccelMax:0} m/s², {jerkyFrames} frames > {JerkyFrameAccel:0} m/s²; " +
             $"{bumps} bumps by the local kart";
     }

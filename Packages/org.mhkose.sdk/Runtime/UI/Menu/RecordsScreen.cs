@@ -195,11 +195,11 @@ namespace MHK.UI
             return shown ?? first;
         }
 
-        // Loaded circuits in content order (time trials need a circuit), then tracks of mods that are not loaded with a
-        // record and a stored name.
+        // Loaded tracks that host races in content order (time trials need a race track), then tracks of mods that are
+        // not loaded with a record and a stored name.
         static List<string> TrackIds()
         {
-            var ids = Content.All<TrackDefinition>().Where(t => t.layout == TrackLayout.Circuit).Select(t => t.Id).ToList();
+            var ids = Content.All<TrackDefinition>().Where(t => t.HostsRaces).Select(t => t.Id).ToList();
             ids.AddRange(Save.records
                 .Where(r => (r.bestLap > 0f || r.bestRace > 0f) && Content.Get<TrackDefinition>(r.trackId) == null
                             && SaveData.Find(Save.knownTracks, r.trackId) != null)
@@ -234,7 +234,7 @@ namespace MHK.UI
             foreach (var (trackId, row) in rows)
             {
                 var track = Content.Get<TrackDefinition>(trackId);
-                var best = track != null ? Store.Best(trackId, "", track.defaultLaps, hubClass) : null;
+                var best = track != null ? Store.Best(trackId, RaceDefaultKey(track), track.defaultLaps, hubClass) : null;
                 var cell = row.Q("rec-best-cell");
                 var has = best != null;
                 cell.EnableInClassList("empty", !has);
@@ -304,10 +304,11 @@ namespace MHK.UI
             var classes = Q<VisualElement>("rec-classes");
             classes.Clear();
             var difficulties = GameRoot.Instance.Config.difficulties;
+            var key = track != null ? RaceDefaultKey(track) : "";
             for (var c = 0; c < difficulties.Length; c++)
             {
                 var best = entries.Where(e => e.header.engineClass == c && e.kind == GhostKind.Best && e.IsCurrent
-                                              && track != null && GhostCompatibilityRules.Matches(e.header, "", track.defaultLaps))
+                                              && track != null && GhostCompatibilityRules.Matches(e.header, key, track.defaultLaps))
                     .OrderBy(e => e.header.finishTime).FirstOrDefault();
                 var line = new VisualElement();
                 line.AddToClassList("rec-class-line");
@@ -340,6 +341,9 @@ namespace MHK.UI
             chips.Clear();
             InfoChips.Add(chips, "inventory_2", entries.Count.ToString(CultureInfo.InvariantCulture), storedGhostsTip);
         }
+
+        // The key of the track's default variant as raced, which names an arena's circuit course.
+        static string RaceDefaultKey(TrackDefinition track) => TrackVariants.ForMode(track, "", false)?.Key ?? "";
 
         static void MoveFocus(NavigationMoveEvent e, NavigationMoveEvent.Direction direction, VisualElement to)
         {

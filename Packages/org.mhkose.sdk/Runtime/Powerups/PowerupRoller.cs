@@ -12,6 +12,8 @@ namespace MHK.Powerups
     {
         [AutoStaticsCleanup] static readonly List<ItemPoolEntry> pool = new();
         [AutoStaticsCleanup] static readonly List<PowerupDefinition> poolPowerups = new();
+        // The ghost powerups (GameConfig.ghostPowerupIds) in the pool, rebuilt with it.
+        [AutoStaticsCleanup] static readonly List<PowerupDefinition> ghostPool = new();
         [AutoStaticsCleanup] static GameSession poolSession;
         [AutoStaticsCleanup] static int poolVersion;
 
@@ -47,6 +49,19 @@ namespace MHK.Powerups
             }
         }
 
+        /// <summary>
+        /// Ghost karts (<see cref="Kart.IsGhost"/>) take light powerups from item boxes in the running race
+        /// (<see cref="GameSession.ghostItems"/>). Otherwise they drive through the boxes and leave them in place.
+        /// </summary>
+        public static bool GhostItems
+        {
+            get
+            {
+                var session = RaceSession;
+                return session == null || session.ghostItems;
+            }
+        }
+
         /// <summary>Powerups the random item boxes of the current race can give (the HUD roulette cycles them).</summary>
         public static IReadOnlyList<PowerupDefinition> Pool
         {
@@ -71,6 +86,19 @@ namespace MHK.Powerups
             Prepare();
             var total = TotalWeight(pool, fraction);
             return total > 0f ? Select(pool, fraction, Random.value * total) : null;
+        }
+
+        /// <summary>
+        /// Random light powerup for a ghost kart (<see cref="Kart.IsGhost"/>), one of <see cref="GameConfig.ghostPowerupIds"/>
+        /// that the race's item pool holds, each as likely as the others. Null when items or ghost items are off, or the
+        /// pool holds none of them. Online the server draws it instead.
+        /// </summary>
+        public static PowerupDefinition RollGhost()
+        {
+            var session = RaceSession;
+            if (session != null && (!session.powerupsEnabled || !session.ghostItems)) return null;
+            Prepare();
+            return ghostPool.Count > 0 ? ghostPool[Random.Range(0, ghostPool.Count)] : null;
         }
 
         /// <summary>Sum of the pick weights of <paramref name="entries"/> at race position <paramref name="fraction"/>.</summary>
@@ -106,7 +134,14 @@ namespace MHK.Powerups
             poolVersion = root.Content.Version;
             ItemOdds.BuildPool(root.Content, session, pool);
             poolPowerups.Clear();
-            for (var i = 0; i < pool.Count; i++) poolPowerups.Add(pool[i].powerup);
+            ghostPool.Clear();
+            var ghostIds = root.Config.ghostPowerupIds;
+            for (var i = 0; i < pool.Count; i++)
+            {
+                var p = pool[i].powerup;
+                poolPowerups.Add(p);
+                if (ghostIds != null && System.Array.IndexOf(ghostIds, p.Id) >= 0) ghostPool.Add(p);
+            }
         }
     }
 }
