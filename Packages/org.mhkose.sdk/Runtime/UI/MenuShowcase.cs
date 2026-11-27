@@ -19,18 +19,23 @@ namespace MHK.UI
         GameObject shown;
         CharacterDefinition shownCharacter;
         KartDefinition shownKart;
+        Difficulty shownClass;
 
-        /// <summary>Shows <paramref name="character"/> on <paramref name="kart"/>, rebuilding the model only when either changed.</summary>
-        public void Show(CharacterDefinition character, KartDefinition kart)
+        /// <summary>
+        /// Shows <paramref name="character"/> on <paramref name="kart"/> with an engine of <paramref name="engineClass"/>,
+        /// rebuilding the model only when one of them changed.
+        /// </summary>
+        public void Show(CharacterDefinition character, KartDefinition kart, Difficulty engineClass)
         {
-            if (character == shownCharacter && kart == shownKart && shown != null) return;
+            if (character == shownCharacter && kart == shownKart && engineClass == shownClass && shown != null) return;
             shownCharacter = character;
             shownKart = kart;
+            shownClass = engineClass;
             if (shown != null) Destroy(shown);
             shown = new GameObject("Shown");
             shown.transform.SetParent(transform, false);
 
-            var rig = KartRigBuilder.Spawn(shown.transform, character, kart);
+            var rig = KartRigBuilder.Spawn(shown.transform, character, kart, engineClass);
             if (rig.driver != null) rig.driver.SetLocomotion(pose, 0f, poseRate);
             if (rig.kart != null) rig.kart.SetLocomotion(pose, 0f, poseRate);
             foreach (var t in shown.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = GameLayers.Menu;

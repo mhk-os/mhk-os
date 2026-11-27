@@ -19,5 +19,14 @@ namespace MHK.Karts
         public Vector3 wheelSpinAxis = Vector3.right;
         [Tooltip("Where a separately modelled driver sits.")]
         public Transform seat;
+        [Tooltip("Centre of the steering wheel, where drivers hold it. Drivers slide along the seat so their hands reach " +
+                 "it (CharacterDefinition.handReach). Empty = the first steering pivot.")]
+        public Transform steeringWheel;
+        [Tooltip("Optional engine part, pivot at its mount. It shakes while the kart runs and is drawn at the race's engine " +
+                 "class size (DifficultySettings.engineModelScale): full size is 150cc, smaller for 100cc and 50cc.")]
+        public Transform engine;
+
+        /// <summary>Where drivers hold the steering wheel, null when the model marks none.</summary>
+        public Transform SteeringWheel => steeringWheel != null ? steeringWheel : steeringPivots.Length > 0 ? steeringPivots[0] : null;
     }
 }

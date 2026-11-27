@@ -25,5 +25,16 @@ namespace MHK.Race
         /// <summary>A random kart of <paramref name="karts"/> drawn from Unity's random state, null when there is none.</summary>
         public static KartDefinition RandomKart(IReadOnlyList<KartDefinition> karts) =>
             karts == null || karts.Count == 0 ? null : karts[UnityEngine.Random.Range(0, karts.Count)];
+
+        /// <summary>
+        /// The kart of computer driver <paramref name="c"/>. A driver that races without a kart keeps its default (the No
+        /// kart), the others get a random kart of <paramref name="karts"/> drawn from <paramref name="rng"/>.
+        /// </summary>
+        public static KartDefinition KartFor(ContentRegistry content, CharacterDefinition c, IReadOnlyList<KartDefinition> karts, System.Random rng) =>
+            c != null && c.racesWithoutKart ? content.DefaultKart(c) : RandomKart(karts, rng);
+
+        /// <summary><see cref="KartFor(ContentRegistry, CharacterDefinition, IReadOnlyList{KartDefinition}, System.Random)"/> drawing from Unity's random state.</summary>
+        public static KartDefinition KartFor(ContentRegistry content, CharacterDefinition c, IReadOnlyList<KartDefinition> karts) =>
+            c != null && c.racesWithoutKart ? content.DefaultKart(c) : RandomKart(karts);
     }
 }

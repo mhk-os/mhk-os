@@ -88,6 +88,8 @@ namespace MHK.AI
         public TargetSelection Selection { get; private set; } = TargetSelection.NextAhead;
         /// <summary>Targeted, melee and area items: reach around the user (m, 0 = unlimited).</summary>
         public float Reach { get; private set; }
+        /// <summary>Full width (degrees) of the cone ahead an area item acts in, 360 = all around.</summary>
+        public float ConeAngle { get; private set; } = 360f;
         /// <summary>Lob: landing distance standing still (m).</summary>
         public float LobDistance { get; private set; }
         /// <summary>Lob: extra landing distance per m/s of the user's speed.</summary>
@@ -209,6 +211,13 @@ namespace MHK.AI
         bool TryBall(GameObject prefab)
         {
             if (!prefab.TryGetComponent<PhysicsBallPowerup>(out var ball)) return false;
+            // Balls thrown all around the user (beach balls) catch the karts near it, like a field.
+            if (ball.ThrowsAround)
+            {
+                Kind = AIItemKind.Area;
+                Reach = Mathf.Max(ball.hitRadius, ball.throwSpeed);
+                return true;
+            }
             Kind = AIItemKind.Ball;
             Speed = ball.throwSpeed;
             Range = Mathf.Min(MaxBallAimRange, ball.throwSpeed * ball.moveTime);
@@ -278,6 +287,7 @@ namespace MHK.AI
             if (!prefab.TryGetComponent<AreaEffectPowerup>(out var area)) return false;
             Kind = AIItemKind.Area;
             Reach = area.radius;
+            ConeAngle = area.ConeAngle;
             return true;
         }
 

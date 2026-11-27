@@ -57,7 +57,20 @@ namespace MHK.UI
             BindRaceRows(s, GameRoot.Instance.Config);
             BindVariantRows(s);
             BindPreview(s);
-            FocusTarget = OnClick("start", () => start());
+            FocusTarget = OnClick("start", () =>
+            {
+                RememberDifficulty(s.difficulty);
+                start();
+            });
+        }
+
+        // The engine class carries over to the next race of every mode, also after the game restarts.
+        static void RememberDifficulty(Difficulty d)
+        {
+            var root = GameRoot.Instance;
+            if (root.Settings.lastDifficulty == d) return;
+            root.Settings.lastDifficulty = d;
+            root.SaveSettings();
         }
 
         // Single races, battles, Last Man Standing and time trials race the picked variant of their track; cups race the
@@ -75,7 +88,11 @@ namespace MHK.UI
 
         void BindRaceRows(MenuSelection s, GameConfig config)
         {
-            BindChoice("difficulty", () => s.difficulty, d => s.difficulty = d, d => config.GetDifficulty(d).label);
+            BindChoice("difficulty", () => s.difficulty, d =>
+            {
+                s.difficulty = d;
+                Flow.ShowcaseSelection();
+            }, d => config.GetDifficulty(d).label);
             var battle = s.mode == GameMode.Battle;
             var single = s.mode == GameMode.SingleRace;
             var lastMan = s.mode == GameMode.LastManStanding;
@@ -142,8 +159,9 @@ namespace MHK.UI
             if (s.character == null) return;
             Thumb("info-character", s.character.Portrait, s.character.DisplayName);
             var kart = Q<VisualElement>("info-kart");
-            kart.SetVisible(s.kart != null);
-            if (s.kart != null) Thumb("info-kart", s.kart.Icon, s.kart.DisplayName);
+            var shown = s.kart != null && !s.kart.IsNoKart;
+            kart.SetVisible(shown);
+            if (shown) Thumb("info-kart", s.kart.Icon, s.kart.DisplayName);
         }
 
         void Thumb(string name, Texture2D icon, string displayName)

@@ -115,7 +115,7 @@ namespace MHK.Core
                 s.racers.Add(new RacerSetup
                 {
                     characterId = c.Id,
-                    kartId = c.defaultKart != null ? c.defaultKart.Id : null,
+                    kartId = registry.DefaultKart(c)?.Id,
                     isHuman = i == 0,
                     playerIndex = i == 0 ? 0 : -1,
                     displayName = c.DisplayName,

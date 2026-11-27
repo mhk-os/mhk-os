@@ -32,6 +32,11 @@ namespace MHK.Karts
         KartHeadlights headlights;
         readonly KartBodyBob bodyBob = new();
         Transform body;
+        KartEngine engine;
+        KartGlitch glitch;
+        Effects.DizzyStars stars;
+        // Running effects that play the Dizzy animation. The stars circle the driver's head while there is one.
+        int dazedEffects;
         float wheelRoll;
         float shownWheelAngleDeg, shownSteer;
         float dropTime;
@@ -125,10 +130,13 @@ namespace MHK.Karts
         {
             body = new GameObject("Body").transform;
             body.SetParent(transform, false);
-            var rig = KartRigBuilder.Spawn(body, character, kartDef);
+            var session = GameRoot.Instance.Session;
+            var rig = KartRigBuilder.Spawn(body, character, kartDef, session != null ? session.difficulty : Difficulty.Medium);
             model = rig.model;
             animator = rig.driver;
             kartAnimator = rig.kart;
+            engine = rig.engine;
+            glitch = new KartGlitch(body, model, animator != null ? animator.transform : null);
             // Measured before anything else joins the body; switched off, so the effect tints below leave it out.
             var profile = kartDef != null && kartDef.physics != null ? kartDef.physics : GameRoot.Instance.Config.defaultPhysics;
             headlights = KartHeadlights.Build(this, view, body, model, animator != null ? animator.transform : null, profile);
@@ -236,12 +244,31 @@ namespace MHK.Karts
         void OnEffectApplied(StatusEffectDefinition def, Kart source)
         {
             var stageFlatten = source == null && def.runOver && def.verticalScale < 1f;
-            if (def.useCharacterAnimation && !stageFlatten) PlayAction(def.characterAnimation, def.freezeKart || def.lockControls);
+            if (def.useCharacterAnimation && !stageFlatten) PlayAction(def.characterAnimation, def.HoldsKart || def.lockControls);
+            if (Dazes(def) && dazedEffects++ == 0) ShowStars(true);
         }
 
         void OnEffectEnded(StatusEffectDefinition def)
         {
             if (def.useCharacterAnimation) Release(def.characterAnimation);
+            if (Dazes(def) && dazedEffects > 0 && --dazedEffects == 0) ShowStars(false);
+        }
+
+        static bool Dazes(StatusEffectDefinition def) => def.useCharacterAnimation && def.characterAnimation == CharacterAnimRole.Dizzy;
+
+        // Every driver gets the same stars (GameConfig.dizzyStars), also those without a Dizzy clip of their own.
+        void ShowStars(bool show)
+        {
+            if (stars == null)
+            {
+                var prefab = GameRoot.Instance.Config.dizzyStars;
+                if (!show || prefab == null) return;
+                stars = Instantiate(prefab, body, false).GetComponent<Effects.DizzyStars>();
+                if (stars == null) return;
+                stars.name = "Dizzy stars";
+                foreach (var t in stars.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = body.gameObject.layer;
+            }
+            stars.Show(show);
         }
 
         void OnRespawned(Kart k)
@@ -269,11 +296,17 @@ namespace MHK.Karts
                 UpdateBodyPose(dt);
                 PoseWheels(dt);
             }
-            seeThrough.UpdateTint(view.Burned, view.ModelTint, dt);
+            seeThrough.UpdateTint(view.Burned, view.ModelTint, kart != null && kart.Effects.Starred && !view.Hidden, dt);
             seeThrough.UpdateFade(view.Opacity, dt);
             seeThrough.UpdateHidden(view.Hidden);
             wheelVisibility.Update(view.WheelsHidden && !view.RaceOver);
             if (animationPauses == 0) driverAnimation.Update(dt, shownSteer);
+            if (engine != null) engine.Revs = Mathf.Max(view.CurrentInput.throttle, Mathf.Abs(view.SpeedFraction));
+            if (kart != null)
+            {
+                glitch.Update(kart.Effects.Glitched && !view.Hidden, dt);
+                glitch.FaceCamera(Camera.main);
+            }
         }
 
         void UpdateBodyPose(float dt)

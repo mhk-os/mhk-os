@@ -65,7 +65,8 @@ namespace MHK.UI
             var last = Content.Get<CharacterDefinition>(settings.lastCharacterId);
             var all = Content.All<CharacterDefinition>();
             Selection.character = last != null ? last : all.Count > 0 ? all[0] : null;
-            Selection.kart = MenuSelection.LoadedDefaultKart(Selection.character);
+            Selection.kart = Content.DefaultKart(Selection.character);
+            Selection.difficulty = settings.lastDifficulty;
             ShowcaseSelection();
             var start = settings.graphicsChosen || firstRunScreen == null ? StartScreen() : firstRunScreen;
             Show(start, false);
@@ -163,7 +164,7 @@ namespace MHK.UI
         /// <summary>Shows <paramref name="character"/> on <paramref name="kart"/> on the turntable.</summary>
         public void ShowOnTurntable(CharacterDefinition character, KartDefinition kart)
         {
-            if (showcase != null && character != null) showcase.Show(character, kart);
+            if (showcase != null && character != null) showcase.Show(character, kart, Selection.difficulty);
         }
 
         public void ShowcaseSelection() => ShowOnTurntable(Selection.character, Selection.kart);

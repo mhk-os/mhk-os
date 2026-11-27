@@ -9,7 +9,7 @@ namespace MHK.Powerups
     /// <summary>
     /// MHK2 glibber ball (0x457550/0x457160): a thrown rigid sphere that bounces, settles and dissolves after
     /// <see cref="timeout"/>. It hits any kart it touches or sweeps past within <see cref="hitRadius"/>, and fall zones
-    /// are not solid for it.
+    /// are not solid for it. Thrown all around its user (<see cref="throwAround"/>) it makes the TINcan beach balls.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public class PhysicsBallPowerup : PowerupBehaviour, INetProjectile
@@ -25,6 +25,14 @@ namespace MHK.Powerups
         const float CorrectionShare = 0.2f;
 
         public float throwSpeed = 80f;
+        [Tooltip("Upward speed (m/s) the ball leaves with, on top of throwSpeed.")]
+        [SerializeField] float throwUp = 1f;
+        [Tooltip("Thrown in a random direction all around the user instead of ahead (beach balls). Every ball of a " +
+                 "burst gets its own direction from the use's seed and its shot number.")]
+        [SerializeField] bool throwAround;
+        [Tooltip("Share of the user's velocity the ball takes along, 0 = none (glibber), 1 = all (beach balls keep up " +
+                 "with the kart that threw them).")]
+        [SerializeField, Range(0f, 1f)] float ownerVelocityShare;
         [Tooltip("Gap (m) between the thrower's chassis and the ball's surface where it is released, in front (or behind " +
                  "when thrown backwards). MHK2 released it 3 m from the kart's centre, past a kart right behind.")]
         [SerializeField] float spawnGap = 0.1f;
@@ -33,6 +41,10 @@ namespace MHK.Powerups
         [Tooltip("Seconds of damping after moveTime before the ball is frozen. It only freezes once it rests on solid ground.")]
         [SerializeField] float settleTime = 3f;
         [SerializeField] float timeout = 20f;
+        [Tooltip("Up to this many seconds are added to the timeout at random (beach balls 3 to 5 s).")]
+        [SerializeField, Min(0f)] float timeoutJitter;
+        [Tooltip("Never hits the kart that threw it (balls released around the user).")]
+        [SerializeField] bool sparesOwner;
         [Tooltip("Hits a kart whose centre the ball passes this close (m), besides any kart it touches.")]
         public float hitRadius = 1.3f;
         [Tooltip("Velocity kept when the anti-tunnelling guard bounces the ball off geometry it passed through.")]
@@ -56,7 +68,7 @@ namespace MHK.Powerups
 
         Rigidbody body;
         Collider[] colliders;
-        float timer;
+        float timer, lifetime;
         float radius = 0.5f;
         int mask;
         Vector3 lastPosition, sweptFrom;
@@ -65,6 +77,8 @@ namespace MHK.Powerups
         Effects.EffectLoopSound loop;
         Vector3 bodyCorrection;
 
+        /// <summary>Thrown in random directions all around the user (<see cref="throwAround"/>), not aimed ahead.</summary>
+        public bool ThrowsAround => throwAround;
         public bool Flying => body != null && !done && !body.isKinematic;
         public Vector3 NetPosition => body != null ? body.position : transform.position;
         public Vector3 NetVelocity => body != null ? body.linearVelocity : Vector3.zero;
@@ -102,10 +116,14 @@ namespace MHK.Powerups
 
             var t = Owner.transform;
             var sign = Context.backwards ? -1f : 1f;
+            var seed = OnlineItems.SeedOf(Usage);
+            var dir = t.forward * sign;
+            if (throwAround) dir = Quaternion.AngleAxis(RaceClock.Value01(seed, 2 * Context.shot) * 360f, t.up) * t.forward;
+            lifetime = timeout + RaceClock.Value01(seed, 2 * Context.shot + 1) * timeoutJitter;
             var origin = t.position + Vector3.up * spawnHeight;
-            transform.position = ReleasePoint(origin, t.forward * sign);
+            transform.position = ReleasePoint(origin, dir);
             body.position = transform.position;
-            body.linearVelocity = t.rotation * new Vector3(0f, 1f, throwSpeed * sign);
+            body.linearVelocity = dir * throwSpeed + t.up * throwUp + OwnerVelocity * ownerVelocityShare;
             lastPosition = body.position;
             // The first hit test sweeps from the thrower's centre: a kart touching it is caught on the first frame.
             sweptFrom = origin;
@@ -133,7 +151,7 @@ namespace MHK.Powerups
         {
             if (body == null || done) return;
             timer += dt;
-            if (timer > timeout || TrackRuntime.IsBelowKillHeight(body.position))
+            if (timer > lifetime || TrackRuntime.IsBelowKillHeight(body.position))
             {
                 Dissolve();
                 return;
@@ -214,7 +232,7 @@ namespace MHK.Powerups
 
         bool TryHit(Kart k, Vector3 at)
         {
-            if (done || !IsTangible(k) || OwnerImmune(k)) return false;
+            if (done || !IsTangible(k) || OwnerImmune(k) || (sparesOwner && k == Owner)) return false;
             HitKart(k, hitEffect);
             done = true;
             Despawn(hitVfx, at, hitSound);

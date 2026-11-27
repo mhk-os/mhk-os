@@ -9,6 +9,9 @@ namespace MHK.Karts
     public partial class KartPhysics
     {
         const float GhostRescanInterval = 0.5f;
+        // A ploughing kart reaches this far (m) past its chassis box for props, a little upwards push and the spin they
+        // tumble off with (rad/s).
+        const float KnockReach = 0.5f, KnockLift = 0.35f, KnockSpin = 6f;
 
         /// <summary>
         /// The chassis passes through other karts, dropped items, movable (non-kinematic) props, track hazards and the
@@ -27,6 +30,7 @@ namespace MHK.Karts
         /// <summary>Chassis colliders that slide along steep static faces, with their <see cref="wallMaxNormalY"/>.</summary>
         [AutoStaticsCleanup] static readonly Dictionary<EntityId, float> wallSlideChassis = new();
         static readonly Collider[] overlapBuffer = new Collider[32];
+        static readonly Collider[] knockBuffer = new Collider[32];
         static readonly List<Collider> colliderScratch = new();
 
         readonly HashSet<Collider> ghostIgnored = new();
@@ -171,6 +175,33 @@ namespace MHK.Karts
                 }
             }
             colliderScratch.Clear();
+        }
+
+        // A ploughing kart sends movable props near its chassis flying off at knockSpeed, away from the kart and a little
+        // upwards, on top of the kart's velocity. The chassis already passes through them (intangible), so the kart keeps
+        // its speed. Karts, items, track hazards and animated props are left alone.
+        void KnockProps(float knockSpeed)
+        {
+            if (chassis == null || knockSpeed <= 0f) return;
+            var t = chassis.transform;
+            var centre = t.TransformPoint(chassis.center);
+            var half = Vector3.Scale(chassis.size * 0.5f, t.lossyScale) + Vector3.one * KnockReach;
+            var n = physicsScene.OverlapBox(centre, half, knockBuffer, t.rotation, ~0, QueryTriggerInteraction.Ignore);
+            var v = Body.linearVelocity;
+            for (var i = 0; i < n; i++)
+            {
+                var rb = knockBuffer[i].attachedRigidbody;
+                if (rb == null || rb == Body || rb.isKinematic || (ghostExcludeLayers.value & (1 << rb.gameObject.layer)) != 0) continue;
+                var away = rb.worldCenterOfMass - centre;
+                away.y = 0f;
+                away = away.sqrMagnitude > 1e-4f ? away.normalized : t.forward;
+                // Already on its way out (an earlier step, or several colliders of one body).
+                if (Vector3.Dot(rb.linearVelocity - v, away) >= knockSpeed * 0.5f) continue;
+                if (rb.TryGetComponent<TrackHazard>(out _) || rb.GetComponentInParent<PropAnimator>() != null) continue;
+                rb.linearVelocity = v + (away + Vector3.up * KnockLift).normalized * knockSpeed;
+                rb.angularVelocity = Vector3.Cross(Vector3.up, away) * KnockSpin;
+                rb.WakeUp();
+            }
         }
 
         bool Overlaps(LayerMask layers, bool ghostIgnoredToo)

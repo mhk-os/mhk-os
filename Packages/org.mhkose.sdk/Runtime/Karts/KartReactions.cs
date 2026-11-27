@@ -3,12 +3,15 @@ using MHK.Modding;
 namespace MHK.Karts
 {
     /// <summary>
-    /// The one path for hitting a kart: powerups, track hazards and props apply their reaction (a
-    /// <see cref="StatusEffectDefinition"/>, usually based on a shared core.reaction.* definition) through it.
+    /// The one path for hitting a kart. Powerups, track hazards and props apply their reaction (a
+    /// <see cref="StatusEffectDefinition"/>, usually based on a shared core.reaction.* definition) through it. A
+    /// reaction's driver animation and the kart's motion belong together. Knock-outs (blast, flatten, fall) stop the
+    /// kart dead, and every effect that plays a knock-out animation does so (<see cref="StatusEffectDefinition.HoldsKart"/>).
+    /// The other reactions let the kart move on with the driver shaken.
     /// </summary>
     public static class KartReactions
     {
-        /// <summary>Stopped by an explosion, burnt look, respawn (rocket, missile, flame ring without the respawn).</summary>
+        /// <summary>Stopped by an explosion, burnt look, respawn (rocket, missile, the pumpkin fire ring without the respawn).</summary>
         public const string Blast = "core.reaction.blast";
         /// <summary>Squashed flat and held, other karts drive over it, put back on the track (hammer, 16-t, stompers).</summary>
         public const string Flatten = "core.reaction.flatten";

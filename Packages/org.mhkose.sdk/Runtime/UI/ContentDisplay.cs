@@ -56,7 +56,9 @@ namespace MHK.UI
             var character = Content.Get<CharacterDefinition>(characterId);
             var portrait = character != null ? character.Portrait : null;
             SetPicture(parent.Q("driver-portrait"), characterId, character != null, portrait, CharacterName(characterId), MissingDriverFormat);
+            // A driver racing without a kart shows no kart picture.
             var kart = Content.Get<KartDefinition>(kartId);
+            if (kart != null && kart.IsNoKart) kartId = null;
             SetPicture(parent.Q("driver-kart"), kartId, kart != null, kart != null ? kart.Icon : null, KartName(kartId), MissingKartFormat);
         }
 

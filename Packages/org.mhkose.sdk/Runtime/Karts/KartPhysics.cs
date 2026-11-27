@@ -292,8 +292,9 @@ namespace MHK.Karts
         {
             if (profile == null) return;
             physicsScene = gameObject.scene.GetPhysicsScene();
-            UpdateIntangible(effects != null && effects.GhostActive, h);
+            UpdateIntangible(effects != null && (effects.GhostActive || effects.PloughActive), h);
             UpdateRunOver(effects != null && effects.RunOverActive, h);
+            if (effects != null && effects.PloughActive && !Suspended) KnockProps(effects.PropKnockSpeed);
             if (Suspended)
             {
                 StepSuspended();

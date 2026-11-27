@@ -6,7 +6,7 @@ using UnityEngine;
 namespace MHK.Tests
 {
     /// <summary>
-    /// The race messages of protocol 5 against the server: the byte vectors the Go codec pins in internal/proto
+    /// The race messages of protocol 6 against the server: the byte vectors the Go codec pins in internal/proto
     /// (udp_test.go TestRaceMessageBytes, lobby_test.go TestRaceSlotBytes): AI slots, the AI host, the slot field of
     /// the notifies the AI host sends for AI karts and its AiStates datagrams.
     /// </summary>
@@ -16,7 +16,7 @@ namespace MHK.Tests
         const string HumanSlotHex = "01" + "0900000000000000" + "0175" + "024445" + "0163" + "016b" + "02" + "00";
 
         [Test]
-        public void ProtocolVersionIsFive() => Assert.AreEqual(5, Protocol.Version);
+        public void ProtocolVersionIsSix() => Assert.AreEqual(6, Protocol.Version);
 
         [Test]
         public void RaceSlotsMatchGo()
@@ -55,8 +55,8 @@ namespace MHK.Tests
         [Test]
         public void RaceLoadedMatchesGo()
         {
-            // Race 1 on track version 2, variant "core.night", 3 laps, no boxes, pool, specials or effects.
-            var hex = "0100000000000000" + "02000000" + "0a636f72652e6e69676874" + "03" + "00" + "00" + "00" + "00" + "0000" + "00";
+            // Race 1 on track version 2, variant "core.night", 3 laps, no boxes, pool, specials, effects or random specials.
+            var hex = "0100000000000000" + "02000000" + "0a636f72652e6e69676874" + "03" + "00" + "00" + "00" + "00" + "0000" + "00" + "00" + "00";
             var loaded = new RaceLoaded { raceId = 1, trackVersion = 2, variant = "core.night", laps = 3 };
             Assert.AreEqual(hex, Hex(loaded.Write));
             var back = RaceLoaded.Read(Reader(hex));

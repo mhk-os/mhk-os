@@ -23,6 +23,8 @@ namespace MHK.Rendering
         public static readonly int MeltForward = Shader.PropertyToID("_MeltForward");
         public static readonly int MeltHeat = Shader.PropertyToID("_MeltHeat");
         public static readonly int MeltWater = Shader.PropertyToID("_MeltWater");
+        public static readonly int Glitch = Shader.PropertyToID("_Glitch");
+        public static readonly int GlitchOrigin = Shader.PropertyToID("_GlitchOrigin");
         public static readonly int Emission = Shader.PropertyToID("_Emission");
         public static readonly int GlowOn = Shader.PropertyToID("_GlowOn");
         public static readonly int GlowMap = Shader.PropertyToID("_GlowMap");

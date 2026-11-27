@@ -59,5 +59,28 @@ namespace MHK.Powerups
             Audio.AudioManager.PlaySfx(sound, position, volume, 1f, range);
             return fx;
         }
+
+        /// <summary>
+        /// Lets the particle systems below <paramref name="owner"/> outlive it. Each one is moved to <see cref="Root"/>
+        /// where it is, stops emitting, and goes once its last particles have died. Call before removing the owner, so
+        /// a flame or smoke dies away instead of vanishing.
+        /// </summary>
+        public static void LetParticlesFinish(GameObject owner)
+        {
+            using (ListPool<ParticleSystem>.Get(out var systems))
+            {
+                owner.GetComponentsInChildren(systems);
+                foreach (var ps in systems)
+                {
+                    // Sub-emitters and nested systems go with the topmost system of their branch.
+                    var parent = ps.transform.parent;
+                    if (parent != null && parent.GetComponentInParent<ParticleSystem>() != null && parent.IsChildOf(owner.transform)) continue;
+                    ps.transform.SetParent(Root, true);
+                    var main = ps.main;
+                    main.stopAction = ParticleSystemStopAction.Destroy;
+                    ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+                }
+            }
+        }
     }
 }

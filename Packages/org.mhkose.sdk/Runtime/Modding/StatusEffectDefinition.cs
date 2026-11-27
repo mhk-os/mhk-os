@@ -58,8 +58,15 @@ namespace MHK.Modding
         [Tooltip("The kart cannot use items while affected (MHK3 shrinker).")]
         public bool blocksItemUse;
         public bool invertSteering;
-        [Tooltip("Kart is held in place (velocities zeroed every tick) while active.")]
+        [Tooltip("Kart is held in place (velocities zeroed every tick) while active. A knock-out characterAnimation " +
+                 "(ShotDown, Burning, Crushed, Drop) holds the kart as well, whatever this says.")]
         public bool freezeKart;
+        /// <summary>
+        /// The kart is held in place while this effect runs. Either <see cref="freezeKart"/> is set, or the effect plays a
+        /// knock-out animation (<see cref="CharacterAnimRoles.IsKnockout"/>), since a driver shown shot down, burning,
+        /// crushed or falling never drives on. Physics and visuals read this instead of <see cref="freezeKart"/>.
+        /// </summary>
+        public bool HoldsKart => freezeKart || (useCharacterAnimation && characterAnimation.IsKnockout());
         [Tooltip("Above 0: the kart model spins out when this effect starts or is re-applied, the same spin for every " +
                  "effect (GameConfig.spinTurns over GameConfig.spinSeconds). The number itself no longer matters. Visual only.")]
         public float spinTurns;
@@ -124,6 +131,13 @@ namespace MHK.Modding
         [Tooltip("Applied every tick to other karts within auraRadius (Thunder Kröt panzer ram).")]
         public StatusEffectDefinition auraEffect;
         public float auraRadius = 2f;
+        [Tooltip("Plough: the kart drives through other karts and movable props as a ghost does, and props in its way fly " +
+                 "off at propKnockSpeed instead of slowing it down. Like a ghost it is passed over by items and hazards " +
+                 "(TINcan ram and star).")]
+        public bool ploughsThrough;
+        [Tooltip("Speed (m/s) a ploughed prop flies off with, away from the kart and a little upwards, on top of the " +
+                 "kart's own velocity.")]
+        public float propKnockSpeed = 8f;
 
         [Header("Presentation")]
         public GameObject attachedVfxPrefab;
@@ -160,6 +174,12 @@ namespace MHK.Modding
         [Tooltip("The kart model's wheels are not drawn while active (MHK2 x-field: the tyres are gone and the rims " +
                  "scrape along). Driving physics are unchanged.")]
         public bool hideWheels;
+        [Tooltip("The kart model glitches like a jammed TV picture while active. In short bursts it tears into sideways " +
+                 "shifted bands with static, and stripes of static flash around it. The driver keeps its look (TINcan " +
+                 "jamming signal).")]
+        public bool glitchVisual;
+        [Tooltip("Kart and driver flash through the colours of the rainbow while active (TINcan star).")]
+        public bool starVisual;
         [Tooltip("The kart body bobs while active, visual only (MHK Extra spike strip: flat tyres). Height 0 = none.")]
         public BodyBob bodyBob = new();
         [Tooltip("Spawned at the kart when the effect runs out on its own (Thunder snowball: snow bursts off the kart).")]

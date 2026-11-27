@@ -4,7 +4,7 @@ namespace MHK.Powerups
 {
     /// <summary>
     /// Fires several copies of another use prefab one after the other (MHK3 soap cannon: 3 bubbles 0.5 s apart), timed in
-    /// physics steps. Each shot receives the same <see cref="PowerupContext"/> as this object.
+    /// physics steps. Each shot receives this object's <see cref="PowerupContext"/> with its own shot number.
     /// </summary>
     public class BurstPowerup : PowerupBehaviour
     {
@@ -37,7 +37,7 @@ namespace MHK.Powerups
                 Remove();
                 return;
             }
-            PowerupFx.SpawnAndLaunch(shotPrefab, Owner.transform.position, Owner.transform.rotation, Context);
+            PowerupFx.SpawnAndLaunch(shotPrefab, Owner.transform.position, Owner.transform.rotation, Context.WithShot(fired));
             if (++fired >= count) Remove();
         }
     }

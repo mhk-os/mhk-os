@@ -18,6 +18,9 @@ namespace MHK.Core
         [Tooltip("Online races: sign (Prefabs/UnknownContent/UnknownContentMarker) above a remote kart whose character or " +
                  "kart is not installed here, so the stand-in driver is not mistaken for someone else's.")]
         public GameObject unknownContentMarker;
+        [Tooltip("Stars circling the head of a dazed driver (Prefabs/VFX/DizzyStars, a DizzyStars component). Every driver " +
+                 "shows them while an effect plays its Dizzy animation (TINcan jamming signal). Empty: no stars.")]
+        public GameObject dizzyStars;
 
         [Header("Loading")]
         [Tooltip("Loading screen (Prefabs/UI/LoadingScreen): spawned once under the GameRoot, SceneFlow shows it while scenes load.")]
@@ -43,6 +46,9 @@ namespace MHK.Core
         public Shader waterShader;
         [Tooltip("Tiling wave normal map of the HD water (Prefabs/Water/WaterWaves).")]
         public Texture2D waterWaves;
+        [Tooltip("MHK/GlitchStatic: the stripes of TV static that flash around a jammed kart (KartGlitch). Empty: the kart " +
+                 "model glitches without them.")]
+        public Shader glitchStaticShader;
 
         [Header("Audio mix")]
         [Tooltip("Gain of every sound effect (engines, skids, surfaces, collisions, voices, items, hazards, ambience and " +
@@ -186,8 +192,8 @@ namespace MHK.Core
         [Header("Difficulty")]
         public DifficultySettings[] difficulties =
         {
-            new() { label = "50cc", engineClassFactor = 1.1f, topSpeedKmh = 85f, aiPrecision = 0.55f },
-            new() { label = "100cc", engineClassFactor = 1.3f, topSpeedKmh = 95f, aiPrecision = 0.75f },
+            new() { label = "50cc", engineClassFactor = 1.1f, topSpeedKmh = 85f, aiPrecision = 0.55f, engineModelScale = 0.56f },
+            new() { label = "100cc", engineClassFactor = 1.3f, topSpeedKmh = 95f, aiPrecision = 0.75f, engineModelScale = 0.75f },
             new() { label = "150cc", engineClassFactor = 1.5f, topSpeedKmh = 105f, aiPrecision = 0.95f },
         };
 

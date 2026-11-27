@@ -19,12 +19,26 @@ namespace MHK.Powerups
         /// </summary>
         public static Transform Frame(Kart k) => k.Visual != null ? k.Visual.transform : k.transform;
 
-        /// <summary>Attachment point of <paramref name="mount"/> in <see cref="Parent"/> and <see cref="Frame"/> space, from the kart's chassis box.</summary>
+        /// <summary>
+        /// Attachment point of <paramref name="mount"/> in <see cref="Parent"/> and <see cref="Frame"/> space, from the kart's
+        /// chassis box. A driver racing without a kart uses its own box instead (<see cref="CharacterDefinition.noKartMounts"/>).
+        /// </summary>
         public static Vector3 Point(Kart k, HeldMount mount)
         {
-            if (mount == HeldMount.Origin || k == null || !k.TryGetComponent<BoxCollider>(out var box)) return Vector3.zero;
-            var c = box.center;
-            var h = box.size * 0.5f;
+            if (mount == HeldMount.Origin || k == null) return Vector3.zero;
+            Vector3 c, h;
+            var character = k.Character;
+            if (character != null && character.noKartMounts.size != Vector3.zero && character.RacesBareOn(k.KartDef))
+            {
+                c = character.noKartMounts.center;
+                h = character.noKartMounts.extents;
+            }
+            else if (k.TryGetComponent<BoxCollider>(out var box))
+            {
+                c = box.center;
+                h = box.size * 0.5f;
+            }
+            else return Vector3.zero;
             return mount switch
             {
                 HeldMount.Front => c + Vector3.forward * h.z,

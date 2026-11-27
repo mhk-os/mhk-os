@@ -225,7 +225,7 @@ namespace MHK.Attract
             for (var i = 0; i < karts && drivers.Count > 0; i++)
             {
                 var c = drivers[i % drivers.Count];
-                var kart = AiRoster.RandomKart(kartPool, random);
+                var kart = AiRoster.KartFor(Content, c, kartPool, random);
                 session.racers.Add(new RacerSetup
                 {
                     characterId = c.Id,

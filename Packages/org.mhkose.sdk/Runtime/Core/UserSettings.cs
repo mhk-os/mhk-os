@@ -55,6 +55,8 @@ namespace MHK.Core
         [Tooltip("Built-in mod sources the player removed in the Mods screen: they stay removed until added again.")]
         public List<string> removedModSources = new();
         public string lastCharacterId;
+        [Tooltip("Engine class (50cc, 100cc, 150cc) last picked or raced in an offline mode. The race settings of every mode start with it.")]
+        public Difficulty lastDifficulty = Difficulty.Medium;
         [Tooltip("Race camera view. The Camera key (minus) cycles it in races.")]
         public CameraMode cameraMode = CameraMode.Close;
         [Tooltip("Keyboard rebinds: Input System binding overrides of MHKControls as JSON (empty = default keys).")]

@@ -8,6 +8,15 @@ namespace MHK.Modding
     [CreateAssetMenu(menuName = "MHK/Content/Kart", fileName = "Kart")]
     public class KartDefinition : ContentDefinition
     {
+        /// <summary>
+        /// Id of the game's hidden No kart. A driver that is a vehicle itself (<see cref="CharacterDefinition.racesWithoutKart"/>)
+        /// races on it as its own kart body, with the default physics.
+        /// </summary>
+        public const string NoKartId = "game.kart.none";
+
+        /// <summary>This is the No kart (<see cref="NoKartId"/>).</summary>
+        public bool IsNoKart => Id == NoKartId;
+
         [Tooltip("Visual kart body. Should carry a KartModel component marking wheels and the seat.")]
         public GameObject kartPrefab;
         [Tooltip("Vehicle physics. Empty = GameConfig default (MHK2 reference kart).")]

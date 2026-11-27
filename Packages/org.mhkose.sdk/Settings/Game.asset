@@ -16,7 +16,7 @@ MonoBehaviour:
   title: 'Moorhuhn Kart: Open Source'
   author: MHK:OSE
   version: 
-  description: The game's own definitions (shared kart reactions, achievements, the battle health pack, the track modifiers direction, time of day and weather with their options: clear, rain, snow and sandstorm). Built into the game, always on, not listed in the Mods screen.
+  description: 'The game''s own definitions (shared kart reactions, the No kart of drivers that are vehicles themselves, achievements, the battle health pack, the track modifiers direction, time of day and weather with their options clear, rain, snow and sandstorm). Built into the game, always on, not listed in the Mods screen.'
   loadOrder: -100
   includes: []
   logo: {fileID: 0}
@@ -37,6 +37,8 @@ MonoBehaviour:
   itemPickupSound: {fileID: 0}
   scratchSound: {fileID: 0}
   offroadLoop: {fileID: 0}
+  finishCheerSound: {fileID: 0}
+  finishBooSound: {fileID: 0}
   content:
   - {fileID: 11400000, guid: 7553c8db7c3b54b02af265829c3c9f3b, type: 2}
   - {fileID: 11400000, guid: 31ad0b374bb554248a9147ffbaf9813f, type: 2}
@@ -81,6 +83,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a5b3772591ab40bc96b7d6ef792fff62, type: 2}
   - {fileID: 11400000, guid: b3a33f74bd754178981221b0ba320af2, type: 2}
   - {fileID: 11400000, guid: 3458678307f849ccb46e6cc81aebee7d, type: 2}
+  - {fileID: 11400000, guid: 3734e8da4e1554f3ba19d4423a9ecf4f, type: 2}
   sdkApi: 0
   sdkVersion: 
   unityVersion: 

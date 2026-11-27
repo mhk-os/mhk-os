@@ -95,16 +95,6 @@ namespace MHK.UI
         /// <summary>The championship's opponents: the player's number, else <see cref="DefaultChampionshipOpponents"/>.</summary>
         public int ChampionshipOpponents => championshipOpponents >= 0 ? Math.Min(championshipOpponents, MaxOpponents) : DefaultChampionshipOpponents;
 
-        /// <summary>
-        /// <paramref name="c"/>'s default kart while a loaded pack registers it, else null (the base pack with the
-        /// usual default karts may be disabled while a mod's drivers still point at them).
-        /// </summary>
-        public static KartDefinition LoadedDefaultKart(CharacterDefinition c)
-        {
-            if (c == null || c.defaultKart == null) return null;
-            return GameRoot.Instance.Content.Get<KartDefinition>(c.defaultKart.Id) == c.defaultKart ? c.defaultKart : null;
-        }
-
         /// <summary>The picked variant of <paramref name="t"/>: <see cref="variantKey"/> when the track offers it, else its default.</summary>
         public TrackVariant VariantOf(TrackDefinition t)
         {
@@ -212,14 +202,15 @@ namespace MHK.UI
         RacerSetup PlayerSetup() => new()
         {
             characterId = character.Id,
-            kartId = KartId(kart != null ? kart : LoadedDefaultKart(character)),
+            kartId = KartId(kart != null ? kart : GameRoot.Instance.Content.DefaultKart(character)),
             isHuman = true,
             playerIndex = 0,
             displayName = character.DisplayName,
         };
 
         // Random drivers of every loaded pack, each once per round of a new random order (the player's driver only when
-        // there is no other), on random karts of every pack: core games and mods mix on every track.
+        // there is no other), on random karts of every pack: core games and mods mix on every track. Drivers that race
+        // without a kart keep racing without one.
         void AddOpponents(GameSession session, int count)
         {
             var content = GameRoot.Instance.Content;
@@ -238,7 +229,7 @@ namespace MHK.UI
                 session.racers.Add(new RacerSetup
                 {
                     characterId = c.Id,
-                    kartId = KartId(AiRoster.RandomKart(karts)),
+                    kartId = KartId(AiRoster.KartFor(content, c, karts)),
                     isHuman = false,
                     displayName = c.DisplayName,
                 });

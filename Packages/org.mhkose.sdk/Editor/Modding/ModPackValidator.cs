@@ -76,6 +76,7 @@ namespace MHK.Editor.Modding
                 TrackDefinition t => CheckTrack(t),
                 TrackOverlayDefinition o => CheckOverlay(o, known),
                 CupDefinition c => CheckCup(c, known),
+                StatusEffectDefinition e => CheckEffect(e),
                 _ => true,
             };
         }
@@ -85,6 +86,16 @@ namespace MHK.Editor.Modding
             if (t.scene.IsSet) return true;
             Debug.LogError($"[Mods] Track '{t.Id}' has no scene.", t);
             return false;
+        }
+
+        // A driver shown knocked out never drives on, so the game holds such a kart whatever freezeKart says.
+        static bool CheckEffect(StatusEffectDefinition e)
+        {
+            if (e.HoldsKart && !e.freezeKart)
+                Debug.LogWarning($"[Mods] Effect '{e.Id}' plays the knock-out animation {e.characterAnimation} without freezeKart. The game " +
+                                 "stops the kart while it runs. Base it on core.reaction.blast, flatten or fall, or pick a driving " +
+                                 "animation such as Shake or Dizzy for a kart that moves on.", e);
+            return true;
         }
 
         static bool CheckOverlay(TrackOverlayDefinition o, KnownIds known)

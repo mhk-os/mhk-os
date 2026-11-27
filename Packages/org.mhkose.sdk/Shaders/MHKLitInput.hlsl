@@ -23,6 +23,8 @@ CBUFFER_START(UnityPerMaterial)
     float4 _MeltForward;
     float4 _MeltHeat;
     float4 _MeltWater;
+    float4 _Glitch;
+    float4 _GlitchOrigin;
 CBUFFER_END
 
 TEXTURE2D(_BaseMap);
@@ -67,6 +69,48 @@ float3 MHKMeltNormal(float3 normalWS)
     float spread = 1.0 + _MeltOrigin.w * _MeltRight.w;
     float3 horizontal = normalWS - _MeltUp.xyz * dot(normalWS, _MeltUp.xyz);
     return normalize(horizontal / spread + _MeltUp.xyz * dot(normalWS, _MeltUp.xyz) / (1.0 - MHK_MELT_SAG * _MeltOrigin.w));
+}
+
+float3 MHKGlitchHash(float3 p)
+{
+    p = frac(p * float3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yxz + 33.33);
+    return frac((p.xxy + p.yxx) * p.zyx);
+}
+
+// Jammed TV picture (KartGlitch). _Glitch.x is strength, y the seed of the shown glitch frame, z bands per metre, w the
+// widest tear (m). _GlitchOrigin.xyz is the kart's position. Horizontal bands of the model tear sideways on screen, and
+// the whole model stretches a little up or sideways about the origin, a new pattern for every seed.
+float3 MHKGlitchPosition(float3 positionWS)
+{
+    UNITY_BRANCH
+    if (_Glitch.x <= 0.0) return positionWS;
+    float3 right = UNITY_MATRIX_V[0].xyz;
+    float3 frame = MHKGlitchHash(float3(_Glitch.y, 1.7, 9.2));
+    float3 delta = positionWS - _GlitchOrigin.xyz;
+    float up = delta.y * (1.0 + (frame.x - 0.5) * 0.6 * _Glitch.x);
+    float across = dot(delta, right) * ((frame.y - 0.5) * 0.5 * _Glitch.x);
+    float3 band = MHKGlitchHash(float3(floor(delta.y * _Glitch.z), _Glitch.y, 4.1));
+    float tear = step(0.5, band.x) * (band.y * 2.0 - 1.0) * _Glitch.w * _Glitch.x;
+    return positionWS + float3(0.0, up - delta.y, 0.0) + right * (across + tear);
+}
+
+// Static and colour fringes of the torn bands, scanlines over the rest of the jammed model. The band of a fragment is
+// taken before the stretch of MHKGlitchPosition, so fringes line up with the tears.
+half3 MHKGlitchColor(half3 col, float4 positionCS, float3 positionWS)
+{
+    UNITY_BRANCH
+    if (_Glitch.x <= 0.0) return col;
+    float3 frame = MHKGlitchHash(float3(_Glitch.y, 1.7, 9.2));
+    float y = (positionWS.y - _GlitchOrigin.y) / (1.0 + (frame.x - 0.5) * 0.6 * _Glitch.x);
+    float3 band = MHKGlitchHash(float3(floor(y * _Glitch.z), _Glitch.y, 4.1));
+    half torn = step(0.5, band.x) * _Glitch.x;
+    float2 pixel = positionCS.xy;
+    half snow = MHKGlitchHash(float3(floor(pixel * 0.5), _Glitch.y)).x;
+    half3 fringe = band.z > 0.5 ? half3(0.55, 1.25, 1.3) : half3(1.3, 0.55, 1.25);
+    col = lerp(col, col * fringe, torn);
+    col = lerp(col, snow.xxx, torn * step(0.35, band.y) * 0.75);
+    return col * (1.0 - 0.3 * _Glitch.x * step(0.5, frac(pixel.y * 0.25)));
 }
 
 half3 MHKGlow(float2 uv, half3 albedo)

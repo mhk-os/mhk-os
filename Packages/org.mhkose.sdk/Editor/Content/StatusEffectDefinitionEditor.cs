@@ -93,12 +93,15 @@ namespace MHK.Editor.Content
         {
             var usedBy = EffectReactions.BasedOn(e).Count;
             var users = usedBy > 0 ? $"\n{usedBy} effect(s) are based on this one and follow its changes." : "";
+            var held = e.HoldsKart && !e.freezeKart
+                ? $"\nIts {e.characterAnimation} animation knocks the driver out, so the kart stops while the effect runs."
+                : "";
             if (e.reaction == null)
                 return "Standalone effect. Pick a shared reaction (core.reaction.blast, flatten, spinout...) to take its " +
-                       "values and change only what differs." + users;
+                       "values and change only what differs." + held + users;
             return $"Based on {e.reaction.DisplayName} ({e.reaction.Id}). Bold fields with a blue bar are this effect's own " +
                    "values, the others follow the reaction. Editing a field overrides it. Right-click a field and choose " +
-                   "Revert to Reaction Value to follow the reaction again." + users;
+                   "Revert to Reaction Value to follow the reaction again." + held + users;
         }
 
         [InitializeOnLoadMethod]

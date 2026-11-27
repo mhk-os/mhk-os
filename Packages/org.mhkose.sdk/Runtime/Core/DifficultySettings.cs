@@ -21,6 +21,8 @@ namespace MHK.Core
                  "class at full throttle on flat road. Sets the class's kart speed scale (GameConfig.SpeedScale): every " +
                  "kart's top speed and accelerations scale with it, so other karts keep their relative differences.")]
         public float topSpeedKmh = 90f;
+        [Tooltip("Size of the kart engines (KartModel.engine) in this class, 1 = as modelled (150cc).")]
+        [Min(0.05f)] public float engineModelScale = 1f;
 
         [Header("AI behaviour (engine class)")]
         [Tooltip("Chance to steer around a planted trap (mine, black hole, x-field, puddle, ...) seen ahead, rolled per trap. " +

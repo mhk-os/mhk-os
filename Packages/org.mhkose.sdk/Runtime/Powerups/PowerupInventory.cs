@@ -19,6 +19,9 @@ namespace MHK.Powerups
     public partial class PowerupInventory : MonoBehaviour
     {
         const int NoBox = -1;
+        // Online a random special's roulette spins until the server answers. It stops empty after this long (s) without
+        // an answer, e.g. when the server rejected the use.
+        const float UseGrantTimeout = 5f;
 
         public PowerupDefinition Held { get; private set; }
         public int Charges { get; private set; }
@@ -197,6 +200,7 @@ namespace MHK.Powerups
         void FixedUpdate()
         {
             if (pendingBox != NoBox) pendingTime += Time.fixedDeltaTime;
+            if (pendingBox == Online.RaceProtocol.UseGrantBox && pendingTime > UseGrantTimeout) pendingBox = NoBox;
             if (revealPending && !Rolling) Reveal();
         }
 

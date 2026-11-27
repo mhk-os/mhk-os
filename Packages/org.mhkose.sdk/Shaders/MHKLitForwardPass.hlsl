@@ -43,7 +43,7 @@ Varyings vert(Attributes v)
     Varyings o;
     UNITY_SETUP_INSTANCE_ID(v);
     UNITY_TRANSFER_INSTANCE_ID(v, o);
-    o.positionWS = MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz));
+    o.positionWS = MHKGlitchPosition(MHKMeltPosition(TransformObjectToWorld(v.positionOS.xyz)));
     o.positionCS = TransformWorldToHClip(o.positionWS);
     o.normalWS = MHKMeltNormal(TransformObjectToWorldNormal(v.normalOS));
     o.uv = MHKUV(v.uv);
@@ -231,6 +231,7 @@ half4 frag(Varyings i) : SV_Target
         half bubbleStrength = _MeltOrigin.w * saturate(_MeltWater.a * 2.0);
         col = lerp(col, _MeltWater.rgb, saturate(bubbles.x * bubbleStrength * 0.85)) + bubbles.y * bubbleStrength * 0.5;
     }
+    col = MHKGlitchColor(col, i.positionCS, i.positionWS);
     col = lerp(col, MixFog(col, i.fogFactor), _Fog);
     return half4(col, tex.a * _Tint.a);
 }
