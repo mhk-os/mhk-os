@@ -69,6 +69,12 @@ namespace MHK.Attract
         [Min(0f)] public float minutesPerTrack = 5f;
         [Tooltip("Seconds of the fade between the neutral background and the race.")]
         [Min(0f)] public float fadeSeconds = 0.8f;
+        [Tooltip("Seconds after the loading screen closed before the background race starts loading, so the title's entry " +
+                 "animations run on their own. The race loads at the lowest background priority.")]
+        [Min(0f)] public float loadDelaySeconds = 1f;
+        [Tooltip("Materials drawn for the first time per frame while the loaded race is still covered (RenderWarmUp): their " +
+                 "shader programs, pipeline states and textures get ready over several frames instead of in one long one.")]
+        [Min(1)] public int warmUpMaterialsPerFrame = 6;
         [Tooltip("Still mode: seconds of racing before the picture is taken.")]
         [Min(0f)] public float stillAfterSeconds = 4f;
         [Tooltip("Still mode: the shot the picture is taken with.")]

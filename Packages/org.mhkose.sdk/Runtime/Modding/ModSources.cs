@@ -11,7 +11,8 @@ namespace MHK.Modding
     /// Mod sources: GitHub repositories whose releases the player installs and updates by hand, mods (a <c>mod.json</c>
     /// asset plus one zip per platform) into the user Mods folder and asset packs (one zip with pack.json, optionally a
     /// pack.json asset) into the asset pack folder. Every source is checked once at game start. Downloads can be paused
-    /// and resumed and never reload content. The base game mods, TINcan Race and the Music Pack are built-in sources.
+    /// and resumed and never reload content. The base game mods, TINcan Race, the Music Pack and the HD Textures pack are
+    /// built-in sources.
     /// </summary>
     public static partial class ModSources
     {
@@ -74,6 +75,7 @@ namespace MHK.Modding
             ("mhk-os/mhkt-mod", Kind.Mod, "mhkt", "Moorhuhn Kart Thunder"),
             ("mhk-os/tincan-mod", Kind.Mod, "tincan", "TINcan Race"),
             ("mhk-os/music-asset-pack", Kind.AssetPack, "music", "Music Pack"),
+            ("mhk-os/hd-textures-asset-pack", Kind.AssetPack, "hd-textures", "HD Textures"),
         };
 
         [AutoStaticsCleanup] static List<Source> sources;

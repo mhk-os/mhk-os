@@ -12,8 +12,10 @@ namespace MHK.Effects
     /// Snow, rain or blown sand around the race camera: one GPU-animated quad mesh in a camera-following box (optionally
     /// part of it in a smaller, denser box close to the camera), hidden under roofs by a top-down cover map rendered once at
     /// start, and optionally drop splashes landing on the topmost surfaces of that map. The particles take the scene light,
-    /// a share of the point and spot lights (headlight beams) and the lightning flash (see the MHK/Weather shader). One
-    /// effect per object: a second particle kind (a sandstorm's dust puffs) goes on a child.
+    /// a share of the point and spot lights (headlight beams; not on the Low graphics tier) and the lightning flash (see the
+    /// MHK/Weather shader). Lower render-resolution tiers draw a share of the particles and splashes (qualityScale), checked
+    /// every frame, so a graphics change in the pause menu applies at once. One effect per object: a second particle kind
+    /// (a sandstorm's dust puffs) goes on a child.
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(1000)] // after the camera has moved (ChaseCamera.LateUpdate)
@@ -102,7 +104,7 @@ namespace MHK.Effects
         [Header("Quality")]
         [Tooltip("Share of count (and splashCount) drawn per graphics render-resolution tier: [0] 720p or lower (Low preset), " +
                  "[1] 1080p (Medium), [2] native (High). 0 = off at that tier.")]
-        [SerializeField] float[] qualityScale = { 0.5f, 1f, 1f };
+        [SerializeField] float[] qualityScale = { 0.4f, 0.75f, 1f };
 
         const string SplashKeyword = "_WEATHER_SPLASH";
 

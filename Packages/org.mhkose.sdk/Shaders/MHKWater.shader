@@ -1,9 +1,9 @@
-// Water bodies of the tracks (MHK.Race.TrackWater swaps their MHK/Lit materials for copies of this one at race start):
-// the original texture's average colour with some of its detail, lit like MHK/Lit, under two layers of scrolling wave
-// normals (one texture, world-space, no vertex work) that reflect the sky (ambient light into the fog colour at the
-// horizon) by fresnel and catch the sun and lamp lights in sharp highlights; rain rings on uncovered water in rain
-// (MHKRain.hlsl). Only level faces get the waves: walls and falls drawn with the same material keep the plain lit
-// texture. No depth or opaque texture reads, one pass.
+// Water bodies of the tracks (MHK.Race.TrackWater swaps their MHK/Lit materials for copies of this one at race start on
+// the Medium and High graphics tiers): the original texture's average colour with some of its detail, lit like MHK/Lit,
+// under two layers of scrolling wave normals (one texture, world-space, no vertex work; one layer on Medium) that reflect
+// the sky (ambient light into the fog colour at the horizon) by fresnel and catch the sun and lamp lights in sharp
+// highlights; rain rings on uncovered water in rain (MHKRain.hlsl). Only level faces get the waves: walls and falls drawn
+// with the same material keep the plain lit texture. No depth or opaque texture reads, one pass.
 Shader "MHK/Water"
 {
     Properties
@@ -214,21 +214,26 @@ Shader "MHK/Water"
                 float rippleWidth = max(fwidth(rp.x), fwidth(rp.y));
                 half level = smoothstep(MHK_WATER_LEVEL_FROM, MHK_WATER_LEVEL_FULL, up.y);
 
-                // Two wave layers drifting across each other, the second turned and smaller, so the tiling never shows.
-                // A layer flattens where a pixel spans a good part of its tile (far away, at grazing angles): there its
-                // normals would only sparkle and show the tiling.
+                // Two wave layers drifting across each other, the second turned and smaller, so the tiling never shows
+                // (the first alone below the High graphics tier, MHKDetail.hlsl). A layer flattens where a pixel spans a
+                // good part of its tile (far away, at grazing angles): there its normals would only sparkle and show the
+                // tiling. The second samples with explicit gradients, inside its tier branch.
                 float drift = _Time.y * _WaveSpeed;
                 float2 uv1 = (p.xz + float2(drift, drift * 0.35)) / _WaveScale.x;
                 float2 turned = float2(p.x * 0.8 - p.z * 0.6, p.x * 0.6 + p.z * 0.8);
                 float2 uv2 = (turned + float2(-drift * 0.7, drift)) / _WaveScale.y;
+                float2 dx2 = ddx(uv2), dy2 = ddy(uv2);
                 half fade1 = 1.0 - smoothstep(MHK_WATER_WAVE_FADE_FROM, MHK_WATER_WAVE_FADE_TO, max(length(ddx(uv1)), length(ddy(uv1))));
-                half fade2 = 1.0 - smoothstep(MHK_WATER_WAVE_FADE_FROM, MHK_WATER_WAVE_FADE_TO, max(length(ddx(uv2)), length(ddy(uv2))));
-                half3 w1 = UnpackNormal(SAMPLE_TEXTURE2D(_WaveMap, sampler_WaveMap, uv1));
-                half3 w2 = UnpackNormal(SAMPLE_TEXTURE2D(_WaveMap, sampler_WaveMap, uv2));
-                half2 slope = (w1.xy * fade1 + w2.xy * (fade2 * MHK_WATER_SMALL_WAVES)) * (_WaveStrength * level);
-                half crest = 0;
+                half fade2 = 1.0 - smoothstep(MHK_WATER_WAVE_FADE_FROM, MHK_WATER_WAVE_FADE_TO, max(length(dx2), length(dy2)));
+                half2 slope = UnpackNormal(SAMPLE_TEXTURE2D(_WaveMap, sampler_WaveMap, uv1)).xy * fade1;
                 UNITY_BRANCH
-                if (_MHKWet.x > 0.0 && level > 0.0)
+                if (!MHK_DETAIL_REDUCED)
+                    slope += UnpackNormal(SAMPLE_TEXTURE2D_GRAD(_WaveMap, sampler_WaveMap, uv2, dx2, dy2)).xy * (fade2 * MHK_WATER_SMALL_WAVES);
+                slope *= _WaveStrength * level;
+                half crest = 0;
+                // Rain rings (none on the Low tier).
+                UNITY_BRANCH
+                if (_MHKWet.x > 0.0 && level > 0.0 && !MHK_DETAIL_LOW)
                 {
                     half ground;
                     half3 rings = MHKRipples(p.xz, rippleWidth) * (MHKWetUncovered(p, ground) * _MHKWet.x * level);

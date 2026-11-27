@@ -38,8 +38,8 @@ namespace MHK.Core
         [Tooltip("MHK/Lit as built with the game. World sky domes (WorldSkyDome) switch to it, so their fog can be turned " +
                  "off also when a mod bundle carries an older copy of the shader. Empty: they keep their own shader.")]
         public Shader litShader;
-        [Tooltip("MHK/Water: track water bodies switch to it at race start (TrackWater), with waves, sky reflection and " +
-                 "highlights. Empty: tracks keep their own water.")]
+        [Tooltip("MHK/Water: track water bodies switch to it at race start (TrackWater) on the Medium and High graphics " +
+                 "tiers, with waves, sky reflection and highlights. Empty: tracks keep their own water.")]
         public Shader waterShader;
         [Tooltip("Tiling wave normal map of the HD water (Prefabs/Water/WaterWaves).")]
         public Texture2D waterWaves;

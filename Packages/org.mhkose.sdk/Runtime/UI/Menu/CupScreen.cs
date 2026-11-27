@@ -10,7 +10,8 @@ namespace MHK.UI
     /// <summary>
     /// Championship browser (Cup.uxml): a card per cup (won cups carry a trophy badge) and the info panel of the
     /// hovered or focused cup with its track list. Cards and panel cross-fade through the cup's track pictures.
-    /// Picking a cup opens the race settings; every race gets a random variant of its track when the cup starts. Custom
+    /// Picking a cup opens the race settings; every race runs in the variant the cup sets for it (<see cref="CupDefinition.variants"/>,
+    /// else the track's default), shown beside the track's name in the panel. Custom
     /// championship edits the player's own track list and each race's settings (<see cref="UserSettings.customChampionship"/>,
     /// <see cref="UserSettings.customChampionshipSetups"/>, <see cref="TrackListScreen.OpenWithSetups"/>), then opens the race
     /// settings for a championship without a cup. For the online room owner (<see cref="LobbyPick.OwnerPick"/>, opened from the Track
@@ -138,13 +139,15 @@ namespace MHK.UI
             infoCycle.Show(pictures[c], card >= 0 ? cardCycles[card].Index : 0);
             trackList.Clear();
             var number = 1;
-            foreach (var t in c.tracks)
+            for (var i = 0; i < c.tracks.Count; i++)
             {
+                var t = c.tracks[i];
                 if (t == null) continue;
                 var item = UiTree.Spawn<VisualElement>(trackItemTemplate, trackList);
                 if (item == null) break;
                 item.SetText("number", (number++).ToString());
-                item.SetText("track-name", t.DisplayName);
+                var label = c.VariantAt(i)?.Label();
+                item.SetText("track-name", string.IsNullOrEmpty(label) ? t.DisplayName : t.DisplayName + UiText.Separator + label);
             }
             wonLine.SetVisible(GameRoot.Instance.Save.wonCups.Contains(c.Id));
         }
@@ -157,17 +160,8 @@ namespace MHK.UI
                 return;
             }
             var selection = Selection;
-            Flow.Get<RaceSettingsScreen>().Open(() =>
-            {
-                var session = selection.BuildSession(cup.tracks.Where(t => t != null), selection.ChampionshipOpponents);
-                session.cupId = cup.Id;
-                if (cup.lapsOverride > 0)
-                {
-                    session.lapsFromTrack = false;
-                    session.laps = cup.lapsOverride;
-                }
-                SceneFlow.StartSession(session);
-            }, cup.DisplayName, CardImage(cup));
+            Flow.Get<RaceSettingsScreen>().Open(() => SceneFlow.StartSession(selection.BuildCupSession(cup, selection.ChampionshipOpponents)),
+                cup.DisplayName, CardImage(cup));
         }
 
         // Every edit is stored right away; Next opens the race settings of the list.

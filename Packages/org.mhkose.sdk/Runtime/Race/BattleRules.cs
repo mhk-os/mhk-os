@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using MHK.Core;
 using MHK.Karts;
 using MHK.Powerups;
@@ -12,7 +13,7 @@ namespace MHK.Race
     /// round ends when all humans are out or one kart is left. Online each racer's client decides its own health and
     /// elimination (<see cref="OnlineItems"/>): other racers are eliminated when the server says so.
     /// </summary>
-    public class BattleRules : MonoBehaviour
+    public class BattleRules : MonoBehaviour, IComparer<Kart>
     {
         RaceManager race;
         float roundEndTimer = -1f;

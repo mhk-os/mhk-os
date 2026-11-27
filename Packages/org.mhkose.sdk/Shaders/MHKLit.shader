@@ -1,7 +1,7 @@
 // Lambert lighting for all ported content: ambient plus N.L of the sun and additional lights (plus a lightning flash),
 // saturated, times texture, colour and tint, plus glow. Of the bake only the shadowmask and probe occlusion are used. Wet
 // weather adds the wet look of MHKWet.hlsl (darker, glossy, puddles) to uncovered surfaces of fogged materials that are
-// not water (see MHKWetMaterial).
+// not water (see MHKWetMaterial), in less detail on lower graphics tiers (MHKDetail.hlsl: uniform branches, no variants).
 Shader "MHK/Lit"
 {
     Properties

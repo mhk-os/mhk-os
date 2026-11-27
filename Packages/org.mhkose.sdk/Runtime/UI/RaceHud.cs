@@ -30,9 +30,9 @@ namespace MHK.UI
         [Header("Messages")]
         [SerializeField, Tooltip("Flash when the player finishes a race ({0} = position, e.g. 2nd).")]
         string finishedFormat = "Finished {0}!";
-        [SerializeField, Tooltip("Flash when the player is knocked out of a battle.")]
+        [SerializeField, Tooltip("Flash when the player is knocked out of a battle or Last Man Standing.")]
         string playerOutText = "You're out!";
-        [SerializeField, Tooltip("Flash when an opponent is knocked out of a battle ({0} = name).")]
+        [SerializeField, Tooltip("Flash when an opponent is knocked out of a battle or Last Man Standing ({0} = name).")]
         string kartOutFormat = "{0} is out!";
         [SerializeField, Tooltip("Lap panel caption in battles (the race caption is the lap-caption text in the UXML).")]
         string aliveCaption = "Alive";
@@ -86,6 +86,7 @@ namespace MHK.UI
         OnlineView online;
 
         BattleRules battle;
+        LastManStandingRules lastManStanding;
         bool widgetsShown, speedoScaled, resultsShown;
         int lastLap;
         Color shownOverlay;
@@ -179,7 +180,9 @@ namespace MHK.UI
             race.PauseChanged -= OnPause;
             race.KartFinished -= OnKartFinished;
             if (battle != null) battle.KartEliminated -= OnEliminated;
+            if (lastManStanding != null) lastManStanding.KartEliminated -= OnEliminated;
             battle = null;
+            lastManStanding = null;
             timeTrial.Unbind();
             online.Unbind();
             messages.Unbind();
@@ -233,13 +236,14 @@ namespace MHK.UI
 
         void OnEliminated(Kart k)
         {
+            var alive = battle != null ? battle.AliveCount : lastManStanding != null ? lastManStanding.AliveCount : 0;
             if (k == player) messages.Flash(playerOutText, FinishFlashSeconds, "bad");
-            else if (race.Battle.AliveCount > 1) messages.Flash(string.Format(kartOutFormat, k.DisplayName), KartOutFlashSeconds, null);
+            else if (alive > 1) messages.Flash(string.Format(kartOutFormat, k.DisplayName), KartOutFlashSeconds, null);
         }
 
         void OnKartFinished(Kart k)
         {
-            if (k != player || race.IsBattle) return;
+            if (k != player || race.IsBattle || k.Eliminated) return;
             if (race.TimeTrial != null)
             {
                 messages.Flash(string.Format(timeTrialFinishedFormat, UiText.Clock(k.Progress.FinishTime)), FinishFlashSeconds, "good");
@@ -294,7 +298,8 @@ namespace MHK.UI
             ScaleSpeedometer();
             var prog = player.Progress;
             var kartCount = race.Karts.Count;
-            position.Refresh(prog.Position, kartCount);
+            if (race.LastManStanding != null) UpdateLastManStanding(prog, kartCount);
+            else position.Refresh(prog.Position, kartCount);
             lapPanel.RefreshClock(prog.RaceClock);
             if (race.Battle != null) UpdateBattle(kartCount);
             else lapPanel.RefreshLaps(prog.Lap, race.Laps, prog.BestLap);
@@ -303,6 +308,21 @@ namespace MHK.UI
             messages.SetWrongWay(prog.WrongWay && race.Battle == null && race.Phase == RacePhase.Racing);
             itemSlot.Refresh(player.Inventory);
             UpdateOverlay();
+        }
+
+        // Last Man Standing: the position counts the karts still in (all karts once the player is out), and turns red while
+        // the player is the one who goes out at the end of the lap.
+        void UpdateLastManStanding(RacerProgress prog, int kartCount)
+        {
+            if (lastManStanding == null)
+            {
+                lastManStanding = race.LastManStanding;
+                lastManStanding.KartEliminated += OnEliminated;
+            }
+            var alive = lastManStanding.AliveCount;
+            var racing = race.Phase == RacePhase.Racing && !player.Eliminated && !prog.Finished;
+            position.Refresh(prog.Position, player.Eliminated ? kartCount : alive);
+            position.SetDanger(racing && alive > 1 && prog.Position == alive);
         }
 
         void UpdateBattle(int kartCount)

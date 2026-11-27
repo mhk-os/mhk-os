@@ -62,6 +62,8 @@
 .hud-position.p1 .hud-pos-num, .hud-position.p1 .hud-pos-suffix { color: var(--mhk-accent); }
 .hud-position.p2 .hud-pos-num, .hud-position.p2 .hud-pos-suffix { color: var(--mhk-gray-200); }
 .hud-position.p3 .hud-pos-num, .hud-position.p3 .hud-pos-suffix { color: var(--mhk-bronze); }
+/* Last Man Standing: the player is the kart that goes out at the end of the lap. */
+.hud-position.danger .hud-pos-num, .hud-position.danger .hud-pos-suffix { color: var(--mhk-bad); }
 
 .hud-lapbox { position: absolute; right: 28px; top: 14px; width: 300px; align-items: stretch; }
 .hud-lap-row, .hud-time-row, .hud-best-row, .hud-split-row { justify-content: flex-end; }

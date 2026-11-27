@@ -16,7 +16,7 @@ namespace MHK.Race
         public float bestLap;
         public int pointsGained;
         public int totalPoints;
-        /// <summary>Battle modes: still in the game when the round ended.</summary>
+        /// <summary>Knockout modes (battle, Last Man Standing): still in the game when the race ended.</summary>
         public bool survived;
         /// <summary>Online: how the race ended for the racer by the server's result, null for local racers (AI, offline).</summary>
         public Online.RaceOutcome? outcome;

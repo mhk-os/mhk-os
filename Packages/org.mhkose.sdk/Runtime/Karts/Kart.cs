@@ -111,9 +111,9 @@ namespace MHK.Karts
         float IKartView.SpinAngle => Effects.SpinAngle;
         float IKartView.ScaleMultiplier => Effects.ScaleMultiplier;
         float IKartView.VerticalScale => Effects.VerticalScale;
-        float IKartView.Opacity => Effects.Opacity * RemoteFade;
-        /// <summary>Remote racers fade out to 0 when they leave the race.</summary>
-        internal float RemoteFade { get; set; } = 1f;
+        float IKartView.Opacity => Effects.Opacity * LeaveFade;
+        /// <summary>Set to 0 to fade the kart out as it leaves the track: an online racer that left, a kart knocked out of Last Man Standing.</summary>
+        internal float LeaveFade { get; set; } = 1f;
         bool IKartView.Burned => Effects.Burned;
         Color IKartView.ModelTint => Effects.ModelTint;
         bool IKartView.Hidden => Effects.Hidden;
@@ -130,7 +130,7 @@ namespace MHK.Karts
         /// karts at 0.
         /// </summary>
         public int Health { get; private set; }
-        /// <summary>Knocked out of a battle: parked, ignores items and hits, not respawned.</summary>
+        /// <summary>Knocked out of a battle or of Last Man Standing: parked, ignores items and hits, not respawned.</summary>
         public bool Eliminated { get; private set; }
 
         [AutoStaticsCleanup] static readonly List<Kart> all = new();
@@ -335,7 +335,7 @@ namespace MHK.Karts
             Health = Mathf.Clamp(Health + amount, 0, GameRoot.Instance.Config.maxHealth);
         }
 
-        /// <summary>Removes the kart from a battle: it stops where it is and plays its losing animation.</summary>
+        /// <summary>Knocks the kart out (battle, Last Man Standing): it stops where it is and plays its losing animation.</summary>
         public void Eliminate()
         {
             if (Eliminated) return;

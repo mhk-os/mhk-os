@@ -17,7 +17,10 @@ namespace MHK.Attract
     /// <summary>
     /// The main menu's background race: a random circuit of any loaded pack with random computer drivers, built from a
     /// <see cref="RaceManager"/> prefab in attract mode and shown through the <see cref="MenuStage"/>. Race sounds are
-    /// muted. A new track loads on every menu visit and after <see cref="AttractSettings.minutesPerTrack"/>.
+    /// muted. A new track loads on every menu visit and after <see cref="AttractSettings.minutesPerTrack"/>. Loading is
+    /// lazy, so the menu stays smooth: it starts <see cref="AttractSettings.loadDelaySeconds"/> after the loading screen
+    /// closed, at the lowest background loading priority, and the loaded race draws unseen behind the neutral background
+    /// (or into the still picture's target) a few new materials per frame (<see cref="RenderWarmUp"/>) before it fades in.
     /// </summary>
     public partial class MenuAttract : MonoBehaviour
     {
@@ -94,15 +97,19 @@ namespace MHK.Attract
                 Settled = true;
                 return;
             }
+            await WaitForIdleMenuAsync(ct);
             AudioManager.WorldMuted = true;
-            while (await LoadRaceAsync(karts, mode == AttractMode.Still, ct))
+            var still = mode == AttractMode.Still;
+            while (await LoadRaceAsync(karts, still, ct))
             {
-                if (mode == AttractMode.Still)
+                director.Camera.enabled = true;
+                if (!still) stage.CoverRace(director.Camera);
+                await RenderWarmUp.RevealAsync(RaceScenes(), race.transform, settings.warmUpMaterialsPerFrame, ct);
+                if (still)
                 {
                     await TakePictureAsync(ct);
                     break;
                 }
-                director.Camera.enabled = true;
                 stage.ShowRace(director.Camera, settings.fadeSeconds);
                 Settled = true;
                 if (settings.minutesPerTrack <= 0f) return;
@@ -114,6 +121,14 @@ namespace MHK.Attract
             Settled = true;
         }
 
+        // The title first: the loading screen closes and the title's entry animations run before anything loads.
+        async Awaitable WaitForIdleMenuAsync(CancellationToken ct)
+        {
+            var screen = GameRoot.Instance.LoadingScreen;
+            while (SceneFlow.Busy || (screen != null && screen.gameObject.activeSelf)) await Awaitable.NextFrameAsync(ct);
+            if (settings.loadDelaySeconds > 0f) await Awaitable.WaitForSecondsAsync(settings.loadDelaySeconds, ct);
+        }
+
         AttractMode Mode(out int karts)
         {
             var profile = (Application.isMobilePlatform ? settings.mobile : settings.desktop).For(GraphicsQuality.Tier);
@@ -122,26 +137,46 @@ namespace MHK.Attract
             return Enum.TryParse<AttractMode>(CommandLine.Value(CommandLineMode), true, out var fromCommandLine) ? fromCommandLine : profile.mode;
         }
 
-        // Tries other tracks when one cannot be built. False when none could.
+        // Tries other tracks when one cannot be built. False when none could. The menu's frames come first: loaded assets
+        // integrate a little per frame (the lowest background priority) and nothing draws until the race is complete.
         async Awaitable<bool> LoadRaceAsync(int karts, bool offScreen, CancellationToken ct)
         {
-            for (var attempt = 0; attempt < LoadAttempts; attempt++)
+            var priority = UnityEngine.Application.backgroundLoadingPriority;
+            UnityEngine.Application.backgroundLoadingPriority = UnityEngine.ThreadPriority.Low;
+            try
             {
-                var track = PickTrack();
-                if (track == null) return false;
-                lastTrackId = track.Id;
-                race = Instantiate(racePrefab, transform);
-                director = race.GetComponentInChildren<AttractDirector>();
-                race.RunAsAttract(BuildSession(track, karts));
-                // Off screen until shown: live races draw nothing while they load, still pictures render into a target.
-                if (offScreen) director.Camera.targetTexture = NewTarget();
-                else director.Camera.enabled = false;
-                while (race.Phase == RacePhase.Loading && !race.LoadFailed) await Awaitable.NextFrameAsync(ct);
-                while (!race.LoadFailed && !director.HasShot) await Awaitable.NextFrameAsync(ct);
-                if (!race.LoadFailed) return true;
-                await UnloadRaceAsync(ct);
+                for (var attempt = 0; attempt < LoadAttempts; attempt++)
+                {
+                    var track = PickTrack();
+                    if (track == null) return false;
+                    lastTrackId = track.Id;
+                    race = Instantiate(racePrefab, transform);
+                    director = race.GetComponentInChildren<AttractDirector>();
+                    race.RunAsAttract(BuildSession(track, karts));
+                    // A still picture renders into a target once the race is complete.
+                    if (offScreen) director.Camera.targetTexture = NewTarget();
+                    director.Camera.enabled = false;
+                    while (race.Phase == RacePhase.Loading && !race.LoadFailed) await Awaitable.NextFrameAsync(ct);
+                    while (!race.LoadFailed && !director.HasShot) await Awaitable.NextFrameAsync(ct);
+                    if (!race.LoadFailed) return true;
+                    await UnloadRaceAsync(ct);
+                }
+                return false;
             }
-            return false;
+            finally
+            {
+                UnityEngine.Application.backgroundLoadingPriority = priority;
+            }
+        }
+
+        // The race's track scene and the overlay scenes of its variant.
+        List<Scene> RaceScenes()
+        {
+            var scenes = new List<Scene>();
+            if (race == null) return scenes;
+            scenes.Add(race.TrackScene);
+            scenes.AddRange(race.OverlayScenes);
+            return scenes;
         }
 
         static bool Raceable(TrackDefinition t) => t != null && t.layout == TrackLayout.Circuit && t.scene.IsSet;
@@ -234,13 +269,8 @@ namespace MHK.Attract
 
         async Awaitable UnloadRaceAsync(CancellationToken ct)
         {
-            var scenes = new List<Scene>();
-            if (race != null)
-            {
-                scenes.Add(race.TrackScene);
-                scenes.AddRange(race.OverlayScenes);
-                Destroy(race.gameObject);
-            }
+            var scenes = RaceScenes();
+            if (race != null) Destroy(race.gameObject);
             race = null;
             director = null;
             if (gameObject.scene.IsValid()) SceneManager.SetActiveScene(gameObject.scene);

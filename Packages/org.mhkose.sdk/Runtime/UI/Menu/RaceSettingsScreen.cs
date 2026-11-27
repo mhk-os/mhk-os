@@ -10,8 +10,9 @@ namespace MHK.UI
 {
     /// <summary>
     /// Race settings (RaceSettings.uxml) before a race, championship or time trial: difficulty (a time trial's engine
-    /// class), opponents, the track's variant (<see cref="TrackVariantRows"/>, single race, battle and time trial), laps (a
-    /// time trial: one lap or the track's) and powerups (rows that do not apply to the mode are hidden, Powerups opens the
+    /// class), opponents, the track's variant (<see cref="TrackVariantRows"/>, single race, battle, Last Man Standing and
+    /// time trial), laps (a single race; a time trial: one lap or the track's; Last Man Standing races one lap per
+    /// opponent) and powerups (rows that do not apply to the mode are hidden, Powerups opens the
     /// <see cref="ItemOddsScreen"/>), the track or cup and driver preview, and Start!.
     /// </summary>
     public class RaceSettingsScreen : MenuScreen
@@ -59,13 +60,14 @@ namespace MHK.UI
             FocusTarget = OnClick("start", () => start());
         }
 
-        // Single races, battles and time trials race the picked variant of their track; championships roll theirs per race
-        // when they start (MenuSelection.BuildSession), a custom championship's races are set on its track list page.
+        // Single races, battles, Last Man Standing and time trials race the picked variant of their track; cups race the
+        // variants they set, a custom championship's races are set on its track list page.
         void BindVariantRows(MenuSelection s)
         {
             var container = Q<VisualElement>("variant-rows");
             var rows = new TrackVariantRows(container, Root, settingRowTemplate, Click);
-            if ((s.mode is GameMode.SingleRace or GameMode.Battle or GameMode.TimeTrial) && s.track != null) rows.Show(s.track, s.variantKey);
+            if ((s.mode is GameMode.SingleRace or GameMode.Battle or GameMode.LastManStanding or GameMode.TimeTrial) && s.track != null)
+                rows.Show(s.track, s.variantKey);
             container.SetVisible(rows.HasRows);
             s.variantKey = rows.Variant != null ? rows.Variant.Key : "";
             rows.Changed += v => s.variantKey = v.Key;
@@ -76,13 +78,15 @@ namespace MHK.UI
             BindChoice("difficulty", () => s.difficulty, d => s.difficulty = d, d => config.GetDifficulty(d).label);
             var battle = s.mode == GameMode.Battle;
             var single = s.mode == GameMode.SingleRace;
+            var lastMan = s.mode == GameMode.LastManStanding;
             var champ = s.mode == GameMode.Championship;
             var timeTrialLaps = s.mode == GameMode.TimeTrial && s.track != null && s.track.defaultLaps > 1;
-            SetVisible("opponents", battle || single || champ);
+            var items = battle || single || lastMan;
+            SetVisible("opponents", items || champ);
             SetVisible("laps", single || timeTrialLaps);
-            SetVisible("powerups", battle || single);
-            if (battle || single || champ) BindOpponents(s, battle ? 1 : 0, champ);
-            if (battle || single)
+            SetVisible("powerups", items);
+            if (items || champ) BindOpponents(s, battle || lastMan ? 1 : 0, champ);
+            if (items)
                 BindLink("powerups", PowerupsValue(), () => Flow.Show<ItemOddsScreen>());
             if (single)
                 BindChoice("laps", () => MaxLaps + 1, () => s.useTrackLaps ? 0 : Mathf.Clamp(s.laps, 1, MaxLaps),
@@ -93,8 +97,8 @@ namespace MHK.UI
                     i => i == 0 ? oneLapText : string.Format(lapsFormat, s.track.defaultLaps), i => s.timeTrialLaps = i == 0 ? 1 : 0);
         }
 
-        // Single races may have no opponents, battles need one. Championships start with every other driver until the
-        // player sets a number.
+        // Single races may have no opponents, battles and Last Man Standing need one. Championships start with every other
+        // driver until the player sets a number.
         void BindOpponents(MenuSelection s, int min, bool champ)
         {
             var max = MenuSelection.MaxOpponents;
@@ -126,6 +130,7 @@ namespace MHK.UI
             GameMode.Championship => "emoji_events",
             GameMode.TimeTrial => "timer",
             GameMode.Battle => "swords",
+            GameMode.LastManStanding => "person",
             _ => "play_arrow",
         };
 

@@ -5,7 +5,8 @@
 
 // Wet look of MHK/Lit's forward pass for rain options, from the rain globals (MHKRain.hlsl): darker, glossy uncovered
 // surfaces with puddles. Only materials MHKWetMaterial allows get wet (not sky domes, water or lava), up-facing surfaces
-// fully, walls a little, ceilings not.
+// fully, walls a little, ceilings not. The Low graphics tier (MHKDetail.hlsl) shapes puddles by one noise octave and
+// leaves out the lamps' highlights on the film (MHKLitForwardPass.hlsl); its cover edge and ripples are MHKRain.hlsl's.
 #define MHK_WET_WALL 0.3          // wetness of vertical surfaces (up-facing 1, facing down 0)
 #define MHK_WET_ALBEDO 0.62       // albedo multiplier of wet surfaces...
 #define MHK_PUDDLE_ALBEDO 0.4     // ...and under a puddle
@@ -18,13 +19,14 @@
 
 struct MHKWetSurface
 {
-    half amount;    // 0 = dry, the other fields are unset
+    half amount;    // 0 = dry, the other fields are unset (but uncovered)
     half puddle;    // 0..1
     half3 normal;   // shading normal of the water film: the surface's, flat and rippled in puddles
     half3 view;     // towards the camera
     float gloss;
     half shine;
     half crest;
+    half uncovered; // share of the rain reaching the point (MHKWetUncovered), -1 = not evaluated (dry track or material)
 };
 
 // Wet look share of the material, 0 = never wet: sky domes (_Fog 0), water and lava animated by frame animation or UV
@@ -44,13 +46,15 @@ half MHKWetFacing(half3 n)
     return saturate(n.y * 4.0 + 1.0) * lerp(MHK_WET_WALL, 1.0, smoothstep(0.35, 0.85, n.y));
 }
 
-// World-space puddles: where two octaves of value noise pass a threshold that falls with the puddle amount, on flat ground
-// (up = the surface's upward facing, 1 = level): none from about 15° of slope on. Less puddle ground (towards cover) raises
-// the threshold steadily to 1, which the noise never reaches: the puddles shrink to scattered small ones and away instead
-// of being cut off.
+// World-space puddles: where two octaves of value noise (the coarse one alone on the Low tier) pass a threshold that falls
+// with the puddle amount, on flat ground (up = the surface's upward facing, 1 = level): none from about 15° of slope on.
+// Less puddle ground (towards cover) raises the threshold steadily to 1, which the noise never reaches: the puddles shrink
+// to scattered small ones and away instead of being cut off.
 half MHKPuddle(float2 xz, half up, half ground)
 {
-    float field = MHKWetNoise(xz * MHK_PUDDLE_SCALE) * 0.7 + MHKWetNoise(xz * (MHK_PUDDLE_SCALE * 3.7) + 19.3) * 0.3;
+    float field = MHKWetNoise(xz * MHK_PUDDLE_SCALE);
+    UNITY_BRANCH
+    if (!MHK_DETAIL_LOW) field = field * 0.7 + MHKWetNoise(xz * (MHK_PUDDLE_SCALE * 3.7) + 19.3) * 0.3;
     float threshold = lerp(1.0, lerp(0.98, 0.68, _MHKWet.y), ground);
     return smoothstep(threshold, threshold + 0.05, field) * smoothstep(0.965, 0.99, up) * step(0.001, _MHKWet.y);
 }
@@ -59,6 +63,7 @@ half MHKPuddle(float2 xz, half up, half ground)
 MHKWetSurface MHKWetSurfaceAt(float3 positionWS, half3 n)
 {
     MHKWetSurface w = (MHKWetSurface)0;
+    w.uncovered = -1;
     UNITY_BRANCH
     if (_MHKWet.x <= 0.0) return w;
     half material = MHKWetMaterial() * (1.0 - _Emission);
@@ -71,6 +76,7 @@ MHKWetSurface MHKWetSurfaceAt(float3 positionWS, half3 n)
     half faceUp = abs(normalize(cross(ddy(positionWS), ddx(positionWS))).y);
     half ground;
     half uncovered = MHKWetUncovered(positionWS, ground);
+    w.uncovered = uncovered;
     w.amount = _MHKWet.x * MHKWetFacing(n) * uncovered * material;
     // Puddles reach a little under the cover, past the rain: still water there, without rings.
     UNITY_BRANCH

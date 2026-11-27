@@ -1,9 +1,12 @@
 #ifndef MHK_PARTICLE_LIGHT_INCLUDED
 #define MHK_PARTICLE_LIGHT_INCLUDED
 
+#include "MHKDetail.hlsl"
+
 // Light of small particles without normals (MHK/Weather, MHK/Particle), per vertex: the scene light (MHK/Lit's ambient
-// average and a share of the sun), a share of the point and spot lights (headlight beams, lamps; no shadows) and the
-// lightning flash (_MHKFlash). Include after URP's Lighting.hlsl and MHKAmbient.hlsl.
+// average and a share of the sun), a share of the point and spot lights (headlight beams, lamps; no shadows; not on the
+// Low graphics tier, see MHKDetail.hlsl) and the lightning flash (_MHKFlash). Include after URP's Lighting.hlsl and
+// MHKAmbient.hlsl.
 
 #define MHK_PARTICLE_SUN_SHARE 0.5
 #define MHK_PARTICLE_FLASH_SHARE 0.6
@@ -45,12 +48,12 @@ half3 MHKParticleLampLight(float3 world, float4 positionCS)
 }
 
 // Light of a visible particle vertex: the scene light (sceneAmount), the lamps' share (lampShare, saturated: a particle
-// in a beam glows, it does not burn white) and the lightning flash.
+// in a beam glows, it does not burn white; none on the Low tier, which skips the light loop) and the lightning flash.
 half3 MHKParticleLight(float3 world, float4 positionCS, half sceneAmount, half lampShare)
 {
     half3 lamps = 0;
     UNITY_BRANCH
-    if (lampShare > 0) lamps = saturate(MHKParticleLampLight(world, positionCS) * lampShare);
+    if (lampShare > 0 && !MHK_DETAIL_LOW) lamps = saturate(MHKParticleLampLight(world, positionCS) * lampShare);
     return MHKParticleSceneLight(sceneAmount) + lamps + _MHKFlash.rgb * MHK_PARTICLE_FLASH_SHARE;
 }
 

@@ -55,5 +55,10 @@ namespace MHK.Rendering
         public static readonly int WetCoverHeight = Shader.PropertyToID("_MHKWetCoverHeight");
         /// <summary>Lightning flash: rgb added to the light of every MHK/Lit surface and weather particle, 0 = none.</summary>
         public static readonly int Flash = Shader.PropertyToID("_MHKFlash");
+        /// <summary>
+        /// Detail cut of the graphics tier (0 = full: High, 1 = Medium, 2 = Low) that MHK/Lit, MHK/Water and the lit particle
+        /// shaders branch on (MHKDetail.hlsl), set by <see cref="MHK.Core.GraphicsQuality"/>.
+        /// </summary>
+        public static readonly int DetailCut = Shader.PropertyToID("_MHKDetailCut");
     }
 }

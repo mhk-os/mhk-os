@@ -46,21 +46,22 @@ namespace MHK.Race
 
         /// <summary>
         /// Fills <paramref name="results"/> in ranking order, awards points and updates the track records (only races on the
-        /// track's default variant over its own lap count set them).
+        /// track's default variant over its own lap count set them). Knockout modes (battle, Last Man Standing) mark the
+        /// racers still in at the end as survivors.
         /// </summary>
         public static void Build(RaceManager race, IReadOnlyList<Kart> ranking, List<RaceResult> results)
         {
             var cfg = GameRoot.Instance.Config;
             var save = GameRoot.Instance.Save;
             var session = race.Session;
-            var battle = race.Battle != null;
-            var recordRace = !battle && race.Variant.IsDefault && race.Laps == race.Track.defaultLaps;
+            var knockout = race.Battle != null || race.LastManStanding != null;
+            var recordRace = race.Battle == null && race.Variant.IsDefault && race.Laps == race.Track.defaultLaps;
             results.Clear();
             for (var i = 0; i < ranking.Count; i++)
             {
                 var k = ranking[i];
                 var gained = session.mode == GameMode.Championship && i < cfg.championshipPoints.Length ? cfg.championshipPoints[i] : 0;
-                results.Add(Award(k, i + 1, gained, battle));
+                results.Add(Award(k, i + 1, gained, knockout));
                 if (k.IsHuman && recordRace) UpdateTrackRecord(save.GetRecord(race.Track.Id), k, race.Laps);
             }
             if (session.mode == GameMode.Championship && !session.HasNextRace) MarkCupWon(session, save);
@@ -124,7 +125,7 @@ namespace MHK.Race
             if (battle && row.outcome != Online.RaceOutcome.Finished && row.outcome != Online.RaceOutcome.Dnf) result.survived = false;
         }
 
-        static RaceResult Award(Kart k, int position, int gained, bool battle)
+        static RaceResult Award(Kart k, int position, int gained, bool knockout)
         {
             var result = new RaceResult { racer = k.Setup, totalTimeBefore = k.Setup.totalTime };
             k.Setup.points += gained;
@@ -138,7 +139,7 @@ namespace MHK.Race
             result.bestLap = k.Progress.BestLap;
             result.pointsGained = gained;
             result.totalPoints = k.Setup.points;
-            result.survived = battle && !k.Eliminated;
+            result.survived = knockout && !k.Eliminated;
             return result;
         }
 

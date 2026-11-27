@@ -9,7 +9,8 @@ namespace MHK.Karts
     /// Tyre effects from KartPhysics wheel contacts: skid marks into the shared SkidMarks pool, the kart's skid intensity
     /// and sound surface, rear-tyre dust (MHK2 Car update rules) and, in wet weather, water spray instead of dust from tyres
     /// rolling on uncovered ground (<see cref="TrackWeather"/>): drops thrown off the tread in arcs (a rooster tail at speed)
-    /// and a mist cloud that hangs behind the kart, both lit by the scene and the headlights (MHK/Particle). The spray's
+    /// and a mist cloud that hangs behind the kart, both lit by the scene and the headlights (MHK/Particle). Lower graphics
+    /// tiers throw fewer drops and less mist, Low no mist at all (its large blended puffs cost the most fill). The spray's
     /// particle systems are made on the first wet frame, so dry tracks never pay for them.
     /// </summary>
     [RequireComponent(typeof(KartPhysics))]
@@ -59,7 +60,7 @@ namespace MHK.Karts
         [SerializeField] private Color dropColor = new(0.88f, 0.92f, 0.97f, 0.8f);
         [Tooltip("Ground speed (m/s) from which tyres throw spray, and the speed at which they throw the most.")]
         [SerializeField] private Vector2 spraySpeedRange = new(4f, 30f);
-        [Tooltip("Mist puffs per second of a rear tyre at full speed (front tyres throw a share), on the high graphics tier.")]
+        [Tooltip("Mist puffs per second of a rear tyre at full speed (front tyres throw a share), on the high graphics tier (none on low).")]
         [SerializeField] private float mistRate = 28f;
         [Tooltip("Drops per second of a rear tyre at full speed (front tyres throw a share), on the high graphics tier.")]
         [SerializeField] private float dropRate = 70f;
@@ -116,7 +117,8 @@ namespace MHK.Karts
         const float DropStretchLength = 2f, DropStretchVelocity = 0.02f;
         const float SprayShadeMin = 0.93f, SprayShadeMax = 1.05f;
         const int MistSheetTiles = 2;
-        const float MediumTierSpray = 0.6f, LowTierSpray = 0.35f;
+        // Share of the full spray per graphics tier: drops, and mist (none on Low).
+        const float MediumTierDrops = 0.6f, LowTierDrops = 0.35f, MediumTierMist = 0.4f;
         static readonly Color DefaultSkid = new(0f, 0f, 0f, 0.5f);
 
         KartPhysics phys;
@@ -362,7 +364,9 @@ namespace MHK.Karts
                 return;
             }
             var speedT = Mathf.Clamp01((speed - spraySpeedRange.x) / Mathf.Max(MinEnergyRange, spraySpeedRange.y - spraySpeedRange.x));
-            var share = Mathf.Lerp(LowSpeedSprayShare, 1f, speedT) * SprayTierShare * dt;
+            var share = Mathf.Lerp(LowSpeedSprayShare, 1f, speedT) * dt;
+            var dropShare = DropTierShare;
+            var mistShare = MistTierShare;
             for (var i = 0; i < WheelCount; i++)
             {
                 if (!phys.WheelOnGround(i) || !WetUnderWheel(i))
@@ -372,9 +376,9 @@ namespace MHK.Karts
                 }
                 var wheelShare = share * (i < RearLeftWheel ? FrontSprayShare : 1f);
                 if (mist == null) CreateSpray();
-                var n = Due(ref dropDebt[i], dropRate * wheelShare);
+                var n = Due(ref dropDebt[i], dropRate * dropShare * wheelShare);
                 if (n > 0) EmitDrops(i, n, vel, speed, speedT);
-                n = Due(ref mistDebt[i], mistRate * wheelShare);
+                n = Due(ref mistDebt[i], mistRate * mistShare * wheelShare);
                 if (n > 0) EmitMist(i, n, vel, speed, speedT);
             }
         }
@@ -415,11 +419,18 @@ namespace MHK.Karts
             r.velocityScale = DropStretchVelocity;
         }
 
-        static float SprayTierShare => GraphicsQuality.Tier switch
+        static float DropTierShare => GraphicsQuality.Tier switch
         {
             GraphicsPreset.High => 1f,
-            GraphicsPreset.Medium => MediumTierSpray,
-            _ => LowTierSpray,
+            GraphicsPreset.Medium => MediumTierDrops,
+            _ => LowTierDrops,
+        };
+
+        static float MistTierShare => GraphicsQuality.Tier switch
+        {
+            GraphicsPreset.High => 1f,
+            GraphicsPreset.Medium => MediumTierMist,
+            _ => 0f,
         };
 
         // Spray direction of wheel: angle (deg) above the kart's backward axis, leaning outward by outwardShare.

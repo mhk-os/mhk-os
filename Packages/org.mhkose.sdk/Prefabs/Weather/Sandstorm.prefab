@@ -79,8 +79,8 @@ MonoBehaviour:
   coverIncludesCutout: 0
   coverIncludesTransparent: 1
   qualityScale:
-  - 0.6
-  - 1
+  - 0.4
+  - 0.75
   - 1
 --- !u!114 &1240390087689127590
 MonoBehaviour:
@@ -183,6 +183,6 @@ MonoBehaviour:
   coverIncludesCutout: 0
   coverIncludesTransparent: 1
   qualityScale:
-  - 0.5
-  - 1
+  - 0.3
+  - 0.6
   - 1

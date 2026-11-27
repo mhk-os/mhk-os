@@ -135,6 +135,12 @@ namespace MHK.Achievements
                 if (best.position == 1 && racers >= MinRacersForWin) AchievementStats.Add(AchievementStats.BattlesWon);
                 return;
             }
+            // Last Man Standing: the last one in won the race; places behind are knockouts, not finishes.
+            if (session.mode == GameMode.LastManStanding)
+            {
+                if (best.position == 1 && racers >= MinRacersForWin) AchievementStats.Add(AchievementStats.RacesWon);
+                return;
+            }
             // A fast race needs the track's full lap count: a single-lap time trial or a shortened race does not count.
             if (best.time > 0f && best.time < FastRaceSeconds && race.Laps >= race.Track.defaultLaps)
                 AchievementStats.Add(AchievementStats.RacesUnder2Min);
