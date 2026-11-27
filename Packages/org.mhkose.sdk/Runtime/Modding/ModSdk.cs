@@ -17,8 +17,11 @@ namespace MHK.Modding
         /// 4: track variants (modifier, option and overlay definitions, overlay scenes with TrackOverlay, the shared track
         /// scene layout), weather prefabs with WeatherAmbience and the wet and lightning MHK/Lit shader, effects that end
         /// on respawn.
+        /// 5: drivers without a kart (No kart, character noKart fields), split kart engines and steering wheels, specials
+        /// built on RouteDashPowerup, RandomSpecialPowerup, AfterimageTrail and Jitter, and effect fields such as
+        /// glitchVisual, ploughsThrough, starVisual and the body bob's raise.
         /// </summary>
-        public const int ApiLevel = 4;
+        public const int ApiLevel = 5;
 
         // Level 1 is the API the level was introduced with, so a mod built before (stamp 0, mod.json without sdkApi) has it.
         const int FirstLevel = 1;
