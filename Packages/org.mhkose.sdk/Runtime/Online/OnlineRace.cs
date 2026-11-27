@@ -56,8 +56,37 @@ namespace MHK.Online
         public long GoServerMs => goServerMs;
         /// <summary>Estimated server clock (Unix ms).</summary>
         public double ServerNowMs => udp != null ? udp.ServerNowMs : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        /// <summary>A Pong arrived, so <see cref="ServerNowMs"/> follows the server (before it, the local clock stands in).</summary>
+        public bool ClockSynced => udp != null && udp.Synced;
+        /// <summary>
+        /// The countdown and GO may go by <see cref="ServerNowMs"/>. That is once the clock is synced, or when no Pong came
+        /// for <see cref="ClockWaitSeconds"/> after RaceGo (UDP blocked for now). The race ticks are corrected once it syncs.
+        /// </summary>
+        public bool ClockReady => ClockSynced || (HasGo && Time.realtimeSinceStartup - goReceivedAt > ClockWaitSeconds);
+        /// <summary>How long GO waits for the clock sync before it goes by the local clock.</summary>
+        public const float ClockWaitSeconds = 2f;
         /// <summary>Seconds until GO on the synced clock, +infinity before RaceGo.</summary>
         public double SecondsToGo => HasGo ? (goServerMs - ServerNowMs) / 1000.0 : double.PositiveInfinity;
+
+        /// <summary>
+        /// Server clock (Unix ms) at game time <paramref name="gameSeconds"/> (Time.timeAsDouble domain, physics steps
+        /// too). The race compares its ticks against it.
+        /// </summary>
+        public double ServerMsAtGameTime(double gameSeconds) =>
+            udp != null && gameClockKnown ? (gameSeconds - gameMinusUdpSeconds) * 1000.0 + udp.ClockOffsetMs : ServerNowMs;
+
+        /// <summary>Server clock instant (Unix ms) the first kart of a race finished, 0 before (and in battles, Last Man Standing).</summary>
+        public long FirstFinishServerMs { get; private set; }
+        /// <summary>A kart finished the race (<see cref="FirstFinishServerMs"/>).</summary>
+        public bool AnyFinished => FirstFinishServerMs != 0;
+        /// <summary>
+        /// Seconds until the race ends after the first finish (<see cref="RaceSetup.finishWait"/>), at least 0,
+        /// +infinity before anyone finished.
+        /// </summary>
+        public double FinishWaitSecondsLeft =>
+            AnyFinished ? Math.Max(0.0, Setup.finishWait - (ServerNowMs - FirstFinishServerMs) / 1000.0) : double.PositiveInfinity;
+        /// <summary>A Last Man Standing race (the server decides the knockouts).</summary>
+        public bool LastManStanding => Setup.LastManStanding;
 
         /// <summary>Race ticks: physics steps since GO, 0 before.</summary>
         public int Tick => RaceManager.Current != null ? RaceManager.Current.RaceTicks : 0;
@@ -105,6 +134,8 @@ namespace MHK.Online
         const float OnlineMaxDeltaTime = 0.25f;
         bool startRequested;
         bool ending;
+        float goReceivedAt;
+        bool endAtLineArmed;
 
         /// <summary>The kart of grid slot <paramref name="slot"/>, null when none (left, not spawned).</summary>
         public Kart KartOf(int slot) => kartsBySlot.TryGetValue(slot, out var k) && k != null ? k : null;
@@ -342,12 +373,13 @@ namespace MHK.Online
         {
             var session = new GameSession
             {
-                mode = s.Battle ? GameMode.Battle : GameMode.SingleRace,
-                difficulty = (Difficulty)Mathf.Clamp(s.engineClass, 0, 2),
+                mode = s.Battle ? GameMode.Battle : s.LastManStanding ? GameMode.LastManStanding : GameMode.SingleRace,
+                difficulty = (Difficulty)Mathf.Clamp(s.engineClass, 0, EngineClassCount - 1),
                 lapsFromTrack = s.laps == 0,
                 laps = s.laps == 0 ? 3 : s.laps,
                 powerupsEnabled = s.items,
                 online = true,
+                ghostItems = s.ghostItems,
             };
             session.trackIds.Add(s.trackId);
             session.variants.Add(s.variant);
@@ -432,12 +464,13 @@ namespace MHK.Online
         public void OnGo() => Going?.Invoke();
 
         /// <summary>
-        /// A kart crossed the line here: the local racer's finish goes to the server, and so does an AI kart's while this
-        /// client is the AI host (once; the server's PlayerFinished finishes it everywhere else).
+        /// A kart crossed the line here. The local racer's finish goes to the server, and so does an AI kart's while this
+        /// client is the AI host (once, the server's PlayerFinished finishes it everywhere else). With fewer laps than the
+        /// race after someone finished (end at the line) the lap times so far go. Races only (no knockout finishes).
         /// </summary>
         public void OnKartFinished(Kart kart, RacerProgress p)
         {
-            if (kart == null || Battle) return;
+            if (kart == null || Battle || LastManStanding || kart.Eliminated) return;
             int slot;
             if (kart == localKart)
             {
@@ -450,9 +483,33 @@ namespace MHK.Online
                 if (!aiFinishSent.Add(slot) || aiFinished.Contains(slot)) return;
             }
             else return;
+            NoteFinish(p.FinishTime);
             var m = new Finished { raceId = RaceId, finishMs = Mathf.RoundToInt(p.FinishTime * 1000f), tick = Tick, slot = slot };
             foreach (var lap in p.LapTimes) m.lapMs.Add(Mathf.RoundToInt(lap * 1000f));
             Notify(m);
+        }
+
+        /// <summary>Engine classes of this game (<see cref="GameConfig.difficulties"/>), at least 1.</summary>
+        static int EngineClassCount
+        {
+            get
+            {
+                var root = GameRoot.Instance;
+                return root != null && root.Config != null && root.Config.difficulties != null ? Mathf.Max(1, root.Config.difficulties.Length) : 1;
+            }
+        }
+
+        // A kart finished at race time finishSeconds. The first finish starts the finish wait, and with end at the line
+        // every kart finishes at its next crossing from now on.
+        void NoteFinish(float finishSeconds)
+        {
+            if (Battle || LastManStanding || !HasGo) return;
+            var at = goServerMs + (long)Math.Round(finishSeconds * 1000.0);
+            if (FirstFinishServerMs == 0 || at < FirstFinishServerMs) FirstFinishServerMs = at;
+            if (!Setup.endAtLine || endAtLineArmed) return;
+            endAtLineArmed = true;
+            foreach (var kart in kartsBySlot.Values)
+                if (kart != null) kart.Progress.FinishAtNextLine();
         }
 
         /// <summary>The server's result (lobby push 523) for this race.</summary>
@@ -471,6 +528,7 @@ namespace MHK.Online
             {
                 case RaceGo g:
                     goServerMs = g.goMs;
+                    goReceivedAt = Time.realtimeSinceStartup;
                     Debug.Log($"[OnlineRace] GO in {SecondsToGo:0.000} s (clock {(udp != null && udp.Synced ? "synced" : "not synced")}, RTT {RttMs(LocalSlot)} ms).");
                     break;
                 case PlayerFinished f:
@@ -487,23 +545,38 @@ namespace MHK.Online
             Pushed?.Invoke(push);
         }
 
+        // The server's finish of another racer replaces whatever this client saw (its stand-in never finishes by itself,
+        // a knockout may have finished it already).
         void FinishRemote(PlayerFinished f)
         {
+            NoteFinish(f.finishMs / 1000f);
             var kart = KartOf(f.slot);
             if (kart == null || !kart.IsRemote) return;
             var laps = new List<float>(f.lapMs.Count);
             foreach (var ms in f.lapMs) laps.Add(ms / 1000f);
             kart.Progress.SetRemoteLapTimes(laps);
-            kart.Progress.ForceFinish(f.finishMs / 1000f);
+            kart.Progress.ServerFinish(f.finishMs / 1000f, FinishedLaps(f));
         }
 
-        // The server took an AI kart's finish (from the AI host): it finishes here too unless it already has.
+        // The server took an AI kart's finish (from the AI host). Its time is the finish here too, also when this client
+        // saw the kart cross the line itself, so every client ranks it alike.
         void FinishAi(PlayerFinished f)
         {
             aiFinished.Add(f.slot);
+            NoteFinish(f.finishMs / 1000f);
             var kart = KartOf(f.slot);
-            if (kart != null && !kart.Progress.Finished) kart.Progress.ForceFinish(f.finishMs / 1000f);
+            if (kart == null) return;
+            if (kart.IsRemote)
+            {
+                var laps = new List<float>(f.lapMs.Count);
+                foreach (var ms in f.lapMs) laps.Add(ms / 1000f);
+                kart.Progress.SetRemoteLapTimes(laps);
+            }
+            kart.Progress.ServerFinish(f.finishMs / 1000f, FinishedLaps(f));
         }
+
+        // Laps of a finish by its lap times (an empty list counts as the whole race).
+        static int FinishedLaps(PlayerFinished f) => f.lapMs.Count > 0 ? f.lapMs.Count : int.MaxValue;
 
         // The AI host left or stalled: the new host simulates the AI karts on from where it draws them (and first reports
         // the finishes the old one never sent); everyone else, a former host too, follows the new host's states.

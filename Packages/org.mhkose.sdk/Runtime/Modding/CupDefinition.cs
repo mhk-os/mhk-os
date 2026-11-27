@@ -21,14 +21,15 @@ namespace MHK.Modding
 
         /// <summary>
         /// The variant race <paramref name="index"/> runs in: <see cref="VariantKeyAt"/> resolved on its track, else the
-        /// track's default (the key names an option the track does not offer, e.g. a mod with that option is missing).
-        /// Null for a missing track or a track without a variant set.
+        /// track's default (the key names an option the track does not offer, e.g. a mod with that option is missing). An
+        /// arena runs its circuit course (<see cref="TrackVariantSet.ForMode"/>). Null for a missing track or a track
+        /// without a variant set.
         /// </summary>
         public TrackVariant VariantAt(int index)
         {
             var track = index >= 0 && index < tracks.Count ? tracks[index] : null;
             var set = track != null ? TrackVariants.Of(track) : null;
-            return set == null ? null : set.Resolve(VariantKeyAt(index)) ?? set.Default;
+            return set?.ForMode(set.Resolve(VariantKeyAt(index)) ?? set.Default, false);
         }
     }
 }

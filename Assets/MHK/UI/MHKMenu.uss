@@ -228,8 +228,6 @@
 }
 
 .settings-panel { min-width: 640px; }
-.race-driver { margin-top: 10px; }
-.race-driver-thumb { width: 88px; height: 88px; margin-right: 12px; border-radius: 14px; background-color: var(--mhk-row); background-size: contain; }
 .mhk-button.setting-value, .mhk-button.ctl-key { background-image: url("Textures/button_soft.png"); color: var(--mhk-gray-900); }
 .setting-row .mhk-button.setting-value { min-width: 220px; padding-left: 0; padding-right: 0; }
 .mhk-button.setting-value:hover, .mhk-button.setting-value:focus, .mhk-button.ctl-key:hover, .mhk-button.ctl-key:focus { background-image: url("Textures/button_focus.png"); color: var(--mhk-white); }
@@ -245,7 +243,33 @@
 .setting-row.setting-dropdown .mhk-button.setting-value .setting-next .icon { rotate: 90deg; }
 .settings-panel .unity-slider { margin: 8px 6px 8px 12px; min-height: 40px; }
 .settings-note { font-size: 15px; color: var(--mhk-gray-500); white-space: normal; margin-top: 8px; -unity-text-align: middle-center; }
-.preview-championship #laps, .preview-championship #powerups { display: none; }
+
+/* Rule rows (RuleRows): the setting rows of the race settings and the room settings in one look. An icon and a bold label
+ * that shortens with an ellipsis, then the control at the right edge in a slot of one width, so the value pills (cycle,
+ * dropdown, link) and the number inputs line up and switches end at the same edge. Rows sit on thin dividers, the
+ * hovered row is tinted. Rows also carry .setting-row for the value pill looks above. */
+.panel.rule-panel { width: 640px; max-width: 100%; flex-shrink: 1; padding: 12px 20px 16px 20px; }
+.rule-rows { flex-shrink: 0; }
+.setting-row.rule-row { min-width: 0; min-height: 56px; margin: 0; padding: 4px 4px 4px 8px; justify-content: flex-start; border-radius: 8px; border-bottom-width: 1px; border-color: var(--mhk-divider); }
+.icon.rule-icon { width: 28px; height: 28px; margin-right: 14px; flex-shrink: 0; -unity-background-image-tint-color: var(--mhk-gray-600); }
+.setting-label.rule-label { flex-grow: 1; flex-shrink: 1; min-width: 0; margin: 0 12px 0 0; padding: 0; -unity-font-definition: var(--font-bold); font-size: 21px; color: var(--mhk-gray-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setting-row.rule-row .mhk-button.setting-value { width: 300px; min-width: 0; min-height: 44px; flex-shrink: 0; margin: 0; }
+.setting-row.rule-row .setting-value .button-label { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setting-row.rule-row .number-input { width: 300px; flex-shrink: 0; justify-content: flex-end; }
+.setting-row.rule-row .number-hint { flex-grow: 1; flex-shrink: 1; margin: 0 8px 0 0; -unity-text-align: middle-right; white-space: nowrap; }
+.setting-row.rule-row .acc-input.number-field .unity-base-text-field__input { min-height: 44px; padding: 0 6px; font-size: 24px; }
+.setting-row.rule-row .mhk-switch, .setting-row.rule-row .mhk-switch:hover, .setting-row.rule-row .mhk-switch:active { margin: 0 4px 0 0; }
+
+/* Race settings: the side stands the turntable in showcase-area (select-stage) above a compact race card along the
+ * bottom, so the card never covers the podium. The card is one row, picture then name, mode and the driver and kart
+ * thumbnails, one line each with an ellipsis. */
+.info-plate.race-info { width: 100%; max-width: 640px; flex-shrink: 0; flex-direction: row; align-items: center; padding: 12px 16px 12px 12px; }
+.race-info > .browser-image.race-info-image { width: 208px; height: 117px; min-width: 120px; flex-shrink: 1; margin: 0 16px 0 0; }
+.race-info-text { flex-grow: 1; flex-shrink: 1; min-width: 0; }
+.race-info .info-name { font-size: 34px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; margin: 0; }
+.race-info .info-line Label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.race-driver { margin-top: 6px; }
+.race-driver-thumb { width: 52px; height: 52px; margin-right: 8px; border-radius: 10px; background-color: var(--mhk-row); background-size: contain; }
 
 .list-panel { width: 100%; max-width: 1180px; flex-shrink: 1; }
 .rec-head, .rec-row, .ctl-head, .ctl-row { flex-direction: row; align-items: center; padding: 5px 12px; border-radius: 8px; }
@@ -559,6 +583,8 @@ TemplateContainer.sample-empty .rec-driver { visibility: hidden; }
 .tl-setup-panel .setting-row { min-width: 0; flex-direction: column; align-items: stretch; padding: 6px 8px; }
 .tl-setup-panel .setting-label { margin-bottom: 4px; }
 .tl-setup-panel .setting-row .mhk-button.setting-value { min-width: 0; }
+.tl-setup-panel .number-input { justify-content: flex-end; }
+.tl-setup-panel .number-hint { flex-grow: 1; flex-shrink: 1; white-space: nowrap; }
 .tl-setup-hint { margin: 12px 8px 4px 8px; font-size: 15px; color: var(--mhk-gray-500); white-space: normal; }
 
 /* Account: the form or the logged-in account on one panel, the connection line and the server box on a slim one below. */

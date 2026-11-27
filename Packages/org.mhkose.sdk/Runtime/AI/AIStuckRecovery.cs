@@ -65,7 +65,7 @@ namespace MHK.AI
             lastPos = pos;
             var prog = kart.Progress;
             // A frozen kart (flattened, iced) is held by its hit, not stuck: no reverse or respawn because of it.
-            if (!kart.ControlsEnabled || kart.Eliminated || kart.Effects.ControlsLocked || kart.Effects.Frozen
+            if (!kart.ControlsEnabled || (kart.Eliminated && !kart.IsGhost) || kart.Effects.ControlsLocked || kart.Effects.Frozen
                 || kart.Effects.HasRespawnPending || MagnetPowerup.Holds(kart) || (battle && battleTurning))
             {
                 ResetWindow(Mode.Watch);

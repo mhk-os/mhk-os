@@ -155,7 +155,7 @@ namespace MHK.Editor.Content
                 return;
             }
             var session = GameSession.CreateQuickRace(root.Content, id, 1);
-            session.mode = track.layout == TrackLayout.Arena ? GameMode.Battle : GameMode.SingleRace;
+            session.mode = track.HostsBattles ? GameMode.Battle : GameMode.SingleRace;
             SceneFlow.StartSession(session);
             if (!await WaitFor(() => OnGrid(id), TimeoutSeconds, token))
             {

@@ -71,7 +71,8 @@ namespace MHK.Race
         Kart Spawn(int slot, RacerSetup setup, CharacterDefinition character, KartDefinition kartDef, GameConfig cfg)
         {
             var profile = kartDef != null && kartDef.physics != null ? kartDef.physics : cfg.defaultPhysics;
-            var pose = TrackRuntime.GetGridPose(slot);
+            // Arena slots are battle spawns spread over the floor, races there start on a grid behind the finish line.
+            var pose = Track != null && Track.HostsBattles && !IsBattle ? TrackRuntime.GetRaceGridPose(slot) : TrackRuntime.GetGridPose(slot);
             var kart = Instantiate(cfg.kartRootPrefab, pose.position, pose.rotation, kartsRoot).GetComponent<Kart>();
             kart.Initialize(slot, setup, character, kartDef, profile);
             // Night variants start every kart with its headlights on; computer drivers never switch them.

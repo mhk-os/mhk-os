@@ -242,7 +242,7 @@ namespace MHK.Ghosts
             for (var i = 0; i < effects.Count; i++)
             {
                 if (effects[i].def != def) continue;
-                if (effects[i].vfx != null) Destroy(effects[i].vfx);
+                if (effects[i].vfx != null) Effects.FadeOut.Begin(effects[i].vfx);
                 effects.RemoveAt(i);
                 return;
             }

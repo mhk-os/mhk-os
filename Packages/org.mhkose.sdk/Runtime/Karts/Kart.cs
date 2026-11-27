@@ -101,7 +101,7 @@ namespace MHK.Karts
         }
 
         // IKartView: what the visuals and the race camera read (a replayed ghost provides the same from its recording).
-        bool IKartView.RaceOver => Progress.Finished || Eliminated;
+        bool IKartView.RaceOver => !IsGhost && (Progress.Finished || Eliminated);
         float IKartView.SteerAngle => Physics.SteerAngle;
         float IKartView.SteerCommand01 => Physics.SteerCommand01;
         float IKartView.ForwardSpeed => Physics.ForwardSpeed;
@@ -111,7 +111,7 @@ namespace MHK.Karts
         float IKartView.SpinAngle => Effects.SpinAngle;
         float IKartView.ScaleMultiplier => Effects.ScaleMultiplier;
         float IKartView.VerticalScale => Effects.VerticalScale;
-        float IKartView.Opacity => Effects.Opacity * LeaveFade;
+        float IKartView.Opacity => (IsGhost ? Mathf.Min(Effects.Opacity, GameRoot.Instance.Config.ghostKartOpacity) : Effects.Opacity) * LeaveFade;
         /// <summary>Set to 0 to fade the kart out as it leaves the track: an online racer that left, a kart knocked out of Last Man Standing.</summary>
         internal float LeaveFade { get; set; } = 1f;
         bool IKartView.Burned => Effects.Burned;
@@ -126,12 +126,44 @@ namespace MHK.Karts
         public event Action<Kart, Collision> Collided;
 
         /// <summary>
-        /// Thunder health (0..GameConfig.maxHealth). Hits by other karts always cost health, but only battles eliminate
-        /// karts at 0.
+        /// Thunder health (0..GameConfig.maxHealth). Hits by other karts cost health (those of ghost karts excepted), but
+        /// only battles eliminate karts at 0.
         /// </summary>
         public int Health { get; private set; }
-        /// <summary>Knocked out of a battle or of Last Man Standing: parked, ignores items and hits, not respawned.</summary>
+        /// <summary>
+        /// Knocked out of a battle or of Last Man Standing. Items and hits leave such a kart alone and it stays parked
+        /// without respawns, unless it drives on as a ghost (<see cref="IsGhost"/>).
+        /// </summary>
         public bool Eliminated { get; private set; }
+
+        /// <summary>
+        /// An eliminated kart that drives on as a ghost (online battles and Last Man Standing). <see cref="Eliminated"/>
+        /// stays true, so the rules and the ranking still count it as out. Setting it after <see cref="Eliminate"/> gives
+        /// the controls back and lets the losing pose finish. The kart then respawns as usual, draws see-through
+        /// (<see cref="GameConfig.ghostKartOpacity"/>) and passes through other karts and movable props
+        /// (<see cref="KartPhysics.Intangible"/>), while the track still holds it. Items and hostile effects of other karts
+        /// leave it alone and homing items never pick it. Its own items work, item boxes give it only light powerups
+        /// (<see cref="PowerupRoller.RollGhost"/>), and its hits on other karts land but cost them no health. Clearing it
+        /// parks an eliminated kart again.
+        /// </summary>
+        public bool IsGhost
+        {
+            get => isGhost;
+            set
+            {
+                if (value == isGhost) return;
+                isGhost = value;
+                if (!value)
+                {
+                    if (Eliminated) ControlsEnabled = false;
+                    return;
+                }
+                ControlsEnabled = true;
+                LeaveFade = 1f;
+                if (Visual != null) Visual.ReleaseWin();
+            }
+        }
+        bool isGhost;
 
         [AutoStaticsCleanup] static readonly List<Kart> all = new();
         /// <summary>All karts currently active in the scene.</summary>
@@ -283,7 +315,7 @@ namespace MHK.Karts
             if (CollapsingBridge.IsDownAt(Physics.Body.position)) TouchDropGeometry();
             // The driver's own respawn never cuts a hit short; kill zones and falls above still respawn (keeping it).
             if (effective.respawn && RespawnAvailable) respawnRequested = true;
-            if (Eliminated) respawnRequested = false;
+            if (Eliminated && !IsGhost) respawnRequested = false;
             if (respawnRequested && respawnCooldown <= 0f) RespawnBehind(GameRoot.Instance.Config.respawnBackDistance);
             respawnRequested = false;
         }
@@ -297,21 +329,23 @@ namespace MHK.Karts
         public void RequestRespawn() => respawnRequested = true;
 
         /// <summary>
-        /// The driver's own respawn (respawn input, touch button) works now: racing, not eliminated, no hit running or
-        /// waiting for its respawn (<see cref="KartEffects.HasHostileEffect"/>), and not just respawned.
+        /// The driver's own respawn (respawn input, touch button) works now. That needs a racing or ghost kart without a
+        /// running hit or one waiting for its respawn (<see cref="KartEffects.HasHostileEffect"/>) that did not just respawn.
         /// </summary>
         public bool RespawnAvailable =>
-            ControlsEnabled && !Eliminated && !Effects.HasRespawnPending && !Effects.HasHostileEffect && respawnCooldown <= 0f;
+            ControlsEnabled && (!Eliminated || IsGhost) && !Effects.HasRespawnPending && !Effects.HasHostileEffect && respawnCooldown <= 0f;
 
         /// <summary>
         /// Thunder damage formula: base × attacker's dealt multiplier (quad 4, hammer 2) × own taken multiplier
         /// (hammer 0.5), rounded down. <paramref name="usage"/> is the powerup use the hit comes from
         /// (<see cref="Powerups.PowerupContext.usage"/>, 0 = none): each use costs this kart health once, so its further
-        /// hits (more soap bubbles, the jammer field again, other bananas of the same rain) do not.
+        /// hits (more soap bubbles, the jammer field again, other bananas of the same rain) do not. Hits by a ghost kart
+        /// (<see cref="IsGhost"/>) cost nothing.
         /// </summary>
         public void TakeDamage(int baseDamage, Kart attacker, int usage = 0)
         {
             if (Eliminated || baseDamage <= 0 || Progress.Finished || DamagedBy(usage)) return;
+            if (attacker != null && attacker.IsGhost) return;
             var dealt = attacker != null ? attacker.Effects.DamageDealtMultiplier : 1f;
             var dmg = Mathf.FloorToInt(baseDamage * dealt * Effects.DamageTakenMultiplier);
             if (dmg <= 0) return;
@@ -364,12 +398,13 @@ namespace MHK.Karts
             return Character != null && Character.TryResolve(role, out var b) ? b.Duration : 0f;
         }
 
-        // MHK2 "drop geometry": freeze, play the falling animation, then respawn.
+        // MHK2 drop geometry plays the falling animation on the frozen kart and then respawns it. A ghost refuses the drop
+        // like any hostile effect and is put back at once.
         void TouchDropGeometry()
         {
             var drop = GameRoot.Instance.Config.dropEffect;
             if (drop == null) { respawnRequested = true; return; }
-            if (!Effects.HasRespawnPending) Effects.Apply(drop, this);
+            if (!Effects.HasRespawnPending && !Effects.Apply(drop, this) && IsGhost) respawnRequested = true;
         }
 
         // In the air for TrackRuntime.fallMinAirTime with no ground within fallDepth below (TINcan robots falling off).
@@ -410,11 +445,13 @@ namespace MHK.Karts
             return pose;
         }
 
+        // Ghost karts pass through the others, so they neither block a spot nor look for a free one.
         bool Occupied(Vector3 spot)
         {
+            if (IsGhost) return false;
             var r = GameRoot.Instance.Config.respawnClearRadius;
             for (var i = 0; i < all.Count; i++)
-                if (all[i] != this && (all[i].transform.position - spot).sqrMagnitude < r * r) return true;
+                if (all[i] != this && !all[i].IsGhost && (all[i].transform.position - spot).sqrMagnitude < r * r) return true;
             return false;
         }
 

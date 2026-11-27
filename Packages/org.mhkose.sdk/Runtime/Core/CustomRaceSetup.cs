@@ -12,8 +12,8 @@ namespace MHK.Core
     [Serializable]
     public class CustomRaceSetup
     {
-        /// <summary>Most laps a race can be set to.</summary>
-        public const int MaxLaps = 9;
+        /// <summary>Most laps a race can be set to (single races and custom championship races).</summary>
+        public const int MaxLaps = 100;
 
         /// <summary>
         /// Ids of the options the player fixed (<see cref="TrackOptionDefinition"/>), at most one per modifier. A modifier

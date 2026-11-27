@@ -61,6 +61,8 @@ namespace MHK.Online
         Cup = 6,
         /// <summary>A track with the arena layout.</summary>
         Arena = 7,
+        /// <summary>A track with the arena layout that also hosts races (race track and arena at once).</summary>
+        RaceableArena = 8,
     }
 
     /// <summary>RoomSettings.mode and LobbySummary.mode (u8).</summary>
@@ -70,6 +72,8 @@ namespace MHK.Online
         BattleSet = 1,
         /// <summary>The races of one cup.</summary>
         Championship = 2,
+        /// <summary>Last Man Standing races on race tracks, a kart knocked out every lap.</summary>
+        LastManStandingSet = 3,
     }
 
     /// <summary>LobbySummary.phase (u8).</summary>
@@ -111,7 +115,7 @@ namespace MHK.Online
         public const int PackId = 64, Commit = 40, ContentId = 96, AnnouncedPacks = 64, Variant = 128;
         public const int ManifestItems = 4096, RoomName = 32, LobbyName = 64, RoomPacks = 32;
         public const int Lobbies = 500, Members = 50, Code = 8, RaceRows = 50, KickReason = 256, Message = 256;
-        public const int ItemOdds = 64, Username = 20, Country = 2, Laps = 99, AiDrivers = 49, TrackIds = 35;
+        public const int ItemOdds = 64, Username = 20, Country = 2, Laps = 100, AiDrivers = 49, TrackIds = 35;
         public const int MinPlayers = 2, MaxPlayers = 50, MaxRacesPerSet = 16;
         /// <summary>Tracks of a cup the room owner starts (<see cref="LobbyMessageType.StartCup"/>, <see cref="LobbyState.cupTrackIds"/>): at most a set.</summary>
         public const int CupTracks = MaxRacesPerSet;
@@ -281,9 +285,9 @@ namespace MHK.Online
         public RoomMode mode = RoomMode.RaceSet;
         public List<string> packs = new();
         public bool anticheat = true;
-        /// <summary>0-2 (<see cref="Difficulty"/>).</summary>
+        /// <summary>0-4 (<see cref="Difficulty"/>).</summary>
         public int engineClass = (int)Difficulty.Medium;
-        /// <summary>0 = each track's default, else 1-99.</summary>
+        /// <summary>0 = each track's default, else 1-100.</summary>
         public int laps;
         public bool items = true;
         /// <summary>Empty = default odds.</summary>
@@ -298,9 +302,18 @@ namespace MHK.Online
         public string cupId = "";
         /// <summary>Championship without a cup: the tracks in race order (1-35, duplicates allowed); empty otherwise.</summary>
         public List<string> trackIds = new();
+        /// <summary>Seconds a race goes on after the first kart finished (10-300).</summary>
+        public int finishWait = DefaultFinishWait;
+        /// <summary>Once the first kart finished, every other kart finishes the next time it crosses the line (lapped karts with fewer laps).</summary>
+        public bool endAtLine;
+        /// <summary>Eliminated racers (battles, Last Man Standing) pick up light powerups, else they drive through item boxes.</summary>
+        public bool ghostItems = true;
 
         /// <summary>Room size the Create room screen starts with.</summary>
         public const int DefaultMaxPlayers = 10;
+        /// <summary><see cref="finishWait"/> of new rooms (the fixed wait of earlier versions).</summary>
+        public const int DefaultFinishWait = 30;
+        public const int MinFinishWait = 10, MaxFinishWait = 300;
 
         public bool OwnerPicks => trackPick == 0;
 
@@ -332,6 +345,9 @@ namespace MHK.Online
             TimeTrialWire.U8(w, racesPerSet);
             w.String(cupId, LobbyLimits.ContentId);
             LobbyWire.Strings(w, trackIds, LobbyLimits.TrackIds, LobbyLimits.ContentId);
+            w.U16((ushort)Math.Clamp(finishWait, 0, ushort.MaxValue));
+            w.Bool(endAtLine);
+            w.Bool(ghostItems);
         }
 
         public static RoomSettings Read(WireReader r) => new()
@@ -339,7 +355,7 @@ namespace MHK.Online
             name = r.String(LobbyLimits.RoomName), mode = (RoomMode)r.U8(), packs = LobbyWire.Strings(r, LobbyLimits.RoomPacks, LobbyLimits.PackId),
             anticheat = r.Bool(), engineClass = r.U8(), laps = r.U8(), items = r.Bool(), itemOdds = LobbyWire.Odds(r),
             maxAi = r.U8(), maxPlayers = r.U8(), trackPick = r.U8(), racesPerSet = r.U8(), cupId = r.String(LobbyLimits.ContentId),
-            trackIds = LobbyWire.Strings(r, LobbyLimits.TrackIds, LobbyLimits.ContentId),
+            trackIds = LobbyWire.Strings(r, LobbyLimits.TrackIds, LobbyLimits.ContentId), finishWait = r.U16(), endAtLine = r.Bool(), ghostItems = r.Bool(),
         };
     }
 
@@ -365,7 +381,7 @@ namespace MHK.Online
         public int maxPlayers;
         public LobbyPhase phase;
         public int rulesVersion;
-        /// <summary>0-2 (<see cref="Difficulty"/>).</summary>
+        /// <summary>0-4 (<see cref="Difficulty"/>).</summary>
         public int engineClass;
         /// <summary>Race of the running set (1-based), 0 when no set runs.</summary>
         public int setRace;
@@ -467,8 +483,8 @@ namespace MHK.Online
     /// <summary>One racer's line of a race result.</summary>
     public sealed class RaceResultRow
     {
-        // u8 u64, empty name, u8 i32 i32 i32 u8 bool, empty character.
-        internal const int MinBytes = 1 + 8 + 1 + 1 + 4 + 4 + 4 + 1 + 1 + 1;
+        // u8 u64, empty name, u8 i32 i32 i32 u8 bool, empty character, u8.
+        internal const int MinBytes = 1 + 8 + 1 + 1 + 4 + 4 + 4 + 1 + 1 + 1 + 1;
 
         public int slot;
         /// <summary>0 for AI.</summary>
@@ -484,6 +500,8 @@ namespace MHK.Online
         public RaceOutcome outcome;
         public bool ai;
         public string characterId = "";
+        /// <summary>Whole laps this finisher was behind the winner when it finished at the line (end at the line), 0 otherwise.</summary>
+        public int lapsDown;
 
         public void Write(WireWriter w)
         {
@@ -497,12 +515,14 @@ namespace MHK.Online
             w.U8((byte)outcome);
             w.Bool(ai);
             w.String(characterId, LobbyLimits.ContentId);
+            TimeTrialWire.U8(w, lapsDown);
         }
 
         public static RaceResultRow Read(WireReader r) => new()
         {
             slot = r.U8(), accountId = r.I64(), username = r.String(LobbyLimits.Username), position = r.U8(), finishMs = r.I32(),
             points = r.I32(), setPoints = r.I32(), outcome = (RaceOutcome)r.U8(), ai = r.Bool(), characterId = r.String(LobbyLimits.ContentId),
+            lapsDown = r.U8(),
         };
     }
 

@@ -105,12 +105,13 @@ namespace MHK.UI
 
         /// <summary>
         /// The game name of <paramref name="variant"/>'s track, plus <paramref name="variantFormat"/> ({0} = the variant's
-        /// <see cref="TrackVariant.Label"/>) for a variant other than the track's default.
+        /// <see cref="TrackVariant.Label"/>) when the label names something (not for the default, nor for a course alone).
         /// </summary>
         public static string GameWithVariant(TrackVariant variant, string variantFormat)
         {
             var game = GameName(variant.Track.SourceGame);
-            return variant.IsDefault ? game : game + string.Format(variantFormat, variant.Label());
+            var label = variant.Label();
+            return label.Length == 0 ? game : game + string.Format(variantFormat, label);
         }
 
         /// <summary>

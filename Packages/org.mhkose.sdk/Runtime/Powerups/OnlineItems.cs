@@ -171,10 +171,12 @@ namespace MHK.Powerups
         static void OnBoxTaken(ItemBoxTaken m)
         {
             var box = BoxOf(m.boxId);
-            if (box != null) box.HideTaken(race.Tick - m.tick);
+            // A take stamped ahead of this client's tick (clock offset) counts as just now.
+            if (box != null) box.HideTaken(Mathf.Max(0, race.Tick - m.tick));
         }
 
-        // A box another racer got first stays hidden: it is not there for anyone.
+        // A box another racer got first stays hidden, it is not there for anyone. Any other refusal (too far, cannot
+        // receive, a ghost the room gives no items) leaves the box where it is.
         static void OnDenied(ItemDenied m)
         {
             var k = race.KartOf(m.slot);
@@ -195,11 +197,15 @@ namespace MHK.Powerups
             });
         }
 
+        // Battles and online Last Man Standing. The server says a kart is out (its own client reported it in a battle, or
+        // the server decided the lap's knockout), and it drives on as a ghost.
         static void OnEliminated(Eliminated m)
         {
             var k = race.KartOf(m.slot);
-            var battle = RaceManager.Current != null ? RaceManager.Current.Battle : null;
-            if (k != null && battle != null) battle.EliminateShared(k);
+            var current = RaceManager.Current;
+            if (k == null || current == null) return;
+            if (current.Battle != null) current.Battle.EliminateShared(k);
+            else if (current.LastManStanding != null) current.LastManStanding.EliminateShared(k);
         }
 
         /// <summary>The local kart set <paramref name="bridge"/> off at <paramref name="tick"/>; the server's first trigger wins.</summary>

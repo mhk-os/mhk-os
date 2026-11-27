@@ -68,7 +68,7 @@ namespace MHK.Online
             foreach (var def in pack.content)
             {
                 if (def == null || registry.Get<ContentDefinition>(def.Id) != def) continue;
-                var kind = KindOf(def);
+                var kind = KindOf(registry, def);
                 if (kind == null) continue;
                 if (!IsContentId(def.Id))
                 {
@@ -91,10 +91,14 @@ namespace MHK.Online
             return sb.Length > LobbyLimits.Commit ? sb.ToString(0, LobbyLimits.Commit) : sb.ToString();
         }
 
-        /// <summary>The manifest kind of <paramref name="d"/>, null for definitions that are not gameplay content (reactions of other kinds, ...).</summary>
-        public static ContentKind? KindOf(ContentDefinition d) => d switch
+        /// <summary>
+        /// The manifest kind of <paramref name="d"/>, null for definitions that are not gameplay content (reactions of other
+        /// kinds, ...). An arena that offers a circuit course in <paramref name="registry"/> is a raceable arena.
+        /// </summary>
+        public static ContentKind? KindOf(ContentRegistry registry, ContentDefinition d) => d switch
         {
-            TrackDefinition t => t.layout == TrackLayout.Arena ? ContentKind.Arena : ContentKind.RaceTrack,
+            TrackDefinition t => !t.HostsBattles ? ContentKind.RaceTrack
+                : (TrackVariants.Of(t, registry)?.OffersCircuit ?? false) ? ContentKind.RaceableArena : ContentKind.Arena,
             KartDefinition => ContentKind.Kart,
             CharacterDefinition => ContentKind.Character,
             PowerupDefinition => ContentKind.Powerup,

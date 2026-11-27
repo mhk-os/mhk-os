@@ -181,7 +181,9 @@ namespace MHK.Race
                 FailLoad($"[Race] Track '{Session.CurrentTrackId}' not found or has no scene.");
                 yield break;
             }
-            Variant = TrackVariants.Resolve(Track, Session.CurrentVariantKey);
+            // An arena runs its circuit course in races and its arena course in battles, whatever the session's key says.
+            // Online setups and championships may carry the plain key.
+            Variant = TrackVariants.ForMode(Track, Session.CurrentVariantKey, IsBattle);
             if (Variant == null)
             {
                 FailLoad($"[Race] Track '{Track.Id}' has no variant '{Session.CurrentVariantKey}' (a mod with its options is missing).");
@@ -351,13 +353,15 @@ namespace MHK.Race
         /// <summary>
         /// Laps of the current race of <paramref name="session"/> on <paramref name="track"/>: the cup's override, else the
         /// race's own count (<see cref="GameSession.raceLaps"/>), else the track's or the session's count; int.MaxValue in
-        /// battles (no finish line), one per knockout in Last Man Standing (<see cref="LastManStandingRules.LapsFor"/>).
+        /// battles (no finish line), one per knockout in Last Man Standing (<see cref="LastManStandingRules.LapsFor"/>),
+        /// online there the server's count.
         /// </summary>
         public static int LapsFor(GameSession session, TrackDefinition track)
         {
             if (session == null) return track.defaultLaps;
             if (session.mode == GameMode.Battle) return int.MaxValue;
-            if (session.mode == GameMode.LastManStanding) return LastManStandingRules.LapsFor(session.racers.Count);
+            if (session.mode == GameMode.LastManStanding)
+                return session.online && !session.lapsFromTrack && session.laps > 0 ? session.laps : LastManStandingRules.LapsFor(session.racers.Count);
             var cup = GameRoot.Instance.Content.Get<CupDefinition>(session.cupId);
             if (cup != null && cup.lapsOverride > 0) return cup.lapsOverride;
             var own = session.CurrentRaceLaps;
@@ -436,6 +440,7 @@ namespace MHK.Race
         {
             StepOnlineStart();
             if (ClockRunning) RaceTicks++;
+            CorrectOnlineClock();
         }
 
         void OnRacerFinished(RacerProgress p)
@@ -448,7 +453,8 @@ namespace MHK.Race
             if (Online != null && Battle == null) Online.OnKartFinished(kart, p);
             KartFinished?.Invoke(kart);
             if (Battle != null || !kart.IsHuman) return;
-            if (kart == LocalPlayer && chaseCamera != null) chaseCamera.CurrentMode = ChaseCamera.Mode.Finished;
+            // An online ghost (knocked out, driving on) keeps the chase camera.
+            if (kart == LocalPlayer && chaseCamera != null && !kart.IsGhost) chaseCamera.CurrentMode = ChaseCamera.Mode.Finished;
             // Knocked out of Last Man Standing: parked with its losing reaction, booed, the rules end the race.
             if (kart.Eliminated)
             {

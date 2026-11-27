@@ -9,10 +9,11 @@ namespace MHK.Race
     /// <summary>
     /// Last Man Standing (<see cref="GameMode.LastManStanding"/>): a race of one lap less than there are karts
     /// (<see cref="LapsFor"/>). Each lap, the moment every other kart still in has completed it, the kart that has not
-    /// is knocked out: it stops, plays its losing reaction and fades off the track (the local player's kart stays for
+    /// is knocked out. It stops, plays its losing reaction and fades off the track (the local player's kart stays for
     /// the camera). So one kart goes per lap, and the kart that completes the last lap first is the last one standing.
-    /// The race is decided when one kart is left or every human is out; the results follow after
-    /// <see cref="GameConfig.eliminationGraceSeconds"/>. Local races only.
+    /// The race is decided when one kart is left or every human is out, and the results follow after
+    /// <see cref="GameConfig.eliminationGraceSeconds"/>. Online the server decides the knockouts
+    /// (<see cref="EliminateShared"/>), a knocked-out kart drives on as a ghost and the server's result ends the race.
     /// </summary>
     public class LastManStandingRules : MonoBehaviour, IComparer<Kart>
     {
@@ -49,12 +50,20 @@ namespace MHK.Race
 
         public void Begin(RaceManager raceManager) => race = raceManager;
 
+        // Online the server knocks karts out (its Eliminated push), never this client's own count.
+        bool Shared => race != null && race.IsOnline;
+
         /// <summary>Lap on which <paramref name="k"/> was knocked out (1 = the first lap), 0 while it is still in.</summary>
         public int OutLap(Kart k) => outLaps.TryGetValue(k, out var lap) ? lap : 0;
 
         void FixedUpdate()
         {
             if (race == null || race.Phase != RacePhase.Racing || Decided) return;
+            if (Shared)
+            {
+                Decided = AliveCount <= 1;
+                return;
+            }
             while (KnockOutNext()) { }
             Decided = AliveCount <= 1 || AllHumansOut();
         }
@@ -88,13 +97,24 @@ namespace MHK.Race
             return pa.Finished && pb.Finished && pa.FinishTime > pb.FinishTime;
         }
 
+        /// <summary>
+        /// Online the server knocked <paramref name="k"/> out (the kart furthest behind once every other kart still in
+        /// completed the lap). It becomes a ghost and drives on.
+        /// </summary>
+        public void EliminateShared(Kart k)
+        {
+            if (k != null && !k.Eliminated) KnockOut(k, outLaps.Count + 1);
+        }
+
         void KnockOut(Kart k, int lap)
         {
             outLaps[k] = lap;
             k.Eliminate();
+            // Online the kart drives on as a ghost (set before its finish, so the race keeps the camera on it).
+            if (Shared) k.IsGhost = true;
             k.Progress.ForceFinish(k.Progress.RaceClock);
             KartEliminated?.Invoke(k);
-            if (k != race.LocalPlayer) fading.Add((k, OutFadeDelaySeconds + OutFadeSeconds));
+            if (k != race.LocalPlayer && !Shared) fading.Add((k, OutFadeDelaySeconds + OutFadeSeconds));
         }
 
         bool AllHumansOut()

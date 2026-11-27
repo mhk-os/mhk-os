@@ -33,6 +33,13 @@ namespace MHK.Race
             return new Pose(transform.position, transform.rotation);
         }
 
+        /// <summary>
+        /// Start slot <paramref name="index"/> of a race on an arena (its circuit course,
+        /// <see cref="Modding.TrackOptionRules.circuit"/>). Its authored slots are battle spawns spread over the floor, so
+        /// races use the grid generated behind the finish line of the main line instead, the same as a track without slots.
+        /// </summary>
+        public Pose GetRaceGridPose(int index) => HasMainPath ? FallbackGridPose(index) : GetGridPose(index);
+
         Pose FallbackGridPose(int index)
         {
             var path = MainPath;

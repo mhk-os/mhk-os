@@ -8,8 +8,9 @@ using UnityEngine;
 namespace MHK.Karts
 {
     /// <summary>
-    /// Kart sounds: engine pitch from rpm, skid and surface loops, crash/scratch/landing one-shots, horn and voice lines
-    /// (MHK2 Car update rules).
+    /// Kart sounds following the MHK2 Car update rules. The engine pitch follows the rpm, loops play while the kart skids
+    /// or drives on loose ground, and one-shots mark crashes and landings. Respawns and falls sound like the driver's game.
+    /// The horn plays a voice line of the character.
     /// </summary>
     [RequireComponent(typeof(Kart))]
     public class KartAudio : MonoBehaviour
@@ -20,6 +21,10 @@ namespace MHK.Karts
         [SerializeField] private AudioClip crashSound;
         [SerializeField] private AudioClip scratchSound;
         [SerializeField] private AudioClip landSound;
+        [Tooltip("Played when the kart is put back on the track. Empty = the respawn sound of the driver's game (ContentPack.respawnSound).")]
+        [SerializeField] private AudioClip respawnSound;
+        [Tooltip("Played when a fall effect starts, in place of its own sound. Empty = the fall sound of the driver's game (ContentPack.fallSound).")]
+        [SerializeField] private AudioClip fallSound;
         [Tooltip("Engine loop volume at full throttle.")]
         [SerializeField] private float engineVolume = 0.5f;
         [Tooltip("Skid loop volume at full skid intensity.")]
@@ -80,6 +85,7 @@ namespace MHK.Karts
             engine.clip = MHK.Assets.GameAssets.Audio(clip);
             if (clip != null) engine.Play();
             kart.Collided += OnCollided;
+            kart.Respawned += OnRespawned;
             kart.Effects.Started += OnEffectStarted;
         }
 
@@ -94,21 +100,49 @@ namespace MHK.Karts
             crashSound = Fallback(crashSound, packs, p => p.crashSound, owner);
             scratchSound = Fallback(scratchSound, packs, p => p.scratchSound, owner);
             landSound = Fallback(landSound, packs, p => p.landSound, owner);
+            // Respawn and fall belong to the driver, so the character's game comes first and the kart's next.
+            var characterOwner = kart.Character != null ? kart.Character.OwnerPack : null;
+            var kartOwner = kart.KartDef != null ? kart.KartDef.OwnerPack : null;
+            respawnSound = DriverFallback(respawnSound, packs, p => p.respawnSound, characterOwner, kartOwner);
+            fallSound = DriverFallback(fallSound, packs, p => p.fallSound, characterOwner, kartOwner);
         }
 
         static AudioClip Fallback(AudioClip own, IReadOnlyList<ContentPack> packs, Func<ContentPack, AudioClip> pick, ContentPack owner) =>
             own != null ? own : ContentPack.Find(packs, pick, owner);
 
+        static AudioClip DriverFallback(AudioClip own, IReadOnlyList<ContentPack> packs, Func<ContentPack, AudioClip> pick,
+            ContentPack characterOwner, ContentPack kartOwner)
+        {
+            if (own != null) return own;
+            var clip = characterOwner != null ? pick(characterOwner) : null;
+            if (clip == null && kartOwner != null) clip = pick(kartOwner);
+            return clip != null ? clip : ContentPack.Find(packs, pick);
+        }
+
         void OnDestroy()
         {
             if (kart == null) return;
             kart.Collided -= OnCollided;
+            kart.Respawned -= OnRespawned;
             if (kart.Effects != null) kart.Effects.Started -= OnEffectStarted;
         }
 
         void OnEffectStarted(StatusEffectDefinition def, Kart source)
         {
             if (def.hostile) Voice(CharacterVoice.Hit);
+        }
+
+        void OnRespawned(Kart k) => AudioManager.PlaySfx(respawnSound, transform);
+
+        /// <summary>
+        /// Plays the fall sound of the driver's game on the kart (a fall effect started, <see cref="StatusEffectDefinition.IsFall"/>).
+        /// False when there is none, then the effect plays its own sound.
+        /// </summary>
+        public bool PlayFall()
+        {
+            if (fallSound == null) return false;
+            AudioManager.PlaySfx(fallSound, transform);
+            return true;
         }
 
         void OnCollided(Kart k, Collision c)

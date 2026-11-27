@@ -185,6 +185,14 @@ namespace MHK.AI
             return false;
         }
 
+        /// <summary>The followed line is a gap (<see cref="TrackGaps"/>) <paramref name="ahead"/> metres on.</summary>
+        public bool GapAt(float ahead)
+        {
+            if (track == null) return false;
+            Resolve(ahead, out var path, out var distance);
+            return TrackGaps.IsGap(track, path, distance);
+        }
+
         /// <summary>
         /// Driving on would end within <paramref name="range"/> metres: a gap that is jumped the other way (driven
         /// against the track's direction it is a drop) or the end of an open main line.

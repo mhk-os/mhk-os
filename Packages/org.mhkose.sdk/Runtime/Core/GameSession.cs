@@ -11,8 +11,11 @@ namespace MHK.Core
     /// </summary>
     public enum GameMode { SingleRace = 0, Championship = 1, TimeTrial = 2, Battle = 3, LastManStanding = 4 }
 
-    /// <summary>Engine class (50cc, 100cc, 150cc) and computer driver skill.</summary>
-    public enum Difficulty { Easy = 0, Medium = 1, Hard = 2 }
+    /// <summary>
+    /// Engine class (50cc, 100cc, 150cc, 200cc, 250cc) and computer driver skill. The values are wire bytes and part of
+    /// ghost file names, so keep them when adding or renaming one.
+    /// </summary>
+    public enum Difficulty { Easy = 0, Medium = 1, Hard = 2, VeryHard = 3, Extreme = 4 }
 
     /// <summary>One racer of a session: driver, kart, human or computer, and championship standing.</summary>
     [Serializable]
@@ -70,6 +73,12 @@ namespace MHK.Core
         /// odds. Championships ignore it and give the default odds.
         /// </summary>
         public List<PowerupOdds> powerupOdds = new();
+        /// <summary>
+        /// Ghost karts (<see cref="Karts.Kart.IsGhost"/>, eliminated online racers that drive on) take light powerups
+        /// (<see cref="GameConfig.ghostPowerupIds"/>) from item boxes. When false they drive through the boxes and leave
+        /// them in place. Online races copy it from the race setup.
+        /// </summary>
+        public bool ghostItems = true;
         /// <summary>Time trial: race the personal best of the track and engine class (looked up when the race loads).</summary>
         public bool raceOwnBest = true;
         /// <summary>Time trial: ids of further ghosts to race (<see cref="Ghosts.IGhostStore"/>), in the order picked.</summary>

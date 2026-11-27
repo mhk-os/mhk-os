@@ -176,30 +176,6 @@
             "displayName": "World Tour 2"
         },
         {
-            "id": "mhkt.pickup.health",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhkt",
-            "guid": "8864b74ad05ad4b228a6b5db3ab9868e",
-            "fileId": 11400000,
-            "displayName": "Health"
-        },
-        {
-            "id": "mhkt.pickup.quad_damage",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhkt",
-            "guid": "a7f4f1393a05e4845957c6516da69147",
-            "fileId": 11400000,
-            "displayName": "Quad damage"
-        },
-        {
-            "id": "mhkt.pickup.hammer",
-            "type": "MHK.Modding.StatusEffectDefinition",
-            "pack": "mhkt",
-            "guid": "9d9dd52363b0b495e8ca2347a6d869eb",
-            "fileId": 11400000,
-            "displayName": "Hammer"
-        },
-        {
             "id": "mhkt.wings",
             "type": "MHK.Modding.PowerupDefinition",
             "pack": "mhkt",

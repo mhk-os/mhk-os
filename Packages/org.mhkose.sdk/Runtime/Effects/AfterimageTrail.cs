@@ -8,10 +8,11 @@ namespace MHK.Effects
     /// <summary>
     /// Ghost copies of a kart and its driver trailing behind it (TINcan Viper's phase). Put it on an effect's attached
     /// visual. Each copy shows where the kart was a moment ago, the farther back the fainter, drawn in one see-through
-    /// colour. The copies keep the pose kart and driver had when the effect started. Visual only.
+    /// colour. The copies keep the pose kart and driver had when the effect started. When the effect ends they fade out
+    /// with its visual (<see cref="FadeOut"/>). Visual only.
     /// </summary>
     [AddComponentMenu("MHK/Afterimage Trail")]
-    public class AfterimageTrail : MonoBehaviour
+    public class AfterimageTrail : MonoBehaviour, IFadeOutListener
     {
         // Longest stretch of poses kept (s), beyond the farthest copy.
         const float HistoryMargin = 0.1f;
@@ -50,6 +51,8 @@ namespace MHK.Effects
         Transform body;
         int head, count;
         float age;
+        // Share still shown while the effect's visual fades out (FadeOut), 1 before that.
+        float visibility = 1f;
 
         void Start()
         {
@@ -90,7 +93,8 @@ namespace MHK.Effects
         {
             age += Time.deltaTime;
             Record();
-            var fade = fadeIn > 0f ? Mathf.Clamp01(age / fadeIn) : 1f;
+            var fade = (fadeIn > 0f ? Mathf.Clamp01(age / fadeIn) : 1f) * visibility;
+            if (fade <= 0f) return;
             for (var i = 0; i < copies; i++)
             {
                 if (!TryPoseAt(age - spacing * (i + 1), out var pose)) continue;
@@ -133,6 +137,8 @@ namespace MHK.Effects
             pose = history[head].pose;
             return true;
         }
+
+        void IFadeOutListener.OnFadeOut(float shown) => visibility = shown;
 
         void OnDestroy()
         {

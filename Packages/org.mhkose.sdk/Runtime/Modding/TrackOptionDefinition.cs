@@ -33,6 +33,9 @@ namespace MHK.Modding
         [Range(0.2f, 1f)] public float outdoorGrip = 1f;
         [Tooltip("Wet look of the surfaces nothing covers: darker ground, highlights and puddles. 0 = dry.")]
         [Range(0f, 1f)] public float wetness;
+        [Tooltip("The arena is raced as a circuit. Its overlay closes the side paths with roadblocks so karts follow the " +
+                 "main path. An arena offering such an option hosts races (TrackDefinition.HostsRaces), which always run it.")]
+        public bool circuit;
 
         /// <summary>Adds <paramref name="other"/> to these rules: flags or-ed, grips multiplied, the wetter look kept.</summary>
         public void Combine(TrackOptionRules other)
@@ -40,6 +43,7 @@ namespace MHK.Modding
             if (other == null) return;
             reverse |= other.reverse;
             headlights |= other.headlights;
+            circuit |= other.circuit;
             outdoorGrip *= other.outdoorGrip;
             wetness = Mathf.Max(wetness, other.wetness);
         }

@@ -244,8 +244,8 @@ namespace MHK.Powerups
         /// <summary>A use hit a remote human racer here: reported as seen (HitSeen) once per victim and use; its client decides.</summary>
         internal static void OnRemoteHit(Kart victim, StatusEffectDefinition def, Kart source, int usage)
         {
-            // Hits on AI karts are their host's to decide; the server takes no claims about them.
-            if (!Active || usage == 0 || race.IsAiKart(victim)) return;
+            // Hits on AI karts are their host's to decide, and ghosts take no hits. The server takes no claims about them.
+            if (!Active || usage == 0 || race.IsAiKart(victim) || victim.IsGhost) return;
             var slot = race.SlotOf(victim);
             if (slot < 0 || !hitsSeen.Add((long)slot << 32 | (uint)usage)) return;
             race.Notify(new HitSeen
@@ -279,11 +279,11 @@ namespace MHK.Powerups
             if (hitter != null) hitter.OnNetHit(victim);
         }
 
-        // Enough observers saw a hit on the local kart that it did not report: apply it and confirm.
+        // Enough observers saw a hit on the local kart that it did not report. It is applied and confirmed, a ghost takes none.
         static void OnHitForce(HitForce m)
         {
             var k = LocalKart;
-            if (k == null) return;
+            if (k == null || k.IsGhost) return;
             if (m.useId != 0) hitsTaken.Add((long)race.LocalSlot << 32 | (uint)m.useId);
             var def = Content.Get<StatusEffectDefinition>(m.effectId);
             if (def != null) KartReactions.Apply(k, def, race.KartOf(m.attackerSlot), -1f, m.useId);

@@ -206,6 +206,13 @@ namespace MHK.Karts
         /// <summary>Holds the win or lose pose after the finish.</summary>
         public void PlayWin(bool won) => PlayAction(won ? CharacterAnimRole.Win : CharacterAnimRole.Lose, true);
 
+        /// <summary>Lets a held win or lose pose finish, so the driver drives on (a knocked-out kart becoming a ghost).</summary>
+        public void ReleaseWin()
+        {
+            Release(CharacterAnimRole.Win);
+            Release(CharacterAnimRole.Lose);
+        }
+
         // Effect-owned holds compose: ending an x-field must not resume a melt that is still running.
         internal void SetAnimationPaused(bool paused, bool freezePose)
         {

@@ -62,7 +62,7 @@ namespace MHK.UI
             infoCup = null;
             cycleTimer = Root.schedule.Execute(StepNextCard).StartingIn(UiAnim.Ms(pictureSeconds)).Every(UiAnim.Ms(pictureSeconds));
             var custom = OnClick("custom", EditCustom);
-            custom.SetVisible(!lobby && Content.All<TrackDefinition>().Any(t => t.layout == TrackLayout.Circuit));
+            custom.SetVisible(!lobby && Content.All<TrackDefinition>().Any(t => t.HostsRaces));
             if (!lobby) return;
             Q<Label>("title").text = ownerPickTitle;
             Online.OnlineLobby.Changed += OnLobbyChanged;

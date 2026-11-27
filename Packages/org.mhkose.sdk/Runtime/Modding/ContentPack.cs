@@ -44,6 +44,12 @@ namespace MHK.Modding
         public AudioClip skidLoop;
         [Tooltip("Hard collision (MHK2 CAL_crash).")]
         public AudioClip crashSound;
+        [Tooltip("Played on a kart when it is put back on the track (MHK2 CAL_respawn). Each driver hears the sound of " +
+                 "the character's game, then the kart's.")]
+        public AudioClip respawnSound;
+        [Tooltip("Played on a kart when it starts to fall (drop geometry, a hole), in place of the fall reaction's own " +
+                 "sound (MHK2 CAL_drop). Each driver hears the sound of the character's game, then the kart's.")]
+        public AudioClip fallSound;
         public AudioClip landSound;
         public AudioClip countdownSound;
         public AudioClip goSound;

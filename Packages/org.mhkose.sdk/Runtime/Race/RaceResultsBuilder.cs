@@ -55,7 +55,7 @@ namespace MHK.Race
             var save = GameRoot.Instance.Save;
             var session = race.Session;
             var knockout = race.Battle != null || race.LastManStanding != null;
-            var recordRace = race.Battle == null && race.Variant.IsDefault && race.Laps == race.Track.defaultLaps;
+            var recordRace = race.Battle == null && race.Variant.IsRaceDefault && race.Laps == race.Track.defaultLaps;
             results.Clear();
             for (var i = 0; i < ranking.Count; i++)
             {
@@ -76,7 +76,7 @@ namespace MHK.Race
         {
             results.Clear();
             var server = online.Results;
-            var battle = race.Battle != null;
+            var battle = race.Battle != null || race.LastManStanding != null;
             if (server == null) return;
             var rows = new List<Online.RaceResultRow>(server.rows);
             rows.Sort((a, b) => a.position.CompareTo(b.position));
@@ -118,9 +118,10 @@ namespace MHK.Race
             result.online = true;
             result.position = row.position;
             result.time = row.finishMs > 0 ? row.finishMs / 1000f : 0f;
+            result.lapsDown = row.outcome == Online.RaceOutcome.Finished ? row.lapsDown : 0;
             result.pointsGained = row.points;
             result.totalPoints = row.setPoints;
-            // A battle's DNF is a racer still in at the time limit: no badge, the status column says Survivor.
+            // A knockout mode's DNF is a racer still in at the time limit. It gets no badge, the status column says Survivor.
             result.outcome = battle && row.outcome == Online.RaceOutcome.Dnf ? Online.RaceOutcome.Finished : row.outcome;
             if (battle && row.outcome != Online.RaceOutcome.Finished && row.outcome != Online.RaceOutcome.Dnf) result.survived = false;
         }

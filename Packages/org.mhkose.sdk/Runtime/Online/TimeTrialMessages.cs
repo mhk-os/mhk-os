@@ -124,7 +124,7 @@ namespace MHK.Online
     /// <summary>One uploaded run as a leaderboard row (or a run of MyRuns, an upload's answer, a flagged run).</summary>
     public sealed class RunEntry
     {
-        public const int MaxUsername = 20, MaxCountry = 2, MaxId = 96, MaxGhostId = 32, MaxLaps = 99;
+        public const int MaxUsername = 20, MaxCountry = 2, MaxId = 96, MaxGhostId = 32, MaxLaps = 100;
         /// <summary>The username of every run of a deleted account (reserved: no player can take it).</summary>
         public const string AnonymousName = "Anonymous";
         // Fixed fields with empty strings and lists.
@@ -157,7 +157,7 @@ namespace MHK.Online
         public long boardId;
         /// <summary>The board's track.</summary>
         public string trackId = "";
-        /// <summary>The board's engine class (0-2).</summary>
+        /// <summary>The board's engine class (0-4).</summary>
         public int engineClass;
         /// <summary>The board's track version (<see cref="BoardInfo.trackVersion"/>).</summary>
         public int trackVersion;

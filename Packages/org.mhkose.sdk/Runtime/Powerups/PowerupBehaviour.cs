@@ -223,17 +223,24 @@ namespace MHK.Powerups
         }
 
         /// <summary>
-        /// Removes this object at once: deactivated now (nothing of it runs or hits any more, also while a use is caught
-        /// up within one frame), destroyed at the end of the frame.
+        /// Removes this object at once. It is deactivated now, so nothing of it runs or hits any more (also while a use is
+        /// caught up within one frame), and destroyed at the end of the frame. What was seen of it stays behind as fading
+        /// remains without colliders (<see cref="Effects.FadeOut.LeaveRemains"/>), so it shrinks or fades away instead of vanishing.
         /// </summary>
         protected void Remove()
+        {
+            Effects.FadeOut.LeaveRemains(gameObject);
+            RemoveNow();
+        }
+
+        void RemoveNow()
         {
             gameObject.SetActive(false);
             Destroy(gameObject);
         }
 
-        /// <summary>Removes the object without effects (an online use the server rejected).</summary>
-        internal void Discard() => Remove();
+        /// <summary>Removes the object without effects or remains (an online use the server rejected).</summary>
+        internal void Discard() => RemoveNow();
 
         /// <summary>
         /// Online: <paramref name="victim"/>'s client confirmed a hit by this use (HitApplied) and this part is the one

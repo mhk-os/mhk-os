@@ -18,6 +18,9 @@ namespace MHK.Modding
         [Tooltip("The track is in this option unless a variant picks another one of the modifier (the castle at night). " +
                  "Without a default the modifier's first option is.")]
         public bool isDefault;
+        [Tooltip("The track is lit well enough in this option that karts drive without headlights, even when the option " +
+                 "turns them on elsewhere (a lamp-lit castle at night).")]
+        public bool noHeadlights;
         [Tooltip("Overlay scene loaded on top of the track scene while the option is selected: an 'Overlay' root with a " +
                  "TrackOverlay. Empty = the option only brings its rules.")]
         public SceneReference scene = new();

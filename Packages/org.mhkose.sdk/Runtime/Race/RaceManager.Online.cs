@@ -92,7 +92,8 @@ namespace MHK.Race
         }
 
         // Instead of the intro and the local countdown: the camera orbits until the server's GO is due, the countdown
-        // follows the synced server clock and GO is the first physics step at or after the GO instant (FixedUpdate).
+        // follows the synced server clock and GO is the first physics step at or after the GO instant (FixedUpdate). The
+        // countdown waits for the clock sync (OnlineRace.ClockReady), so GO is not taken from the local clock.
         IEnumerator RunOnlineStart()
         {
             Phase = RacePhase.Intro;
@@ -101,7 +102,7 @@ namespace MHK.Race
             var orbit = chaseCamera != null;
             if (orbit) chaseCamera.CurrentMode = ChaseCamera.Mode.Orbit;
             SecondsToGo = IntroSeconds + countdown;
-            while (!Online.HasGo || Online.SecondsToGo > countdown)
+            while (!Online.HasGo || !Online.ClockReady || Online.SecondsToGo > countdown)
             {
                 if (Phase != RacePhase.Intro) yield break; // the result came first
                 if (Online.HasGo) SecondsToGo = (float)Online.SecondsToGo;
@@ -134,10 +135,32 @@ namespace MHK.Race
         // FixedUpdate: GO on the server clock.
         void StepOnlineStart()
         {
-            if (Online == null || Phase != RacePhase.Countdown || !Online.HasGo || Online.SecondsToGo > 0.0) return;
+            if (Online == null || Phase != RacePhase.Countdown || !Online.HasGo || !Online.ClockReady || Online.SecondsToGo > 0.0) return;
             CountdownTick?.Invoke(0);
             StartRacing();
             Online.OnGo();
+        }
+
+        /// <summary>The race ticks may be this far off the server clock before they are corrected.</summary>
+        const int OnlineClockToleranceTicks = 4;
+        const float OnlineClockCheckSeconds = 0.5f;
+        float nextOnlineClockCheck;
+
+        // FixedUpdate, after the step was counted. The race ticks follow the server clock since GO. GO taken before the
+        // clock synced, or physics falling behind real time after a long hitch, would leave this client's ticks (item
+        // events, finish times, hazards) off the other racers'. The ticks and every racer's clock jump by the difference.
+        void CorrectOnlineClock()
+        {
+            if (Online == null || !ClockRunning || !Online.ClockSynced || Time.fixedTime < nextOnlineClockCheck) return;
+            nextOnlineClockCheck = Time.fixedTime + OnlineClockCheckSeconds;
+            var sinceGoMs = Online.ServerMsAtGameTime(Time.fixedTimeAsDouble) - Online.GoServerMs;
+            // GO is counted as tick 1 (the step at or after the GO instant).
+            var expected = (int)Math.Floor(sinceGoMs * RaceProtocol.TickRate / 1000.0) + 1;
+            var error = Math.Max(1, expected) - RaceTicks;
+            if (Math.Abs(error) < OnlineClockToleranceTicks) return;
+            Debug.Log($"[Race] Race ticks {RaceTicks} corrected by {error} to the server clock.");
+            RaceTicks += error;
+            foreach (var k in karts) k.Progress.ShiftClock(error);
         }
 
         /// <summary>

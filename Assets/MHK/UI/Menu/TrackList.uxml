@@ -1,8 +1,9 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Track list editor (custom championship, online championship rooms). Code sets the title, fills library-list (a tl-group heading per game, then one TrackListRow per allowed track) and race-list (one TrackListRow per race, numbered; race-empty instead while it is empty), race-count (.warn for a moment when an add is refused because the list is full), Clear and the confirm button (text from the caller, disabled while the list is empty). With race settings (custom championship) main has .tl-setups: setup-panel shows the selected race (.selected row): setup-race names it, setup-rows receives one SettingRow per track option with a choice (TrackVariantRows, values plus Random), setup-laps picks its laps; setup-empty instead while the list is empty. Without race settings code removes .tl-setups and the panel hides. -->
+    <!-- Track list editor (custom championship, online championship rooms). Code sets the title, fills library-list (a tl-group heading per game, then one TrackListRow per allowed track) and race-list (one TrackListRow per race, numbered; race-empty instead while it is empty), race-count (.warn for a moment when an add is refused because the list is full), Clear and the confirm button (text from the caller, disabled while the list is empty). With race settings (custom championship) main has .tl-setups: setup-panel shows the selected race (.selected row): setup-race names it, setup-rows receives one SettingRow per track option with a choice (TrackVariantRows, values plus Random), setup-laps is a number input of its laps (NumberInput, Track for the track's own count, up to 100); setup-empty instead while the list is empty. Without race settings code removes .tl-setups and the panel hides. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:Template name="TrackListRow" src="/Assets/MHK/UI/Menu/Templates/TrackListRow.uxml" />
     <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
+    <ui:Template name="NumberRow" src="/Assets/MHK/UI/Menu/Templates/NumberRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
             <ui:Label name="title" text="Custom championship" class="page-title" />
@@ -66,9 +67,10 @@
                                     <ui:AttributeOverrides element-name="setting-value-label" text="Rain" />
                                 </ui:Instance>
                             </ui:VisualElement>
-                            <ui:Instance template="SettingRow" name="setup-laps" class="setting-row setting-dropdown">
+                            <ui:Instance template="NumberRow" name="setup-laps" class="setting-row">
                                 <ui:AttributeOverrides element-name="setting-label" text="Laps" />
-                                <ui:AttributeOverrides element-name="setting-value-label" text="5 laps" />
+                                <ui:AttributeOverrides element-name="number-hint" text="1 to 100" />
+                                <ui:AttributeOverrides element-name="number-field" value="Track" />
                             </ui:Instance>
                             <ui:Label text="Random options are rolled when the championship starts." class="tl-setup-hint" />
                         </ui:ScrollView>

@@ -1,45 +1,98 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Race settings. Code fills the row values, preview-image, info-name, the mode line and the driver and kart pictures (names as tooltips), and hides rows that do not apply. Opponents is a number input (NumberInput). variant-rows receives one SettingRow per modifier the track offers (TrackVariantRows, single race and battle). Preview class on page: preview-championship (difficulty and opponents only). -->
+    <!-- Race settings. rule-rows holds the setting rows in the look of the room settings (RuleRows, .rule-row): code clears the samples below and builds the rows the mode uses (engine class, opponents, the track's option rows from TrackVariantRows, laps, powerups). The side keeps the 3D turntable clear of the card. showcase-area is where code stands the turntable (MenuFlow.FrameShowcase), the race card is a compact strip below it. Code fills preview-image, info-name, the mode line and the driver and kart pictures (names as tooltips). -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
-    <ui:Template name="SettingRow" src="/Assets/MHK/UI/Menu/Templates/SettingRow.uxml" />
-    <ui:Template name="NumberRow" src="/Assets/MHK/UI/Menu/Templates/NumberRow.uxml" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
             <ui:Label name="title" text="Race settings" class="page-title" />
         </ui:VisualElement>
         <ui:VisualElement class="page-body">
             <ui:VisualElement name="main" class="page-main center anim from-left">
-                <ui:VisualElement name="settings-panel" class="panel settings-panel">
-                    <ui:Instance template="SettingRow" name="difficulty" class="setting-row anim from-left" style="transition-delay: 120ms;">
-                        <ui:AttributeOverrides element-name="setting-label" text="Difficulty" />
-                        <ui:AttributeOverrides element-name="setting-value-label" text="100cc" />
-                    </ui:Instance>
-                    <ui:Instance template="NumberRow" name="opponents" class="setting-row anim from-left" style="transition-delay: 170ms;">
-                        <ui:AttributeOverrides element-name="setting-label" text="Opponents" />
-                        <ui:AttributeOverrides element-name="number-field" value="5" />
-                    </ui:Instance>
-                    <ui:VisualElement name="variant-rows" />
-                    <ui:Instance template="SettingRow" name="laps" class="setting-row setting-dropdown anim from-left" style="transition-delay: 220ms;">
-                        <ui:AttributeOverrides element-name="setting-label" text="Laps" />
-                        <ui:AttributeOverrides element-name="setting-value-label" text="Track default" />
-                    </ui:Instance>
-                    <ui:Instance template="SettingRow" name="powerups" class="setting-row setting-link anim from-left" style="transition-delay: 270ms;">
-                        <ui:AttributeOverrides element-name="setting-label" text="Powerups" />
-                        <ui:AttributeOverrides element-name="setting-value-label" text="Standard" />
-                    </ui:Instance>
+                <ui:VisualElement name="settings-panel" class="panel rule-panel">
+                    <ui:VisualElement name="rule-rows" class="rule-rows">
+                        <ui:VisualElement class="setting-row rule-row setting-dropdown">
+                            <ui:VisualElement class="icon rule-icon i-speed" />
+                            <ui:Label text="Engine class" class="setting-label rule-label" />
+                            <ui:Button class="mhk-button small setting-value">
+                                <ui:VisualElement class="setting-arrow setting-prev">
+                                    <ui:VisualElement class="icon i-chevron_left" />
+                                </ui:VisualElement>
+                                <ui:Label text="150cc" class="button-label" />
+                                <ui:VisualElement class="setting-arrow setting-next">
+                                    <ui:VisualElement class="icon i-chevron_right" />
+                                </ui:VisualElement>
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="setting-row rule-row">
+                            <ui:VisualElement class="icon rule-icon i-smart_toy" />
+                            <ui:Label text="Opponents" class="setting-label rule-label" />
+                            <ui:VisualElement class="number-input">
+                                <ui:Label text="0 to 49" class="number-hint" />
+                                <ui:Button class="mhk-button small secondary icon-only number-step">
+                                    <ui:VisualElement class="icon i-remove" />
+                                </ui:Button>
+                                <ui:TextField value="5" class="acc-input number-field" />
+                                <ui:Button class="mhk-button small secondary icon-only number-step">
+                                    <ui:VisualElement class="icon i-add" />
+                                </ui:Button>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="setting-row rule-row">
+                            <ui:VisualElement class="icon rule-icon i-compare_arrows" />
+                            <ui:Label text="Direction" class="setting-label rule-label" />
+                            <ui:Button class="mhk-button small setting-value">
+                                <ui:VisualElement class="setting-arrow setting-prev">
+                                    <ui:VisualElement class="icon i-chevron_left" />
+                                </ui:VisualElement>
+                                <ui:Label text="Forward" class="button-label" />
+                                <ui:VisualElement class="setting-arrow setting-next">
+                                    <ui:VisualElement class="icon i-chevron_right" />
+                                </ui:VisualElement>
+                            </ui:Button>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="setting-row rule-row">
+                            <ui:VisualElement class="icon rule-icon i-flag" />
+                            <ui:Label text="Laps" class="setting-label rule-label" />
+                            <ui:VisualElement class="number-input">
+                                <ui:Label text="1 to 100" class="number-hint" />
+                                <ui:Button class="mhk-button small secondary icon-only number-step">
+                                    <ui:VisualElement class="icon i-remove" />
+                                </ui:Button>
+                                <ui:TextField value="Track" class="acc-input number-field" />
+                                <ui:Button class="mhk-button small secondary icon-only number-step">
+                                    <ui:VisualElement class="icon i-add" />
+                                </ui:Button>
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement class="setting-row rule-row setting-link">
+                            <ui:VisualElement class="icon rule-icon i-redeem" />
+                            <ui:Label text="Powerups" class="setting-label rule-label" />
+                            <ui:Button class="mhk-button small setting-value">
+                                <ui:VisualElement class="setting-arrow setting-prev">
+                                    <ui:VisualElement class="icon i-chevron_left" />
+                                </ui:VisualElement>
+                                <ui:Label text="Standard" class="button-label" />
+                                <ui:VisualElement class="setting-arrow setting-next">
+                                    <ui:VisualElement class="icon i-chevron_right" />
+                                </ui:VisualElement>
+                            </ui:Button>
+                        </ui:VisualElement>
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
-            <ui:VisualElement name="side" class="page-side anim from-right">
-                <ui:VisualElement name="info-plate" class="panel info-plate">
-                    <ui:VisualElement name="preview-image" class="browser-image" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png&quot;);" />
-                    <ui:Label name="info-name" text="Scribble Blocks" class="info-name" />
-                    <ui:VisualElement class="info-line">
-                        <ui:VisualElement name="info-mode-icon" class="icon i-play_arrow" />
-                        <ui:Label name="info-mode" text="Single Race" />
-                    </ui:VisualElement>
-                    <ui:VisualElement name="info-driver" class="row race-driver">
-                        <ui:VisualElement name="info-character" tooltip="Hank" class="race-driver-thumb" style="background-image: url(&quot;/Assets/MHK/UI/Samples/character_hank.png&quot;);" />
-                        <ui:VisualElement name="info-kart" tooltip="Red Kart" class="race-driver-thumb" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2.kart_icon.png&quot;);" />
+            <ui:VisualElement name="side" class="page-side select-side race-side anim from-right" picking-mode="Ignore">
+                <ui:VisualElement name="showcase-area" class="select-stage" picking-mode="Ignore" />
+                <ui:VisualElement name="info-plate" class="panel info-plate race-info">
+                    <ui:VisualElement name="preview-image" class="browser-image race-info-image" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png&quot;);" />
+                    <ui:VisualElement class="race-info-text">
+                        <ui:Label name="info-name" text="Scribble Blocks" class="info-name" />
+                        <ui:VisualElement class="info-line">
+                            <ui:VisualElement name="info-mode-icon" class="icon i-play_arrow" />
+                            <ui:Label name="info-mode" text="Single Race" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="info-driver" class="row race-driver">
+                            <ui:VisualElement name="info-character" tooltip="Hank" class="race-driver-thumb" style="background-image: url(&quot;/Assets/MHK/UI/Samples/character_hank.png&quot;);" />
+                            <ui:VisualElement name="info-kart" tooltip="Red Kart" class="race-driver-thumb" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhk2.kart_icon.png&quot;);" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>

@@ -3866,7 +3866,7 @@ MonoBehaviour:
   disabledText: Disabled
   missingKartsTip: '{0} drivers have no kart. Enable the pack with their karts.'
   replacedTip: '{0} of its definitions are replaced by mods above it.'
-  needsModUpdateText: Made for an older game version. Ask its author for an update.
+  needsModUpdateText: Made for an older game version.
   needsNewerGameText: Made for a newer game version. Update the game.
   loadFailedText: Could not be loaded. {0}
   reportTip: Opens the issues page of {0} in the browser to ask its author for an update.

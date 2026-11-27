@@ -40,7 +40,6 @@ namespace MHK.Karts
             }
         }
 
-        const float ParticleReleasePadding = 0.1f;
         // A remote kart's effect missing from its state is ended only once it has run this long (s): a hit shown at once
         // (HitApplied) waits for the state that lists it.
         const float RemoteSyncGrace = 0.5f;
@@ -179,7 +178,7 @@ namespace MHK.Karts
             ApplyImpulses(def);
             ApplyHealthAndInventory(def, source, usage);
             if (def.Spins) StartSpin();
-            if (existing == null && def.applySound != null) AudioManager.PlaySfx(def.applySound, transform);
+            if (existing == null) PlayApplySound(def);
 
             Recalculate();
             // After Recalculate: the top speed includes this effect's maxSpeedMultiplier (within its start grace).
@@ -209,7 +208,7 @@ namespace MHK.Karts
         /// </summary>
         public void ShowRemote(StatusEffectDefinition def, Kart source = null, float durationOverride = -1f, int usage = 0)
         {
-            if (def == null || kart == null || !kart.IsRemote || kart.Eliminated) return;
+            if (def == null || kart == null || !kart.IsRemote || (kart.Eliminated && !kart.IsGhost)) return;
             var duration = ResolveDuration(def, durationOverride);
             var existing = Find(def);
             if (existing != null)
@@ -224,7 +223,7 @@ namespace MHK.Karts
                     for (var i = active.Count - 1; i >= 0; i--)
                         if (active[i].Definition.exclusiveBuff) End(i, false);
                 active.Add(new ActiveEffect(def, duration, SpawnAttachedVfx(def), usage));
-                if (def.applySound != null) AudioManager.PlaySfx(def.applySound, transform);
+                PlayApplySound(def);
             }
             if (def.Spins) StartSpin();
             Recalculate();
@@ -267,12 +266,14 @@ namespace MHK.Karts
         }
 
         /// <summary>
-        /// <see cref="Apply"/> would refuse <paramref name="def"/> now: no effect, an eliminated kart, a hostile effect on a
-        /// protected kart (<see cref="IsProtected"/>), or a flattening one on a kart already flattened or waiting to respawn.
+        /// <see cref="Apply"/> would refuse <paramref name="def"/> now: no effect, an eliminated kart that is no ghost, a
+        /// hostile effect on a protected kart (<see cref="IsProtected"/>) or on a ghost (<see cref="Kart.IsGhost"/>), or a
+        /// flattening one on a kart already flattened or waiting to respawn.
         /// </summary>
         public bool Refuses(StatusEffectDefinition def)
         {
-            if (def == null || (kart != null && kart.Eliminated)) return true;
+            if (def == null || (kart != null && kart.Eliminated && !kart.IsGhost)) return true;
+            if (def.hostile && kart != null && kart.IsGhost) return true;
             if (def.hostile && IsProtected) return true;
             return def.verticalScale < 1f && (VerticalScale < 1f || HasRespawnPending);
         }
@@ -308,6 +309,13 @@ namespace MHK.Karts
             return vfx;
         }
 
+        // A fall plays the fall sound of the driver's game (KartAudio) and its own sound only when that game has none.
+        void PlayApplySound(StatusEffectDefinition def)
+        {
+            if (def.IsFall && TryGetComponent<KartAudio>(out var audio) && audio.PlayFall()) return;
+            if (def.applySound != null) AudioManager.PlaySfx(def.applySound, transform);
+        }
+
         void ApplyImpulses(StatusEffectDefinition def)
         {
             if (kart == null || kart.Physics == null) return;
@@ -341,7 +349,7 @@ namespace MHK.Karts
             if (def.dropsHeldItem && kart != null && kart.Inventory != null) kart.Inventory.Clear();
             if (kart == null) return;
             if (def.heal > 0) kart.Heal(def.heal);
-            if (!def.hostile || source == null || source == kart) return;
+            if (!def.hostile || source == null || source == kart || source.IsGhost) return;
             LastAttacker = source;
             kart.TakeDamage(def.damage >= 0 ? def.damage : Core.GameRoot.Instance.Config.defaultHitDamage, source, usage);
         }
@@ -406,26 +414,11 @@ namespace MHK.Karts
             active.RemoveAt(index);
             if (natural && d.endVfxPrefab != null)
                 Powerups.PowerupFx.Spawn(d.endVfxPrefab, e.Vfx != null ? e.Vfx.transform.position : transform.position);
-            if (e.Vfx != null)
-            {
-                if (natural) ReleaseWorldParticles(e.Vfx);
-                Destroy(e.Vfx);
-            }
+            // The visual fades out instead of vanishing. Its live particles finish, also after a respawn moved the kart.
+            if (e.Vfx != null) Effects.FadeOut.Begin(e.Vfx);
             if (natural && d.endSound != null) AudioManager.PlaySfx(d.endSound, transform);
             Ended?.Invoke(d);
             if (natural && d.respawnOnEnd && kart != null && !kart.IsRemote) kart.RespawnBehind(d.respawnBackDistance);
-        }
-
-        static void ReleaseWorldParticles(GameObject vfx)
-        {
-            foreach (var ps in vfx.GetComponentsInChildren<ParticleSystem>())
-            {
-                var main = ps.main;
-                if (ps.gameObject == vfx || main.simulationSpace != ParticleSystemSimulationSpace.World || ps.particleCount == 0) continue;
-                ps.transform.SetParent(Powerups.PowerupFx.Root, true);
-                ps.Stop(false, ParticleSystemStopBehavior.StopEmitting);
-                Destroy(ps.gameObject, main.startLifetime.constantMax + ParticleReleasePadding);
-            }
         }
 
         void FixedUpdate()
@@ -546,12 +539,15 @@ namespace MHK.Karts
             Modifiers = m;
         }
 
-        /// <summary>Whether <paramref name="t"/> belongs to the attached visual of an active effect (stays opaque when the kart fades).</summary>
+        /// <summary>
+        /// Whether <paramref name="t"/> belongs to the attached visual of an active effect or one still fading out (stays
+        /// opaque when the kart fades).
+        /// </summary>
         public bool IsEffectAttachment(Transform t)
         {
             foreach (var e in active)
                 if (e.Vfx != null && t.IsChildOf(e.Vfx.transform)) return true;
-            return false;
+            return t.GetComponentInParent<Effects.FadeOut>() != null;
         }
     }
 }

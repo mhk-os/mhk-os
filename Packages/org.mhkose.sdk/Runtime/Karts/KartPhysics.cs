@@ -106,6 +106,7 @@ namespace MHK.Karts
 
         readonly Wheel[] wheels = new Wheel[WheelCount];
         KartEffects effects;
+        Kart kart;
         Vector3 inertiaLocal = Vector3.one;
         float steerCommandDeg;
         float prevSteer;
@@ -120,6 +121,7 @@ namespace MHK.Karts
         {
             Body = GetComponent<Rigidbody>();
             effects = GetComponent<KartEffects>();
+            kart = GetComponent<Kart>();
             Body.interpolation = RigidbodyInterpolation.Interpolate;
             Body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             Body.useGravity = false;
@@ -292,7 +294,7 @@ namespace MHK.Karts
         {
             if (profile == null) return;
             physicsScene = gameObject.scene.GetPhysicsScene();
-            UpdateIntangible(effects != null && (effects.GhostActive || effects.PloughActive), h);
+            UpdateIntangible(GhostKart || (effects != null && (effects.GhostActive || effects.PloughActive)), h);
             UpdateRunOver(effects != null && effects.RunOverActive, h);
             if (effects != null && effects.PloughActive && !Suspended) KnockProps(effects.PropKnockSpeed);
             if (Suspended)

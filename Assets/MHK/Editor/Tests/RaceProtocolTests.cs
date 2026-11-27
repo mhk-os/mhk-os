@@ -6,7 +6,7 @@ using UnityEngine;
 namespace MHK.Tests
 {
     /// <summary>
-    /// The race messages of protocol 6 against the server: the byte vectors the Go codec pins in internal/proto
+    /// The race messages of protocol 7 against the server: the byte vectors the Go codec pins in internal/proto
     /// (udp_test.go TestRaceMessageBytes, lobby_test.go TestRaceSlotBytes): AI slots, the AI host, the slot field of
     /// the notifies the AI host sends for AI karts and its AiStates datagrams.
     /// </summary>
@@ -16,7 +16,7 @@ namespace MHK.Tests
         const string HumanSlotHex = "01" + "0900000000000000" + "0175" + "024445" + "0163" + "016b" + "02" + "00";
 
         [Test]
-        public void ProtocolVersionIsSix() => Assert.AreEqual(6, Protocol.Version);
+        public void ProtocolVersionIsSeven() => Assert.AreEqual(7, Protocol.Version);
 
         [Test]
         public void RaceSlotsMatchGo()
@@ -38,18 +38,50 @@ namespace MHK.Tests
             {
                 raceId = 1, lobbyId = 2, trackId = "t", variant = "core.reverse", mode = 0, engineClass = 2, laps = 3, items = true, anticheat = true,
                 aiHost = 1, seed = 5,
-                yourSlot = 1, udpPort = 7350, udpToken = 0x42, udpKey = key, setRace = 1, setSize = 4,
+                yourSlot = 1, udpPort = 7350, udpToken = 0x42, udpKey = key, setRace = 1, setSize = 4, finishWait = 60, endAtLine = true, ghostItems = true,
             };
             setup.grid.Add(new RaceSlot { slot = 0, characterId = "c", kartId = "k", ai = true });
             setup.grid.Add(new RaceSlot { slot = 1, accountId = 9, username = "u", country = "DE", characterId = "c", kartId = "k", platform = 2 });
             var hex = "0100000000000000" + "0200000000000000" + "0174" + "0c636f72652e72657665727365" + "00" + "02" + "03" + "01" + "00" + "01" + "01"
                       + "0500000000000000" + "02"
-                      + AiSlotHex + HumanSlotHex + "01" + "b61c" + "4200000000000000" + "20" + Repeat("07", 32) + "01" + "04";
+                      + AiSlotHex + HumanSlotHex + "01" + "b61c" + "4200000000000000" + "20" + Repeat("07", 32) + "01" + "04" + "3c00" + "01" + "01";
             Assert.AreEqual(hex, Hex(setup.Write));
             var back = RaceSetup.Read(Reader(hex));
             Assert.AreEqual(1, back.aiHost);
             Assert.IsTrue(back.grid[0].ai);
+            Assert.AreEqual(60, back.finishWait);
+            Assert.IsTrue(back.endAtLine);
+            Assert.IsTrue(back.ghostItems);
+            Assert.IsFalse(back.LastManStanding);
             Assert.AreEqual(hex, Hex(back.Write));
+        }
+
+        [Test]
+        public void LastManStandingSetupRoundTrips()
+        {
+            var setup = new RaceSetup { raceId = 1, lobbyId = 2, trackId = "t", mode = 2, laps = 4, udpKey = new byte[RaceProtocol.UdpKeySize] };
+            Assert.AreEqual(30, setup.finishWait);
+            Assert.IsTrue(setup.ghostItems);
+            var back = RaceSetup.Read(Reader(Hex(setup.Write)));
+            Assert.IsTrue(back.LastManStanding);
+            Assert.IsFalse(back.Battle);
+            Assert.AreEqual(4, back.laps);
+            Assert.AreEqual(30, back.finishWait);
+            Assert.IsFalse(back.endAtLine);
+            Assert.IsTrue(back.ghostItems);
+        }
+
+        [Test]
+        public void LapListsHoldAHundredLaps()
+        {
+            Assert.AreEqual(100, RaceProtocol.MaxLaps);
+            var finished = new PlayerFinished { raceId = 1, slot = 2, finishMs = 3 };
+            for (var i = 0; i < 100; i++) finished.lapMs.Add(i);
+            var back = PlayerFinished.Read(Reader(Hex(finished.Write)));
+            Assert.AreEqual(100, back.lapMs.Count);
+            Assert.AreEqual(99, back.lapMs[99]);
+            finished.lapMs.Add(100);
+            Assert.Throws<ArgumentException>(() => Hex(finished.Write));
         }
 
         [Test]

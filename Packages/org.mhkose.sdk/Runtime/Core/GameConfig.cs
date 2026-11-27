@@ -165,6 +165,12 @@ namespace MHK.Core
         public int defaultHitDamage = 10;
         [Tooltip("Seconds between the last elimination and the results screen.")]
         public float eliminationGraceSeconds = 3f;
+        [Tooltip("Opacity of an eliminated kart that drives on as a ghost in online battles and Last Man Standing " +
+                 "(Kart.IsGhost), driver included. 1 = opaque.")]
+        [Range(0.05f, 1f)] public float ghostKartOpacity = 0.4f;
+        [Tooltip("Light powerups a ghost kart (Kart.IsGhost) can get from item boxes, with equal chances. Only those in " +
+                 "the race's item pool count. The server keeps the same list for online races.")]
+        public string[] ghostPowerupIds = { "mhk3.soap_cannon", "mhk2.turbo_can", "tincan.turbooil", "mhkt.oil", "mhke.water_bomb" };
 
         [Header("Time trial ghosts")]
         [Tooltip("Opacity of the ghosts raced against (the see-through look of a ghost-ride kart, 1 = opaque).")]
@@ -190,12 +196,21 @@ namespace MHK.Core
         [Min(0f)] public float replayEndSeconds = 1f;
 
         [Header("Difficulty")]
+        [Tooltip("Engine classes indexed by Difficulty (50cc up to 250cc). Every menu that offers a class lists all entries.")]
         public DifficultySettings[] difficulties =
         {
             new() { label = "50cc", engineClassFactor = 1.1f, topSpeedKmh = 85f, aiPrecision = 0.55f, engineModelScale = 0.56f },
             new() { label = "100cc", engineClassFactor = 1.3f, topSpeedKmh = 95f, aiPrecision = 0.75f, engineModelScale = 0.75f },
             new() { label = "150cc", engineClassFactor = 1.5f, topSpeedKmh = 105f, aiPrecision = 0.95f },
+            new() { label = "200cc", engineClassFactor = 1.7f, topSpeedKmh = 118f, aiPrecision = 0.97f, aiItemReactionTime = 1.3f, engineModelScale = 1.3f },
+            new() { label = "250cc", engineClassFactor = 1.9f, topSpeedKmh = 130f, aiPrecision = 1f, aiItemReactionTime = 1.1f, engineModelScale = 1.3f, engineSparks = true },
         };
+        [Tooltip("Additive particle material of the sparks around supercharged engines (DifficultySettings.engineSparks). " +
+                 "Empty = no sparks.")]
+        public Material engineSparkMaterial;
+        [Tooltip("Alpha-blended line material of the arcs around supercharged engines (a soft band across, solid along). " +
+                 "Empty = the spark material.")]
+        public Material engineArcMaterial;
 
         [Header("AI recovery")]
         [Tooltip("Respawn when a kart is this many seconds stuck/off track.")]
@@ -294,12 +309,14 @@ namespace MHK.Core
         public float aiItemBoxClusterGap = 25f;
 
         [Header("AI battle")]
-        [Tooltip("Battle skill of computer drivers per engine class (50cc, 100cc, 150cc).")]
+        [Tooltip("Battle skill of computer drivers per engine class (50cc up to 250cc, like difficulties).")]
         public BattleAiSettings[] battleAi =
         {
             new() { decisionInterval = 0.8f, huntRange = 35f, aggression = 0.35f, aimLead = 0.3f },
             new() { decisionInterval = 0.5f, huntRange = 45f, aggression = 0.6f, aimLead = 0.65f },
             new() { decisionInterval = 0.3f, huntRange = 55f, aggression = 0.85f, aimLead = 1f },
+            new() { decisionInterval = 0.25f, huntRange = 60f, aggression = 0.9f, aimLead = 1f },
+            new() { decisionInterval = 0.2f, huntRange = 65f, aggression = 0.95f, aimLead = 1f },
         };
         [Tooltip("On circuits computer drivers hunting an opponent in a battle roam up to this far (m) beyond the road " +
                  "edges of the racing line and its alternative routes, offroad included, but never onto walls, fall zones, " +

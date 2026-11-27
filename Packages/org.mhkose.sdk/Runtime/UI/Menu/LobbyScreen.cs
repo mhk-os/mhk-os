@@ -116,7 +116,7 @@ namespace MHK.UI
         {
             var tracks = LobbyContent<TrackDefinition>();
             var cups = LobbyContent<CupDefinition>().FindAll(c => c.tracks.Count > 0 && c.tracks.Count <= LobbyLimits.CupTracks
-                                                                  && c.tracks.TrueForAll(t => t != null && t.layout == TrackLayout.Circuit && tracks.Contains(t)));
+                                                                  && c.tracks.TrueForAll(t => t != null && t.HostsRaces && tracks.Contains(t)));
             cups.Sort((a, b) => a.order.CompareTo(b.order));
             return cups;
         }
@@ -582,7 +582,7 @@ namespace MHK.UI
                     who.Add(mark);
                 }
                 row.Add(who);
-                row.Add(Cell(r.finishMs > 0 ? UiText.Clock(r.finishMs / 1000f) : dnfText, "lob-result-time"));
+                row.Add(Cell(ResultTime(r), "lob-result-time"));
                 if (points) row.Add(Cell((setPhase ? r.setPoints : r.points).ToString(setPhase ? "0" : "+0;-0;0", CultureInfo.InvariantCulture), "lob-result-points"));
                 list.Add(row);
                 if (r.ai) continue;
@@ -597,6 +597,14 @@ namespace MHK.UI
             var l = new Label(text);
             l.AddToClassList(cls);
             return l;
+        }
+
+        // A lapped finisher (end at the line) shows the laps it was down instead of its time.
+        string ResultTime(RaceResultRow r)
+        {
+            if (r.finishMs <= 0) return dnfText;
+            if (r.lapsDown <= 0) return UiText.Clock(r.finishMs / 1000f);
+            return r.lapsDown == 1 ? "+1 lap" : "+" + r.lapsDown.ToString(CultureInfo.InvariantCulture) + " laps";
         }
 
         // Voting opens the vote page by itself once per round while the player has not voted. Back from it returns

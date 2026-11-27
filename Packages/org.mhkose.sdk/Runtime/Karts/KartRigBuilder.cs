@@ -40,12 +40,11 @@ namespace MHK.Karts
         /// seat until its hands reach the steering wheel (<see cref="CharacterDefinition.handReach"/>) and is shifted by
         /// its <see cref="CharacterDefinition.seatOffset"/>, with the animators set up. Without a kart model a driver that
         /// races without a kart (<see cref="CharacterDefinition.racesWithoutKart"/>) becomes the kart body itself. The
-        /// engine part is sized to <paramref name="engineClass"/>.
+        /// engine part is sized to <paramref name="engineClass"/> (<see cref="KartEngine.Attach"/>).
         /// </summary>
         public static Rig Spawn(Transform parent, CharacterDefinition character, KartDefinition kartDef, Difficulty engineClass)
         {
-            var engineScale = GameRoot.Instance.Config.GetDifficulty(engineClass).engineModelScale;
-            var model = SpawnKart(parent, kartDef, engineScale, out var kartAnimator, out var engine);
+            var model = SpawnKart(parent, kartDef, GameRoot.Instance.Config.GetDifficulty(engineClass), out var kartAnimator, out var engine);
             var seat = model != null && model.seat != null ? model.seat : parent;
             var bare = model == null && character != null && character.RacesBareOn(kartDef);
             var driver = SeatDriver(seat, character, bare ? character.noKartScale : character != null ? character.modelScale : 1f);
@@ -77,7 +76,7 @@ namespace MHK.Karts
             return r;
         }
 
-        static KartModel SpawnKart(Transform parent, KartDefinition kartDef, float engineScale, out CharacterAnimator kartAnimator, out KartEngine engine)
+        static KartModel SpawnKart(Transform parent, KartDefinition kartDef, DifficultySettings engineClass, out CharacterAnimator kartAnimator, out KartEngine engine)
         {
             kartAnimator = null;
             engine = null;
@@ -87,7 +86,7 @@ namespace MHK.Karts
             var model = k.GetComponentInChildren<KartModel>();
             // Sized before the animator records the rest pose it restores after each cross-fade, or the engine would
             // grow back to its modelled size a moment after spawning.
-            engine = KartEngine.Attach(model, engineScale);
+            engine = KartEngine.Attach(model, engineClass);
             if (kartDef.animations != null && kartDef.animations.Count > 0)
             {
                 var ka = k.GetComponentInChildren<Animator>();

@@ -11,23 +11,22 @@ using UnityEngine.UIElements;
 namespace MHK.UI
 {
     /// <summary>
-    /// Settings of a private room (RoomSettings.uxml): creating one (from the Online page, starting from the last room's
-    /// settings) or the owner changing them while the room waits. Name, mode (segmented: races, battles, championship of a
-    /// cup or of the owner's own track list, edited on the Track list page), the mods as toggle cards (any set of the
-    /// loaded content packs, third-party mods included; at least one must bring tracks or arenas for the mode), and the
-    /// rules as direct controls: anticheat, items switches, engine class and track pick chips, laps / races steppers,
-    /// players and AI number inputs (AI fills free places up to its count), item odds dropdown (standard, the room's own,
-    /// or the player's own odds, limited to the room's powerups). A chip row sums the room up.
+    /// Settings of a private room (RoomSettings.uxml), creating one (from the Online page, starting from the last room's
+    /// settings) or the owner changing them while the room waits. Name, mode (segmented tabs for races, battles, Last Man
+    /// Standing on race tracks, and championships of a cup or of the owner's own track list, edited on the Track list
+    /// page), the mods as toggle cards (any set of the loaded content packs, third-party mods included, at least one must
+    /// bring tracks or arenas for the mode), and the rules as <see cref="RuleRows"/> in the look of the race settings.
+    /// Switches for anticheat, end at the line, items and the ghosts' powerups, value pills for engine class, finish wait,
+    /// item odds (standard, the room's own, or the player's own odds limited to the room's powerups), the track pick and
+    /// the championship's cup, number inputs for laps, players, AI (fills free places up to its count) and races per set.
+    /// Rows that do not apply to the mode are left out. A chip row sums the room up.
     /// </summary>
     public class RoomSettingsScreen : MenuScreen
     {
-        [SerializeField, Tooltip("Setting row (Templates/SettingRow.uxml): cup and item odds dropdowns.")]
-        VisualTreeAsset rowTemplate;
-
         [Header("Texts")]
         [SerializeField] string createTitle = "Create room", editTitle = "Room settings";
         [SerializeField] string createLabel = "Create room", saveLabel = "Save";
-        [SerializeField] string trackLapsText = "Track";
+        [SerializeField, Tooltip("Laps value when every track's own lap count is used (it fits the number field).")] string trackLapsText = "Track";
         [SerializeField] string defaultOddsText = "Standard";
         [SerializeField, Tooltip("Item odds value with the player's own odds (Powerups screen).")] string ownOddsText = "My odds";
         [SerializeField, Tooltip("Item odds value while the room keeps the odds it already has.")] string roomOddsText = "This room's odds";
@@ -38,9 +37,13 @@ namespace MHK.UI
         [SerializeField, Tooltip("Title of the Track list page for the championship.")] string trackListTitle = "Championship tracks";
         [SerializeField, Tooltip("Confirm button of the Track list page.")] string trackListDone = "Done";
         [SerializeField, Tooltip("Range hint of the number inputs. {0} = min, {1} = max.")] string rangeFormat = "{0} to {1}";
+        [SerializeField, Tooltip("Range hint of the Laps input ({1} = most, 0 is every track's own count).")] string lapsRangeFormat = "1 to {1}";
         [SerializeField, Tooltip("{0} = count.")] string tracksFormat = "{0} tracks", arenasFormat = "{0} arenas";
 
-        const int MaxLapsChoice = 15;
+        // The mode tabs in their order on the page (the wire values differ).
+        static readonly RoomMode[] Modes = { RoomMode.RaceSet, RoomMode.BattleSet, RoomMode.LastManStandingSet, RoomMode.Championship };
+        // Finish wait values (seconds) of its dropdown, within RoomSettings.MinFinishWait and MaxFinishWait.
+        static readonly int[] FinishWaits = { 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300 };
 
         RoomSettings settings;
         bool editing;
@@ -50,9 +53,9 @@ namespace MHK.UI
         string oddsChoice;
         // The odds the room had when the screen opened (KeepRoomOdds).
         List<PowerupOdds> keptOdds = new();
-        VisualElement modGrid, rules, summary;
+        VisualElement modGrid, summary;
+        RuleRows rules;
         Label statusLabel;
-        SettingChoice cupChoice;
         // Championship over the room's own track list (settings.trackIds) instead of a cup.
         bool ownTracks;
         // The AI row: its input is bound again when the room size changes (its maximum is the size - 1).
@@ -97,82 +100,69 @@ namespace MHK.UI
                 ShowSummary();
             });
             modGrid = Q<VisualElement>("mod-grid");
-            rules = Q<VisualElement>("rule-rows");
+            rules = new RuleRows(Q<VisualElement>("rule-rows"), Root, Click, rangeFormat);
+            rules.Changed += ShowSummary;
             summary = Q<VisualElement>("summary");
             statusLabel = Q<Label>("room-status-label");
             KeepFocusedInView(Q<ScrollView>("mod-scroll"), modGrid);
+            // The row of the focused control scrolls into view (the focus sits on the controls inside the rows).
+            var ruleScroll = Q<ScrollView>("rule-scroll");
+            rules.Container.RegisterCallback<FocusInEvent>(e =>
+            {
+                var row = rules?.RowOf(e.target as VisualElement);
+                if (row != null) ruleScroll.ScrollTo(row);
+            });
             SetStatus(null);
             OnlineUi.Segmented(Q<VisualElement>("mode-tabs"),
-                new[] { ("sports_score", "Races", (string)null), ("swords", "Battles", null), ("emoji_events", "Championship", "The races of one cup or of your own track list") },
-                (int)settings.mode, i =>
+                new[]
+                {
+                    ("sports_score", "Races", (string)null), ("swords", "Battles", null),
+                    ("person", "Last Man Standing", "Races on race tracks, the last kart of every lap is knocked out"),
+                    ("emoji_events", "Championship", "The races of one cup or of your own track list"),
+                },
+                Mathf.Max(0, Array.IndexOf(Modes, settings.mode)), i =>
                 {
                     Click();
-                    settings.mode = (RoomMode)i;
+                    settings.mode = Modes[i];
                     FixCup();
                     Changed(true);
-                });
-            cupChoice = BindChoice("cup-row", () => Mathf.Max(1, Cups().Count), () => Mathf.Max(0, Cups().FindIndex(c => c.Id == settings.cupId)),
-                i =>
-                {
-                    var cups = Cups();
-                    return cups.Count > 0 ? cups[i].DisplayName : noCupText;
-                }, i =>
-                {
-                    var cups = Cups();
-                    if (cups.Count > 0) settings.cupId = cups[i].Id;
-                    ShowSummary();
                 });
             FillMods();
             Changed(false);
             FocusTarget = Q<VisualElement>("mode-tabs").Q<Button>(className: "selected");
         }
 
-        // The wide name field goes down to the selected mode chip (not the one under its middle); Up / Down in the rule rows
-        // go row by row (their controls sit at different heights and sides) to the selected chip or first control, and Left
-        // from a row's first control goes to the mod card at its height.
+        // The wide name field goes down to the selected mode chip (not the one under its middle). Up / Down in the rule rows
+        // go row by row (RuleRows.Route), and Left from a row's first control goes to the mod card at its height.
         VisualElement Navigate(VisualElement from, NavigationMoveEvent.Direction d)
         {
             var name = Q<TextField>("room-name");
             if (from == name || name.Contains(from))
                 return d == NavigationMoveEvent.Direction.Down ? OnlineUi.SelectedChip(Q<VisualElement>("mode-tabs")) : null;
-            var row = from;
-            while (row != null && row.parent != rules) row = row.parent;
+            var row = rules.RowOf(from);
             if (row == null) return null;
-            if (d == NavigationMoveEvent.Direction.Left)
-            {
-                if (row.Query<Button>().Where(OnlineUi.CanFocus).First() != from) return null;
-                VisualElement nearest = null;
-                var y = from.worldBound.center.y;
-                foreach (var card in Q<VisualElement>("mod-grid").Children())
-                    if (OnlineUi.CanFocus(card) && (nearest == null || Mathf.Abs(card.worldBound.center.y - y) < Mathf.Abs(nearest.worldBound.center.y - y)))
-                        nearest = card;
-                return nearest;
-            }
-            if (d is not (NavigationMoveEvent.Direction.Up or NavigationMoveEvent.Direction.Down)) return null;
-            var step = d == NavigationMoveEvent.Direction.Down ? 1 : -1;
-            for (var i = rules.IndexOf(row) + step; i >= 0 && i < rules.childCount; i += step)
-            {
-                var chip = rules[i].Q(className: "seg-chip");
-                var target = chip != null ? OnlineUi.SelectedChip(chip.parent) : rules[i].Query<Button>().Where(OnlineUi.CanFocus).First();
-                if (OnlineUi.CanFocus(target)) return target;
-            }
-            return null;
+            if (d != NavigationMoveEvent.Direction.Left) return rules.Route(from, d);
+            if (RuleRows.FirstControl(row) != from) return null;
+            VisualElement nearest = null;
+            var y = from.worldBound.center.y;
+            foreach (var card in modGrid.Children())
+                if (OnlineUi.CanFocus(card) && (nearest == null || Mathf.Abs(card.worldBound.center.y - y) < Mathf.Abs(nearest.worldBound.center.y - y)))
+                    nearest = card;
+            return nearest;
         }
 
         protected override void Unbind()
         {
             base.Unbind();
-            modGrid = rules = summary = null;
+            modGrid = summary = null;
+            rules = null;
             statusLabel = null;
-            cupChoice = null;
             aiRow = null;
         }
 
         // The mode or the mods changed: the controls that depend on them, the cards' counts and the summary.
         void Changed(bool keepFocus)
         {
-            SetVisible("cup-row", settings.mode == RoomMode.Championship && !ownTracks);
-            cupChoice?.Refresh();
             ShowModCounts();
             FillRules(keepFocus);
             ShowSummary();
@@ -197,7 +187,8 @@ namespace MHK.UI
             return list;
         }
 
-        // Keeps only loaded packs (the four games when none is left), a cup of them and a valid range for every number.
+        // Keeps only loaded packs (the four games when none is left), a known mode, a cup of them and a valid range for
+        // every number.
         void Sanitize()
         {
             var available = AvailablePacks();
@@ -206,8 +197,10 @@ namespace MHK.UI
                 foreach (var p in available)
                     if (Array.IndexOf(LobbyCategories.All[0].packs, p) >= 0) settings.packs.Add(p);
             if (settings.packs.Count == 0 && available.Count > 0) settings.packs.Add(available[0]);
-            settings.engineClass = Mathf.Clamp(settings.engineClass, 0, 2);
-            settings.laps = Mathf.Clamp(settings.laps, 0, MaxLapsChoice);
+            if (Array.IndexOf(Modes, settings.mode) < 0) settings.mode = RoomMode.RaceSet;
+            settings.engineClass = Mathf.Clamp(settings.engineClass, 0, OnlineUi.EngineClassCount - 1);
+            settings.laps = Mathf.Clamp(settings.laps, 0, LobbyLimits.Laps);
+            settings.finishWait = FinishWaits[FinishWaitIndex(settings.finishWait)];
             settings.maxPlayers = Mathf.Clamp(settings.maxPlayers, LobbyLimits.MinPlayers, LobbyLimits.MaxPlayers);
             settings.maxAi = Mathf.Clamp(settings.maxAi, 0, settings.maxPlayers - 1);
             settings.trackIds ??= new List<string>();
@@ -221,6 +214,15 @@ namespace MHK.UI
             FixCup();
         }
 
+        // The finish wait value nearest to seconds.
+        static int FinishWaitIndex(int seconds)
+        {
+            var best = 0;
+            for (var i = 1; i < FinishWaits.Length; i++)
+                if (Mathf.Abs(FinishWaits[i] - seconds) < Mathf.Abs(FinishWaits[best] - seconds)) best = i;
+            return best;
+        }
+
         void FixCup()
         {
             if (ownTracks) return;
@@ -228,8 +230,8 @@ namespace MHK.UI
             if (!cups.Exists(c => c.Id == settings.cupId)) settings.cupId = cups.Count > 0 ? cups[0].Id : "";
         }
 
-        // Race tracks of the room's packs: what a championship's own list may hold.
-        bool IsRoomTrack(TrackDefinition t) => t != null && t.layout == TrackLayout.Circuit && ContentManifests.IsLobbyContent(Registry, t, settings.packs);
+        // Race tracks of the room's packs, raceable arenas included. A championship's own list may hold them.
+        bool IsRoomTrack(TrackDefinition t) => t != null && t.HostsRaces && ContentManifests.IsLobbyContent(Registry, t, settings.packs);
 
         // The own list without tracks the room's packs no longer have.
         List<string> RoomTrackIds() => settings.trackIds.FindAll(id => IsRoomTrack(Registry.Get<TrackDefinition>(id)));
@@ -237,7 +239,6 @@ namespace MHK.UI
         // The Track list page on the championship's own list; Done takes it and comes back here.
         void EditTracks()
         {
-            Click();
             Flow.Get<TrackListScreen>().Open(RoomTrackIds(), IsRoomTrack, ids =>
             {
                 settings.trackIds = ids;
@@ -254,14 +255,15 @@ namespace MHK.UI
 
         bool HasPack(string id) => settings.packs.Exists(p => string.Equals(p, id, StringComparison.OrdinalIgnoreCase));
 
+        // The mode plays on the track (arenas in battles, race tracks and raceable arenas in the other modes).
+        bool Fits(TrackDefinition t) => settings.mode == RoomMode.BattleSet ? t.HostsBattles : t.HostsRaces;
+
         // Tracks (or arenas in battles) a pack brings itself.
         int TracksOf(string packId)
         {
-            var arena = settings.mode == RoomMode.BattleSet;
             var n = 0;
             foreach (var t in ContentManifests.LobbyContent<TrackDefinition>(Registry, new[] { packId }))
-                if (string.Equals(ContentManifests.PackOf(t.Id), packId, StringComparison.OrdinalIgnoreCase)
-                    && (t.layout == TrackLayout.Arena) == arena) n++;
+                if (string.Equals(ContentManifests.PackOf(t.Id), packId, StringComparison.OrdinalIgnoreCase) && Fits(t)) n++;
             return n;
         }
 
@@ -324,234 +326,110 @@ namespace MHK.UI
             }
         }
 
-        // The rules as direct controls, rebuilt when the mode changes (some apply to one mode only).
+        // The rules as direct controls, rebuilt when the mode changes (some apply to some modes only).
         void FillRules(bool keepFocus)
         {
             if (rules == null) return;
             var focusedIndex = -1;
-            var focused = keepFocus ? rules.panel?.focusController?.focusedElement as VisualElement : null;
-            for (var i = 0; i < rules.childCount; i++)
-                if (focused != null && rules[i].Contains(focused)) focusedIndex = i;
+            var focused = keepFocus ? rules.Container.panel?.focusController?.focusedElement as VisualElement : null;
+            var focusedRow = focused != null ? rules.RowOf(focused) : null;
+            if (focusedRow != null) focusedIndex = rules.Container.IndexOf(focusedRow);
             rules.Clear();
-            var battle = settings.mode == RoomMode.BattleSet;
             var championship = settings.mode == RoomMode.Championship;
-            Switch("shield", "Anticheat", "Players' games check each other's karts, cheaters are removed from the race.",
+            var toLine = OnlineUi.RacesToLine(settings.mode);
+            rules.Switch("shield", "Anticheat", "Players' games check each other's karts, cheaters are removed from the race.",
                 () => settings.anticheat, v => settings.anticheat = v);
-            var classes = GameRoot.Instance.Config.difficulties;
-            var classItems = new List<(string, string, string)>();
-            for (var i = 0; i < Mathf.Min(3, classes.Length); i++) classItems.Add((null, classes[i].label, null));
-            Segment("speed", "Engine", classItems, settings.engineClass, i => settings.engineClass = i);
-            if (!battle)
-                Stepper("flag", "Laps", 0, MaxLapsChoice, () => settings.laps, v => settings.laps = v,
-                    v => v == 0 ? trackLapsText : v.ToString(CultureInfo.InvariantCulture), "0 = every track's own lap count");
-            Switch("redeem", "Items", null, () => settings.items, v =>
+            var classes = OnlineUi.EngineClassCount;
+            rules.Choice("speed", "Engine class", "Kart speed for everyone in the room", () => classes,
+                () => Mathf.Clamp(settings.engineClass, 0, classes - 1), OnlineUi.EngineClassName, i => settings.engineClass = i);
+            if (toLine)
+            {
+                rules.Number("flag", "Laps", "Track races every track's own lap count", 0, LobbyLimits.Laps, () => settings.laps,
+                    v => settings.laps = v, trackLapsText, lapsRangeFormat);
+                rules.Choice("hourglass_top", "Finish wait", "How long the race goes on after the first kart finished", () => FinishWaits.Length,
+                    () => FinishWaitIndex(settings.finishWait), i => OnlineUi.Duration(FinishWaits[i]), i => settings.finishWait = FinishWaits[i]);
+                rules.Switch("skip_next", "End at the line",
+                    "After the winner finishes, everyone finishes when they next cross the line. Lapped drivers show +N laps.",
+                    () => settings.endAtLine, v => settings.endAtLine = v);
+            }
+            rules.Switch("redeem", "Items", "Item boxes give powerups", () => settings.items, v =>
             {
                 settings.items = v;
                 FillRules(true);
             });
-            if (settings.items) OddsRow();
-            NumberRow("group", "Players", "Room size: humans and computer drivers together", LobbyLimits.MinPlayers, LobbyLimits.MaxPlayers,
+            if (settings.items)
+            {
+                OddsRow();
+                if (OnlineUi.HasGhosts(settings.mode))
+                    rules.Switch("visibility_off", "Ghost powerups",
+                        "Knocked out drivers drive on as ghosts. On, they pick up light powerups. Off, they drive through the item boxes.",
+                        () => settings.ghostItems, v => settings.ghostItems = v);
+            }
+            rules.Number("group", "Players", "Room size, humans and computer drivers together", LobbyLimits.MinPlayers, LobbyLimits.MaxPlayers,
                 () => settings.maxPlayers, v =>
                 {
                     settings.maxPlayers = v;
                     settings.maxAi = Mathf.Min(settings.maxAi, v - 1);
                     BindAi();
                 });
-            aiRow = Row("smart_toy", "AI", "Computer drivers race in the places no human takes, at most this many (0 = humans only).");
-            BindAi();
-            if (championship)
+            aiRow = rules.Number("smart_toy", "AI", "Computer drivers race in the places no human takes, at most this many (0 = humans only).",
+                0, settings.maxPlayers - 1, () => settings.maxAi, v => settings.maxAi = v);
+            if (championship) ChampionshipRows();
+            else
             {
-                Segment("emoji_events", "Tracks", new[] { ("emoji_events", "Cup", (string)null), ("edit", "Own list", "Up to 35 tracks in your order") },
-                    ownTracks ? 1 : 0, i =>
-                    {
-                        ownTracks = i == 1;
-                        if (ownTracks) settings.cupId = "";
-                        FixCup();
-                        Changed(true);
-                    });
-                if (ownTracks)
-                {
-                    var count = RoomTrackIds().Count;
-                    var row = Row("map", "Track list", null);
-                    var edit = new Button(EditTracks) { text = count == 1 ? "1 track" : count.ToString(CultureInfo.InvariantCulture) + " tracks" };
-                    edit.AddToClassList("mhk-button");
-                    edit.AddToClassList("small");
-                    edit.AddToClassList("secondary");
-                    row.Add(edit);
-                }
+                rules.Choice("how_to_vote", "Track pick", "Vote, or the owner picks each track (in race rooms also a whole cup between sets)",
+                    () => 2, () => settings.OwnerPicks ? 1 : 0, i => i == 0 ? "Vote" : "Owner picks", i => settings.trackPick = i == 1 ? 0 : 1);
+                rules.Number("repeat", "Races per set", "Points add up over a set", 1, LobbyLimits.MaxRacesPerSet, () => settings.racesPerSet,
+                    v => settings.racesPerSet = v);
             }
-            if (!championship)
-            {
-                Segment("how_to_vote", "Track", new[] { ("how_to_vote", "Vote", (string)null), ("edit", "Owner picks", "The owner picks each track; in race rooms also a whole cup between sets") },
-                    settings.OwnerPicks ? 1 : 0, i => settings.trackPick = i == 1 ? 0 : 1);
-                Stepper("repeat", "Races per set", 1, LobbyLimits.MaxRacesPerSet, () => settings.racesPerSet, v => settings.racesPerSet = v,
-                    v => v.ToString(CultureInfo.InvariantCulture), "Points add up over a set");
-            }
-            if (focusedIndex >= 0 && focusedIndex < rules.childCount) FocusLater(rules[focusedIndex].Q<Button>());
+            if (focusedIndex >= 0 && focusedIndex < rules.Container.childCount) FocusLater(RuleRows.FirstControl(rules.Container[focusedIndex]) ?? rules.Container[focusedIndex].Q<Button>());
         }
 
-        // A whole-number row with typing and held - / + (NumberInput).
-        VisualElement NumberRow(string icon, string label, string tip, int min, int max, Func<int> get, Action<int> set)
+        // A championship races a cup (its pill) or the owner's own list (opens the Track list page).
+        void ChampionshipRows()
         {
-            var row = Row(icon, label, tip);
-            row.Add(NumberBox(min, max, get, set));
-            return row;
+            rules.Choice("emoji_events", "Tracks", "A cup, or your own list of up to 35 tracks in your order", () => 2, () => ownTracks ? 1 : 0,
+                i => i == 0 ? "Cup" : "Own list", i =>
+                {
+                    ownTracks = i == 1;
+                    if (ownTracks) settings.cupId = "";
+                    FixCup();
+                    Changed(true);
+                });
+            if (ownTracks)
+            {
+                var count = RoomTrackIds().Count;
+                rules.Link("map", "Track list", "The championship's races in their order",
+                    count == 1 ? "1 track" : count.ToString(CultureInfo.InvariantCulture) + " tracks", EditTracks);
+                return;
+            }
+            rules.Choice("military_tech", "Cup", null, () => Mathf.Max(1, Cups().Count), () => Mathf.Max(0, Cups().FindIndex(c => c.Id == settings.cupId)),
+                i =>
+                {
+                    var cups = Cups();
+                    return cups.Count > 0 ? cups[i].DisplayName : noCupText;
+                }, i =>
+                {
+                    var cups = Cups();
+                    if (cups.Count > 0) settings.cupId = cups[i].Id;
+                });
         }
 
         // The AI input, bound again whenever the room size changes its maximum.
         void BindAi()
         {
             if (aiRow == null) return;
-            aiRow.Q(className: "number-input")?.RemoveFromHierarchy();
-            aiRow.Add(NumberBox(0, settings.maxPlayers - 1, () => settings.maxAi, v => settings.maxAi = v));
+            rules.BindNumber(aiRow, 0, settings.maxPlayers - 1, () => settings.maxAi, v => settings.maxAi = v);
         }
 
-        // The elements NumberInput binds (as Templates/NumberRow.uxml has them), bound to get / set.
-        VisualElement NumberBox(int min, int max, Func<int> get, Action<int> set)
-        {
-            var box = new VisualElement();
-            box.AddToClassList("number-input");
-            var hint = new Label { name = "number-hint" };
-            hint.AddToClassList("number-hint");
-            var field = new TextField { name = "number-field" };
-            field.AddToClassList("acc-input");
-            field.AddToClassList("number-field");
-            box.Add(hint);
-            box.Add(NumberStep("number-minus", "remove"));
-            box.Add(field);
-            box.Add(NumberStep("number-plus", "add"));
-            NumberInput.Bind(box, min, max, get, v =>
-            {
-                set(v);
-                ShowSummary();
-            }, rangeFormat, Click);
-            return box;
-        }
-
-        static Button NumberStep(string name, string icon)
-        {
-            var b = StepButton(icon);
-            b.name = name;
-            b.RemoveFromClassList("room-step");
-            b.AddToClassList("number-step");
-            return b;
-        }
-
-        // Row: icon, label, control on the right.
-        VisualElement Row(string icon, string label, string tip)
-        {
-            var row = new VisualElement { tooltip = tip ?? "" };
-            row.AddToClassList("room-row");
-            var i = new VisualElement { pickingMode = PickingMode.Ignore };
-            i.AddToClassList("icon");
-            i.AddToClassList("room-row-icon");
-            i.AddToClassList("i-" + icon);
-            row.Add(i);
-            var l = new Label(label) { pickingMode = PickingMode.Ignore };
-            l.AddToClassList("room-row-label");
-            row.Add(l);
-            rules.Add(row);
-            return row;
-        }
-
-        void Switch(string icon, string label, string tip, Func<bool> get, Action<bool> set)
-        {
-            var row = Row(icon, label, tip);
-            var button = new Button();
-            button.AddToClassList("mhk-switch");
-            var knob = new VisualElement { pickingMode = PickingMode.Ignore };
-            knob.AddToClassList("switch-knob");
-            button.Add(knob);
-            button.EnableInClassList("on", get());
-            button.clicked += () =>
-            {
-                Click();
-                set(!get());
-                button.EnableInClassList("on", get());
-                ShowSummary();
-            };
-            row.Add(button);
-        }
-
-        void Segment(string icon, string label, IReadOnlyList<(string, string, string)> items, int selected, Action<int> set)
-        {
-            var row = Row(icon, label, null);
-            var tabs = new VisualElement();
-            tabs.AddToClassList("tabs");
-            tabs.AddToClassList("room-seg");
-            row.Add(tabs);
-            OnlineUi.Segmented(tabs, items, selected, i =>
-            {
-                Click();
-                set(i);
-                ShowSummary();
-            });
-        }
-
-        void Stepper(string icon, string label, int min, int max, Func<int> get, Action<int> set, Func<int, string> text, string tip)
-        {
-            var row = Row(icon, label, tip);
-            var box = new VisualElement();
-            box.AddToClassList("room-stepper");
-            var minus = StepButton("remove");
-            var value = new Label(text(get()));
-            value.AddToClassList("room-stepper-value");
-            var plus = StepButton("add");
-            void Step(int d)
-            {
-                var v = Mathf.Clamp(get() + d, min, max);
-                if (v == get()) return;
-                Click();
-                set(v);
-                value.text = text(v);
-                minus.SetEnabled(v > min);
-                plus.SetEnabled(v < max);
-                ShowSummary();
-            }
-            minus.clicked += () => Step(-1);
-            plus.clicked += () => Step(1);
-            minus.SetEnabled(get() > min);
-            plus.SetEnabled(get() < max);
-            box.Add(minus);
-            box.Add(value);
-            box.Add(plus);
-            row.Add(box);
-        }
-
-        static Button StepButton(string icon)
-        {
-            var b = new Button();
-            b.AddToClassList("mhk-button");
-            b.AddToClassList("small");
-            b.AddToClassList("secondary");
-            b.AddToClassList("icon-only");
-            b.AddToClassList("room-step");
-            var i = new VisualElement { pickingMode = PickingMode.Ignore };
-            i.AddToClassList("icon");
-            i.AddToClassList("i-" + icon);
-            b.Add(i);
-            return b;
-        }
-
-        // Item odds: a dropdown (standard, the room's own, the player's own sets).
+        // The item odds pill offers the standard odds, the room's own and the player's own.
         void OddsRow()
         {
-            var row = Row("tune", "Odds", "Item odds");
-            if (rowTemplate == null) return;
-            var holder = new VisualElement();
-            holder.AddToClassList("setting-row");
-            holder.AddToClassList("room-odds");
-            rowTemplate.CloneTree(holder);
-            holder.Q("setting-label")?.SetVisible(false);
-            row.Add(holder);
             var choices = OddsChoices();
-            new SettingChoice(holder, Root, () => choices.Count, () => Mathf.Max(0, choices.IndexOf(oddsChoice)),
+            rules.Choice("tune", "Item odds", "How often each powerup comes out of the item boxes", () => choices.Count,
+                () => Mathf.Max(0, choices.IndexOf(oddsChoice)),
                 i => choices[i] == null ? defaultOddsText : choices[i] == KeepRoomOdds ? roomOddsText : ownOddsText,
-                i =>
-                {
-                    oddsChoice = choices[i];
-                    ShowSummary();
-                }, null, Click);
+                i => oddsChoice = choices[i]);
         }
 
         // Standard, the room's own odds (when it has some), then the player's own odds (when they give items).
@@ -591,6 +469,11 @@ namespace MHK.UI
             if (summary == null) return;
             var preview = settings.Clone();
             preview.itemOdds = oddsChoice != null && settings.items ? new List<PowerupOdds> { default } : new List<PowerupOdds>();
+            if (preview.mode == RoomMode.Championship && ownTracks)
+            {
+                preview.cupId = "";
+                preview.trackIds = RoomTrackIds();
+            }
             OnlineUi.SettingsChips(summary, preview, true);
             summary.Insert(0, InfoChips.Add(null, "extension", OnlineUi.SetName(settings.packs), OnlineUi.SetTooltip(settings.packs)));
             InfoChips.Add(summary, "group", settings.maxPlayers.ToString(CultureInfo.InvariantCulture), "Players");
@@ -602,7 +485,7 @@ namespace MHK.UI
             var battle = settings.mode == RoomMode.BattleSet;
             var tracks = 0;
             foreach (var t in ContentManifests.LobbyContent<TrackDefinition>(Registry, settings.packs))
-                if ((t.layout == TrackLayout.Arena) == battle && !string.Equals(ContentManifests.PackOf(t.Id), ContentManifests.GamePackId, StringComparison.OrdinalIgnoreCase)) tracks++;
+                if (Fits(t) && !string.Equals(ContentManifests.PackOf(t.Id), ContentManifests.GamePackId, StringComparison.OrdinalIgnoreCase)) tracks++;
             if (settings.packs.Count == 0 || tracks == 0) return battle ? noArenasText : noTracksText;
             if (settings.mode == RoomMode.Championship && !ownTracks && string.IsNullOrEmpty(settings.cupId)) return noCupText;
             if (settings.mode == RoomMode.Championship && ownTracks && RoomTrackIds().Count == 0) return noTrackListText;
@@ -646,7 +529,8 @@ namespace MHK.UI
                     if (cup != null) send.racesPerSet = Mathf.Clamp(cup.tracks.Count, 1, LobbyLimits.MaxRacesPerSet);
                 }
             }
-            if (send.mode == RoomMode.BattleSet) send.laps = 0;
+            // Battles have no laps, Last Man Standing races one lap per kart but one.
+            if (!OnlineUi.RacesToLine(send.mode)) send.laps = 0;
             var save = Q<Button>("save");
             save.SetEnabled(false);
             var r = editing ? await OnlineLobby.UpdateRoom(send) : await OnlineLobby.CreateRoom(send);
