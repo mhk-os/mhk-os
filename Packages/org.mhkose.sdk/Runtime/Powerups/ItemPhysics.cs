@@ -100,6 +100,23 @@ namespace MHK.Powerups
             return Nearest(n, out hit);
         }
 
+        /// <summary>Nearest loose prop (<see cref="PropKnock.IsKnockable"/>) a swept sphere meets, for shots that explode on props.</summary>
+        public static bool SphereCastProp(Vector3 origin, float radius, Vector3 direction, float distance, out RaycastHit hit, int mask)
+        {
+            var n = Physics.SphereCastNonAlloc(origin, radius, direction, hits, distance, mask, QueryTriggerInteraction.Ignore);
+            hit = default;
+            var found = false;
+            for (var i = 0; i < n; i++)
+            {
+                var h = hits[i];
+                if (h.distance <= 0f && h.point == Vector3.zero) continue;
+                if (!PropKnock.IsKnockable(h.rigidbody) || (found && h.distance >= hit.distance)) continue;
+                hit = h;
+                found = true;
+            }
+            return found;
+        }
+
         static bool Nearest(int n, out RaycastHit best)
         {
             best = default;

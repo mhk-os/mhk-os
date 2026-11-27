@@ -89,7 +89,11 @@ namespace MHK.Powerups
             if (velocity.sqrMagnitude > MinCorrectSpeedSqr) direction = velocity.normalized;
         }
 
-        protected internal override void OnNetHit(Kart victim) => Despawn(impactVfx, SimulatedPosition, hitSound);
+        protected internal override void OnNetHit(Kart victim)
+        {
+            BlastProps(SimulatedPosition);
+            Despawn(impactVfx, SimulatedPosition, hitSound);
+        }
 
         protected internal override float NetHitReach => hitRadius;
 
@@ -166,6 +170,7 @@ namespace MHK.Powerups
                 return false;
             if (bounces >= wallBounces)
             {
+                BlastProps(transform.position);
                 Despawn(impactVfx, transform.position, terrainSound);
                 return true;
             }
@@ -232,6 +237,7 @@ namespace MHK.Powerups
                 if ((k == Owner && Age < ownerImmunity) || k.IsGhost || (!homing && k.Effects.Ghost)) continue;
                 if (GeometryUtil.DistanceSqToSegment(k.transform.position, from, to, SegmentEpsilon, 1f) >= hitRadius * hitRadius) continue;
                 HitKart(k, hitEffect);
+                BlastProps(transform.position);
                 Despawn(impactVfx, transform.position, hitSound);
                 return;
             }

@@ -6,8 +6,8 @@ namespace MHK.Karts
     /// <summary>
     /// The engine part of a kart model (<see cref="KartModel.engine"/>). It is drawn at the engine class size
     /// (<see cref="DifficultySettings.engineModelScale"/>) and shakes while it runs. The shake gets quicker and stronger
-    /// with the revs (<see cref="Revs"/>). Supercharged engines (<see cref="DifficultySettings.engineSparks"/>) of racing
-    /// karts also throw sparks (<see cref="KartEngineSparks"/>). Visual only.
+    /// with the revs (<see cref="Revs"/>). Supercharged engines (<see cref="DifficultySettings.engineSparks"/>) also
+    /// throw sparks (<see cref="KartEngineSparks"/>), on racing karts and on the menu turntable alike. Visual only.
     /// </summary>
     public class KartEngine : MonoBehaviour
     {
@@ -66,13 +66,11 @@ namespace MHK.Karts
             return part.localRotation * Vector3.Scale(part.localScale, -towardSeat * ((size - 1f) * reach));
         }
 
-        // Sparks only on karts in a race (the menu turntable has no kart view above it). They are added after the kart
-        // visual has gathered its renderers, so the see-through effect leaves them alone.
+        // Sparks are added after the kart visual has gathered its renderers, so the see-through effect leaves them alone.
+        // The menu turntable has no kart view, its sparks always show.
         void Start()
         {
-            if (!sparks) return;
-            var view = GetComponentInParent<IKartView>();
-            if (view != null) gameObject.AddComponent<KartEngineSparks>().Setup(this, view);
+            if (sparks) gameObject.AddComponent<KartEngineSparks>().Setup(this, GetComponentInParent<IKartView>());
         }
 
         void LateUpdate()

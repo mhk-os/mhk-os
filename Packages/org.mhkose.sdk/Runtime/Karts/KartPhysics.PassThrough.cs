@@ -9,9 +9,8 @@ namespace MHK.Karts
     public partial class KartPhysics
     {
         const float GhostRescanInterval = 0.5f;
-        // A ploughing kart reaches this far (m) past its chassis box for props, a little upwards push and the spin they
-        // tumble off with (rad/s).
-        const float KnockReach = 0.5f, KnockLift = 0.35f, KnockSpin = 6f;
+        // A kart that knocks props reaches this far (m) past its chassis box for them.
+        const float KnockReach = 0.5f;
 
         /// <summary>
         /// The chassis passes through other karts, dropped items, movable (non-kinematic) props, track hazards and the
@@ -25,8 +24,9 @@ namespace MHK.Karts
         bool GhostKart => kart != null && kart.IsGhost;
 
         /// <summary>
-        /// Run over: other karts drive through this one and their wheels do not rest on it (flattened), set while a
-        /// run-over effect is active and until no other kart overlaps it. Items and hazards still hit it.
+        /// Other karts drive through this one and their wheels do not rest on it (run over), set while a run-over effect
+        /// (flattened) or a plough effect (TINcan ram) is active and until no other kart overlaps it. Items and hazards
+        /// still hit it.
         /// </summary>
         public bool RunOver { get; private set; }
 
@@ -38,9 +38,11 @@ namespace MHK.Karts
         static readonly List<Collider> colliderScratch = new();
 
         readonly HashSet<Collider> ghostIgnored = new();
+        // Props the chassis passes through while it knocks them away (StatusEffectDefinition.knocksProps).
+        readonly HashSet<Collider> propIgnored = new();
         LayerMask chassisExcludeLayers;
         bool passThroughLayersSet;
-        float ghostRescan, ghostExitTime, runOverExitTime;
+        float ghostRescan, ghostExitTime, runOverExitTime, propRescan;
         EntityId wallSlideId = EntityId.None;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -91,6 +93,7 @@ namespace MHK.Karts
         void OnDisable()
         {
             if (Intangible) EndIntangible();
+            ReleaseProps();
             if (RunOver)
             {
                 RunOver = false;
@@ -181,12 +184,55 @@ namespace MHK.Karts
             colliderScratch.Clear();
         }
 
-        // A ploughing kart sends movable props near its chassis flying off at knockSpeed, away from the kart and a little
-        // upwards, on top of the kart's velocity. The chassis already passes through them (intangible), so the kart keeps
-        // its speed. Karts, items, track hazards and animated props are left alone.
+        // A kart that knocks props (StatusEffectDefinition.knocksProps or ploughsThrough) passes through the loose props
+        // near it and sends those close to its chassis flying, so it keeps its speed. knockSpeed 0 stops it.
+        void UpdatePropKnock(float knockSpeed, float h)
+        {
+            if (chassis == null) return;
+            if (knockSpeed <= 0f)
+            {
+                ReleaseProps();
+                return;
+            }
+            propRescan -= h;
+            if (propRescan <= 0f)
+            {
+                propRescan = GhostRescanInterval;
+                IgnoreProps();
+            }
+            KnockProps(knockSpeed);
+        }
+
+        void IgnoreProps()
+        {
+            foreach (var rb in FindObjectsByType<Rigidbody>())
+            {
+                if (rb == Body || !PropKnock.IsKnockable(rb) || rb.gameObject.scene.GetPhysicsScene() != physicsScene) continue;
+                rb.GetComponentsInChildren(colliderScratch);
+                foreach (var c in colliderScratch)
+                {
+                    if (c.isTrigger || c.attachedRigidbody != rb || !propIgnored.Add(c)) continue;
+                    Physics.IgnoreCollision(chassis, c, true);
+                }
+            }
+            colliderScratch.Clear();
+        }
+
+        // The props passed through collide again, except those a ghost state still passes through.
+        void ReleaseProps()
+        {
+            propRescan = 0f;
+            if (propIgnored.Count == 0) return;
+            if (chassis != null)
+                foreach (var c in propIgnored)
+                    if (c != null && !ghostIgnored.Contains(c)) Physics.IgnoreCollision(chassis, c, false);
+            propIgnored.Clear();
+        }
+
+        // Loose props near the chassis fly off at knockSpeed, away from the kart and a little upwards, on top of the kart's
+        // velocity. Karts, items, track hazards and animated props are left alone (PropKnock.IsKnockable).
         void KnockProps(float knockSpeed)
         {
-            if (chassis == null || knockSpeed <= 0f) return;
             var t = chassis.transform;
             var centre = t.TransformPoint(chassis.center);
             var half = Vector3.Scale(chassis.size * 0.5f, t.lossyScale) + Vector3.one * KnockReach;
@@ -195,16 +241,13 @@ namespace MHK.Karts
             for (var i = 0; i < n; i++)
             {
                 var rb = knockBuffer[i].attachedRigidbody;
-                if (rb == null || rb == Body || rb.isKinematic || (ghostExcludeLayers.value & (1 << rb.gameObject.layer)) != 0) continue;
+                if (rb == Body || !PropKnock.IsKnockable(rb)) continue;
                 var away = rb.worldCenterOfMass - centre;
                 away.y = 0f;
                 away = away.sqrMagnitude > 1e-4f ? away.normalized : t.forward;
                 // Already on its way out (an earlier step, or several colliders of one body).
                 if (Vector3.Dot(rb.linearVelocity - v, away) >= knockSpeed * 0.5f) continue;
-                if (rb.TryGetComponent<TrackHazard>(out _) || rb.GetComponentInParent<PropAnimator>() != null) continue;
-                rb.linearVelocity = v + (away + Vector3.up * KnockLift).normalized * knockSpeed;
-                rb.angularVelocity = Vector3.Cross(Vector3.up, away) * KnockSpin;
-                rb.WakeUp();
+                PropKnock.Fling(rb, v, away, knockSpeed);
             }
         }
 
@@ -229,7 +272,7 @@ namespace MHK.Karts
             ApplyPassThrough();
             if (chassis != null)
                 foreach (var c in ghostIgnored)
-                    if (c != null) Physics.IgnoreCollision(chassis, c, false);
+                    if (c != null && !propIgnored.Contains(c)) Physics.IgnoreCollision(chassis, c, false);
             ghostIgnored.Clear();
         }
 
@@ -238,6 +281,7 @@ namespace MHK.Karts
         {
             var rb = hit.rigidbody;
             if (rb != null && passThroughBodies.Contains(rb)) return true;
+            if (propIgnored.Contains(hit.collider)) return true;
             var layer = 1 << hit.collider.gameObject.layer;
             if (RunOver && (runOverExcludeLayers.value & layer) != 0) return true;
             return Intangible && (ghostIgnored.Contains(hit.collider) || (ghostExcludeLayers.value & layer) != 0);

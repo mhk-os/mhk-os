@@ -294,9 +294,10 @@ namespace MHK.Karts
         {
             if (profile == null) return;
             physicsScene = gameObject.scene.GetPhysicsScene();
-            UpdateIntangible(GhostKart || (effects != null && (effects.GhostActive || effects.PloughActive)), h);
-            UpdateRunOver(effects != null && effects.RunOverActive, h);
-            if (effects != null && effects.PloughActive && !Suspended) KnockProps(effects.PropKnockSpeed);
+            UpdateIntangible(GhostKart || (effects != null && effects.GhostActive), h);
+            // A ploughing kart lets other karts through like a flattened one. Items and hazards still hit it.
+            UpdateRunOver(effects != null && (effects.RunOverActive || effects.PloughActive), h);
+            UpdatePropKnock(effects != null && !Suspended ? effects.PropKnockSpeed : 0f, h);
             if (Suspended)
             {
                 StepSuspended();
