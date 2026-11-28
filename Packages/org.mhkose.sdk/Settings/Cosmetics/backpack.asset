@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc6a6bb2ded8d4c13b04b158ef03fc0b, type: 3}
+  m_Name: backpack
+  m_EditorClassIdentifier: MHK.Runtime::MHK.Modding.CosmeticDefinition
+  id: game.cosmetic.backpack
+  displayName: Backpack
+  sourceGame: game
+  icon: {fileID: 2800000, guid: 5a64232cfecd04e6ca6014ca842e2c19, type: 3}
+  hidden: 0
+  slot: 1
+  prefab: {fileID: 7259022487029742781, guid: 713e3ca1511574388b7c38874f52e1b3, type: 3}
+  offset: {x: 0, y: 0, z: 0}
+  fitWidth: 0.3
+  tintable: 1
+  defaultColor: {r: 0.13333334, g: 0.77254903, b: 0.36862746, a: 1}
+  unlockAchievement: core.achievement.distance_10

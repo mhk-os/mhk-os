@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MHK.Modding
 {
-    /// <summary>A driver: model, default kart, special powerup, animation clips per role and voice lines.</summary>
+    /// <summary>A driver with its model, default kart, special powerup, own cosmetics, animation clips per role and voice lines.</summary>
     [CreateAssetMenu(menuName = "MHK/Content/Character", fileName = "Character")]
     public class CharacterDefinition : ContentDefinition
     {
@@ -19,6 +19,17 @@ namespace MHK.Modding
 
         /// <summary>The picture menus show for this driver: the portrait, else the icon.</summary>
         public Texture2D Portrait => portrait != null ? portrait : Icon;
+        [Tooltip("Cosmetics that are part of the driver, such as its own hat, cut out of its model. It wears them in the " +
+                 "slots its player leaves empty, so a hat the player picks replaces its own. Every driver can wear them too.")]
+        public List<CosmeticDefinition> ownCosmetics = new();
+
+        /// <summary>The cosmetic of <see cref="ownCosmetics"/> in <paramref name="slot"/>, null for none.</summary>
+        public CosmeticDefinition OwnCosmetic(CosmeticSlot slot)
+        {
+            foreach (var cosmetic in ownCosmetics)
+                if (cosmetic != null && cosmetic.slot == slot) return cosmetic;
+            return null;
+        }
 
         [Header("Seat")]
         [Tooltip("How far ahead of its seat point (metres, at modelScale) the driver's hands hold the steering wheel in " +

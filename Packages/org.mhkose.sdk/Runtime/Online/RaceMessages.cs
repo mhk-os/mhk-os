@@ -153,6 +153,11 @@ namespace MHK.Online
         public int platform;
         /// <summary>An AI kart (accountId 0, no username): the AI host simulates and reports for it.</summary>
         public bool ai;
+        /// <summary>
+        /// Cosmetics the racer wears. They travel in the trailing list of <see cref="RaceSetup"/>, not in the slot's own
+        /// bytes, so empty from a server that does not pass them on.
+        /// </summary>
+        public List<Cosmetics.CosmeticChoice> cosmetics = new();
 
         public void Write(WireWriter w)
         {
@@ -247,6 +252,9 @@ namespace MHK.Online
             w.U16((ushort)Mathf.Clamp(finishWait, 0, ushort.MaxValue));
             w.Bool(endAtLine);
             w.Bool(ghostItems);
+            // The racers' cosmetics, one list per grid entry in grid order, after the fields older readers know.
+            w.ListCount(grid.Count, RaceProtocol.MaxRacers);
+            foreach (var s in grid) CosmeticWire.Write(w, s.cosmetics, RaceProtocol.MaxContentId);
         }
 
         public static RaceSetup Read(WireReader r)
@@ -269,7 +277,19 @@ namespace MHK.Online
             m.finishWait = r.U16();
             m.endAtLine = r.Bool();
             m.ghostItems = r.Bool();
+            if (r.Remaining > 0) ReadCosmetics(r, m.grid);
             return m;
+        }
+
+        // Lists beyond the grid are read and dropped, a server without cosmetics sends none.
+        static void ReadCosmetics(WireReader r, List<RaceSlot> grid)
+        {
+            var lists = r.ListCount(RaceProtocol.MaxRacers);
+            for (var i = 0; i < lists; i++)
+            {
+                var worn = CosmeticWire.Read(r, RaceProtocol.MaxContentId);
+                if (i < grid.Count) grid[i].cosmetics = worn;
+            }
         }
     }
 

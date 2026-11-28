@@ -37,6 +37,11 @@ namespace MHK.Core
         public string country = "";
         /// <summary>Online races: the racer's device (<c>RaceSlot.platform</c>), 0 unknown.</summary>
         public int platform;
+        /// <summary>
+        /// Cosmetics the driver wears with their colours, purely visual. The player's own from the settings, online
+        /// racers' from the race setup. Ids this game does not have are skipped.
+        /// </summary>
+        public List<Cosmetics.CosmeticChoice> cosmetics = new();
     }
 
     /// <summary>Everything the Race scene needs to know about the next race(s). Created by the menus, kept by <see cref="GameRoot"/>.</summary>

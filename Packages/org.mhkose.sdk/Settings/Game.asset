@@ -16,7 +16,7 @@ MonoBehaviour:
   title: 'Moorhuhn Kart: Open Source'
   author: MHK:OSE
   version: 
-  description: 'The game''s own definitions (shared kart reactions, the No kart of drivers that are vehicles themselves, achievements, the battle health pack, the track modifiers direction, time of day and weather with their options clear, rain, snow and sandstorm). Built into the game, always on, not listed in the Mods screen.'
+  description: The game's own definitions (shared kart reactions, the No kart of drivers that are vehicles themselves, achievements, the battle health pack, the track modifiers direction, time of day and weather with their options clear, rain, snow and sandstorm). Built into the game, always on, not listed in the Mods screen.
   loadOrder: -100
   includes: []
   logo: {fileID: 0}
@@ -31,6 +31,8 @@ MonoBehaviour:
   engineLoop: {fileID: 0}
   skidLoop: {fileID: 0}
   crashSound: {fileID: 0}
+  respawnSound: {fileID: 0}
+  fallSound: {fileID: 0}
   landSound: {fileID: 0}
   countdownSound: {fileID: 0}
   goSound: {fileID: 0}
@@ -87,6 +89,12 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5be09c2be93f47d4b5062e7d66f98366, type: 2}
   - {fileID: 11400000, guid: f6b51361896f4235a1cbd2eae8e1325a, type: 2}
   - {fileID: 11400000, guid: 3734e8da4e1554f3ba19d4423a9ecf4f, type: 2}
+  - {fileID: 11400000, guid: 46fc3f366d83a48e7a0a014511e1c874, type: 2}
+  - {fileID: 11400000, guid: 8dd2c3cf1418a4b0bbe27a8f00f7b2a6, type: 2}
+  - {fileID: 11400000, guid: bad6ab6bf8a0d44e285e23f3dd3bf0a4, type: 2}
+  - {fileID: 11400000, guid: d8f586cf2b8354f118439f6f1906a6c4, type: 2}
+  - {fileID: 11400000, guid: 0db39298bd5554c09ae9821d49ece020, type: 2}
+  - {fileID: 11400000, guid: 6e680452a31934e518c98c6214bacbaf, type: 2}
   sdkApi: 0
   sdkVersion: 
   unityVersion: 

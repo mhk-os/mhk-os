@@ -102,18 +102,21 @@ namespace MHK.Karts
         /// <summary>Switches the headlights on or off (a kart's <see cref="Kart.SetHeadlights"/>, a ghost's recording).</summary>
         public void SetHeadlights(bool on) => headlights.SetOn(on);
 
-        /// <summary>Builds the visual of a live kart (child "Visual" of the kart).</summary>
+        /// <summary>Builds the visual of a live kart (child "Visual" of the kart), wearing its racer's cosmetics.</summary>
         public static KartVisual Build(Kart kart, CharacterDefinition character, KartDefinition kartDef) =>
-            Create(kart, kart, character, kartDef);
+            Create(kart, kart, character, kartDef, kart.Setup?.cosmetics);
 
         /// <summary>
-        /// Builds the visual of a replayed kart (a time-trial ghost) as child "Visual" of <paramref name="view"/>: it
-        /// shows the recorded state and triggers no action by itself (they are replayed with <see cref="PlayRecordedAction"/>).
+        /// Builds the visual of a replayed kart (a time-trial ghost) as child "Visual" of <paramref name="view"/>, wearing
+        /// the recorded <paramref name="cosmetics"/>: it shows the recorded state and triggers no action by itself (they
+        /// are replayed with <see cref="PlayRecordedAction"/>).
         /// </summary>
-        public static KartVisual BuildReplay(IKartView view, CharacterDefinition character, KartDefinition kartDef) =>
-            Create(view, null, character, kartDef);
+        public static KartVisual BuildReplay(IKartView view, CharacterDefinition character, KartDefinition kartDef,
+            IReadOnlyList<Cosmetics.CosmeticChoice> cosmetics) =>
+            Create(view, null, character, kartDef, cosmetics);
 
-        static KartVisual Create(IKartView view, Kart kart, CharacterDefinition character, KartDefinition kartDef)
+        static KartVisual Create(IKartView view, Kart kart, CharacterDefinition character, KartDefinition kartDef,
+            IReadOnlyList<Cosmetics.CosmeticChoice> cosmetics)
         {
             var existing = view.transform.Find("Visual");
             if (existing != null) Destroy(existing.gameObject);
@@ -122,16 +125,18 @@ namespace MHK.Karts
             var visual = root.AddComponent<KartVisual>();
             visual.view = view;
             visual.kart = kart;
-            visual.Assemble(character, kartDef);
+            visual.Assemble(character, kartDef, cosmetics);
             return visual;
         }
 
-        void Assemble(CharacterDefinition character, KartDefinition kartDef)
+        void Assemble(CharacterDefinition character, KartDefinition kartDef, IReadOnlyList<Cosmetics.CosmeticChoice> cosmetics)
         {
             body = new GameObject("Body").transform;
             body.SetParent(transform, false);
             var session = GameRoot.Instance.Session;
-            var rig = KartRigBuilder.Spawn(body, character, kartDef, session != null ? session.difficulty : Difficulty.Medium);
+            // Drivers without cosmetics, of their racer or their own, are not measured.
+            var rig = KartRigBuilder.Spawn(body, character, kartDef, session != null ? session.difficulty : Difficulty.Medium,
+                cosmetics is { Count: > 0 } ? cosmetics : null);
             model = rig.model;
             animator = rig.driver;
             kartAnimator = rig.kart;

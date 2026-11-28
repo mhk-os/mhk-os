@@ -11,6 +11,9 @@ namespace MHK.Core
     /// <summary>Detail of the race camera's screen-edge speed effect (<see cref="GraphicsQuality.SpeedEffect"/>).</summary>
     public enum SpeedEffectLevel { Off, Medium, High }
 
+    /// <summary>Detail of cloth cosmetics such as capes (<see cref="GraphicsQuality.Cloth"/>). Only append values.</summary>
+    public enum ClothDetail { Low, Medium, High }
+
     /// <summary>
     /// Applies <see cref="GraphicsOptions"/>: the Quality level and URP asset of the preset, frame pacing, texture
     /// quality, the shader detail of its tier (<see cref="MHKLitIds.DetailCut"/>: rain, water and lit particle shaders
@@ -48,6 +51,18 @@ namespace MHK.Core
         };
 
         /// <summary>
+        /// Detail of cloth cosmetics (<see cref="Cosmetics.CosmeticCloth"/>). Low steps a coarse grid 30 times a second.
+        /// The higher tiers step finer grids 60 times a second. Custom follows its shadow level, full detail when no
+        /// options were applied (editor scenes).
+        /// </summary>
+        public static ClothDetail Cloth => current == null ? ClothDetail.High : TierOf(current) switch
+        {
+            GraphicsPreset.High => ClothDetail.High,
+            GraphicsPreset.Medium => ClothDetail.Medium,
+            _ => ClothDetail.Low,
+        };
+
+        /// <summary>
         /// Render-resolution tier of the applied options: 0 = 720p or lower, 1 = 1080p, 2 = native or none applied. Auto
         /// counts as its preset tier (Low 0, Medium 1, High 2).
         /// </summary>
@@ -62,7 +77,8 @@ namespace MHK.Core
         /// <summary>
         /// Preset tier of the applied options (Custom by its shadow quality), High when none were applied (editor scenes).
         /// Besides the Quality level it sets the shader detail (<see cref="MHKLitIds.DetailCut"/>), HD water
-        /// (<see cref="TrackWater"/>), tyre spray, headlight spot lights, the speed effect and the menu glass blur.
+        /// (<see cref="TrackWater"/>), tyre spray, headlight spot lights, the speed effect, cloth cosmetics and the menu
+        /// glass blur.
         /// </summary>
         public static GraphicsPreset Tier => current == null ? GraphicsPreset.High : TierOf(current);
 

@@ -65,6 +65,27 @@ namespace MHK.Achievements
             }
         }
 
+        /// <summary>
+        /// Whether the achievement <paramref name="id"/> is unlocked on this device. An unlock stays true while the
+        /// achievement's packs are not loaded (what cosmetics unlocked by it check).
+        /// </summary>
+        public static bool IsUnlocked(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+            EnsureLoaded();
+            _ = Visible;
+            return local.unlocked.ContainsKey(id);
+        }
+
+        /// <summary>The visible achievement <paramref name="id"/>, null when it is not loaded or its packs are missing.</summary>
+        public static AchievementView Find(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            foreach (var v in Visible)
+                if (string.Equals(v.Id, id, StringComparison.OrdinalIgnoreCase)) return v;
+            return null;
+        }
+
         /// <summary>An account is logged in and its totals are loaded: progress shown is the account's.</summary>
         public static bool Synced => account != null;
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MHK.Achievements;
 using MHK.Editor.Tracks;
 using MHK.Modding;
 using UnityEditor;
@@ -77,6 +78,7 @@ namespace MHK.Editor.Modding
                 TrackOverlayDefinition o => CheckOverlay(o, known),
                 CupDefinition c => CheckCup(c, known),
                 StatusEffectDefinition e => CheckEffect(e),
+                CosmeticDefinition c => CheckCosmetic(c, known),
                 _ => true,
             };
         }
@@ -86,6 +88,20 @@ namespace MHK.Editor.Modding
             if (t.scene.IsSet) return true;
             Debug.LogError($"[Mods] Track '{t.Id}' has no scene.", t);
             return false;
+        }
+
+        // A cosmetic needs a model. Its achievement may come from another mod, so an unknown one only warns.
+        static bool CheckCosmetic(CosmeticDefinition c, KnownIds known)
+        {
+            if (c.prefab == null)
+            {
+                Debug.LogError($"[Mods] Cosmetic '{c.Id}' has no model (prefab).", c);
+                return false;
+            }
+            if (!c.UnlockedByDefault && !known.Has<AchievementDefinition>(c.unlockAchievement))
+                Debug.LogWarning($"[Mods] Cosmetic '{c.Id}' is unlocked by '{c.unlockAchievement}', which is no achievement of the project or " +
+                                 "the base content. It stays locked while that achievement is neither unlocked nor loaded.", c);
+            return true;
         }
 
         // A driver shown knocked out never drives on, so the game holds such a kart whatever freezeKart says.

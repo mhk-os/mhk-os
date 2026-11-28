@@ -45,6 +45,9 @@ namespace MHK.Editor.Content
         static readonly StudioShot PortraitShot = new(new Vector3(8f, 28f, 0f), 2.2f, 0f, 28f, PortraitSize * 2);
         static readonly StudioShot KartIcon = new(new Vector3(-22f, 35f, 0f), 3.2f, 0.3f, 32f, 256);
         static readonly StudioShot PowerupIcon = new(new Vector3(25f, 145f, 0f), 3f, 0.3f, 30f, 128);
+        // Hats from the front, body items from behind, both a little from above.
+        static readonly StudioShot HatIcon = new(new Vector3(-20f, 30f, 0f), 3.6f, 0.1f, 30f, 256);
+        static readonly StudioShot BodyIcon = new(new Vector3(-15f, 150f, 0f), 3.6f, 0.1f, 30f, 256);
 
         [MenuItem("MHK/Content/Render Missing Previews, Portraits && Icons")]
         public static void RenderMissing() => RenderAll(false);
@@ -69,6 +72,8 @@ namespace MHK.Editor.Content
                     if (p.Icon == null) RenderPowerup(p);
                 foreach (var k in pack.GetAll<KartDefinition>())
                     if (force || k.Icon == null) RenderKart(k);
+                foreach (var c in pack.GetAll<CosmeticDefinition>())
+                    if (force || c.Icon == null) RenderCosmetic(c);
                 tracks.AddRange(pack.GetAll<TrackDefinition>().Where(t => force || t.previewImage == null).Select(t => t.Id));
             }
             AssetDatabase.SaveAssets();
@@ -77,6 +82,58 @@ namespace MHK.Editor.Content
 
         internal static string OutputPath(ContentDefinition def, string suffix) =>
             $"{AssetPaths.DirectoryOf(def)}/{AssetPaths.SafeFileName(def.Id)}_{suffix}.png";
+
+        /// <summary>
+        /// Renders a cosmetic's icon in its default colour, a cape in its rest shape. An icon that is not one of these
+        /// renders (hand-made art) is kept.
+        /// </summary>
+        public static void RenderCosmetic(CosmeticDefinition c)
+        {
+            if (c.prefab == null) return;
+            var path = OutputPath(c, "icon");
+            if (c.Icon != null && AssetDatabase.GetAssetPath(c.Icon) != path) return;
+            var temporary = new List<Object>();
+            try
+            {
+                WithInstance(c.prefab, go => DressForIcon(go, c, temporary), null, (go, b) =>
+                {
+                    c.EditorSetIcon(Save(RenderStudio(go, b.center, b, c.slot == CosmeticSlot.Hat ? HatIcon : BodyIcon), path));
+                    EditorUtility.SetDirty(c);
+                });
+            }
+            finally
+            {
+                foreach (var o in temporary) Object.DestroyImmediate(o);
+            }
+        }
+
+        // Builds cloth meshes and tints copies of the materials as the game wears it (CosmeticItem).
+        static void DressForIcon(GameObject go, CosmeticDefinition c, List<Object> temporary)
+        {
+            foreach (var cloth in go.GetComponentsInChildren<Cosmetics.CosmeticCloth>())
+            {
+                cloth.Build();
+                temporary.Add(cloth.GetComponent<MeshFilter>().sharedMesh);
+            }
+            if (!c.tintable) return;
+            var item = go.GetComponent<Cosmetics.CosmeticItem>();
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+            {
+                var materials = r.sharedMaterials;
+                for (var i = 0; i < materials.Length; i++)
+                {
+                    var m = materials[i];
+                    if (m == null || !m.HasColor(Rendering.MHKLitIds.BaseColor) || (item != null && item.KeepColor.Contains(m))) continue;
+                    var tinted = new Material(m);
+                    var color = m.GetColor(Rendering.MHKLitIds.BaseColor) * c.defaultColor;
+                    color.a = m.GetColor(Rendering.MHKLitIds.BaseColor).a;
+                    tinted.SetColor(Rendering.MHKLitIds.BaseColor, color);
+                    materials[i] = tinted;
+                    temporary.Add(tinted);
+                }
+                r.sharedMaterials = materials;
+            }
+        }
 
         /// <summary>
         /// Renders a front three-quarter driver bust as the character's portrait on a transparent background.

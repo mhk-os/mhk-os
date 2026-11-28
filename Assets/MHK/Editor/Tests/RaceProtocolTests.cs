@@ -42,9 +42,10 @@ namespace MHK.Tests
             };
             setup.grid.Add(new RaceSlot { slot = 0, characterId = "c", kartId = "k", ai = true });
             setup.grid.Add(new RaceSlot { slot = 1, accountId = 9, username = "u", country = "DE", characterId = "c", kartId = "k", platform = 2 });
-            var hex = "0100000000000000" + "0200000000000000" + "0174" + "0c636f72652e72657665727365" + "00" + "02" + "03" + "01" + "00" + "01" + "01"
-                      + "0500000000000000" + "02"
-                      + AiSlotHex + HumanSlotHex + "01" + "b61c" + "4200000000000000" + "20" + Repeat("07", 32) + "01" + "04" + "3c00" + "01" + "01";
+            var beforeCosmetics = "0100000000000000" + "0200000000000000" + "0174" + "0c636f72652e72657665727365" + "00" + "02" + "03" + "01" + "00" + "01" + "01"
+                                  + "0500000000000000" + "02"
+                                  + AiSlotHex + HumanSlotHex + "01" + "b61c" + "4200000000000000" + "20" + Repeat("07", 32) + "01" + "04" + "3c00" + "01" + "01";
+            var hex = beforeCosmetics + "02" + "00" + "00";
             Assert.AreEqual(hex, Hex(setup.Write));
             var back = RaceSetup.Read(Reader(hex));
             Assert.AreEqual(1, back.aiHost);
@@ -54,6 +55,40 @@ namespace MHK.Tests
             Assert.IsTrue(back.ghostItems);
             Assert.IsFalse(back.LastManStanding);
             Assert.AreEqual(hex, Hex(back.Write));
+            // A server without cosmetics ends the setup before them.
+            var old = RaceSetup.Read(Reader(beforeCosmetics));
+            Assert.AreEqual(0, old.grid[1].cosmetics.Count);
+            Assert.AreEqual(hex, Hex(old.Write));
+        }
+
+        // The trailing lists of TestRaceSetupCosmetics and the cosmetics of TestSetLoadoutCosmetics in cosmetics_test.go.
+        [Test]
+        public void CosmeticsMatchGo()
+        {
+            var cape = new Cosmetics.CosmeticChoice("a", new Color32(1, 2, 3, 4));
+            Assert.AreEqual("01" + "0161" + "01020304", Hex(w => CosmeticWire.Write(w, new[] { cape }, RaceProtocol.MaxContentId)));
+            var setup = new RaceSetup { trackId = "t", aiHost = RaceProtocol.NoSlot, udpKey = new byte[RaceProtocol.UdpKeySize] };
+            setup.grid.Add(new RaceSlot { slot = 0, characterId = "c", kartId = "k", ai = true });
+            setup.grid.Add(new RaceSlot { slot = 1, accountId = 9, username = "u", characterId = "c", kartId = "k" });
+            setup.grid[1].cosmetics.Add(cape);
+            var hex = Hex(setup.Write);
+            StringAssert.EndsWith("02" + "00" + "01" + "0161" + "01020304", hex);
+            var back = RaceSetup.Read(Reader(hex));
+            Assert.AreEqual(0, back.grid[0].cosmetics.Count);
+            Assert.AreEqual("a", back.grid[1].cosmetics[0].id);
+            Assert.AreEqual(new Color32(1, 2, 3, 4), back.grid[1].cosmetics[0].color);
+        }
+
+        // Ids the server would drop are not sent, nor more than the list holds.
+        [Test]
+        public void CosmeticsSendOnlyContentIds()
+        {
+            var worn = new[] { new Cosmetics.CosmeticChoice("bad id", default), new Cosmetics.CosmeticChoice("", default) };
+            Assert.AreEqual("00", Hex(w => CosmeticWire.Write(w, worn, RaceProtocol.MaxContentId)));
+            var many = new Cosmetics.CosmeticChoice[CosmeticWire.MaxCosmetics + 2];
+            for (var i = 0; i < many.Length; i++) many[i] = new Cosmetics.CosmeticChoice("m.c" + i, default);
+            var back = CosmeticWire.Read(Reader(Hex(w => CosmeticWire.Write(w, many, RaceProtocol.MaxContentId))), RaceProtocol.MaxContentId);
+            Assert.AreEqual(CosmeticWire.MaxCosmetics, back.Count);
         }
 
         [Test]

@@ -384,6 +384,7 @@ namespace MHK.Online
             session.trackIds.Add(s.trackId);
             session.variants.Add(s.variant);
             foreach (var o in s.itemOdds) session.powerupOdds.Add(new PowerupOdds { id = o.powerupId, percent = o.percent });
+            var root = GameRoot.Instance;
             foreach (var slot in s.grid)
             {
                 var local = slot.slot == s.yourSlot;
@@ -397,10 +398,20 @@ namespace MHK.Online
                     onlineSlot = slot.slot,
                     country = slot.country,
                     platform = slot.platform,
+                    cosmetics = CosmeticsOf(slot, local, s.seed, root),
                 });
             }
             session.ResetStandings();
             return session;
+        }
+
+        // The player always sees its own cosmetics, also when the server does not pass them on. With the player's
+        // aiCosmetics setting the computer drivers wear random ones, the same for the whole race.
+        static List<Cosmetics.CosmeticChoice> CosmeticsOf(RaceSlot slot, bool local, ulong seed, GameRoot root)
+        {
+            if (local) return Cosmetics.CosmeticWardrobe.WornChoices(root.Settings, root.Content);
+            if (!slot.ai || !root.Settings.aiCosmetics) return slot.cosmetics;
+            return Cosmetics.CosmeticWardrobe.RandomOutfit(root.Content, new System.Random(unchecked((int)seed * 31 + slot.slot)));
         }
 
         /// <summary>The name an AI driver shows: its character's, the id when the character is not installed.</summary>

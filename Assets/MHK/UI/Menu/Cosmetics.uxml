@@ -1,0 +1,92 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Cosmetics. Code fills tabs (one chip per slot: hats, body items) and card-grid (None, then one card per cosmetic of the slot, no tags: class no-tags; class locked with the card-lock badge while its achievement is not unlocked, selected on the worn one, current on the shown one). Picking a card wears it (None takes the slot's cosmetic off), a locked one is only shown. cos-colors shows for the shown cosmetic when it is worn and tintable: code fills cos-swatches with the base colour swatches and the Custom swatch (cos-custom, palette icon), which opens cos-picker (ColorPicker: cos-square for saturation and brightness, cos-hues for the hue, each with a picker-handle) with the picked colour in cos-preview and cos-hex. showcase-area frames the 3D turntable with the driver wearing the shown cosmetic, the info panel below it names it, its game, its slot (info-slot) or what unlocks it (info-lock). Samples: the hats with the top hat worn in an own colour. -->
+    <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
+    <ui:Template name="Chip" src="/Assets/MHK/UI/Menu/Templates/Chip.uxml" />
+    <ui:Template name="PortraitCard" src="/Assets/MHK/UI/Menu/Templates/PortraitCard.uxml" />
+    <ui:VisualElement name="page" class="menu-page">
+        <ui:VisualElement class="header anim pop">
+            <ui:Label name="title" text="Cosmetics" class="page-title" />
+        </ui:VisualElement>
+        <ui:VisualElement class="page-body">
+            <ui:VisualElement name="main" class="page-main cos-main anim from-left">
+                <ui:VisualElement name="tabs" class="tabs">
+                    <ui:Instance template="Chip" class="sample-selected">
+                        <ui:AttributeOverrides element-name="chip" text="Hats" />
+                    </ui:Instance>
+                    <ui:Instance template="Chip">
+                        <ui:AttributeOverrides element-name="chip" text="Body" />
+                    </ui:Instance>
+                </ui:VisualElement>
+                <ui:ScrollView name="card-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" class="list-scroll">
+                    <ui:VisualElement name="card-grid" class="card-grid cos-grid no-tags">
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="None" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard" class="sample-selected">
+                            <ui:AttributeOverrides element-name="card-title" text="Top Hat" />
+                        </ui:Instance>
+                        <ui:Instance template="PortraitCard">
+                            <ui:AttributeOverrides element-name="card-title" text="Crown" />
+                        </ui:Instance>
+                    </ui:VisualElement>
+                </ui:ScrollView>
+                <ui:VisualElement name="cos-colors" class="panel cos-colors">
+                    <ui:VisualElement name="cos-swatches" class="cos-swatches">
+                        <ui:Button class="cos-swatch" style="background-color: rgb(40, 40, 44);">
+                            <ui:VisualElement class="icon i-check" />
+                        </ui:Button>
+                        <ui:Button class="cos-swatch" style="background-color: rgb(220, 38, 38);">
+                            <ui:VisualElement class="icon i-check" />
+                        </ui:Button>
+                        <ui:Button class="cos-swatch" style="background-color: rgb(37, 99, 235);">
+                            <ui:VisualElement class="icon i-check" />
+                        </ui:Button>
+                        <ui:Button class="cos-swatch cos-custom selected" tooltip="Custom colour" style="background-color: rgb(229, 55, 44);">
+                            <ui:VisualElement class="icon i-palette" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="cos-picker" class="cos-picker">
+                        <ui:VisualElement name="cos-square" class="picker-square" style="background-color: rgb(229, 55, 44);">
+                            <ui:VisualElement class="picker-handle" style="left: 80%; top: 10%;" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="cos-hues" class="picker-bar" style="background-color: rgb(229, 55, 44);">
+                            <ui:VisualElement class="picker-handle" style="top: 1%;" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="cos-picked">
+                            <ui:VisualElement name="cos-preview" class="cos-preview" style="background-color: rgb(229, 55, 44);" />
+                            <ui:Label name="cos-hex" text="#E5372C" class="cos-hex" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="side" class="page-side select-side" picking-mode="Ignore">
+                <ui:VisualElement name="showcase-area" class="select-stage" picking-mode="Ignore" />
+                <ui:VisualElement name="info-panel" class="panel info-plate driver-plate select-info cos-info anim">
+                    <ui:VisualElement class="plate-head">
+                        <ui:Label name="info-name" text="Top Hat" class="info-name" />
+                        <ui:Label name="info-game" text="MHK:OS" class="info-game" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="plate-divider" />
+                    <ui:VisualElement name="info-slot" class="info-line">
+                        <ui:VisualElement name="info-slot-icon" class="icon i-checkroom" />
+                        <ui:Label name="info-slot-text" text="Hat, any driver can wear it" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="info-lock" class="info-line cos-lock">
+                        <ui:VisualElement class="icon i-lock" />
+                        <ui:Label name="info-lock-text" text="Unlock it with the achievement First Victory. Win a race." />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="footer" class="page-footer anim">
+            <ui:VisualElement class="checker-strip" />
+            <ui:VisualElement class="footer-left">
+                <ui:Button name="back" class="mhk-button small secondary">
+                    <ui:VisualElement class="icon i-arrow_back" />
+                    <ui:Label text="Back" class="button-label" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="footer-right" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

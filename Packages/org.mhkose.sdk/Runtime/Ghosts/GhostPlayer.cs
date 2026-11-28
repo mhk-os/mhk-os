@@ -103,7 +103,7 @@ namespace MHK.Ghosts
             ghost.topSpeed = FlatTopSpeed(cfg, kart, data.header);
             data.Sample(0f, out ghost.state);
             go.transform.SetPositionAndRotation(ghost.state.position, ghost.state.rotation);
-            ghost.visual = KartVisual.BuildReplay(ghost, character, kart);
+            ghost.visual = KartVisual.BuildReplay(ghost, character, kart, data.header.cosmetics);
             StripPhysics(go);
             AddMinimapBlip(go, spectated, cfg);
             return ghost;
