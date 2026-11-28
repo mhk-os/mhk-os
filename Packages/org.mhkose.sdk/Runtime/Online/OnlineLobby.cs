@@ -297,18 +297,34 @@ namespace MHK.Online
             return await OnlineService.Call(LobbyMessageType.LeaveLobby, null, true);
         }
 
-        /// <summary>Chooses the player's driver and kart (lobby content); remembered as the next default.</summary>
+        /// <summary>
+        /// Chooses the player's driver and kart (lobby content), remembered as the next default. The cosmetics the player
+        /// wears go with them.
+        /// </summary>
         public static Task<OnlineResult> SetLoadout(string characterId, string kartId)
         {
             var settings = GameRoot.Instance.Settings;
             settings.lastOnlineCharacterId = characterId ?? "";
             settings.lastOnlineKartId = kartId ?? "";
             GameRoot.Instance.SaveSettings();
-            return Request(LobbyMessageType.SetLoadout, w =>
-            {
-                w.String(characterId ?? "", LobbyLimits.ContentId);
-                w.String(kartId ?? "", LobbyLimits.ContentId);
-            });
+            return Request(LobbyMessageType.SetLoadout, w => WriteLoadout(w, characterId, kartId));
+        }
+
+        /// <summary>Sends the cosmetics the player wears now with the loadout it has in the lobby (none without one).</summary>
+        public static void RefreshCosmetics()
+        {
+            var me = Me;
+            if (me == null || !me.HasLoadout) return;
+            Request(LobbyMessageType.SetLoadout, w => WriteLoadout(w, me.characterId, me.kartId)).LogFailure("cosmetics");
+        }
+
+        // The cosmetics follow driver and kart, so servers that do not know them ignore them (bodies are append-only).
+        static void WriteLoadout(WireWriter w, string characterId, string kartId)
+        {
+            w.String(characterId ?? "", LobbyLimits.ContentId);
+            w.String(kartId ?? "", LobbyLimits.ContentId);
+            var root = GameRoot.Instance;
+            CosmeticWire.Write(w, Cosmetics.CosmeticWardrobe.WornChoices(root.Settings, root.Content), LobbyLimits.ContentId);
         }
 
         public static Task<OnlineResult> SetReady(bool ready) => Request(LobbyMessageType.SetReady, w => w.Bool(ready));
@@ -379,11 +395,7 @@ namespace MHK.Online
             var fallback = registry.DefaultKart(character);
             if (kart == null && fallback != null && (fallback.IsNoKart || karts.Contains(fallback))) kart = fallback;
             kart ??= karts[0];
-            Request(LobbyMessageType.SetLoadout, w =>
-            {
-                w.String(character.Id, LobbyLimits.ContentId);
-                w.String(kart.Id, LobbyLimits.ContentId);
-            }).LogFailure("default loadout");
+            Request(LobbyMessageType.SetLoadout, w => WriteLoadout(w, character.Id, kart.Id)).LogFailure("default loadout");
         }
 
         static T Pick<T>(List<T> list, string id) where T : ContentDefinition =>

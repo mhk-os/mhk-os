@@ -22,8 +22,10 @@ namespace MHK.Modding
         /// glitchVisual, ploughsThrough, starVisual and the body bob's raise.
         /// 6: the course track modifier with its arena and circuit options (overlays that make an arena host races), and
         /// night overlays lit well enough to drive without headlights. Content packs carry per-game respawn and fall sounds.
+        /// 7: cosmetics, the CosmeticDefinition of hats and body items any driver wears, with capes of cloth on CosmeticCloth,
+        /// and CharacterDefinition.ownCosmetics, the cosmetics a driver wears in the slots its player leaves empty.
         /// </summary>
-        public const int ApiLevel = 6;
+        public const int ApiLevel = 7;
 
         // Level 1 is the API the level was introduced with, so a mod built before (stamp 0, mod.json without sdkApi) has it.
         const int FirstLevel = 1;

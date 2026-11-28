@@ -108,7 +108,7 @@ namespace MHK.UI
             tabs.RegisterCallback<NavigationMoveEvent>(OnTabsNavigate);
             restore = grid.schedule.Execute(() => Show(resting));
             restore.Pause();
-            Root.Q("showcase-area")?.RegisterCallback<GeometryChangedEvent>(OnShowcaseAreaChanged);
+            FrameShowcaseIn(Root.Q("showcase-area"));
             FillGameTabs();
             FocusTarget = FillGrid();
         }
@@ -142,16 +142,6 @@ namespace MHK.UI
                 ModsScreen.OpenModsSection(Flow);
             };
             return download;
-        }
-
-        void OnShowcaseAreaChanged(GeometryChangedEvent e)
-        {
-            if (e.target is not VisualElement area || area.panel == null) return;
-            var size = area.panel.visualTree.layout.size;
-            var r = area.worldBound;
-            Flow.FrameShowcase(r.width > 0f && r.height > 0f && size.x > 0f && size.y > 0f
-                ? new Rect(r.x / size.x, 1f - r.yMax / size.y, r.width / size.x, r.height / size.y)
-                : null);
         }
 
         void Show(T item)
@@ -196,56 +186,28 @@ namespace MHK.UI
             Show(item);
         }
 
-        // The panel's geometric navigation skips columns in the wrapped grid (focused cards are scaled, neighbours
-        // overlap by the negative margins), so arrows and the stick move by grid index. Up from the first row goes to
-        // the game filter, other moves out of the grid keep the focus (the panel would jump to an arbitrary card).
+        // Arrows and the stick move by grid index (CardGridNavigation). Up from the first row goes to the game filter,
+        // down from the last row to the footer and right from the end of a row to the turntable area's button. Other
+        // moves out of the grid keep the focus (the panel would jump to an arbitrary card).
         void OnGridNavigate(NavigationMoveEvent e)
         {
             if (e.target is not VisualElement card || card.parent != grid) return;
-            var index = grid.IndexOf(card);
-            var columns = GridColumns();
-            var next = e.direction switch
+            if (e.direction == NavigationMoveEvent.Direction.Right && ShowcaseButton != null && CardGridNavigation.EndsRow(grid, card))
             {
-                NavigationMoveEvent.Direction.Left => index - 1,
-                NavigationMoveEvent.Direction.Right => index + 1,
-                NavigationMoveEvent.Direction.Up => index - columns,
-                NavigationMoveEvent.Direction.Down => DownFrom(index, columns),
-                _ => -1
-            };
-            var target = next >= 0 && next < grid.childCount ? grid[next] : null;
+                CardGridNavigation.Move(e, ShowcaseButton);
+                return;
+            }
+            var target = CardGridNavigation.Target(grid, card, e.direction);
             if (target == null && e.direction == NavigationMoveEvent.Direction.Up && filterShown && tabs.childCount > 0)
                 target = tabs.Q(className: "selected") ?? tabs[0];
-            Move(e, target);
+            if (target == null && e.direction == NavigationMoveEvent.Direction.Down) target = FooterButton;
+            CardGridNavigation.Move(e, target);
         }
 
         void OnTabsNavigate(NavigationMoveEvent e)
         {
             if (e.direction != NavigationMoveEvent.Direction.Down || grid.childCount == 0) return;
-            Move(e, grid.Q(className: "selected") ?? grid[0]);
-        }
-
-        static void Move(NavigationMoveEvent e, VisualElement target)
-        {
-            target?.Focus();
-            e.StopPropagation();
-            if (e.target is VisualElement from) from.focusController?.IgnoreEvent(e);
-        }
-
-        // A partial last row: down from a column it lacks goes to its last card.
-        int DownFrom(int index, int columns)
-        {
-            var below = index + columns;
-            if (below < grid.childCount) return below;
-            var lastRowStart = (grid.childCount - 1) / columns * columns;
-            return index < lastRowStart ? grid.childCount - 1 : -1;
-        }
-
-        int GridColumns()
-        {
-            var top = grid[0].layout.y;
-            var columns = 1;
-            while (columns < grid.childCount && Mathf.Approximately(grid[columns].layout.y, top)) columns++;
-            return columns;
+            CardGridNavigation.Move(e, grid.Q(className: "selected") ?? grid[0]);
         }
 
         // The player's filter when this page lists that game, else null (all).

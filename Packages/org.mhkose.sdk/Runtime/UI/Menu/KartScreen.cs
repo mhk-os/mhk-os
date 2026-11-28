@@ -10,7 +10,7 @@ namespace MHK.UI
     /// hovered or focused kart carries the selected driver on the turntable, picking one goes on to the track or cup.
     /// A driver that races without a kart gets the No kart first, shown with its portrait. For the online lobby
     /// (<see cref="LobbyPick.Loadout"/>) it lists the lobby's karts and picking one sets the player's loadout and returns
-    /// to the lobby.
+    /// to the lobby. The hanger beside the turntable opens the <see cref="CosmeticsScreen"/>.
     /// </summary>
     public class KartScreen : CardGridScreen<KartDefinition>
     {
@@ -33,6 +33,7 @@ namespace MHK.UI
             speed = Q<VisualElement>("stat-speed");
             acceleration = Q<VisualElement>("stat-acceleration");
             handling = Q<VisualElement>("stat-handling");
+            OnClick("cosmetics", () => Flow.Show<CosmeticsScreen>());
         }
 
         protected override string GameName(string game) =>

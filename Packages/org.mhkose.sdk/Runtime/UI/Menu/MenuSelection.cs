@@ -210,18 +210,21 @@ namespace MHK.UI
             isHuman = true,
             playerIndex = 0,
             displayName = character.DisplayName,
+            cosmetics = Cosmetics.CosmeticWardrobe.WornChoices(GameRoot.Instance.Settings, GameRoot.Instance.Content),
         };
 
         // Random drivers of every loaded pack, each once per round of a new random order (the player's driver only when
         // there is no other), on random karts of every pack: core games and mods mix on every track. Drivers that race
-        // without a kart keep racing without one.
+        // without a kart keep racing without one. With UserSettings.aiCosmetics they wear random cosmetics.
         void AddOpponents(GameSession session, int count)
         {
-            var content = GameRoot.Instance.Content;
+            var root = GameRoot.Instance;
+            var content = root.Content;
             var drivers = content.All<CharacterDefinition>().Where(c => c != character).ToList();
             if (drivers.Count == 0) drivers.AddRange(content.All<CharacterDefinition>());
             var karts = AiRoster.Karts(content);
             var round = new List<CharacterDefinition>(drivers.Count);
+            var outfits = root.Settings.aiCosmetics ? new System.Random(UnityEngine.Random.Range(int.MinValue, int.MaxValue)) : null;
             for (var i = 0; i < count && drivers.Count > 0; i++)
             {
                 if (i % drivers.Count == 0)
@@ -236,6 +239,7 @@ namespace MHK.UI
                     kartId = KartId(AiRoster.KartFor(content, c, karts)),
                     isHuman = false,
                     displayName = c.DisplayName,
+                    cosmetics = outfits != null ? Cosmetics.CosmeticWardrobe.RandomOutfit(content, outfits) : new List<Cosmetics.CosmeticChoice>(),
                 });
             }
         }

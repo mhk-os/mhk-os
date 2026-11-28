@@ -1,8 +1,15 @@
+using System.Collections.Generic;
 using System.IO;
+using MHK.Cosmetics;
+using MHK.Online;
+using UnityEngine;
 
 namespace MHK.Ghosts
 {
-    /// <summary>Header block of a ghost file (format <see cref="GhostFile.FormatVersion"/>). Fields in a fixed order.</summary>
+    /// <summary>
+    /// Header block of a ghost file (format <see cref="GhostFile.FormatVersion"/>). Fields in a fixed order, then the
+    /// cosmetics the driver wore when there are any. Games before cosmetics stop reading before them.
+    /// </summary>
     static class GhostHeaderCodec
     {
         const int MaxLaps = 10000;
@@ -32,6 +39,7 @@ namespace MHK.Ghosts
             w.Write(h.lapTimes.Length);
             foreach (var t in h.lapTimes) w.Write(t);
             w.Write(h.frameCount);
+            WriteCosmetics(w, h.cosmetics);
         }
 
         public static GhostHeader Read(BinaryReader r)
@@ -65,7 +73,40 @@ namespace MHK.Ghosts
             for (var i = 0; i < laps; i++) h.lapTimes[i] = r.ReadSingle();
             h.frameCount = r.ReadInt32();
             if (h.tickSeconds <= 0f || h.frameCount < 0) throw new InvalidDataException("bad tick data");
+            if (r.BaseStream.Position < r.BaseStream.Length) ReadCosmetics(r, h.cosmetics);
             return h;
+        }
+
+        // A count byte, then each id and its colour as four bytes (r, g, b, a). Only content ids are written, and nothing
+        // at all without cosmetics, so the file stays what servers and games before cosmetics accept.
+        static void WriteCosmetics(BinaryWriter w, List<CosmeticChoice> cosmetics)
+        {
+            var worn = new List<CosmeticChoice>(CosmeticWire.MaxCosmetics);
+            if (cosmetics != null)
+                foreach (var c in cosmetics)
+                    if (worn.Count < CosmeticWire.MaxCosmetics && ContentManifests.IsContentId(c.id)) worn.Add(c);
+            if (worn.Count == 0) return;
+            w.Write((byte)worn.Count);
+            foreach (var c in worn)
+            {
+                w.Write(c.id);
+                w.Write(c.color.r);
+                w.Write(c.color.g);
+                w.Write(c.color.b);
+                w.Write(c.color.a);
+            }
+        }
+
+        static void ReadCosmetics(BinaryReader r, List<CosmeticChoice> cosmetics)
+        {
+            var count = r.ReadByte();
+            if (count > CosmeticWire.MaxCosmetics) throw new InvalidDataException("bad cosmetic count");
+            for (var i = 0; i < count; i++)
+            {
+                var id = r.ReadString();
+                var color = new Color32(r.ReadByte(), r.ReadByte(), r.ReadByte(), r.ReadByte());
+                if (ContentManifests.IsContentId(id)) cosmetics.Add(new CosmeticChoice(id, color));
+            }
         }
     }
 }

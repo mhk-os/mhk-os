@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using MHK.Core;
+using MHK.Cosmetics;
 using MHK.Modding;
 using UnityEngine;
 
@@ -21,13 +23,16 @@ namespace MHK.Karts
             public readonly CharacterAnimator kart;
             /// <summary>The shaking engine part of the kart model. Null when the model has none.</summary>
             public readonly KartEngine engine;
+            /// <summary>Where cosmetics sit on the driver. Null without a driver, or when no cosmetics were asked for and the driver has none of its own.</summary>
+            public readonly CosmeticAnchors anchors;
 
-            public Rig(KartModel model, CharacterAnimator driver, CharacterAnimator kart, KartEngine engine)
+            public Rig(KartModel model, CharacterAnimator driver, CharacterAnimator kart, KartEngine engine, CosmeticAnchors anchors)
             {
                 this.model = model;
                 this.driver = driver;
                 this.kart = kart;
                 this.engine = engine;
+                this.anchors = anchors;
             }
         }
 
@@ -40,20 +45,29 @@ namespace MHK.Karts
         /// seat until its hands reach the steering wheel (<see cref="CharacterDefinition.handReach"/>) and is shifted by
         /// its <see cref="CharacterDefinition.seatOffset"/>, with the animators set up. Without a kart model a driver that
         /// races without a kart (<see cref="CharacterDefinition.racesWithoutKart"/>) becomes the kart body itself. The
-        /// engine part is sized to <paramref name="engineClass"/> (<see cref="KartEngine.Attach"/>).
+        /// engine part is sized to <paramref name="engineClass"/> (<see cref="KartEngine.Attach"/>). With
+        /// <paramref name="cosmetics"/> (also an empty list), or own cosmetics of the character, the driver is measured
+        /// for cosmetics (<see cref="Rig.anchors"/>) and wears them, before effects capture the renderers of kart and driver.
         /// </summary>
-        public static Rig Spawn(Transform parent, CharacterDefinition character, KartDefinition kartDef, Difficulty engineClass)
+        public static Rig Spawn(Transform parent, CharacterDefinition character, KartDefinition kartDef, Difficulty engineClass,
+            IReadOnlyList<CosmeticChoice> cosmetics = null)
         {
             var model = SpawnKart(parent, kartDef, GameRoot.Instance.Config.GetDifficulty(engineClass), out var kartAnimator, out var engine);
             var seat = model != null && model.seat != null ? model.seat : parent;
             var bare = model == null && character != null && character.RacesBareOn(kartDef);
             var driver = SeatDriver(seat, character, bare ? character.noKartScale : character != null ? character.modelScale : 1f);
+            CosmeticAnchors anchors = null;
             if (driver != null)
             {
                 var offset = bare ? character.noKartOffset : character.seatOffset + Vector3.forward * SlideToWheel(parent, model, seat, character);
                 driver.transform.position += parent.TransformVector(offset);
+                if (cosmetics != null || CosmeticDresser.HasOwn(character))
+                {
+                    anchors = CosmeticAnchors.Measure(parent, driver.transform);
+                    CosmeticDresser.Dress(anchors, cosmetics, character, GameRoot.Instance.Content);
+                }
             }
-            return new Rig(model, driver, kartAnimator, engine);
+            return new Rig(model, driver, kartAnimator, engine, anchors);
         }
 
         // How far (m, forward in the kart's space) the driver moves from the seat point so its hands hold the wheel. Karts

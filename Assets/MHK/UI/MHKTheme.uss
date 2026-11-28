@@ -540,3 +540,4 @@ TemplateContainer.sample-gold .badge-label, TemplateContainer.sample-silver .bad
 .i-dns { background-image: url("Icons/dns.png"); }
 .i-photo_camera { background-image: url("Icons/photo_camera.png"); }
 .i-open_in_new { background-image: url("Icons/open_in_new.png"); }
+.i-checkroom { background-image: url("Icons/checkroom.png"); }

@@ -161,10 +161,14 @@ namespace MHK.UI
             if (showcase != null && showcase.gameObject.activeSelf != visible) showcase.gameObject.SetActive(visible);
         }
 
-        /// <summary>Shows <paramref name="character"/> on <paramref name="kart"/> on the turntable.</summary>
-        public void ShowOnTurntable(CharacterDefinition character, KartDefinition kart)
+        /// <summary>Shows <paramref name="character"/> on <paramref name="kart"/> on the turntable, in the cosmetics the player wears.</summary>
+        public void ShowOnTurntable(CharacterDefinition character, KartDefinition kart) =>
+            ShowOnTurntable(character, kart, Cosmetics.CosmeticWardrobe.WornChoices(GameRoot.Instance.Settings, Content));
+
+        /// <summary>Shows <paramref name="character"/> on <paramref name="kart"/> on the turntable in <paramref name="cosmetics"/>.</summary>
+        public void ShowOnTurntable(CharacterDefinition character, KartDefinition kart, IReadOnlyList<Cosmetics.CosmeticChoice> cosmetics)
         {
-            if (showcase != null && character != null) showcase.Show(character, kart, Selection.difficulty);
+            if (showcase != null && character != null) showcase.Show(character, kart, Selection.difficulty, cosmetics);
         }
 
         public void ShowcaseSelection() => ShowOnTurntable(Selection.character, Selection.kart);
@@ -173,6 +177,18 @@ namespace MHK.UI
         public void FrameShowcase(Rect? viewportArea)
         {
             if (stage != null) stage.FrameTurntable(viewportArea);
+        }
+
+        /// <summary>Starts (true) or ends a drag of the turntable (<see cref="MenuStage.DragTurntable"/>).</summary>
+        public void DragShowcase(bool held)
+        {
+            if (stage != null) stage.DragTurntable(held);
+        }
+
+        /// <summary>Turns the dragged turntable for a drag of <paramref name="points"/> to the right across the page.</summary>
+        public void DragShowcaseBy(float points)
+        {
+            if (stage != null) stage.DragTurntableBy(points);
         }
 
         /// <summary>

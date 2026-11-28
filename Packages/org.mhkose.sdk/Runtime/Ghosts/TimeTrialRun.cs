@@ -288,6 +288,7 @@ namespace MHK.Ghosts
                 speedScale = player.Physics.SpeedScale,
                 finishTime = player.Progress.FinishTime,
                 lapTimes = player.Progress.LapTimes.ToArray(),
+                cosmetics = player.Setup?.cosmetics != null ? new List<Cosmetics.CosmeticChoice>(player.Setup.cosmetics) : new List<Cosmetics.CosmeticChoice>(),
             };
         }
 

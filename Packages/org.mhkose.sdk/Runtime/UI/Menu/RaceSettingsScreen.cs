@@ -13,9 +13,10 @@ namespace MHK.UI
     /// the room settings. Engine class (also the computer drivers' skill), opponents, the track's variant
     /// (<see cref="TrackVariantRows"/>, single race, battle, Last Man Standing and time trial), laps (a single race up to
     /// <see cref="CustomRaceSetup.MaxLaps"/> or the track's own, a time trial one lap or the track's, Last Man Standing races
-    /// one lap per opponent) and powerups (opens the <see cref="ItemOddsScreen"/>). Rows that do not apply to the mode are
-    /// left out. The side stands the 3D turntable above a compact card of the track or cup and the driver, so the card
-    /// never covers the podium. Start! starts.
+    /// one lap per opponent), powerups (opens the <see cref="ItemOddsScreen"/>) and whether the opponents wear random
+    /// cosmetics. Rows that do not apply to the mode are left out. The side stands the 3D turntable above a compact card
+    /// of the track or cup and the driver, so the card never covers the podium. The hanger beside the turntable opens the
+    /// <see cref="CosmeticsScreen"/>. Start! starts.
     /// </summary>
     public class RaceSettingsScreen : MenuScreen
     {
@@ -66,7 +67,9 @@ namespace MHK.UI
             UiAnim.Stagger(rules.Container, RowStepMs, FirstRowMs, "from-left");
             OnlineUi.Spatial(Root, rules.Route);
             BindPreview(s);
-            Q<VisualElement>("showcase-area").RegisterCallback<GeometryChangedEvent>(OnShowcaseAreaChanged);
+            // The turntable stands in the free area above the card.
+            FrameShowcaseIn(Q<VisualElement>("showcase-area"));
+            OnClick("cosmetics", () => Flow.Show<CosmeticsScreen>());
             FocusTarget = OnClick("start", () =>
             {
                 RememberDifficulty(s.difficulty);
@@ -79,17 +82,6 @@ namespace MHK.UI
             base.Unbind();
             rules = null;
             Flow.FrameShowcase(null);
-        }
-
-        // The turntable stands in the free area above the card, whatever the screen's aspect.
-        void OnShowcaseAreaChanged(GeometryChangedEvent e)
-        {
-            if (e.target is not VisualElement area || area.panel == null) return;
-            var size = area.panel.visualTree.layout.size;
-            var r = area.worldBound;
-            Flow.FrameShowcase(r.width > 0f && r.height > 0f && size.x > 0f && size.y > 0f
-                ? new Rect(r.x / size.x, 1f - r.yMax / size.y, r.width / size.x, r.height / size.y)
-                : null);
         }
 
         // The engine class carries over to the next race of every mode, also after the game restarts.
@@ -128,6 +120,12 @@ namespace MHK.UI
                     i => i == 0 ? oneLapText : string.Format(lapsFormat, s.track.defaultLaps), i => s.timeTrialLaps = i == 0 ? 1 : 0);
             if (items)
                 rules.Link("redeem", "Powerups", "Which powerups the item boxes give", PowerupsValue(), () => Flow.Show<ItemOddsScreen>());
+            if (items || champ)
+                rules.Switch("checkroom", "Opponent cosmetics", "Computer drivers wear random cosmetics you have unlocked", () => Settings.aiCosmetics, v =>
+                {
+                    Settings.aiCosmetics = v;
+                    GameRoot.Instance.SaveSettings();
+                });
             BindVariantRows(s, afterVariants < rules.Container.childCount ? rules.Container[afterVariants] : null);
         }
 

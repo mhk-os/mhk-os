@@ -55,6 +55,14 @@ namespace MHK.Core
         [Tooltip("Built-in mod sources the player removed in the Mods screen: they stay removed until added again.")]
         public List<string> removedModSources = new();
         public string lastCharacterId;
+        [Tooltip("Cosmetic ids the driver wears (Cosmetics page), newest first: the first loaded and unlocked one of each " +
+                 "slot counts (Cosmetics.CosmeticWardrobe). Ids of packs that are not loaded stay stored and are ignored.")]
+        public List<string> wornCosmetics = new();
+        [Tooltip("Colour the player picked for each cosmetic. A cosmetic without an entry has its default colour.")]
+        public List<Cosmetics.CosmeticChoice> cosmeticColors = new();
+        [Tooltip("Computer drivers wear random cosmetics of the ones the player has unlocked (race settings, off by default). " +
+                 "Purely visual, also for the computer drivers of online races, which only this player sees dressed.")]
+        public bool aiCosmetics;
         [Tooltip("Engine class (50cc, 100cc, 150cc) last picked or raced in an offline mode. The race settings of every mode start with it.")]
         public Difficulty lastDifficulty = Difficulty.Medium;
         [Tooltip("Race camera view. The Camera key (minus) cycles it in races.")]

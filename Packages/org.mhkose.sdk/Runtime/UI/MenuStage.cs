@@ -10,7 +10,8 @@ namespace MHK.UI
 {
     /// <summary>
     /// 3D stage of the main menu: a neutral background, the background race (the menu camera stacks on its camera) or
-    /// its still picture, faded through a full-view quad, and the turntable that spins the showcased driver and kart.
+    /// its still picture, faded through a full-view quad, and the turntable that spins the driver and kart on show. A
+    /// drag across the turntable's area turns it, and a released turntable eases from its throw back into the spin.
     /// The showcase has its own lighting over every background: the menu light (the race's lights skip the Menu layer)
     /// and, while the menu camera renders, its own flat ambient instead of the scene's ambient, bake and fog.
     /// </summary>
@@ -36,6 +37,12 @@ namespace MHK.UI
         public Transform turntable;
         [Tooltip("Turntable spin while playing, degrees per second.")]
         public float spinDegreesPerSecond = 14f;
+        [SerializeField, Tooltip("Degrees the turntable turns per point a drag moves across the page.")]
+        float dragDegreesPerPoint = 0.45f;
+        [SerializeField, Tooltip("How quickly (1/s) a released turntable eases from the speed it was thrown at back to the spin.")]
+        float throwEase = 2.5f;
+        [SerializeField, Tooltip("Fastest throw (degrees per second).")]
+        float maxThrowSpeed = 720f;
         [SerializeField, Tooltip("Front bottom edge of the podium relative to the turntable (m, z along the camera's flat view direction). A framed turntable stands with this point on the bottom centre of its area.")]
         Vector3 turntableBase = new(0f, -0.55f, -1.15f);
         [SerializeField, Tooltip("Width and height (m) the podium with driver and kart needs. A framing area too small for it moves the turntable away from the camera, never closer than its place in the scene.")]
@@ -62,6 +69,8 @@ namespace MHK.UI
         float sceneProbeAmbient;
         bool sceneFog, showcaseLit;
         bool Fading => !Mathf.Approximately(shown, goal);
+        bool dragging;
+        float dragged, turnSpeed;
 
         void Awake()
         {
@@ -157,6 +166,19 @@ namespace MHK.UI
         /// </summary>
         public void FrameTurntable(Rect? viewportArea) => frame = viewportArea;
 
+        /// <summary>Starts (true) or ends a drag of the turntable. Ending it throws the turntable at the drag's speed.</summary>
+        public void DragTurntable(bool held)
+        {
+            dragging = held;
+            dragged = 0f;
+        }
+
+        /// <summary>Turns the dragged turntable for a drag of <paramref name="points"/> to the right across the page.</summary>
+        public void DragTurntableBy(float points)
+        {
+            if (dragging) dragged -= points * dragDegreesPerPoint;
+        }
+
         /// <summary>Fades back to the neutral background, then takes the menu camera off the race camera.</summary>
         public async Awaitable HideAsync(float seconds, CancellationToken ct)
         {
@@ -198,7 +220,7 @@ namespace MHK.UI
         {
             var dt = Time.unscaledDeltaTime;
             shown = Mathf.MoveTowards(shown, goal, fadeSpeed * dt);
-            if (turntable != null && spinDegreesPerSecond != 0f) turntable.Rotate(0f, spinDegreesPerSecond * dt, 0f, Space.Self);
+            Turn(dt);
             var racing = raceCamera != null;
             var showcase = turntable != null && turntable.gameObject.activeInHierarchy;
             veil = Mathf.MoveTowards(veil, showcase ? showcaseVeil : 0f, VeilRate * dt);
@@ -212,6 +234,21 @@ namespace MHK.UI
         }
 
         static Color WithAlpha(Color c, float a) => new(c.r, c.g, c.b, a);
+
+        // A dragged turntable follows the pointer and keeps its speed for the throw. Otherwise its speed eases to the spin.
+        void Turn(float dt)
+        {
+            if (turntable == null || dt <= 0f) return;
+            if (dragging)
+            {
+                turntable.Rotate(0f, dragged, 0f, Space.Self);
+                turnSpeed = Mathf.Clamp(Mathf.Lerp(turnSpeed, dragged / dt, 0.5f), -maxThrowSpeed, maxThrowSpeed);
+                dragged = 0f;
+                return;
+            }
+            turnSpeed = Mathf.Lerp(turnSpeed, spinDegreesPerSecond, 1f - Mathf.Exp(-throwEase * dt));
+            turntable.Rotate(0f, turnSpeed * dt, 0f, Space.Self);
+        }
 
         // Lights the showcase and fits right before rendering: the camera may render to a target with another aspect
         // (resize, captures).

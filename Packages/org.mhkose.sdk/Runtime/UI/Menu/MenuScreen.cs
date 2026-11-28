@@ -9,6 +9,8 @@ namespace MHK.UI
     /// <summary>
     /// One main-menu screen (child of <see cref="MenuFlow"/>), bound to its UXML page by element name. A Button named
     /// <c>back</c> and the cancel action go back. A setting row (Templates/SettingRow.uxml) is a <see cref="SettingChoice"/> or a link (<see cref="BindLink"/>).
+    /// A page with a turntable area (<see cref="FrameShowcaseIn"/>) turns the turntable when the area is dragged, and a
+    /// button in the area (the hanger) is reached from the page's go button in the footer.
     /// </summary>
     public abstract class MenuScreen : UiScreen
     {
@@ -20,6 +22,9 @@ namespace MHK.UI
         MenuFlow flow;
         VisualElement footer;
         VisualElement lastBodyFocus;
+        VisualElement showcaseArea;
+        Button showcaseButton;
+        int showcasePointer = -1;
 
         public bool ShowcaseVisible => showcaseVisible;
 
@@ -53,9 +58,12 @@ namespace MHK.UI
 
         protected override void Unbind()
         {
+            EndShowcaseDrag();
             FocusTarget = null;
             footer = null;
             lastBodyFocus = null;
+            showcaseArea = null;
+            showcaseButton = null;
         }
 
         void OnCancel(NavigationCancelEvent e) => GoBack();
@@ -65,24 +73,39 @@ namespace MHK.UI
 
         void OnFocusIn(FocusInEvent e)
         {
-            if (e.target is VisualElement v && footer != null && !footer.Contains(v)) lastBodyFocus = v;
+            if (e.target is VisualElement v && footer != null && !footer.Contains(v) && v != showcaseButton) lastBodyFocus = v;
         }
 
         // Down from the lowest element of the page goes to the footer and Up from the footer comes back, instead of the
-        // default wrap-around (centred panels have nothing straight above the footer buttons).
+        // default wrap-around (centred panels have nothing straight above the footer buttons). Up from the go button in
+        // the footer goes to the turntable area's button, which goes down to it again and left back to the page.
         void OnNavigate(NavigationMoveEvent e)
         {
-            if (footer == null || e.target is not VisualElement from) return;
-            var inFooter = footer.Contains(from);
+            if (e.target is not VisualElement from) return;
             VisualElement to = null;
-            if (e.direction == NavigationMoveEvent.Direction.Down && !inFooter && !FocusableBelow(from)) to = FirstButton(footer);
-            else if (e.direction == NavigationMoveEvent.Direction.Up && inFooter)
-                to = lastBodyFocus != null && lastBodyFocus.panel != null ? lastBodyFocus : LowestBodyFocusable();
+            if (from == showcaseButton)
+                to = e.direction switch
+                {
+                    NavigationMoveEvent.Direction.Down => GoButton ?? from,
+                    NavigationMoveEvent.Direction.Left => lastBodyFocus != null && lastBodyFocus.panel != null ? lastBodyFocus : LowestBodyFocusable(),
+                    _ => from,
+                };
+            else if (footer != null)
+            {
+                var inFooter = footer.Contains(from);
+                if (e.direction == NavigationMoveEvent.Direction.Down && !inFooter && !FocusableBelow(from)) to = FirstButton(footer);
+                else if (e.direction == NavigationMoveEvent.Direction.Up && inFooter)
+                    to = from == GoButton && ShowcaseButton != null ? ShowcaseButton
+                        : lastBodyFocus != null && lastBodyFocus.panel != null ? lastBodyFocus : LowestBodyFocusable();
+            }
             if (to == null) return;
             to.Focus();
             e.StopPropagation();
             from.focusController?.IgnoreEvent(e);
         }
+
+        // The button of the footer's right side (Next, Start!), null without one.
+        VisualElement GoButton => footer?.Q(className: "footer-right") is { } right ? FirstButton(right) : null;
 
         bool FocusableBelow(VisualElement from)
         {
@@ -101,7 +124,8 @@ namespace MHK.UI
         }
 
         bool IsBodyFocusable(VisualElement v) =>
-            v.canGrabFocus && v.resolvedStyle.display != DisplayStyle.None && v.resolvedStyle.visibility == Visibility.Visible && !footer.Contains(v);
+            v.canGrabFocus && v.resolvedStyle.display != DisplayStyle.None && v.resolvedStyle.visibility == Visibility.Visible && !footer.Contains(v) &&
+            v != showcaseButton;
 
         static Button FirstButton(VisualElement root) =>
             root.Query<Button>().Where(b => !b.ClassListContains("chip") && b.resolvedStyle.display != DisplayStyle.None).First();
@@ -122,6 +146,69 @@ namespace MHK.UI
 
         /// <summary>Shows or hides the element <paramref name="name"/> (setting rows that do not apply to the mode, ...).</summary>
         protected void SetVisible(string name, bool visible) => Q<VisualElement>(name).SetVisible(visible);
+
+        /// <summary>The first button of the page footer, null without one (or before the page is bound).</summary>
+        protected VisualElement FooterButton => footer != null ? FirstButton(footer) : null;
+
+        /// <summary>The shown button in the turntable area (the hanger), null without one.</summary>
+        protected VisualElement ShowcaseButton => showcaseButton != null && showcaseButton.resolvedStyle.display != DisplayStyle.None ? showcaseButton : null;
+
+        /// <summary>
+        /// Stands the 3D turntable in <paramref name="area"/> (the page's turntable area, null does nothing) whenever its
+        /// layout changes, so it fills the free part of the page whatever the screen's aspect. Dragging the area (not a
+        /// button in it) turns the turntable.
+        /// </summary>
+        protected void FrameShowcaseIn(VisualElement area)
+        {
+            if (area == null) return;
+            showcaseArea = area;
+            showcaseButton = area.Q<Button>();
+            area.pickingMode = PickingMode.Position;
+            area.RegisterCallback<GeometryChangedEvent>(OnShowcaseAreaChanged);
+            area.RegisterCallback<PointerDownEvent>(OnShowcasePointerDown);
+            area.RegisterCallback<PointerMoveEvent>(OnShowcasePointerMove);
+            area.RegisterCallback<PointerUpEvent>(OnShowcasePointerUp);
+            area.RegisterCallback<PointerCaptureOutEvent>(_ => EndShowcaseDrag());
+        }
+
+        void OnShowcaseAreaChanged(GeometryChangedEvent e)
+        {
+            if (e.target is not VisualElement area || area.panel == null) return;
+            var size = area.panel.visualTree.layout.size;
+            var r = area.worldBound;
+            Flow.FrameShowcase(r.width > 0f && r.height > 0f && size.x > 0f && size.y > 0f
+                ? new Rect(r.x / size.x, 1f - r.yMax / size.y, r.width / size.x, r.height / size.y)
+                : null);
+        }
+
+        void OnShowcasePointerDown(PointerDownEvent e)
+        {
+            if (e.target != showcaseArea || e.button != 0 || showcasePointer >= 0) return;
+            showcasePointer = e.pointerId;
+            showcaseArea.CapturePointer(e.pointerId);
+            Flow.DragShowcase(true);
+            e.StopPropagation();
+        }
+
+        void OnShowcasePointerMove(PointerMoveEvent e)
+        {
+            if (e.pointerId == showcasePointer) Flow.DragShowcaseBy(e.deltaPosition.x);
+        }
+
+        void OnShowcasePointerUp(PointerUpEvent e)
+        {
+            if (e.pointerId != showcasePointer) return;
+            showcaseArea.ReleasePointer(e.pointerId);
+            EndShowcaseDrag();
+        }
+
+        // The drag ends with the pointer's release, a lost capture or the page closing. The turntable keeps the throw.
+        void EndShowcaseDrag()
+        {
+            if (showcasePointer < 0) return;
+            showcasePointer = -1;
+            Flow.DragShowcase(false);
+        }
 
         /// <summary>
         /// Setting row <paramref name="rowName"/> choosing one of <paramref name="count"/> values (<see cref="SettingChoice"/>):

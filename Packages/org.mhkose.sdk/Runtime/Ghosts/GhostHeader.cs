@@ -48,6 +48,11 @@ namespace MHK.Ghosts
         public float[] lapTimes = Array.Empty<float>();
         /// <summary>Recorded ticks (filled when written / read).</summary>
         public int frameCount;
+        /// <summary>
+        /// What the driver wore. Purely visual, a ghost shows the ones whose packs are loaded. Files of games before
+        /// cosmetics have none.
+        /// </summary>
+        public System.Collections.Generic.List<Cosmetics.CosmeticChoice> cosmetics = new();
 
         public DateTime Date => new(dateUtcTicks, DateTimeKind.Utc);
 

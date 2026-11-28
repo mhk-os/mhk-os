@@ -387,6 +387,54 @@
             "guid": "3734e8da4e1554f3ba19d4423a9ecf4f",
             "fileId": 11400000,
             "displayName": "No kart"
+        },
+        {
+            "id": "game.cosmetic.top_hat",
+            "type": "MHK.Modding.CosmeticDefinition",
+            "pack": "game",
+            "guid": "46fc3f366d83a48e7a0a014511e1c874",
+            "fileId": 11400000,
+            "displayName": "Top Hat"
+        },
+        {
+            "id": "game.cosmetic.party_hat",
+            "type": "MHK.Modding.CosmeticDefinition",
+            "pack": "game",
+            "guid": "8dd2c3cf1418a4b0bbe27a8f00f7b2a6",
+            "fileId": 11400000,
+            "displayName": "Party Hat"
+        },
+        {
+            "id": "game.cosmetic.crown",
+            "type": "MHK.Modding.CosmeticDefinition",
+            "pack": "game",
+            "guid": "bad6ab6bf8a0d44e285e23f3dd3bf0a4",
+            "fileId": 11400000,
+            "displayName": "Crown"
+        },
+        {
+            "id": "game.cosmetic.racing_helmet",
+            "type": "MHK.Modding.CosmeticDefinition",
+            "pack": "game",
+            "guid": "d8f586cf2b8354f118439f6f1906a6c4",
+            "fileId": 11400000,
+            "displayName": "Racing Helmet"
+        },
+        {
+            "id": "game.cosmetic.cape",
+            "type": "MHK.Modding.CosmeticDefinition",
+            "pack": "game",
+            "guid": "0db39298bd5554c09ae9821d49ece020",
+            "fileId": 11400000,
+            "displayName": "Cape"
+        },
+        {
+            "id": "game.cosmetic.backpack",
+            "type": "MHK.Modding.CosmeticDefinition",
+            "pack": "game",
+            "guid": "6e680452a31934e518c98c6214bacbaf",
+            "fileId": 11400000,
+            "displayName": "Backpack"
         }
     ]
 }

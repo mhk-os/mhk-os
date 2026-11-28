@@ -108,6 +108,9 @@
  * and the value. */
 .page-side.select-side { align-items: center; justify-content: flex-end; padding: 0 0 6px 24px; }
 .select-stage { flex-grow: 1; align-self: stretch; }
+/* The hanger stands in the turntable area beside the driver's head, at the podium's top left. */
+.select-stage > .mhk-button.showcase-button { position: absolute; left: 10%; top: 34%; min-width: 68px; min-height: 64px; padding: 4px 16px 8px 16px; margin: 0; }
+.select-stage > .mhk-button.showcase-button .icon { width: 32px; height: 32px; }
 .info-plate.select-info { max-width: 100%; flex-shrink: 0; }
 .select-info.driver-info { height: 170px; }
 .select-info.kart-info { height: 214px; }
@@ -270,6 +273,43 @@
 .race-info .info-line Label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .race-driver { margin-top: 6px; }
 .race-driver-thumb { width: 52px; height: 52px; margin-right: 8px; border-radius: 10px; background-color: var(--mhk-row); background-size: contain; }
+
+/* Cosmetics: the slot's cards above a panel with the colour swatches, the side frames the turntable above a short info
+ * panel like the selection pages. Locked cards are faded with a lock badge, cards without a picture (None, cosmetics
+ * without an icon) show a symbol. A swatch shows its colour inline (set by code), the check of the selected one turns
+ * dark on light colours (.light). The Custom swatch (white with a palette until chosen, then the own colour) opens the
+ * colour picker below the swatches: the saturation and brightness square, the hue bar and the picked colour. */
+.cos-main > .list-scroll { flex-grow: 1; flex-shrink: 1; min-height: 0; }
+.panel.cos-colors { flex-shrink: 0; margin-top: 10px; padding: 10px 16px 12px 16px; }
+.cos-swatches { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+.cos-swatch, .cos-swatch:hover, .cos-swatch:active { width: 52px; height: 52px; margin: 4px; padding: 0; flex-shrink: 0; border-radius: 26px; border-width: 3px; border-color: var(--mhk-white); background-image: none; align-items: center; justify-content: center; transition-property: scale; transition-duration: 0.1s; }
+.cos-swatch:hover { scale: 1.1 1.1; }
+.cos-swatch:focus { border-color: var(--mhk-accent); scale: 1.1 1.1; }
+.cos-swatch.selected, TemplateContainer.sample-selected .cos-swatch { border-color: var(--mhk-gray-900); }
+.cos-swatch .icon { width: 28px; height: 28px; display: none; -unity-background-image-tint-color: var(--mhk-white); }
+.cos-swatch.selected .icon, .cos-swatch.cos-custom .icon { display: flex; }
+.cos-swatch.light .icon { -unity-background-image-tint-color: var(--mhk-gray-900); }
+.cos-swatch.cos-custom { background-color: var(--mhk-white); border-color: var(--mhk-gray-300); }
+.cos-swatch.cos-custom.selected { border-color: var(--mhk-gray-900); }
+.cos-swatch.cos-custom:focus { border-color: var(--mhk-accent); }
+.cos-picker { flex-direction: row; justify-content: center; align-items: center; margin-top: 8px; }
+.picker-square { width: 280px; height: 150px; border-radius: 10px; border-width: 3px; border-color: var(--mhk-white); background-size: 100% 100%; }
+.picker-bar { width: 40px; height: 150px; margin-left: 14px; border-radius: 10px; border-width: 3px; border-color: var(--mhk-white); background-size: 100% 100%; }
+.picker-square:focus, .picker-bar:focus { border-color: var(--mhk-accent); }
+.picker-handle { position: absolute; width: 24px; height: 24px; border-radius: 12px; border-width: 3px; border-color: var(--mhk-white); background-color: transparent; translate: -50% -50%; }
+.picker-bar > .picker-handle { left: -6px; right: -6px; width: auto; height: 12px; border-radius: 6px; border-color: var(--mhk-gray-900); translate: 0 -50%; }
+.cos-picked { margin-left: 22px; align-items: center; }
+.cos-preview { width: 76px; height: 76px; border-radius: 38px; border-width: 3px; border-color: var(--mhk-white); }
+.cos-hex { margin-top: 6px; -unity-font-definition: var(--font-bold); font-size: 18px; color: var(--mhk-gray-700); }
+.select-info.cos-info { height: 170px; }
+.cos-lock .icon { -unity-background-image-tint-color: var(--mhk-accent-deep); }
+.card-lock { position: absolute; right: 4px; top: 4px; width: 34px; height: 34px; background-image: url("Textures/badge_dark.png"); align-items: center; justify-content: center; }
+.card-lock .icon { width: 20px; height: 20px; -unity-background-image-tint-color: var(--mhk-white); }
+.portrait-card.locked .card-image, .portrait-card.locked .card-symbol { opacity: 0.35; }
+.icon.card-symbol { position: absolute; left: 25%; top: 25%; width: 50%; height: 50%; -unity-background-image-tint-color: var(--mhk-gray-400); }
+/* Icon-only footer buttons (the cosmetics hanger next to Back) keep the footer's height without the label's padding. */
+.page-footer .mhk-button.small.icon-only { padding: 4px 24px 9px 24px; }
+.page-footer .mhk-button.icon-only .icon { margin: 0; }
 
 .list-panel { width: 100%; max-width: 1180px; flex-shrink: 1; }
 .rec-head, .rec-row, .ctl-head, .ctl-row { flex-direction: row; align-items: center; padding: 5px 12px; border-radius: 8px; }

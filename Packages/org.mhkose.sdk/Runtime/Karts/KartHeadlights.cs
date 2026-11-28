@@ -272,13 +272,15 @@ namespace MHK.Karts
             for (var i = 0; i < glows.Length; i++) glows[i].SetPropertyBlock(block);
         }
 
-        // Drawn mesh renderers of the model. Parts scaled to nothing (hidden item props in a TINcan model) do not count.
+        // Drawn mesh renderers of the model. Parts scaled to nothing (hidden item props in a TINcan model) do not count,
+        // and neither do worn cosmetics, so lamps sit in the same place with or without them.
         static List<Renderer> ModelRenderers(Transform body, Transform driver)
         {
             var found = new List<Renderer>();
             body.GetComponentsInChildren(found);
             found.RemoveAll(r => r is not (MeshRenderer or SkinnedMeshRenderer) || !r.enabled || r.shadowCastingMode == ShadowCastingMode.ShadowsOnly
-                                 || r.transform.lossyScale.sqrMagnitude < MinPartScaleSq || (driver != null && r.transform.IsChildOf(driver)));
+                                 || r.transform.lossyScale.sqrMagnitude < MinPartScaleSq || (driver != null && r.transform.IsChildOf(driver))
+                                 || r.GetComponentInParent<Cosmetics.CosmeticItem>() != null);
             return found;
         }
 

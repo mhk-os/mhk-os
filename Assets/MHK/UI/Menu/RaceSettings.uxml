@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Race settings. rule-rows holds the setting rows in the look of the room settings (RuleRows, .rule-row): code clears the samples below and builds the rows the mode uses (engine class, opponents, the track's option rows from TrackVariantRows, laps, powerups). The side keeps the 3D turntable clear of the card. showcase-area is where code stands the turntable (MenuFlow.FrameShowcase), the race card is a compact strip below it. Code fills preview-image, info-name, the mode line and the driver and kart pictures (names as tooltips). -->
+    <!-- Race settings. rule-rows holds the setting rows in the look of the room settings (RuleRows, .rule-row): code clears the samples below and builds the rows the mode uses (engine class, opponents, the track's option rows from TrackVariantRows, laps, powerups, opponent cosmetics). The side keeps the 3D turntable clear of the card. showcase-area is where code stands the turntable (MenuFlow.FrameShowcase), and dragging it turns the turntable; the race card is a compact strip below it. Code fills preview-image, info-name, the mode line and the driver and kart pictures (names as tooltips). cosmetics (the hanger at the top left of showcase-area) opens the Cosmetics page. -->
     <ui:Style src="/Assets/MHK/UI/MHKTheme.uss" />
     <ui:VisualElement name="page" class="menu-page">
         <ui:VisualElement class="header anim pop">
@@ -80,7 +80,11 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement name="side" class="page-side select-side race-side anim from-right" picking-mode="Ignore">
-                <ui:VisualElement name="showcase-area" class="select-stage" picking-mode="Ignore" />
+                <ui:VisualElement name="showcase-area" class="select-stage" picking-mode="Ignore">
+                    <ui:Button name="cosmetics" tooltip="Cosmetics for your driver, such as hats and capes" class="mhk-button small secondary icon-only showcase-button">
+                        <ui:VisualElement class="icon i-checkroom" />
+                    </ui:Button>
+                </ui:VisualElement>
                 <ui:VisualElement name="info-plate" class="panel info-plate race-info">
                     <ui:VisualElement name="preview-image" class="browser-image race-info-image" style="background-image: url(&quot;/Assets/MHK/UI/Samples/mhke_scribble_blocks_preview.png&quot;);" />
                     <ui:VisualElement class="race-info-text">
